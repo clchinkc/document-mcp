@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic-ai
+mcp[cli]
+python-dotenv
+google-generativeai
+pytest
+pytest-asyncio
+requests

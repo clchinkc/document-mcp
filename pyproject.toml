@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "document-mcp"
+version = "0.0.1"
+authors = [
+  { name="clchinkc" },
+]
+description = "A MCP server for managing structured Markdown documents"
+readme = "document_mcp/README.md"
+requires-python = ">=3.8"
+license = {text = "MIT License"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic-ai",
+    "mcp[cli]",
+    "python-dotenv",
+    "google-generativeai",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/document-mcp/document-mcp"
+"Bug Tracker" = "https://github.com/document-mcp/document-mcp/issues"
+
+[project.scripts]
+"document-mcp" = "document_mcp.doc_tool_server:main"
+
+[tool.setuptools]
+packages = ["document_mcp"]
+
+[tool.setuptools.package-data]
+document_mcp = ["*.ini"] 
