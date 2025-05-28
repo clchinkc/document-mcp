@@ -1,7 +1,7 @@
 # Document MCP
 
 [![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Model Context Protocol (MCP) server and example agent for managing structured Markdown documents.
@@ -15,6 +15,13 @@ pip install document-mcp
 # Start the MCP server
 python -m document_mcp.doc_tool_server sse --host localhost --port 3001
 
+# Install the agent dependencies
+pip install -r requirements.txt
+
+# Set .env file
+GEMINI_API_KEY="XXXXXXXXXXXX"
+DOCUMENT_ROOT_DIR=sample_doc/ (optional)
+
 # Run the example agent (in another terminal)
 python example_agent/agent.py
 ```
@@ -26,7 +33,7 @@ Document MCP provides a structured way to manage large documents composed of mul
 ### Key Features
 
 - **📁 Document Structure**: Organize content as directories with chapter files
-- **🔧 MCP Integration**: Full Model Context Protocol support for AI agents
+- **🔧 MCP Integration**: Full HTTP SSE Model Context Protocol support for AI agents
 - **🤖 AI Agent Example**: Ready-to-use Pydantic AI agent with natural language interface
 - **📊 Analytics**: Built-in statistics and search capabilities
 - **🔄 Version Control Friendly**: Plain Markdown files work great with Git
@@ -231,17 +238,7 @@ The agent test suite covers:
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to get started:
-
-### Development Workflow
-
-1. **Fork the repository** on GitHub
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Make your changes** with tests
-4. **Run the test suite**: `python run_tests.py`
-5. **Commit your changes**: `git commit -m 'Add amazing feature'`
-6. **Push to your fork**: `git push origin feature/amazing-feature`
-7. **Submit a pull request**
+I welcome any contribution!
 
 ## 🔗 Related Resources
 
