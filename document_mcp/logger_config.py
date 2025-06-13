@@ -50,20 +50,30 @@ def log_mcp_call(func):
             result = func(*args, **kwargs)
 
             try:
-                if hasattr(result, 'model_dump_json'):
+                if isinstance(result, list):
+                    # Check if it's a list of Pydantic-like objects
+                    if result and (hasattr(result[0], 'model_dump_json') or hasattr(result[0], 'json')):
+                        logged_list = []
+                        for item in result:
+                            if hasattr(item, 'model_dump_json'):
+                                logged_list.append(item.model_dump_json(indent=None, exclude_none=True))
+                            elif hasattr(item, 'json'): # Pydantic v1 fallback
+                                logged_list.append(item.json(indent=None, exclude_none=True))
+                            else:
+                                logged_list.append(repr(item))
+                        result_str = "[" + ", ".join(logged_list) + "]"
+                    else:
+                        # It's a list, but not of Pydantic models (or empty)
+                        result_str = repr(result)
+                elif hasattr(result, 'model_dump_json'): # Single Pydantic v2 model
                     result_str = result.model_dump_json(indent=None, exclude_none=True)
-                elif hasattr(result, 'json'):
+                elif hasattr(result, 'json'): # Single Pydantic v1 model
                     result_str = result.json(indent=None, exclude_none=True)
-                elif isinstance(result, list) and result and hasattr(result[0], 'model_dump_json'):
-                    result_str = f"List[{len(result)} of {result[0].__class__.__name__}]"
-                elif isinstance(result, list) and result and hasattr(result[0], 'json'):
-                     result_str = f"List[{len(result)} of {result[0].__class__.__name__}]"
-                else:
+                else: # Other types
                     result_str = repr(result)
-                if len(result_str) > 500: # Truncate very long results
-                    result_str = result_str[:500] + "... (truncated)"
+                # Removed the 500-character truncation
             except Exception as e:
-                result_str = f"result logging error: {e}"
+                result_str = f"Result logging error: {e}"
 
             mcp_call_logger.info(f"Tool {func_name} returned: {result_str}")
             return result
