@@ -9,6 +9,9 @@ import argparse
 from dotenv import load_dotenv
 from starlette.requests import Request
 from starlette.responses import Response
+# import logging # No longer needed here
+# import functools # No longer needed here
+from .logger_config import mcp_call_logger, log_mcp_call # Import the configured logger and the decorator
 
 # --- Configuration ---
 # Each "document" will be a subdirectory within DOCS_ROOT_DIR.
@@ -183,6 +186,7 @@ def _get_chapter_metadata(document_name: str, chapter_file_path: Path) -> Option
 
 # --- Example of a refactored tool (list_documents) ---
 @mcp_server.tool()
+@log_mcp_call
 def list_documents() -> List[DocumentInfo]:
     """
     Lists all available documents.
@@ -239,6 +243,7 @@ def list_documents() -> List[DocumentInfo]:
 # --- Implement Read Tools ---
 
 @mcp_server.tool()
+@log_mcp_call
 def list_chapters(document_name: str) -> Optional[List[ChapterMetadata]]:
     """
     Lists all chapters for a given document, ordered by filename.
@@ -265,6 +270,7 @@ def list_chapters(document_name: str) -> Optional[List[ChapterMetadata]]:
     return chapters_metadata_list
 
 @mcp_server.tool()
+@log_mcp_call
 def read_chapter_content(document_name: str, chapter_name: str) -> Optional[ChapterContent]:
     """
     Reads the content of a specific chapter within a document.
@@ -279,6 +285,7 @@ def read_chapter_content(document_name: str, chapter_name: str) -> Optional[Chap
 
 
 @mcp_server.tool()
+@log_mcp_call
 def read_paragraph_content(document_name: str, chapter_name: str, paragraph_index_in_chapter: int) -> Optional[ParagraphDetail]:
     """
     Reads a specific paragraph from a chapter in a document.
@@ -306,6 +313,7 @@ def read_paragraph_content(document_name: str, chapter_name: str, paragraph_inde
     )
 
 @mcp_server.tool()
+@log_mcp_call
 def read_full_document(document_name: str) -> Optional[FullDocumentContent]:
     """
     Reads the entire content of a document, including all its chapters in order.
@@ -353,6 +361,7 @@ def read_full_document(document_name: str) -> Optional[FullDocumentContent]:
 # --- Implement Write Tools ---
 
 @mcp_server.tool()
+@log_mcp_call
 def create_document(document_name: str) -> OperationStatus:
     """
     Creates a new document (as a directory).
@@ -369,6 +378,7 @@ def create_document(document_name: str) -> OperationStatus:
         return OperationStatus(success=False, message=f"Error creating document '{document_name}': {e}")
 
 @mcp_server.tool()
+@log_mcp_call
 def delete_document(document_name: str) -> OperationStatus:
     """
     Deletes a document and all its chapters.
@@ -393,6 +403,7 @@ def delete_document(document_name: str) -> OperationStatus:
         return OperationStatus(success=False, message=f"Error deleting document '{document_name}': {e}")
 
 @mcp_server.tool()
+@log_mcp_call
 def create_chapter(document_name: str, chapter_name: str, initial_content: str = "") -> OperationStatus:
     """
     Creates a new chapter file within a document.
@@ -423,6 +434,7 @@ def create_chapter(document_name: str, chapter_name: str, initial_content: str =
         return OperationStatus(success=False, message=f"Error creating chapter '{chapter_name}' in document '{document_name}': {e}")
 
 @mcp_server.tool()
+@log_mcp_call
 def delete_chapter(document_name: str, chapter_name: str) -> OperationStatus:
     """
     Deletes a chapter file from a document.
@@ -442,6 +454,7 @@ def delete_chapter(document_name: str, chapter_name: str) -> OperationStatus:
         return OperationStatus(success=False, message=f"Error deleting chapter '{chapter_name}' from document '{document_name}': {e}")
 
 @mcp_server.tool()
+@log_mcp_call
 def write_chapter_content(document_name: str, chapter_name: str, new_content: str) -> OperationStatus:
     """
     Overwrites the entire content of a specific chapter.
@@ -470,6 +483,7 @@ def write_chapter_content(document_name: str, chapter_name: str, new_content: st
         return OperationStatus(success=False, message=f"Error writing to chapter '{chapter_name}' in document '{document_name}': {e}")
 
 @mcp_server.tool()
+@log_mcp_call
 def modify_paragraph_content(
     document_name: str, 
     chapter_name: str, 
@@ -537,6 +551,7 @@ def modify_paragraph_content(
         )
 
 @mcp_server.tool()
+@log_mcp_call
 def append_paragraph_to_chapter(document_name: str, chapter_name: str, paragraph_content: str) -> OperationStatus:
     """
     Appends a new paragraph to the end of a specific chapter.
@@ -568,6 +583,7 @@ def append_paragraph_to_chapter(document_name: str, chapter_name: str, paragraph
         return OperationStatus(success=False, message=f"Error appending paragraph to '{chapter_name}': {str(e)}")
 
 @mcp_server.tool()
+@log_mcp_call
 def replace_text_in_chapter(document_name: str, chapter_name: str, text_to_find: str, replacement_text: str) -> OperationStatus:
     """
     Replaces all occurrences of a string with another string in a specific chapter.
@@ -600,6 +616,7 @@ def replace_text_in_chapter(document_name: str, chapter_name: str, text_to_find:
         return OperationStatus(success=False, message=f"Error replacing text in '{chapter_name}': {str(e)}")
 
 @mcp_server.tool()
+@log_mcp_call
 def replace_text_in_document(document_name: str, text_to_find: str, replacement_text: str) -> OperationStatus:
     """
     Replaces all occurrences of a string with another string throughout all chapters of a document.
@@ -651,6 +668,7 @@ def replace_text_in_document(document_name: str, text_to_find: str, replacement_
 # --- Implement Analyze Tools ---
 
 @mcp_server.tool()
+@log_mcp_call
 def get_chapter_statistics(document_name: str, chapter_name: str) -> Optional[StatisticsReport]:
     """
     Retrieves statistics for a specific chapter (word count, paragraph count).
@@ -668,6 +686,7 @@ def get_chapter_statistics(document_name: str, chapter_name: str) -> Optional[St
     )
 
 @mcp_server.tool()
+@log_mcp_call
 def get_document_statistics(document_name: str) -> Optional[StatisticsReport]:
     """
     Retrieves aggregated statistics for an entire document (total word/paragraph/chapter count).
@@ -723,6 +742,7 @@ def get_document_statistics(document_name: str) -> Optional[StatisticsReport]:
 # --- Implement Retrieval Tools (Exact Text Match) ---
 
 @mcp_server.tool()
+@log_mcp_call
 def find_text_in_chapter(
     document_name: str, 
     chapter_name: str, 
@@ -758,6 +778,7 @@ def find_text_in_chapter(
     return results
 
 @mcp_server.tool()
+@log_mcp_call
 def find_text_in_document(
     document_name: str, 
     query: str, 
