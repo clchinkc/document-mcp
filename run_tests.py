@@ -1,60 +1,95 @@
 #!/usr/bin/env python3
 """
-Test runner for the document-mcp project.
-Runs tests for both the MCP server package and the example agent.
+Test runner for Document MCP - runs all tests in virtual environment.
 """
-
 import subprocess
 import sys
+import os
 from pathlib import Path
 
-def run_command(cmd, cwd=None):
-    """Run a command and return success status."""
-    print(f"\n{'='*60}")
-    print(f"Running: {' '.join(cmd)}")
-    if cwd:
-        print(f"Working directory: {cwd}")
-    print('='*60)
-    
-    try:
-        result = subprocess.run(cmd, cwd=cwd, check=True)
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Command failed with exit code {e.returncode}")
-        return False
+def ensure_virtual_env():
+    """Ensure we're running in a virtual environment."""
+    if not hasattr(sys, 'real_prefix') and not (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+        # Not in virtual environment
+        venv_path = Path(".venv/bin/python")
+        if venv_path.exists():
+            print("Activating virtual environment...")
+            # Re-run this script with the virtual environment Python
+            os.execv(str(venv_path), [str(venv_path)] + sys.argv)
+        else:
+            print("⚠️  Virtual environment not found. Please create one with:")
+            print("   python -m venv .venv")
+            print("   source .venv/bin/activate")
+            print("   pip install -r requirements.txt")
+            sys.exit(1)
 
-def main():
-    """Run all tests."""
-    project_root = Path(__file__).parent
-    package_dir = project_root / "document_mcp"
+def check_environment():
+    """Check if environment is properly set up."""
+    # Check .env file
+    env_file = Path(".env")
+    if not env_file.exists():
+        print("❌ .env file not found. Please create one with your API keys.")
+        return False
     
-    success = True
+    env_content = env_file.read_text()
+    if "GOOGLE_API_KEY" not in env_content and "GEMINI_API_KEY" not in env_content:
+        print("❌ API key not found in .env. Please add GOOGLE_API_KEY or GEMINI_API_KEY.")
+        return False
     
-    # Test the MCP server package
-    print("Testing MCP Server Package...")
-    if not run_command([
+    print("✅ Environment configured correctly")
+    return True
+
+def run_tests():
+    """Run all tests with proper environment setup."""
+    print("Document MCP - Comprehensive Test Runner")
+    print("=" * 50)
+    
+    # Ensure virtual environment
+    ensure_virtual_env()
+    
+    # Check environment
+    if not check_environment():
+        print("Please fix environment issues before running tests.")
+        return 1
+    
+    # Set up environment variables for testing
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(Path.cwd())
+    
+    # Run server-side tests
+    print("\n🔧 Running MCP Server Tests...")
+    server_result = subprocess.run([
         sys.executable, "-m", "pytest", 
-        "test_doc_tool_server.py", "-v"
-    ], cwd=package_dir):
-        success = False
+        "document_mcp/test_doc_tool_server.py",
+        "-v", "--tb=short"
+    ], env=env)
     
-    # Test the example agent
-    print("\nTesting Example Agent...")
-    if not run_command([
+    # Run agent tests
+    print("\n🤖 Running Agent Integration Tests...")
+    agent_result = subprocess.run([
         sys.executable, "-m", "pytest", 
-        "example_agent/test_agent.py", "-v"
-    ], cwd=project_root):
-        success = False
+        "example_agent/test_agent.py",
+        "-v", "--tb=short"
+    ], env=env, cwd=Path.cwd())
     
     # Summary
-    print(f"\n{'='*60}")
-    if success:
-        print("✅ All tests passed!")
-    else:
-        print("❌ Some tests failed!")
-    print('='*60)
+    print("\n" + "=" * 50)
+    print("TEST SUMMARY")
+    print("=" * 50)
     
-    return 0 if success else 1
+    server_status = "✅ PASSED" if server_result.returncode == 0 else "❌ FAILED"
+    agent_status = "✅ PASSED" if agent_result.returncode == 0 else "❌ FAILED"
+    
+    print(f"MCP Server Tests: {server_status}")
+    print(f"Agent Tests: {agent_status}")
+    
+    if server_result.returncode == 0 and agent_result.returncode == 0:
+        print("\n🎉 All tests passed!")
+        return 0
+    else:
+        print(f"\n⚠️  Some tests failed. Check output above.")
+        return 1
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    exit_code = run_tests()
+    sys.exit(exit_code) 
