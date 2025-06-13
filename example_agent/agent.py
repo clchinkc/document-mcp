@@ -5,6 +5,8 @@ import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import Optional, List, Union, Dict, Any, Tuple
+import argparse
+import json
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
@@ -151,12 +153,12 @@ Follow the user's instructions carefully and to the letter without asking for cl
 """
 
 # --- Agent Setup and Processing Logic ---
-async def initialize_agent_and_mcp_server() -> Tuple[Agent, MCPServerHTTP]:
+async def initialize_agent_and_mcp_server() -> Tuple[Agent, MCPServerHTTP]:  # noqa: E501
     """Initializes the Pydantic AI agent and its MCP server configuration."""
     try:
         llm = load_gemini_llm_config()
     except ValueError as e:
-        print(f"Error loading LLM config: {e}")
+        print(f"Error loading LLM config: {e}", file=sys.stderr)
         raise
 
     # Configuration for HTTP SSE server
@@ -166,98 +168,132 @@ async def initialize_agent_and_mcp_server() -> Tuple[Agent, MCPServerHTTP]:
 
     doc_tools_http_server = MCPServerHTTP(url=server_url)
 
-    agent = Agent(
+    agent = Agent(  # type: ignore[var-annotated]
         llm,
         mcp_servers=[doc_tools_http_server],
         system_prompt=SYSTEM_PROMPT,
-        output_type=FinalAgentResponse
+        output_type=FinalAgentResponse # type: ignore[arg-type]
     )
     return agent, doc_tools_http_server
 
-async def process_single_user_query(agent: Agent, user_query: str) -> Optional[FinalAgentResponse]:
+async def process_single_user_query(agent: Agent, user_query: str) -> Optional[FinalAgentResponse]: # type: ignore[type-arg]
     """Processes a single user query using the provided agent and returns the structured response."""
     try:
-        run_result: AgentRunResult[FinalAgentResponse] = await agent.run(user_query)
+        run_result: AgentRunResult[FinalAgentResponse] = await agent.run(user_query) # type: ignore[type-arg]
         
         if run_result and run_result.output:
-            return run_result.output
+            return run_result.output # type: ignore[no-any-return]
         elif run_result and run_result.error_message:
-            return FinalAgentResponse(
+            return FinalAgentResponse( # type: ignore[call-arg]
                 summary=f"Agent error: {run_result.error_message}", 
-                details=None, 
+                details=None, # type: ignore[arg-type]
                 error_message=run_result.error_message
             )
         else:
             return None
     except Exception as e:
-        print(f"Error during agent query processing: {e}")
-        return FinalAgentResponse(summary=f"Exception during query processing: {e}", details=None, error_message=str(e))
+        print(f"Error during agent query processing: {e}", file=sys.stderr)
+        return FinalAgentResponse(summary=f"Exception during query processing: {e}", details=None, error_message=str(e)) # type: ignore[call-arg]
 
 # --- Main Agent Interactive Loop ---
 async def main():
-    """Initializes and runs the Pydantic AI agent with an interactive loop."""
+    """Initializes and runs the Pydantic AI agent."""
+    parser = argparse.ArgumentParser(description="Pydantic AI Document Agent")
+    parser.add_argument("--query", type=str, help="A single query to process. If provided, the agent will run non-interactively.")
+    args = parser.parse_args()
+
     try:
         agent, doc_tools_http_server = await initialize_agent_and_mcp_server()
     except (ValueError, FileNotFoundError) as e:
-        # Errors from initialize_agent_and_mcp_server are already printed
-        return
+        # Errors from initialize_agent_and_mcp_server are already printed to stderr
+        sys.exit(1)
+    except Exception as e: # Catch any other unexpected errors during init
+        print(f"Critical error during agent initialization: {e}", file=sys.stderr)
+        sys.exit(1)
+
 
     try:
-        async with agent.run_mcp_servers(): # Use the agent's context manager for the specific mcp_server instance
-            print("MCP Server connected via HTTP SSE.")
-            print("\n--- Pydantic AI Document Agent --- ")
-            print("Ask me to manage documents (directories of chapters).")
-            print("Type 'exit' to quit.")
+        async with agent.run_mcp_servers():
+            if not args.query:
+                print("MCP Server connected via HTTP SSE.")
+                print("\n--- Pydantic AI Document Agent --- ")
+                print("Ask me to manage documents (directories of chapters).")
+                print("Type 'exit' to quit.")
 
-            while True:
-                user_query = input("\nUser Query: ")
-                if user_query.lower() == 'exit':
-                    break
-                if not user_query.strip():
-                    continue
-                
-                final_response = await process_single_user_query(agent, user_query)
-                
+            if args.query:
+                final_response = await process_single_user_query(agent, args.query)
                 if final_response:
-                    print("\n--- Agent Response ---")
-                    print(f"Summary: {final_response.summary}")
+                    sys.stdout.write(final_response.model_dump_json(indent=2))
+                    sys.stdout.write("\n")
+                else:
+                    # Output empty JSON or an error structure if no response,
+                    # process_single_user_query should ideally always return a FinalAgentResponse
+                    # or raise an exception that's caught here.
+                    # For now, let's assume if it's None, an error was printed by process_single_user_query
+                    # and we can output a minimal JSON error or empty object.
+                    error_resp = FinalAgentResponse(
+                        summary="Failed to get a final response from the agent for the provided query.",
+                        details=None, # type: ignore[arg-type]
+                        error_message="No specific error message captured at top level, see stderr for details."
+                    )
+                    sys.stdout.write(error_resp.model_dump_json(indent=2))
+                    sys.stdout.write("\n")
 
-                    if isinstance(final_response.details, list):
-                        if not final_response.details:
-                            print("Details: [] (Empty list)")
+            else: # Interactive loop
+                while True:
+                    user_query = input("\nUser Query: ")
+                    if user_query.lower() == 'exit':
+                        break
+                    if not user_query.strip():
+                        continue
+
+                    final_response = await process_single_user_query(agent, user_query)
+
+                    if final_response:
+                        print("\n--- Agent Response ---")
+                        print(f"Summary: {final_response.summary}")
+
+                        if isinstance(final_response.details, list):
+                            if not final_response.details:
+                                print("Details: [] (Empty list)")
+                            else:
+                                item_type = type(final_response.details[0])
+                                print(f"\n--- Details (List of {item_type.__name__}) ---")
+                                for item_idx, item_detail in enumerate(final_response.details):
+                                    print(f"Item {item_idx + 1}:")
+                                    if hasattr(item_detail, 'model_dump'): # Check if Pydantic model
+                                        print(item_detail.model_dump(exclude_none=True))
+                                    else:
+                                        print(item_detail)
+                        elif hasattr(final_response.details, 'model_dump'): # Check if Pydantic model
+                            print("\n--- Details ---")
+                            print(final_response.details.model_dump(exclude_none=True))
+                        elif final_response.details is not None:
+                            print(f"Details: {final_response.details}")
                         else:
-                            item_type = type(final_response.details[0])
-                            print(f"\n--- Details (List of {item_type.__name__}) ---")
-                            for item_idx, item_detail in enumerate(final_response.details):
-                                print(f"Item {item_idx + 1}:")
-                                if hasattr(item_detail, 'model_dump'): # Check if Pydantic model
-                                    print(item_detail.model_dump(exclude_none=True))
-                                else:
-                                    print(item_detail)
-                    elif hasattr(final_response.details, 'model_dump'): # Check if Pydantic model
-                        print("\n--- Details ---")
-                        print(final_response.details.model_dump(exclude_none=True))
-                    elif final_response.details is not None:
-                        print(f"Details: {final_response.details}")
-                    else:
-                        print("Details: None")
-                        
-                    if final_response.error_message:
-                        print(f"Error Message: {final_response.error_message}")
-                # If final_response is None, process_single_user_query already printed an error
-                        
+                            print("Details: None")
+
+                        if final_response.error_message:
+                            print(f"Error Message: {final_response.error_message}")
+                    # If final_response is None, process_single_user_query already printed an error to stderr
+
     except KeyboardInterrupt:
-        print("\nUser requested exit. Shutting down...")
+        if not args.query: # Only print this message in interactive mode
+            print("\nUser requested exit. Shutting down...")
     except Exception as e:
-        print(f"An unexpected error occurred in the agent: {e}")
+        print(f"An unexpected error occurred in the agent: {e}", file=sys.stderr)
     finally:
-        print("Agent has shut down.")
+        if not args.query: # Only print shutdown message in interactive mode
+            print("Agent has shut down.")
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nExiting...")
+        # This handles Ctrl+C if it happens outside the main's try/except,
+        # e.g., during asyncio.run itself or if main() exits due to unhandled KeyboardInterrupt.
+        print("\nExiting (Keyboard Interrupt detected outside main loop)...", file=sys.stderr)
     except Exception as e:
         # This will catch errors during asyncio.run(main()) itself if any
-        print(f"Critical error during agent startup or shutdown: {e}")
+        print(f"Critical error during agent startup or shutdown: {e}", file=sys.stderr)
+        sys.exit(1) # Ensure non-zero exit code for critical failures
