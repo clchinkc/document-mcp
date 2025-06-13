@@ -14,7 +14,7 @@ from starlette.responses import Response
 # Each "document" will be a subdirectory within DOCS_ROOT_DIR.
 # Chapters will be .md files within their respective document subdirectory.
 load_dotenv()
-DOCS_ROOT_DIR_NAME = os.environ.get("DOCUMENT_ROOT_DIR", "documents_storage")
+DOCS_ROOT_DIR_NAME = os.environ.get("DOCUMENT_ROOT_DIR", ".documents_storage")
 DOCS_ROOT_PATH = Path(DOCS_ROOT_DIR_NAME)
 DOCS_ROOT_PATH.mkdir(parents=True, exist_ok=True) # Ensure the root directory exists
 
