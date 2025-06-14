@@ -25,7 +25,7 @@ This MCP server treats "documents" as directories containing multiple "chapter" 
 ### Document Structure
 
 ```
-documents_storage/           # Root directory for all documents
+.documents_storage/           # Root directory for all documents
 ├── my_book/                     # A document (directory)
 │   ├── 01-introduction.md       # Chapter 1 (alphanumeric ordering)
 │   ├── 02-main_content.md       # Chapter 2
@@ -41,7 +41,7 @@ documents_storage/           # Root directory for all documents
 
 The server uses the following environment variables:
 
-- `DOCUMENT_ROOT_DIR`: Root directory for storing documents (default: `documents_storage/`)
+- `DOCUMENT_ROOT_DIR`: Root directory for storing documents (default: `.documents_storage/`)
 
 ## Running the Server
 

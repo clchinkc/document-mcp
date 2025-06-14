@@ -41,7 +41,7 @@ Document MCP provides a structured way to manage large documents composed of mul
 ### Document Organization
 
 ```
-documents_storage/
+.documents_storage/
 ├── my_novel/                    # A document
 │   ├── 01-prologue.md          # Chapters ordered by filename
 │   ├── 02-chapter-one.md
