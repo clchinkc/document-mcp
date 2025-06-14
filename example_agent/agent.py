@@ -48,13 +48,15 @@ DetailsType = Union[
     Optional[FullDocumentContent],  # from read_full_document
     OperationStatus,                # from all write operations (create, delete, write, modify, append, replace)
     Optional[StatisticsReport],     # from get_chapter_statistics, get_document_statistics
-    List[ParagraphDetail]           # from find_text_in_chapter, find_text_in_document
+    List[ParagraphDetail],          # from find_text_in_chapter, find_text_in_document
+    Dict[str, Any],                 # Allow a generic dictionary as a fallback
+    None                            # Allow None for cases with no details
 ]
 
 class FinalAgentResponse(BaseModel):
     """Defines the final structured output expected from the Pydantic AI agent."""
     summary: str
-    details: DetailsType
+    details: Optional[DetailsType] = None
     error_message: Optional[str] = None
 
 # --- System Prompt ---
@@ -65,6 +67,12 @@ The available tools (like `list_documents`, `create_document`, `list_chapters`, 
 For detailed information on how to use each tool, including its parameters and expected behavior, refer to the description of the tool itself (which will be provided to you).
 Your goal is to help the user manage their documents and chapters by using these tools effectively.
 
+**CRITICAL TOOL SELECTION RULES:**
+1. **When a user explicitly mentions a tool name** (e.g., "Use the get_document_statistics tool"), you MUST call that exact tool. Do not substitute or use a different tool.
+2. **For statistics requests** (words like "statistics", "stats", "word count", "paragraph count"), you MUST use `get_document_statistics` or `get_chapter_statistics` tools. NEVER use `find_text_in_document`, `read_paragraph_content`, or any other tool for statistics.
+3. **For search requests** (words like "find", "search", "locate"), use `find_text_in_document` or `find_text_in_chapter` tools.
+4. **For content reading**, use `read_chapter_content`, `read_full_document`, or `read_paragraph_content` tools.
+
 When a user asks for an operation:
 1. Identify the correct tool by understanding the user's intent and matching it to the tool's description and the document/chapter structure.
 2. Determine the necessary parameters for the chosen tool based on its description and the user's query. Clarify `document_name` and `chapter_name` if ambiguous.
@@ -72,6 +80,12 @@ When a user asks for an operation:
 4. Before invoking the tool, briefly explain your reasoning: why this tool and these parameters.
 5. After receiving results, analyze what you found and determine if further actions are needed.
 6. Formulate a response conforming to the `FinalAgentResponse` model, ensuring the `details` field contains the direct and complete output from the invoked tool.
+
+**Specific Instructions for Statistics:**
+- When asked for "statistics" or "stats", you **must** use the `get_document_statistics` or `get_chapter_statistics` tools.
+- The response for these tools will be a `StatisticsReport`. Ensure this is what you return in the `details` field.
+- Do **not** use other tools like `find_text_in_document` or `read_paragraph_content` when asked for statistics.
+- If a user says "Use the get_document_statistics tool", you MUST call `get_document_statistics` and nothing else.
 
 **General Guidelines:**
 - Do not assume a document or chapter exists unless listed by `list_documents`, `list_chapters` or confirmed by the user recently.
@@ -137,7 +151,11 @@ async def process_single_user_query(
 ) -> Optional[FinalAgentResponse]:
     """Processes a single user query using the provided agent and returns the structured response."""
     try:
-        run_result: AgentRunResult[FinalAgentResponse] = await agent.run(user_query)
+        # Add timeout to prevent hanging - but use a shorter timeout since we have outer timeout
+        run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
+            agent.run(user_query), 
+            timeout=40.0  # 40 second timeout (less than outer 45s timeout)
+        )
         
         if run_result and run_result.output:
             return run_result.output
@@ -149,13 +167,61 @@ async def process_single_user_query(
             )
         else:
             return None
+    except asyncio.TimeoutError:
+        print("Agent query timed out after 40 seconds", file=sys.stderr)
+        return FinalAgentResponse(
+            summary="Query timed out after 40 seconds", 
+            details=None, 
+            error_message="Timeout error"
+        )
+    except asyncio.CancelledError:
+        print("Agent query was cancelled", file=sys.stderr)
+        return FinalAgentResponse(
+            summary="Query was cancelled", 
+            details=None, 
+            error_message="Cancelled error"
+        )
+    except RuntimeError as e:
+        if "Event loop is closed" in str(e):
+            print(f"Event loop closed during query processing: {e}", file=sys.stderr)
+            return FinalAgentResponse(
+                summary="Event loop closed during processing", 
+                details=None, 
+                error_message="Event loop closed"
+            )
+        elif "generator didn't stop after athrow" in str(e):
+            print(f"Generator cleanup error during query processing: {e}", file=sys.stderr)
+            return FinalAgentResponse(
+                summary="Generator cleanup error during processing", 
+                details=None, 
+                error_message="Generator cleanup error"
+            )
+        else:
+            print(f"Runtime error during agent query processing: {e}", file=sys.stderr)
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}", file=sys.stderr)
+            return FinalAgentResponse(
+                summary=f"Runtime error during query processing: {e}", 
+                details=None, 
+                error_message=str(e)
+            )
     except Exception as e:
         print(f"Error during agent query processing: {e}", file=sys.stderr)
         # Add more detailed error information
         import traceback
         print(f"Full traceback: {traceback.format_exc()}", file=sys.stderr)
+        
+        # Handle specific API timeout/connection errors more gracefully
+        error_msg = str(e)
+        if "ReadTimeout" in error_msg or "Event loop is closed" in error_msg:
+            summary = "API connection timeout or network error occurred"
+        elif "test_api_key_placeholder" in os.environ.get("GOOGLE_API_KEY", ""):
+            summary = "API authentication error (placeholder key used)"
+        else:
+            summary = f"Exception during query processing: {e}"
+            
         return FinalAgentResponse(
-            summary=f"Exception during query processing: {e}", 
+            summary=summary, 
             details=None, 
             error_message=str(e)
         )
