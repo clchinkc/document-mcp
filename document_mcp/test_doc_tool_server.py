@@ -3,6 +3,9 @@ from pathlib import Path
 import os
 import shutil
 import datetime
+import json
+import subprocess
+import sys
 
 # Make sure to import the necessary functions and models from doc_tool_server
 # Using relative imports since this test is now inside the package
@@ -27,6 +30,48 @@ from .doc_tool_server import (
     DOCS_ROOT_PATH as SERVER_DEFAULT_DOCS_ROOT_PATH 
 )
 from . import doc_tool_server # Import the module itself to modify its global
+
+# --- Environment Testing Functions ---
+
+def test_environment_setup():
+    """Test environment setup and configuration."""
+    # Check .env file
+    env_file = Path(".env")
+    assert env_file.exists(), ".env file not found"
+    
+    env_content = env_file.read_text()
+    assert "GOOGLE_API_KEY" in env_content or "GEMINI_API_KEY" in env_content, "API key not found in .env"
+
+def test_package_imports():
+    """Test if all required packages can be imported."""
+    try:
+        import pydantic_ai
+        assert True
+    except ImportError:
+        pytest.fail("Failed to import pydantic_ai")
+    
+    try:
+        # Test relative imports work
+        from .doc_tool_server import StatisticsReport, ChapterContent
+        assert True
+    except ImportError as e:
+        pytest.fail(f"Failed to import from doc_tool_server: {e}")
+
+def test_test_data_availability():
+    """Test if test data is available for comprehensive testing."""
+    test_doc_path = Path(".documents_storage/long_story_document")
+    if test_doc_path.exists():
+        chapters = list(test_doc_path.glob("*.md"))
+        assert len(chapters) >= 10, f"Expected at least 10 chapters, found {len(chapters)}"
+        
+        # Check first chapter has content
+        first_chapter = test_doc_path / "01-chapter.md"
+        assert first_chapter.exists(), "First chapter file missing"
+        content = first_chapter.read_text()
+        assert len(content) > 100, "First chapter seems too short"
+        assert "Lorem" in content or "ipsum" in content, "Test content pattern not found"
+    else:
+        pytest.skip("Test data (long_story_document) not available - skipping data check")
 
 # --- Pytest Fixtures ---
 
@@ -57,6 +102,26 @@ def temp_docs_root(tmp_path: Path) -> Path:
 
     doc_tool_server.DOCS_ROOT_PATH = original_path
 
+@pytest.fixture
+def sample_test_data(temp_docs_root: Path):
+    """Create sample test data for comprehensive testing."""
+    doc_name = "test_story_document"
+    doc_path = temp_docs_root / doc_name
+    doc_path.mkdir()
+    
+    # Create 5 test chapters with Lorem ipsum content
+    for i in range(1, 6):
+        chapter_file = doc_path / f"{i:02d}-chapter.md"
+        content = f"# Chapter {i}\n\n"
+        
+        # Add 10 paragraphs per chapter
+        for j in range(1, 11):
+            content += f"Lorem ipsum dolor sit amet, consectetur adipiscing elit paragraph {j}.\n\n"
+        
+        chapter_file.write_text(content)
+    
+    return doc_name
+
 # --- Helper Functions for Tests ---
 
 def _assert_operation_success(status: OperationStatus, expected_message_part: str = None):
@@ -68,6 +133,178 @@ def _assert_operation_failure(status: OperationStatus, expected_message_part: st
     assert status.success is False
     if expected_message_part:
         assert expected_message_part.lower() in status.message.lower(), f"Expected '{expected_message_part}' to be in '{status.message}'"
+
+# --- Comprehensive Integration Tests ---
+
+def test_comprehensive_statistics_functionality(sample_test_data: str, temp_docs_root: Path):
+    """Test comprehensive statistics functionality for documents and chapters."""
+    doc_name = sample_test_data
+    
+    # Test document statistics
+    doc_stats = get_document_statistics(document_name=doc_name)
+    assert isinstance(doc_stats, StatisticsReport), f"Expected StatisticsReport, got {type(doc_stats)}"
+    
+    # Check basic fields exist
+    assert hasattr(doc_stats, 'word_count'), "StatisticsReport missing 'word_count' field"
+    assert hasattr(doc_stats, 'paragraph_count'), "StatisticsReport missing 'paragraph_count' field"
+    assert hasattr(doc_stats, 'chapter_count'), "StatisticsReport missing 'chapter_count' field"
+    
+    # Check values are reasonable (each chapter has title + 10 content paragraphs = 11 total)
+    assert doc_stats.chapter_count == 5, f"Expected 5 chapters, got {doc_stats.chapter_count}"
+    assert doc_stats.paragraph_count == 55, f"Expected 55 paragraphs (5*11), got {doc_stats.paragraph_count}"
+    assert doc_stats.word_count > 200, f"Expected reasonable word count, got {doc_stats.word_count}"
+    
+    # Test chapter statistics for multiple chapters
+    for chapter_num in [1, 3, 5]:
+        chapter_name = f"{chapter_num:02d}-chapter.md"
+        chapter_stats = get_chapter_statistics(document_name=doc_name, chapter_name=chapter_name)
+        assert isinstance(chapter_stats, StatisticsReport), f"Expected StatisticsReport for chapter {chapter_num}"
+        # Chapter statistics don't necessarily need chapter_count, so don't assert on it
+        if chapter_stats.chapter_count is not None:
+            assert chapter_stats.chapter_count == 1, f"Chapter stats should show 1 chapter if present, got {chapter_stats.chapter_count}"
+        assert chapter_stats.paragraph_count == 11, f"Expected 11 paragraphs (title + 10 content) in chapter {chapter_num}"
+        assert chapter_stats.word_count > 20, f"Expected reasonable word count for chapter {chapter_num}"
+
+def test_comprehensive_search_functionality(sample_test_data: str, temp_docs_root: Path):
+    """Test comprehensive search functionality across different scenarios."""
+    doc_name = sample_test_data
+    
+    # Test chapter search
+    chapter_results = find_text_in_chapter(
+        document_name=doc_name, 
+        chapter_name="01-chapter.md", 
+        query="Lorem"
+    )
+    
+    # Each chapter has 10 paragraphs, each with "Lorem"
+    assert len(chapter_results) == 10, f"Expected 10 'Lorem' occurrences in chapter, got {len(chapter_results)}"
+    
+    # Test document-wide search
+    doc_results = find_text_in_document(
+        document_name=doc_name, 
+        query="Lorem"
+    )
+    
+    # 5 chapters × 10 paragraphs = 50 occurrences
+    assert len(doc_results) == 50, f"Expected 50 'Lorem' occurrences in document, got {len(doc_results)}"
+    
+    # Test different search terms
+    paragraph_results = find_text_in_document(
+        document_name=doc_name, 
+        query="paragraph"
+    )
+    assert len(paragraph_results) > 0, "Should find paragraphs containing 'paragraph'"
+    
+    # Test case sensitivity
+    case_sensitive_results = find_text_in_document(
+        document_name=doc_name, 
+        query="lorem",  # lowercase
+        case_sensitive=True
+    )
+    assert len(case_sensitive_results) == 0, "Case-sensitive search for 'lorem' should find no matches"
+    
+    # Test search that should return no results
+    no_results = find_text_in_document(
+        document_name=doc_name, 
+        query="nonexistent_unique_term_xyz"
+    )
+    assert len(no_results) == 0, "Search for nonexistent term should return no results"
+
+def test_comprehensive_content_operations(sample_test_data: str, temp_docs_root: Path):
+    """Test comprehensive content reading and manipulation operations."""
+    doc_name = sample_test_data
+    
+    # Test reading individual chapters
+    for chapter_num in [1, 3, 5]:
+        chapter_name = f"{chapter_num:02d}-chapter.md"
+        chapter_content = read_chapter_content(document_name=doc_name, chapter_name=chapter_name)
+        assert chapter_content is not None, f"Should be able to read chapter {chapter_num}"
+        assert isinstance(chapter_content, ChapterContent), f"Expected ChapterContent for chapter {chapter_num}"
+        assert f"Chapter {chapter_num}" in chapter_content.content, f"Chapter {chapter_num} should contain title"
+        assert len(chapter_content.content) > 100, f"Chapter {chapter_num} should have substantial content"
+    
+    # Test reading full document
+    full_doc = read_full_document(document_name=doc_name)
+    assert full_doc is not None, "Should be able to read full document"
+    assert isinstance(full_doc, FullDocumentContent), "Expected FullDocumentContent"
+    assert len(full_doc.chapters) == 5, f"Full document should contain 5 chapters, got {len(full_doc.chapters)}"
+    assert full_doc.total_word_count > 200, "Full document should have substantial word count"
+    assert full_doc.total_paragraph_count == 55, f"Expected 55 total paragraphs (5*11), got {full_doc.total_paragraph_count}"
+    
+    # Test paragraph reading
+    paragraph = read_paragraph_content(
+        document_name=doc_name, 
+        chapter_name="01-chapter.md", 
+        paragraph_index_in_chapter=0
+    )
+    assert paragraph is not None, "Should be able to read first paragraph"
+    assert isinstance(paragraph, ParagraphDetail), "Expected ParagraphDetail"
+    assert paragraph.paragraph_index_in_chapter == 0, "Paragraph index should be 0"
+    assert len(paragraph.content) > 10, "Paragraph should have meaningful content"
+
+def test_comprehensive_data_consistency(sample_test_data: str, temp_docs_root: Path):
+    """Test data consistency across different operations and views."""
+    doc_name = sample_test_data
+    
+    # Get document info from different sources
+    docs = list_documents()
+    test_doc = next(doc for doc in docs if doc.document_name == doc_name)
+    
+    chapters = list_chapters(document_name=doc_name)
+    doc_stats = get_document_statistics(document_name=doc_name)
+    full_doc = read_full_document(document_name=doc_name)
+    
+    # Check chapter count consistency
+    assert test_doc.total_chapters == len(chapters), "Document info chapter count doesn't match chapters list"
+    assert test_doc.total_chapters == doc_stats.chapter_count, "Document info doesn't match statistics"
+    assert len(chapters) == doc_stats.chapter_count, "Chapters list doesn't match statistics"
+    assert len(full_doc.chapters) == doc_stats.chapter_count, "Full document chapters don't match statistics"
+    
+    # Check word count consistency (allow some variance due to different counting methods)
+    total_words_from_chapters = sum(chapter.word_count for chapter in chapters)
+    assert abs(total_words_from_chapters - doc_stats.word_count) <= 10, \
+        f"Chapter word counts ({total_words_from_chapters}) don't reasonably match document stats ({doc_stats.word_count})"
+    
+    assert abs(full_doc.total_word_count - doc_stats.word_count) <= 10, \
+        f"Full document word count ({full_doc.total_word_count}) doesn't reasonably match statistics ({doc_stats.word_count})"
+    
+    # Check paragraph count consistency
+    total_paragraphs_from_chapters = sum(chapter.paragraph_count for chapter in chapters)
+    assert total_paragraphs_from_chapters == doc_stats.paragraph_count, \
+        f"Chapter paragraph counts ({total_paragraphs_from_chapters}) don't match document stats ({doc_stats.paragraph_count})"
+    
+    assert full_doc.total_paragraph_count == doc_stats.paragraph_count, \
+        f"Full document paragraph count ({full_doc.total_paragraph_count}) doesn't match statistics ({doc_stats.paragraph_count})"
+
+def test_comprehensive_error_handling(temp_docs_root: Path):
+    """Test error handling across different operations."""
+    nonexistent_doc = "nonexistent_document_xyz"
+    nonexistent_chapter = "nonexistent_chapter.md"
+    
+    # Test operations on nonexistent documents
+    assert list_chapters(document_name=nonexistent_doc) is None, "Should return None for nonexistent document"
+    assert get_document_statistics(document_name=nonexistent_doc) is None, "Should return None for nonexistent document"
+    assert read_full_document(document_name=nonexistent_doc) is None, "Should return None for nonexistent document"
+    
+    # Test operations on nonexistent chapters
+    # First create a valid document
+    create_document(document_name="test_doc_for_errors")
+    
+    assert read_chapter_content(document_name="test_doc_for_errors", chapter_name=nonexistent_chapter) is None, \
+        "Should return None for nonexistent chapter"
+    assert get_chapter_statistics(document_name="test_doc_for_errors", chapter_name=nonexistent_chapter) is None, \
+        "Should return None for nonexistent chapter"
+    
+    # Test search in nonexistent document/chapter
+    empty_results = find_text_in_document(document_name=nonexistent_doc, query="anything")
+    assert len(empty_results) == 0, "Search in nonexistent document should return empty results"
+    
+    empty_chapter_results = find_text_in_chapter(
+        document_name="test_doc_for_errors", 
+        chapter_name=nonexistent_chapter, 
+        query="anything"
+    )
+    assert len(empty_chapter_results) == 0, "Search in nonexistent chapter should return empty results"
 
 # --- Test Cases ---
 
@@ -559,7 +796,7 @@ def pytest_sessionfinish(session, exitstatus):
     try:
         # Ensure doc_tool_server path is restored to default
         if hasattr(doc_tool_server, 'DOCS_ROOT_PATH'):
-            default_path = Path.cwd() / "documents_storage"
+            default_path = Path.cwd() / ".documents_storage"
             doc_tool_server.DOCS_ROOT_PATH = default_path
             
     except Exception as e:

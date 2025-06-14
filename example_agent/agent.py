@@ -4,13 +4,26 @@ import sys
 import datetime
 from pathlib import Path
 from dotenv import load_dotenv
-from typing import Optional, List, Union, Dict, Any, Tuple
+from typing import Optional, List, Union, Dict, Any
+import argparse
+import json
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.mcp import MCPServerHTTP
+
+# Import models from the server to ensure compatibility
+from document_mcp.doc_tool_server import (
+    OperationStatus,
+    ChapterMetadata, 
+    DocumentInfo,
+    ParagraphDetail,
+    ChapterContent,
+    FullDocumentContent,
+    StatisticsReport
+)
 
 # --- Configuration ---
 def load_gemini_llm_config() -> GeminiModel:
@@ -24,65 +37,9 @@ def load_gemini_llm_config() -> GeminiModel:
     return model
 
 # --- Agent Response Model (for Pydantic AI Agent's structured output) ---
-# These models should now mirror the Pydantic models defined in doc_tool_server.py for tool outputs.
-
-class OperationStatus(BaseModel):
-    """Generic status for operations. Mirrors server model."""
-    success: bool
-    message: str
-    details: Optional[Dict[str, Any]] = None
-
-class ChapterMetadata(BaseModel):
-    """Metadata for a chapter. Mirrors server model."""
-    chapter_name: str
-    title: Optional[str] = None
-    word_count: int
-    paragraph_count: int
-    last_modified: datetime.datetime
-
-class DocumentInfo(BaseModel):
-    """Metadata for a document. Mirrors server model."""
-    document_name: str
-    total_chapters: int
-    total_word_count: int
-    total_paragraph_count: int
-    last_modified: datetime.datetime
-    chapters: List[ChapterMetadata]
-
-class ParagraphDetail(BaseModel):
-    """Detailed information about a paragraph. Mirrors server model."""
-    document_name: str
-    chapter_name: str
-    paragraph_index_in_chapter: int
-    content: str
-    word_count: int
-
-class ChapterContent(BaseModel):
-    """Content of a chapter file. Mirrors server model."""
-    document_name: str
-    chapter_name: str
-    content: str
-    word_count: int
-    paragraph_count: int
-    last_modified: datetime.datetime
-
-class FullDocumentContent(BaseModel):
-    """Content of an entire document. Mirrors server model."""
-    document_name: str
-    chapters: List[ChapterContent]
-    total_word_count: int
-    total_paragraph_count: int
-
-class StatisticsReport(BaseModel):
-    """Report for analytical queries. Mirrors server model."""
-    scope: str
-    word_count: int
-    paragraph_count: int
-    chapter_count: Optional[int] = None
-
+# Using imported models from the server to ensure compatibility
 
 # Define the DetailsType union for the FinalAgentResponse
-# This will include all possible direct return types from the new tools.
 DetailsType = Union[
     List[DocumentInfo],             # from list_documents
     Optional[List[ChapterMetadata]],# from list_chapters
@@ -91,13 +48,15 @@ DetailsType = Union[
     Optional[FullDocumentContent],  # from read_full_document
     OperationStatus,                # from all write operations (create, delete, write, modify, append, replace)
     Optional[StatisticsReport],     # from get_chapter_statistics, get_document_statistics
-    List[ParagraphDetail]           # from find_text_in_chapter, find_text_in_document
+    List[ParagraphDetail],          # from find_text_in_chapter, find_text_in_document
+    Dict[str, Any],                 # Allow a generic dictionary as a fallback
+    None                            # Allow None for cases with no details
 ]
 
 class FinalAgentResponse(BaseModel):
     """Defines the final structured output expected from the Pydantic AI agent."""
     summary: str
-    details: DetailsType
+    details: Optional[DetailsType] = None
     error_message: Optional[str] = None
 
 # --- System Prompt ---
@@ -108,6 +67,12 @@ The available tools (like `list_documents`, `create_document`, `list_chapters`, 
 For detailed information on how to use each tool, including its parameters and expected behavior, refer to the description of the tool itself (which will be provided to you).
 Your goal is to help the user manage their documents and chapters by using these tools effectively.
 
+**CRITICAL TOOL SELECTION RULES:**
+1. **When a user explicitly mentions a tool name** (e.g., "Use the get_document_statistics tool"), you MUST call that exact tool. Do not substitute or use a different tool.
+2. **For statistics requests** (words like "statistics", "stats", "word count", "paragraph count"), you MUST use `get_document_statistics` or `get_chapter_statistics` tools. NEVER use `find_text_in_document`, `read_paragraph_content`, or any other tool for statistics.
+3. **For search requests** (words like "find", "search", "locate"), use `find_text_in_document` or `find_text_in_chapter` tools.
+4. **For content reading**, use `read_chapter_content`, `read_full_document`, or `read_paragraph_content` tools.
+
 When a user asks for an operation:
 1. Identify the correct tool by understanding the user's intent and matching it to the tool's description and the document/chapter structure.
 2. Determine the necessary parameters for the chosen tool based on its description and the user's query. Clarify `document_name` and `chapter_name` if ambiguous.
@@ -115,6 +80,12 @@ When a user asks for an operation:
 4. Before invoking the tool, briefly explain your reasoning: why this tool and these parameters.
 5. After receiving results, analyze what you found and determine if further actions are needed.
 6. Formulate a response conforming to the `FinalAgentResponse` model, ensuring the `details` field contains the direct and complete output from the invoked tool.
+
+**Specific Instructions for Statistics:**
+- When asked for "statistics" or "stats", you **must** use the `get_document_statistics` or `get_chapter_statistics` tools.
+- The response for these tools will be a `StatisticsReport`. Ensure this is what you return in the `details` field.
+- Do **not** use other tools like `find_text_in_document` or `read_paragraph_content` when asked for statistics.
+- If a user says "Use the get_document_statistics tool", you MUST call `get_document_statistics` and nothing else.
 
 **General Guidelines:**
 - Do not assume a document or chapter exists unless listed by `list_documents`, `list_chapters` or confirmed by the user recently.
@@ -151,12 +122,12 @@ Follow the user's instructions carefully and to the letter without asking for cl
 """
 
 # --- Agent Setup and Processing Logic ---
-async def initialize_agent_and_mcp_server() -> Tuple[Agent, MCPServerHTTP]:
+async def initialize_agent_and_mcp_server() -> tuple[Agent[FinalAgentResponse], MCPServerHTTP]:
     """Initializes the Pydantic AI agent and its MCP server configuration."""
     try:
         llm = load_gemini_llm_config()
     except ValueError as e:
-        print(f"Error loading LLM config: {e}")
+        print(f"Error loading LLM config: {e}", file=sys.stderr)
         raise
 
     # Configuration for HTTP SSE server
@@ -166,7 +137,7 @@ async def initialize_agent_and_mcp_server() -> Tuple[Agent, MCPServerHTTP]:
 
     doc_tools_http_server = MCPServerHTTP(url=server_url)
 
-    agent = Agent(
+    agent: Agent[FinalAgentResponse] = Agent(
         llm,
         mcp_servers=[doc_tools_http_server],
         system_prompt=SYSTEM_PROMPT,
@@ -174,90 +145,183 @@ async def initialize_agent_and_mcp_server() -> Tuple[Agent, MCPServerHTTP]:
     )
     return agent, doc_tools_http_server
 
-async def process_single_user_query(agent: Agent, user_query: str) -> Optional[FinalAgentResponse]:
+async def process_single_user_query(
+    agent: Agent[FinalAgentResponse], 
+    user_query: str
+) -> Optional[FinalAgentResponse]:
     """Processes a single user query using the provided agent and returns the structured response."""
     try:
-        run_result: AgentRunResult[FinalAgentResponse] = await agent.run(user_query)
+        # Add timeout to prevent hanging - but use a shorter timeout since we have outer timeout
+        run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
+            agent.run(user_query), 
+            timeout=40.0  # 40 second timeout (less than outer 45s timeout)
+        )
         
         if run_result and run_result.output:
             return run_result.output
         elif run_result and run_result.error_message:
             return FinalAgentResponse(
                 summary=f"Agent error: {run_result.error_message}", 
-                details=None, 
+                details=None,
                 error_message=run_result.error_message
             )
         else:
             return None
+    except asyncio.TimeoutError:
+        print("Agent query timed out after 40 seconds", file=sys.stderr)
+        return FinalAgentResponse(
+            summary="Query timed out after 40 seconds", 
+            details=None, 
+            error_message="Timeout error"
+        )
+    except asyncio.CancelledError:
+        print("Agent query was cancelled", file=sys.stderr)
+        return FinalAgentResponse(
+            summary="Query was cancelled", 
+            details=None, 
+            error_message="Cancelled error"
+        )
+    except RuntimeError as e:
+        if "Event loop is closed" in str(e):
+            print(f"Event loop closed during query processing: {e}", file=sys.stderr)
+            return FinalAgentResponse(
+                summary="Event loop closed during processing", 
+                details=None, 
+                error_message="Event loop closed"
+            )
+        elif "generator didn't stop after athrow" in str(e):
+            print(f"Generator cleanup error during query processing: {e}", file=sys.stderr)
+            return FinalAgentResponse(
+                summary="Generator cleanup error during processing", 
+                details=None, 
+                error_message="Generator cleanup error"
+            )
+        else:
+            print(f"Runtime error during agent query processing: {e}", file=sys.stderr)
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}", file=sys.stderr)
+            return FinalAgentResponse(
+                summary=f"Runtime error during query processing: {e}", 
+                details=None, 
+                error_message=str(e)
+            )
     except Exception as e:
-        print(f"Error during agent query processing: {e}")
-        return FinalAgentResponse(summary=f"Exception during query processing: {e}", details=None, error_message=str(e))
+        print(f"Error during agent query processing: {e}", file=sys.stderr)
+        # Add more detailed error information
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}", file=sys.stderr)
+        
+        # Handle specific API timeout/connection errors more gracefully
+        error_msg = str(e)
+        if "ReadTimeout" in error_msg or "Event loop is closed" in error_msg:
+            summary = "API connection timeout or network error occurred"
+        elif "test_api_key_placeholder" in os.environ.get("GOOGLE_API_KEY", ""):
+            summary = "API authentication error (placeholder key used)"
+        else:
+            summary = f"Exception during query processing: {e}"
+            
+        return FinalAgentResponse(
+            summary=summary, 
+            details=None, 
+            error_message=str(e)
+        )
 
 # --- Main Agent Interactive Loop ---
 async def main():
-    """Initializes and runs the Pydantic AI agent with an interactive loop."""
+    """Initializes and runs the Pydantic AI agent."""
+    parser = argparse.ArgumentParser(description="Pydantic AI Document Agent")
+    parser.add_argument("--query", type=str, help="A single query to process. If provided, the agent will run non-interactively.")
+    args = parser.parse_args()
+
     try:
         agent, doc_tools_http_server = await initialize_agent_and_mcp_server()
     except (ValueError, FileNotFoundError) as e:
-        # Errors from initialize_agent_and_mcp_server are already printed
-        return
+        # Errors from initialize_agent_and_mcp_server are already printed to stderr
+        sys.exit(1)
+    except Exception as e: # Catch any other unexpected errors during init
+        print(f"Critical error during agent initialization: {e}", file=sys.stderr)
+        sys.exit(1)
+
 
     try:
-        async with agent.run_mcp_servers(): # Use the agent's context manager for the specific mcp_server instance
-            print("MCP Server connected via HTTP SSE.")
-            print("\n--- Pydantic AI Document Agent --- ")
-            print("Ask me to manage documents (directories of chapters).")
-            print("Type 'exit' to quit.")
+        async with agent.run_mcp_servers():
+            if not args.query:
+                print("MCP Server connected via HTTP SSE.")
+                print("\n--- Pydantic AI Document Agent --- ")
+                print("Ask me to manage documents (directories of chapters).")
+                print("Type 'exit' to quit.")
 
-            while True:
-                user_query = input("\nUser Query: ")
-                if user_query.lower() == 'exit':
-                    break
-                if not user_query.strip():
-                    continue
-                
-                final_response = await process_single_user_query(agent, user_query)
-                
+            if args.query:
+                final_response = await process_single_user_query(agent, args.query)
                 if final_response:
-                    print("\n--- Agent Response ---")
-                    print(f"Summary: {final_response.summary}")
+                    sys.stdout.write(final_response.model_dump_json(indent=2))
+                    sys.stdout.write("\n")
+                else:
+                    # Handle case where no response is returned
+                    # Output a structured error response for consistency
+                    error_resp = FinalAgentResponse(
+                        summary="Failed to get a final response from the agent for the provided query.",
+                        details=None,
+                        error_message="No specific error message captured at top level, see stderr for details."
+                    )
+                    sys.stdout.write(error_resp.model_dump_json(indent=2))
+                    sys.stdout.write("\n")
 
-                    if isinstance(final_response.details, list):
-                        if not final_response.details:
-                            print("Details: [] (Empty list)")
+            else: # Interactive loop
+                while True:
+                    user_query = input("\nUser Query: ")
+                    if user_query.lower() == 'exit':
+                        break
+                    if not user_query.strip():
+                        continue
+
+                    final_response = await process_single_user_query(agent, user_query)
+
+                    if final_response:
+                        print("\n--- Agent Response ---")
+                        print(f"Summary: {final_response.summary}")
+
+                        if isinstance(final_response.details, list):
+                            if not final_response.details:
+                                print("Details: [] (Empty list)")
+                            else:
+                                item_type = type(final_response.details[0])
+                                print(f"\n--- Details (List of {item_type.__name__}) ---")
+                                for item_idx, item_detail in enumerate(final_response.details):
+                                    print(f"Item {item_idx + 1}:")
+                                    if hasattr(item_detail, 'model_dump'): # Check if Pydantic model
+                                        print(item_detail.model_dump(exclude_none=True))
+                                    else:
+                                        print(item_detail)
+                        elif hasattr(final_response.details, 'model_dump'): # Check if Pydantic model
+                            print("\n--- Details ---")
+                            print(final_response.details.model_dump(exclude_none=True))
+                        elif final_response.details is not None:
+                            print(f"Details: {final_response.details}")
                         else:
-                            item_type = type(final_response.details[0])
-                            print(f"\n--- Details (List of {item_type.__name__}) ---")
-                            for item_idx, item_detail in enumerate(final_response.details):
-                                print(f"Item {item_idx + 1}:")
-                                if hasattr(item_detail, 'model_dump'): # Check if Pydantic model
-                                    print(item_detail.model_dump(exclude_none=True))
-                                else:
-                                    print(item_detail)
-                    elif hasattr(final_response.details, 'model_dump'): # Check if Pydantic model
-                        print("\n--- Details ---")
-                        print(final_response.details.model_dump(exclude_none=True))
-                    elif final_response.details is not None:
-                        print(f"Details: {final_response.details}")
-                    else:
-                        print("Details: None")
-                        
-                    if final_response.error_message:
-                        print(f"Error Message: {final_response.error_message}")
-                # If final_response is None, process_single_user_query already printed an error
-                        
+                            print("Details: None")
+
+                        if final_response.error_message:
+                            print(f"Error Message: {final_response.error_message}")
+                    # If final_response is None, process_single_user_query already printed an error to stderr
+
     except KeyboardInterrupt:
-        print("\nUser requested exit. Shutting down...")
+        if not args.query: # Only print this message in interactive mode
+            print("\nUser requested exit. Shutting down...")
     except Exception as e:
-        print(f"An unexpected error occurred in the agent: {e}")
+        print(f"An unexpected error occurred in the agent: {e}", file=sys.stderr)
     finally:
-        print("Agent has shut down.")
+        if not args.query: # Only print shutdown message in interactive mode
+            print("Agent has shut down.")
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nExiting...")
+        # This handles Ctrl+C if it happens outside the main's try/except,
+        # e.g., during asyncio.run itself or if main() exits due to unhandled KeyboardInterrupt.
+        print("\nExiting (Keyboard Interrupt detected outside main loop)...", file=sys.stderr)
     except Exception as e:
         # This will catch errors during asyncio.run(main()) itself if any
-        print(f"Critical error during agent startup or shutdown: {e}")
+        print(f"Critical error during agent startup or shutdown: {e}", file=sys.stderr)
+        sys.exit(1) # Ensure non-zero exit code for critical failures
