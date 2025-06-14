@@ -15,7 +15,7 @@ from .doc_tool_server import (
     _read_chapter_content_details, _get_chapter_metadata,
     # Import Pydantic Models
     OperationStatus, ChapterMetadata, DocumentInfo, ParagraphDetail,
-    ChapterContent, FullDocumentContent, StatisticsReport,
+    ChapterContent, FullDocumentContent, StatisticsReport, ChapterSummary, DocumentSummary,
     # Import Tools
     list_documents, create_document, delete_document,
     list_chapters, create_chapter, delete_chapter,
@@ -25,6 +25,7 @@ from .doc_tool_server import (
     read_full_document, # create_document is already imported
     get_chapter_statistics, get_document_statistics,
     find_text_in_chapter, find_text_in_document,
+    read_chapter_summary, read_document_summary, write_chapter_summary, write_document_summary, # New summary tools
     # Import the global mcp_server and DOCS_ROOT_PATH for manipulation if needed,
     # but it's better to override the path for tests.
     DOCS_ROOT_PATH as SERVER_DEFAULT_DOCS_ROOT_PATH 
@@ -789,6 +790,117 @@ def test_find_text_in_document_no_match(temp_docs_root: Path):
     (temp_docs_root / doc_name / "any_chap.md").write_text('Content without search term.')
     results = find_text_in_document(doc_name, "super_secret_text")
     assert len(results) == 0
+
+# --- Test Summary Tools ---
+
+def test_chapter_summaries_and_metadata_flag(temp_docs_root: Path):
+    doc_name = "doc_for_chapter_summaries"
+    chapter_name = "01-chap_with_summary.md"
+    summary_content = "This is a great chapter summary."
+    non_existent_chapter_name = "02-non_existent_chap.md"
+    non_existent_doc_name = "non_existent_doc_for_summaries"
+
+    # 1. Create document and chapter
+    _assert_operation_success(create_document(doc_name))
+    _assert_operation_success(create_chapter(doc_name, chapter_name, "Initial chapter content."))
+
+    # 2. Check has_summary is False initially
+    chapters_list = list_chapters(doc_name)
+    assert chapters_list is not None and len(chapters_list) == 1
+    assert chapters_list[0].chapter_name == chapter_name
+    assert chapters_list[0].has_summary is False, "has_summary should be False initially"
+
+    # 3. Test read_chapter_summary for non-existent summary
+    assert read_chapter_summary(doc_name, chapter_name) is None, "Reading non-existent summary should return None"
+
+    # 4. Test write_chapter_summary to non-existent chapter
+    status_write_non_existent_chap = write_chapter_summary(doc_name, non_existent_chapter_name, "summary")
+    _assert_operation_failure(status_write_non_existent_chap, "not found or is invalid")
+
+    # 5. Test write_chapter_summary to chapter in non-existent document
+    status_write_non_existent_doc = write_chapter_summary(non_existent_doc_name, chapter_name, "summary")
+    _assert_operation_failure(status_write_non_existent_doc, "not found")
+
+    # 6. Write chapter summary successfully
+    status_write = write_chapter_summary(doc_name, chapter_name, summary_content)
+    _assert_operation_success(status_write, "written successfully")
+    assert status_write.details["document_name"] == doc_name
+    assert status_write.details["chapter_name"] == chapter_name
+    summary_filename = f"{chapter_name.rsplit('.',1)[0]}{doc_tool_server.CHAPTER_SUMMARY_SUFFIX}"
+    assert status_write.details["summary_file"] == summary_filename
+    assert (temp_docs_root / doc_name / summary_filename).is_file()
+    assert (temp_docs_root / doc_name / summary_filename).read_text() == summary_content
+
+    # 7. Read chapter summary back
+    summary_obj = read_chapter_summary(doc_name, chapter_name)
+    assert summary_obj is not None
+    assert isinstance(summary_obj, ChapterSummary)
+    assert summary_obj.document_name == doc_name
+    assert summary_obj.chapter_name == chapter_name
+    assert summary_obj.summary_content == summary_content
+    assert isinstance(summary_obj.last_modified, datetime.datetime)
+
+    # 8. Check has_summary is True after writing summary
+    chapters_list_after = list_chapters(doc_name)
+    assert chapters_list_after is not None and len(chapters_list_after) == 1
+    assert chapters_list_after[0].chapter_name == chapter_name
+    assert chapters_list_after[0].has_summary is True, "has_summary should be True after writing summary"
+
+    # 9. Test reading summary of a chapter with invalid name format (not .md)
+    assert read_chapter_summary(doc_name, "chapter_without_md_suffix") is None
+
+def test_document_summaries_and_metadata_flag(temp_docs_root: Path):
+    doc_name = "doc_for_document_summaries"
+    summary_content = "This is an excellent document summary."
+    non_existent_doc_name = "non_existent_doc_for_doc_summaries"
+
+    # 1. Create document
+    _assert_operation_success(create_document(doc_name))
+    # Add a chapter to make it a more realistic document for list_documents
+    _assert_operation_success(create_chapter(doc_name, "01-dummy.md", "content"))
+
+
+    # 2. Check has_summary is False initially
+    docs_list = list_documents()
+    assert docs_list is not None
+    test_doc_info = next((d for d in docs_list if d.document_name == doc_name), None)
+    assert test_doc_info is not None, f"Document {doc_name} not found in list_documents output"
+    assert test_doc_info.has_summary is False, "has_summary should be False initially for the document"
+
+    # 3. Test read_document_summary for non-existent summary
+    assert read_document_summary(doc_name) is None, "Reading non-existent doc summary should return None"
+
+    # 4. Test write_document_summary to non-existent document
+    status_write_non_existent_doc = write_document_summary(non_existent_doc_name, "summary")
+    _assert_operation_failure(status_write_non_existent_doc, "not found")
+
+    # 5. Write document summary successfully
+    status_write = write_document_summary(doc_name, summary_content)
+    _assert_operation_success(status_write, "written successfully")
+    assert status_write.details["document_name"] == doc_name
+    assert status_write.details["summary_file"] == doc_tool_server.DOCUMENT_SUMMARY_FILENAME
+    summary_path = temp_docs_root / doc_name / doc_tool_server.DOCUMENT_SUMMARY_FILENAME
+    assert summary_path.is_file()
+    assert summary_path.read_text() == summary_content
+
+    # 6. Read document summary back
+    summary_obj = read_document_summary(doc_name)
+    assert summary_obj is not None
+    assert isinstance(summary_obj, DocumentSummary)
+    assert summary_obj.document_name == doc_name
+    assert summary_obj.summary_content == summary_content
+    assert isinstance(summary_obj.last_modified, datetime.datetime)
+
+    # 7. Check has_summary is True after writing summary
+    docs_list_after = list_documents()
+    assert docs_list_after is not None
+    test_doc_info_after = next((d for d in docs_list_after if d.document_name == doc_name), None)
+    assert test_doc_info_after is not None, f"Document {doc_name} not found after writing summary"
+    assert test_doc_info_after.has_summary is True, "has_summary should be True after writing document summary"
+
+    # 8. Test reading summary of a non-existent document
+    assert read_document_summary(non_existent_doc_name) is None
+
 
 # Cleanup function to ensure all test artifacts are removed
 def pytest_sessionfinish(session, exitstatus):

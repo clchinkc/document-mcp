@@ -22,7 +22,9 @@ from document_mcp.doc_tool_server import (
     ParagraphDetail,
     ChapterContent,
     FullDocumentContent,
-    StatisticsReport
+    StatisticsReport,
+    ChapterSummary,  # Added
+    DocumentSummary  # Added
 )
 
 # --- Configuration ---
@@ -46,6 +48,8 @@ DetailsType = Union[
     Optional[ChapterContent],       # from read_chapter_content
     Optional[ParagraphDetail],      # from read_paragraph_content
     Optional[FullDocumentContent],  # from read_full_document
+    Optional[ChapterSummary],       # Added
+    Optional[DocumentSummary],      # Added
     OperationStatus,                # from all write operations (create, delete, write, modify, append, replace)
     Optional[StatisticsReport],     # from get_chapter_statistics, get_document_statistics
     List[ParagraphDetail],          # from find_text_in_chapter, find_text_in_document
@@ -105,6 +109,17 @@ When a user asks for an operation:
 - `get_chapter_statistics(document_name="my_book", chapter_name="01-intro.md")`: Gets word/paragraph count for a chapter.
 - `get_document_statistics(document_name="my_book")`: Gets aggregate word/paragraph/chapter counts for "my_book".
 - `find_text_in_chapter(...)` and `find_text_in_document(...)`: For locating text.
+- `read_chapter_summary(document_name: str, chapter_name: str)`: Reads the summary of a specific chapter.
+- `read_document_summary(document_name: str)`: Reads the summary of a specific document.
+- `write_chapter_summary(document_name: str, chapter_name: str, summary_content: str)`: Creates or updates the summary for a chapter.
+- `write_document_summary(document_name: str, summary_content: str)`: Creates or updates the summary for a document.
+
+**Workflow for Using Summaries:**
+- When asked to understand, retrieve information from, or assess the relevance of a chapter or document, you should first check if a summary is available using `read_chapter_summary` or `read_document_summary`.
+- You can also check the `has_summary` flag in the metadata returned by `list_chapters` or `list_documents`.
+- Evaluate the summary content in the context of the user's query. If the summary suggests the chapter/document is relevant, or if no summary exists, or if the user explicitly asks for the full content, then proceed to use tools like `read_chapter_content` or `read_full_document`.
+- If the summary suggests the content is not relevant to the query, inform the user and ask if they still want to proceed with reading the full content.
+- If the user asks to create or update a summary, use the `write_chapter_summary` or `write_document_summary` tools.
 
 If a user asks to access or process the *content* of multiple chapters within a document (e.g., "read all chapters of 'my_book'"):
 1. Use `read_full_document(document_name="my_book")`. The `details` field will be a `FullDocumentContent` object.

@@ -24,6 +24,10 @@ DOCS_ROOT_PATH.mkdir(parents=True, exist_ok=True) # Ensure the root directory ex
 # Manifest file name to store chapter order and metadata (optional, for future explicit ordering)
 CHAPTER_MANIFEST_FILE = "_manifest.json"
 
+# Summary file names
+CHAPTER_SUMMARY_SUFFIX = ".summary.md"
+DOCUMENT_SUMMARY_FILENAME = "_document.summary.md"
+
 # HTTP SSE server configuration
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 3001
@@ -50,6 +54,7 @@ class ChapterMetadata(BaseModel):
     word_count: int
     paragraph_count: int
     last_modified: datetime.datetime
+    has_summary: bool = False
     # chapter_index: int # Determined by order in list_chapters
 
 class DocumentInfo(BaseModel):
@@ -59,6 +64,7 @@ class DocumentInfo(BaseModel):
     total_word_count: int
     total_paragraph_count: int
     last_modified: datetime.datetime # Could be latest of any chapter or document folder itself
+    has_summary: bool = False
     chapters: List[ChapterMetadata] # Ordered list of chapter metadata
 
 class ParagraphDetail(BaseModel):
@@ -93,6 +99,19 @@ class StatisticsReport(BaseModel):
     paragraph_count: int
     chapter_count: Optional[int] = None # Only for document-level stats
 
+class ChapterSummary(BaseModel):
+    """Represents the summary of a chapter."""
+    document_name: str
+    chapter_name: str # Original chapter filename, e.g., 01-introduction.md
+    summary_content: str
+    last_modified: datetime.datetime
+
+class DocumentSummary(BaseModel):
+    """Represents the summary of a document."""
+    document_name: str
+    summary_content: str
+    last_modified: datetime.datetime
+
 # --- Helper Functions ---
 
 def _get_document_path(document_name: str) -> Path:
@@ -103,6 +122,19 @@ def _get_chapter_path(document_name: str, chapter_filename: str) -> Path:
     """Returns the Path object for a given chapter file."""
     doc_path = _get_document_path(document_name)
     return doc_path / chapter_filename
+
+def _get_chapter_summary_path(document_name: str, chapter_filename: str) -> Path:
+    """Returns the Path object for a chapter's summary file."""
+    # chapter_filename is like "01-intro.md", we want "01-intro.summary.md"
+    base_name = chapter_filename.rsplit('.', 1)[0] # Remove .md
+    summary_filename = base_name + CHAPTER_SUMMARY_SUFFIX
+    doc_path = _get_document_path(document_name)
+    return doc_path / summary_filename
+
+def _get_document_summary_path(document_name: str) -> Path:
+    """Returns the Path object for a document's summary file."""
+    doc_path = _get_document_path(document_name)
+    return doc_path / DOCUMENT_SUMMARY_FILENAME
 
 def _is_valid_chapter_filename(filename: str) -> bool:
     """Checks if a filename is a valid Markdown file and not a manifest file."""
@@ -172,11 +204,13 @@ def _get_chapter_metadata(document_name: str, chapter_file_path: Path) -> Option
         paragraphs = _split_into_paragraphs(content)
         word_count = _count_words(content)
         stat = chapter_file_path.stat()
+        has_summary = _get_chapter_summary_path(document_name, chapter_file_path.name).exists()
         return ChapterMetadata(
             chapter_name=chapter_file_path.name,
             word_count=word_count,
             paragraph_count=len(paragraphs),
-            last_modified=datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc)
+            last_modified=datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc),
+            has_summary=has_summary
             # title can be added later if we parse H1 from content
         )
     except Exception as e:
@@ -226,10 +260,12 @@ def list_documents() -> List[DocumentInfo]:
                     stat_dir = doc_dir.stat()
                     latest_mod_time = datetime.datetime.fromtimestamp(stat_dir.st_mtime, tz=datetime.timezone.utc)
 
+            has_document_summary = _get_document_summary_path(document_name).exists()
 
             docs_info.append(
                 DocumentInfo(
                     document_name=document_name,
+                    has_summary=has_document_summary,
                     total_chapters=len(chapters_metadata_list),
                     total_word_count=doc_total_word_count,
                     total_paragraph_count=doc_total_paragraph_count,
@@ -357,6 +393,68 @@ def read_full_document(document_name: str) -> Optional[FullDocumentContent]:
         total_paragraph_count=doc_total_paragraph_count
     )
 
+@mcp_server.tool()
+@log_mcp_call
+def read_chapter_summary(document_name: str, chapter_name: str) -> Optional[ChapterSummary]:
+    """
+    Reads the summary of a specific chapter.
+    Requires `document_name` and `chapter_name` (e.g., "01-intro.md").
+    Returns a ChapterSummary object or None if the summary is not found.
+    """
+    # Ensure the chapter itself exists first for context, though summary could exist orphaned.
+    # For robustness, let's allow reading a summary even if the chapter file was deleted.
+    # However, chapter_name must be a valid original chapter filename.
+    if not _is_valid_chapter_filename(chapter_name):
+        # This check is more about the format of chapter_name rather than existence of the .md file
+        print(f"Invalid chapter name format: {chapter_name}")
+        return None
+
+    summary_path = _get_chapter_summary_path(document_name, chapter_name)
+
+    if not summary_path.is_file():
+        # print(f"Chapter summary for '{chapter_name}' in document '{document_name}' not found at {summary_path}")
+        return None
+    try:
+        summary_content = summary_path.read_text(encoding="utf-8")
+        stat = summary_path.stat()
+        return ChapterSummary(
+            document_name=document_name,
+            chapter_name=chapter_name, # Original chapter filename
+            summary_content=summary_content,
+            last_modified=datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc)
+        )
+    except Exception as e:
+        print(f"Error reading chapter summary {summary_path.name} in document {document_name}: {e}")
+        return None
+
+@mcp_server.tool()
+@log_mcp_call
+def read_document_summary(document_name: str) -> Optional[DocumentSummary]:
+    """
+    Reads the summary of a specific document.
+    Requires `document_name`.
+    Returns a DocumentSummary object or None if the summary is not found.
+    """
+    doc_path = _get_document_path(document_name)
+    if not doc_path.is_dir(): # Ensure document directory exists
+        print(f"Document '{document_name}' not found at {doc_path}")
+        return None
+
+    summary_path = _get_document_summary_path(document_name)
+    if not summary_path.is_file():
+        # print(f"Document summary for '{document_name}' not found at {summary_path}")
+        return None
+    try:
+        summary_content = summary_path.read_text(encoding="utf-8")
+        stat = summary_path.stat()
+        return DocumentSummary(
+            document_name=document_name,
+            summary_content=summary_content,
+            last_modified=datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc)
+        )
+    except Exception as e:
+        print(f"Error reading document summary {summary_path.name} for document {document_name}: {e}")
+        return None
 
 # --- Implement Write Tools ---
 
@@ -664,6 +762,59 @@ def replace_text_in_document(document_name: str, text_to_find: str, replacement_
         message=f"Text replacement completed in document '{document_name}'. {total_occurrences_replaced} occurrences replaced across {chapters_modified_count} chapter(s).",
         details={"chapters_modified_count": chapters_modified_count, "total_occurrences_replaced": total_occurrences_replaced, "modified_chapters": modified_chapters_details}
     )
+
+@mcp_server.tool()
+@log_mcp_call
+def write_chapter_summary(document_name: str, chapter_name: str, summary_content: str) -> OperationStatus:
+    """
+    Writes (or overwrites) the summary for a specific chapter.
+    Requires `document_name`, `chapter_name` (e.g., "01-intro.md"), and `summary_content`.
+    The chapter file itself (.md) should exist.
+    """
+    doc_path = _get_document_path(document_name)
+    if not doc_path.is_dir():
+        return OperationStatus(success=False, message=f"Document '{document_name}' not found.")
+
+    # Check if the original chapter file exists, as a prerequisite for having a chapter summary.
+    chapter_path = _get_chapter_path(document_name, chapter_name)
+    if not chapter_path.is_file() or not _is_valid_chapter_filename(chapter_name):
+        return OperationStatus(success=False, message=f"Chapter '{chapter_name}' not found or is invalid in document '{document_name}'. Cannot write summary.")
+
+    summary_path = _get_chapter_summary_path(document_name, chapter_name)
+    try:
+        summary_path.write_text(summary_content, encoding="utf-8")
+        # Update has_summary in metadata by re-fetching and updating (or assume it's true)
+        # For simplicity, we'll just report success here. The metadata will update on next list/get.
+        return OperationStatus(
+            success=True,
+            message=f"Summary for chapter '{chapter_name}' in document '{document_name}' written successfully.",
+            details={"document_name": document_name, "chapter_name": chapter_name, "summary_file": summary_path.name}
+        )
+    except Exception as e:
+        return OperationStatus(success=False, message=f"Error writing summary for chapter '{chapter_name}' in document '{document_name}': {e}")
+
+@mcp_server.tool()
+@log_mcp_call
+def write_document_summary(document_name: str, summary_content: str) -> OperationStatus:
+    """
+    Writes (or overwrites) the summary for an entire document.
+    Requires `document_name` and `summary_content`.
+    """
+    doc_path = _get_document_path(document_name)
+    if not doc_path.is_dir():
+        return OperationStatus(success=False, message=f"Document '{document_name}' not found.")
+
+    summary_path = _get_document_summary_path(document_name)
+    try:
+        summary_path.write_text(summary_content, encoding="utf-8")
+        # Similar to chapter summary, metadata will update on next list/get.
+        return OperationStatus(
+            success=True,
+            message=f"Summary for document '{document_name}' written successfully.",
+            details={"document_name": document_name, "summary_file": summary_path.name}
+        )
+    except Exception as e:
+        return OperationStatus(success=False, message=f"Error writing summary for document '{document_name}': {e}")
 
 # --- Implement Analyze Tools ---
 

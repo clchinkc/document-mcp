@@ -20,7 +20,8 @@ from agent import (
     process_single_user_query,
     FinalAgentResponse,
     DocumentInfo, ChapterContent, OperationStatus,
-    StatisticsReport, ParagraphDetail, FullDocumentContent
+    StatisticsReport, ParagraphDetail, FullDocumentContent,
+    ChapterSummary, DocumentSummary  # Added for summary tests
 )
 
 # Import from the installed document_mcp package for direct manipulation
@@ -494,6 +495,169 @@ async def test_agent_find_text_in_document(test_docs_root):
         for result in response.details:
             if hasattr(result, 'content'):
                 assert text_to_find in result.content
+
+# --- Agent Summary Handling Test Cases ---
+
+@pytest.mark.asyncio
+async def test_agent_reads_chapter_summary_then_content_if_relevant(test_docs_root):
+    doc_name = "doc_sum_rel_chap"
+    chapter_name = "ch1.md"
+    summary_filename = "ch1.summary.md"
+    chapter_content = "Full content of chapter one, which is an introduction."
+    summary_content = "Summary: Chapter one is about an introduction."
+
+    doc_dir = test_docs_root / doc_name
+    doc_dir.mkdir(parents=True, exist_ok=True)
+    (doc_dir / chapter_name).write_text(chapter_content)
+    (doc_dir / summary_filename).write_text(summary_content)
+
+    query = f"Tell me about chapter {chapter_name} in document {doc_name}."
+    response = await run_agent_test(query, test_docs_root, server_port=3020)
+
+    assert response is not None
+    # Check if the agent indicates it used the summary then decided to get full content.
+    # This is hard to assert directly from LLM reasoning.
+    # We primarily check that the final detail is the full chapter content.
+    assert "chapter one" in response.summary.lower() # General check
+    if isinstance(response.details, ChapterContent):
+        assert response.details.content == chapter_content
+    else:
+        # Fallback: if LLM returns FullDocumentContent instead of ChapterContent
+        assert isinstance(response.details, FullDocumentContent)
+        assert len(response.details.chapters) == 1
+        assert response.details.chapters[0].content == chapter_content
+    # A more advanced check might involve analyzing agent's tool call sequence if available.
+
+@pytest.mark.asyncio
+async def test_agent_reads_document_summary(test_docs_root):
+    doc_name = "doc_sum_doc_read"
+    summary_filename = "_document.summary.md"
+    doc_summary_content = "Summary: Document two is a collection of stories about space."
+
+    doc_dir = test_docs_root / doc_name
+    doc_dir.mkdir(parents=True, exist_ok=True)
+    (doc_dir / summary_filename).write_text(doc_summary_content)
+    (doc_dir / "01-story.md").write_text("A short story about a planet.") # Dummy chapter
+
+    query = f"What is document {doc_name} about?"
+    response = await run_agent_test(query, test_docs_root, server_port=3021)
+
+    assert response is not None
+    assert "collection of stories" in response.summary.lower() or "space" in response.summary.lower()
+
+    # Details could be DocumentSummary or DocumentInfo
+    # If DocumentSummary, content should match.
+    # If DocumentInfo, has_summary should be true.
+    if isinstance(response.details, DocumentSummary):
+        assert response.details.summary_content == doc_summary_content
+    elif isinstance(response.details, DocumentInfo):
+        assert response.details.has_summary is True
+    # It's also possible the agent calls list_documents and summarizes from there.
+    # The key is that the summary content is reflected in the agent's textual summary.
+
+@pytest.mark.asyncio
+async def test_agent_skips_full_content_if_chapter_summary_irrelevant(test_docs_root):
+    doc_name = "doc_sum_irrelevance"
+    chapter_name = "ch_topic.md"
+    summary_filename = "ch_topic.summary.md"
+    chapter_content = "Full content about dogs and their breeds."
+    summary_content = "Summary: This chapter is about various types of cats."
+
+    doc_dir = test_docs_root / doc_name
+    doc_dir.mkdir(parents=True, exist_ok=True)
+    (doc_dir / chapter_name).write_text(chapter_content)
+    (doc_dir / summary_filename).write_text(summary_content)
+
+    query = f"Tell me about dogs from chapter {chapter_name} in document {doc_name}."
+    response = await run_agent_test(query, test_docs_root, server_port=3022)
+
+    assert response is not None
+    assert "cats" in response.summary.lower() # Agent should mention the summary content
+    assert "dogs" in response.summary.lower() # And acknowledge the original query
+    assert "proceed" in response.summary.lower() or "still want" in response.summary.lower() or "different" in response.summary.lower() # Agent should ask user
+
+    # Details should ideally be ChapterSummary, not ChapterContent
+    assert not isinstance(response.details, ChapterContent), "Agent should not have fetched full content for irrelevant summary"
+    if response.details is not None: # Can be None if agent only summarizes
+        assert isinstance(response.details, ChapterSummary)
+        assert response.details.summary_content == summary_content
+
+@pytest.mark.asyncio
+async def test_agent_reads_full_content_if_no_chapter_summary(test_docs_root):
+    doc_name = "doc_sum_no_chap_sum"
+    chapter_name = "ch_no_summary.md"
+    chapter_content = "Content of chapter with absolutely no summary."
+
+    doc_dir = test_docs_root / doc_name
+    doc_dir.mkdir(parents=True, exist_ok=True)
+    (doc_dir / chapter_name).write_text(chapter_content)
+    # Ensure no summary file: (doc_dir / "ch_no_summary.summary.md").unlink(missing_ok=True) implicitly true
+
+    query = f"Read chapter {chapter_name} from document {doc_name}."
+    response = await run_agent_test(query, test_docs_root, server_port=3023)
+
+    assert response is not None
+    assert "content of chapter with absolutely no summary" in response.summary.lower() or \
+           "successfully read" in response.summary.lower()
+
+    if isinstance(response.details, ChapterContent):
+        assert response.details.content == chapter_content
+    else: # Fallback if agent reads full document
+        assert isinstance(response.details, FullDocumentContent)
+        assert len(response.details.chapters) == 1
+        assert response.details.chapters[0].content == chapter_content
+
+
+@pytest.mark.asyncio
+async def test_agent_writes_chapter_summary(test_docs_root):
+    doc_name = "doc_sum_write_chap"
+    chapter_name = "ch_to_summarize.md"
+    chapter_content = "This chapter contains some interesting facts."
+    summary_to_write = "This is a test summary for the chapter."
+    summary_filename = "ch_to_summarize.summary.md"
+
+    doc_dir = test_docs_root / doc_name
+    doc_dir.mkdir(parents=True, exist_ok=True)
+    (doc_dir / chapter_name).write_text(chapter_content)
+
+    query = f"Create a summary for chapter {chapter_name} in document {doc_name}: '{summary_to_write}'"
+    response = await run_agent_test(query, test_docs_root, server_port=3024)
+
+    assert response is not None
+    assert "summary" in response.summary.lower()
+    assert "created" in response.summary.lower() or "written" in response.summary.lower()
+
+    assert isinstance(response.details, OperationStatus)
+    assert response.details.success is True
+
+    summary_file_path = doc_dir / summary_filename
+    assert summary_file_path.exists()
+    assert summary_file_path.read_text() == summary_to_write
+
+@pytest.mark.asyncio
+async def test_agent_writes_document_summary(test_docs_root):
+    doc_name = "doc_sum_write_doc"
+    summary_to_write = "Overall summary for the entire document doc_sum_write_doc."
+    summary_filename = "_document.summary.md"
+
+    doc_dir = test_docs_root / doc_name
+    doc_dir.mkdir(parents=True, exist_ok=True)
+    (doc_dir / "01-content.md").write_text("Some dummy content for the document.") # Ensure doc is not empty
+
+    query = f"Set the summary for document {doc_name} to: '{summary_to_write}'"
+    response = await run_agent_test(query, test_docs_root, server_port=3025)
+
+    assert response is not None
+    assert "summary" in response.summary.lower()
+    assert "set" in response.summary.lower() or "written" in response.summary.lower()
+
+    assert isinstance(response.details, OperationStatus)
+    assert response.details.success is True
+
+    summary_file_path = doc_dir / summary_filename
+    assert summary_file_path.exists()
+    assert summary_file_path.read_text() == summary_to_write
+
 
 # Cleanup function to ensure all test artifacts are removed
 def pytest_sessionfinish(session, exitstatus):
