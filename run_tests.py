@@ -69,7 +69,7 @@ def run_tests():
     agent_result = subprocess.run([
         sys.executable, "-m", "pytest", 
         "example_agent/test_agent.py",
-        "-v", "--tb=short"
+        "-v", "--tb=short", "-n", "auto"
     ], env=env, cwd=Path.cwd())
     
     # Summary

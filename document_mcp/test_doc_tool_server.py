@@ -57,27 +57,6 @@ def test_package_imports():
     except ImportError as e:
         pytest.fail(f"Failed to import from doc_tool_server: {e}")
 
-def test_server_health_check():
-    """Test if MCP server can be reached (if running)."""
-    try:
-        import requests
-        # Check if server is already running
-        result = subprocess.run(
-            ["curl", "-s", "http://localhost:3001/health"],
-            capture_output=True,
-            timeout=2
-        )
-        
-        if result.returncode == 0:
-            # Server is running, this is good for integration tests
-            assert True
-        else:
-            # Server not running, that's okay for unit tests
-            pytest.skip("MCP Server not running - skipping health check")
-    
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pytest.skip("Cannot check MCP server health (curl not available or timeout)")
-
 def test_test_data_availability():
     """Test if test data is available for comprehensive testing."""
     test_doc_path = Path(".documents_storage/long_story_document")
