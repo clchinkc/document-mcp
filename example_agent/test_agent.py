@@ -179,6 +179,17 @@ async def mcp_server_context(test_docs_root=None, host="localhost", port=3001):
 
 # --- Pytest Fixtures ---
 
+@pytest.fixture(scope="session")
+def event_loop():
+    """
+    Creates an asyncio event loop for the entire test session, preventing
+    'Event loop is closed' errors when running multiple async tests.
+    """
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    yield loop
+    loop.close()
+
 @pytest.fixture(scope="module")
 def test_docs_root(tmp_path_factory):
     """Create a temporary directory for documents that persists for the module."""
@@ -381,7 +392,7 @@ async def test_agent_read_chapter_content(test_docs_root):
     response = await run_agent_test(
         f"Read chapter '{chapter_name}' from document '{doc_name}'",
         test_docs_root,
-        server_port=3014
+        server_port=3018
     )
     
     assert response is not None
