@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/YOUR_USERNAME/YOUR_REPOSITORY/graph/badge.svg)](https://codecov.io/gh/YOUR_USERNAME/YOUR_REPOSITORY)
+<!-- TODO: Update the Codecov badge URL above with your actual GitHub username and repository name. You can find the correct snippet on your repository's page on Codecov. -->
 # Document MCP
 
 [![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
