@@ -23,22 +23,6 @@ def ensure_virtual_env():
             print("   pip install -r requirements.txt")
             sys.exit(1)
 
-def check_environment():
-    """Check if environment is properly set up."""
-    # Check .env file
-    env_file = Path(".env")
-    if not env_file.exists():
-        print("❌ .env file not found. Please create one with your API keys.")
-        return False
-    
-    env_content = env_file.read_text()
-    if "GOOGLE_API_KEY" not in env_content and "GEMINI_API_KEY" not in env_content:
-        print("❌ API key not found in .env. Please add GOOGLE_API_KEY or GEMINI_API_KEY.")
-        return False
-    
-    print("✅ Environment configured correctly")
-    return True
-
 def run_tests():
     """Run all tests with proper environment setup."""
     print("Document MCP - Comprehensive Test Runner")
@@ -47,30 +31,19 @@ def run_tests():
     # Ensure virtual environment
     ensure_virtual_env()
     
-    # Check environment
-    if not check_environment():
-        print("Please fix environment issues before running tests.")
-        return 1
-    
-    # Set up environment variables for testing
-    env = os.environ.copy()
-    env["PYTHONPATH"] = str(Path.cwd())
-    
     # Run server-side tests
     print("\n🔧 Running MCP Server Tests...")
     server_result = subprocess.run([
         sys.executable, "-m", "pytest", 
-        "document_mcp/test_doc_tool_server.py",
-        "-v", "--tb=short"
-    ], env=env)
+        "document_mcp/test_doc_tool_server.py"
+    ])
     
     # Run agent tests
     print("\n🤖 Running Agent Integration Tests...")
     agent_result = subprocess.run([
         sys.executable, "-m", "pytest", 
-        "example_agent/test_agent.py",
-        "-v", "--tb=short", "-n", "auto"
-    ], env=env, cwd=Path.cwd())
+        "example_agent/test_agent.py"
+    ])
     
     # Summary
     print("\n" + "=" * 50)
@@ -87,7 +60,7 @@ def run_tests():
         print("\n🎉 All tests passed!")
         return 0
     else:
-        print(f"\n⚠️  Some tests failed. Check output above.")
+        print("\n⚠️  Some tests failed. Check output above.")
         return 1
 
 if __name__ == "__main__":
