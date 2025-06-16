@@ -2,19 +2,20 @@ name: Python Tests with Coverage
 
 on:
   push:
-    branches: [ main ] # Adjust if your main branch is named differently (e.g., master)
+    branches: [main, develop]
   pull_request:
-    branches: [ main ] # Adjust if your main branch is named differently
+    branches: [main, develop]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"] # Define python versions to test against
+        python-version: ["3.9", "3.11", "3.13"]
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -28,14 +29,9 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=document_mcp --cov=example_agent --cov-report=xml --cov-report=term-missing document_mcp/ example_agent/
+        pytest --cov=document_mcp --cov=example_agent --cov-report=xml --cov-report=term-missing run_tests.py
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
-        token: ${{ secrets.CODECOV_TOKEN }} # Store your Codecov token in GitHub secrets
-        # files: ./coverage.xml # Optional: specify coverage file if not automatically detected
-        # flags: unittests # Optional: specify flags for differentiating coverage reports
-        # name: codecov-umbrella # Optional: specify a name for the report
-        # fail_ci_if_error: true # Optional: Fail CI if Codecov upload fails
-        # verbose: true # Optional: Enable verbose logging
+        token: ${{ secrets.CODECOV_TOKEN }}
