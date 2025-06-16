@@ -29,7 +29,7 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=document_mcp --cov=example_agent --cov-report=xml --cov-report=term-missing run_tests.py
+        pytest document_mcp example_agent --cov-report=xml --cov-report=term-missing run_tests.py
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
