@@ -492,7 +492,7 @@ def test_write_chapter_content_overwrite(temp_docs_root: Path):
     (temp_docs_root / doc_name / chapter_name).write_text(initial_content)
 
     status = write_chapter_content(document_name=doc_name, chapter_name=chapter_name, new_content=new_content)
-    _assert_operation_success(status, "overwritten successfully")
+    _assert_operation_success(status, "updated successfully")
     assert (temp_docs_root / doc_name / chapter_name).read_text() == new_content
     assert status.details["content"] == new_content
 
@@ -503,7 +503,7 @@ def test_write_chapter_content_create_new(temp_docs_root: Path):
     create_document(document_name=doc_name)
 
     status = write_chapter_content(document_name=doc_name, chapter_name=chapter_name, new_content=new_content)
-    _assert_operation_success(status, "overwritten successfully") # Message might be generic
+    _assert_operation_success(status, "updated successfully") # Message might be generic
     assert (temp_docs_root / doc_name / chapter_name).read_text() == new_content
 
 def test_read_paragraph_content_success(temp_docs_root: Path):
