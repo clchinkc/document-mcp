@@ -65,15 +65,30 @@ def test_agent_package_imports():
 
 # --- HTTP SSE Server Management ---
 
+def _get_worker_port(base_port=3001):
+    """Get a unique port for this pytest worker to avoid conflicts."""
+    try:
+        # Check if running with pytest-xdist
+        worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'master')
+        if worker_id == 'master':
+            return base_port
+        else:
+            # Extract worker number (e.g., 'gw0' -> 0, 'gw1' -> 1)
+            worker_num = int(worker_id.replace('gw', ''))
+            return base_port + worker_num + 1
+    except (ValueError, TypeError):
+        # Fallback to base port if parsing fails
+        return base_port
+
 class MCPServerManager:
     """Manages the HTTP SSE MCP server for testing."""
     
-    def __init__(self, host="localhost", port=3001, test_docs_root=None):
+    def __init__(self, host="localhost", port=None, test_docs_root=None):
         self.host = host
-        self.port = port
+        self.port = port or _get_worker_port()
         self.test_docs_root = test_docs_root
         self.process = None
-        self.server_url = f"http://{host}:{port}"
+        self.server_url = f"http://{host}:{self.port}"
         
     async def start_server(self):
         """Start the MCP server process."""
@@ -124,7 +139,7 @@ class MCPServerManager:
                     # Wait for graceful shutdown with timeout
                     await asyncio.wait_for(
                         asyncio.to_thread(self.process.wait),
-                        timeout=5.0
+                        timeout=10.0  # Increased timeout for CI environments
                     )
                 except asyncio.TimeoutError:
                     # If graceful termination fails, force kill
@@ -133,7 +148,7 @@ class MCPServerManager:
                         # Wait for force kill to complete
                         await asyncio.wait_for(
                             asyncio.to_thread(self.process.wait),
-                            timeout=3.0
+                            timeout=5.0  # Increased timeout
                         )
                     except asyncio.TimeoutError:
                         pass  # Process didn't respond to kill signal
@@ -156,7 +171,7 @@ class MCPServerManager:
                         self.process.kill()
                         await asyncio.wait_for(
                             asyncio.to_thread(self.process.wait),
-                            timeout=2.0
+                            timeout=3.0  # Increased timeout
                         )
                     except:
                         pass
@@ -164,11 +179,11 @@ class MCPServerManager:
                 # Always clear the process reference
                 self.process = None
                 
-                # Wait a bit to ensure all resources are released
-                await asyncio.sleep(0.5)
+                # Wait longer to ensure all resources are released, especially in CI
+                await asyncio.sleep(1.5)
 
 @asynccontextmanager
-async def mcp_server_context(test_docs_root=None, host="localhost", port=3001):
+async def mcp_server_context(test_docs_root=None, host="localhost", port=None):
     """Context manager for MCP server lifecycle."""
     manager = MCPServerManager(host=host, port=port, test_docs_root=test_docs_root)
     try:
@@ -176,15 +191,15 @@ async def mcp_server_context(test_docs_root=None, host="localhost", port=3001):
         yield manager
     finally:
         await manager.stop_server()
-        # Additional cleanup time to ensure all resources are released
-        await asyncio.sleep(2.0)
+        # Additional cleanup time to ensure all resources are released, especially in CI
+        await asyncio.sleep(3.0)
 
 # --- Pytest Fixtures ---
 
 @pytest.fixture
 def event_loop():
     """
-    Creates an asyncio event loop for the entire test session, preventing
+    Creates an asyncio event loop for each test function, preventing
     'Event loop is closed' errors when running multiple async tests.
     """
     policy = asyncio.get_event_loop_policy()
@@ -225,7 +240,7 @@ def test_docs_root(tmp_path_factory):
 
 # --- HTTP SSE Test Helper Functions ---
 
-async def run_agent_test(query, test_docs_root=None, server_port=3001):
+async def run_agent_test(query, test_docs_root=None, server_port=None):
     """
     Helper function to run a single agent test with HTTP SSE.
     Ensures proper cleanup of async tasks to prevent inter-test conflicts.
