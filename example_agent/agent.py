@@ -38,14 +38,14 @@ def load_llm_config():
     # Check for OpenAI API key first
     openai_api_key = os.environ.get('OPENAI_API_KEY')
     if openai_api_key and openai_api_key.strip():
-        model_name = os.environ.get('OPENAI_MODEL_NAME', 'gpt-4o-mini')
+        model_name = os.environ.get('OPENAI_MODEL_NAME', 'gpt-4.1-mini')
         print(f"Using OpenAI model: {model_name}")
         return OpenAIModel(model_name=model_name)
     
     # Check for Gemini API keys
     gemini_api_key = os.environ.get('GOOGLE_API_KEY')
     if gemini_api_key and gemini_api_key.strip():
-        model_name = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.0-flash-exp')
+        model_name = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.5-flash')
         print(f"Using Gemini model: {model_name}")
         return GeminiModel(model_name=model_name)
     
@@ -56,8 +56,8 @@ def load_llm_config():
         "- OPENAI_API_KEY for OpenAI models\n"
         "- GOOGLE_API_KEY for Google Gemini models\n"
         "\nOptionally, you can also set:\n"
-        "- OPENAI_MODEL_NAME (default: gpt-4o-mini)\n"
-        "- GEMINI_MODEL_NAME (default: gemini-2.0-flash-exp)"
+        "- OPENAI_MODEL_NAME (default: gpt-4.1-mini)\n"
+        "- GEMINI_MODEL_NAME (default: gemini-2.5-flash)"
     )
 
 def check_api_keys_config():
@@ -78,7 +78,7 @@ def check_api_keys_config():
     openai_api_key = os.environ.get('OPENAI_API_KEY')
     if openai_api_key and openai_api_key.strip():
         config_status['openai_configured'] = True
-        config_status['openai_model'] = os.environ.get('OPENAI_MODEL_NAME', 'gpt-4o-mini')
+        config_status['openai_model'] = os.environ.get('OPENAI_MODEL_NAME', 'gpt-4.1-mini')
         if not config_status['active_provider']:  # First priority
             config_status['active_provider'] = 'openai'
             config_status['active_model'] = config_status['openai_model']
@@ -87,7 +87,7 @@ def check_api_keys_config():
     gemini_api_key = os.environ.get('GOOGLE_API_KEY')
     if gemini_api_key and gemini_api_key.strip():
         config_status['gemini_configured'] = True
-        config_status['gemini_model'] = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.0-flash-exp')
+        config_status['gemini_model'] = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.5-flash')
         if not config_status['active_provider']:  # Second priority
             config_status['active_provider'] = 'gemini'
             config_status['active_model'] = config_status['gemini_model']

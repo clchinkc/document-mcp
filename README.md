@@ -23,11 +23,11 @@ pip install -r requirements.txt
 # Set .env file with your API key (one of the following):
 # For OpenAI (priority 1):
 OPENAI_API_KEY="sk-your-openai-api-key-here"
-OPENAI_MODEL_NAME="gpt-4o-mini"  # optional
+OPENAI_MODEL_NAME="gpt-4.1-mini"  # optional
 
 # For Gemini (priority 2):
 GOOGLE_API_KEY="your-google-api-key-here"
-GEMINI_MODEL_NAME="gemini-2.0-flash-exp"  # optional
+GEMINI_MODEL_NAME="gemini-2.5-flash"  # optional
 
 # Optional settings:
 DOCUMENT_ROOT_DIR=sample_doc/
@@ -101,11 +101,11 @@ Document MCP provides a structured way to manage large documents composed of mul
    
    # Option 1: OpenAI Configuration
    OPENAI_API_KEY=sk-your-openai-api-key-here
-   OPENAI_MODEL_NAME=gpt-4o-mini  # Optional: default is gpt-4o-mini
+   OPENAI_MODEL_NAME=gpt-4.1-mini  # Optional: default is gpt-4.1-mini
    
    # Option 2: Gemini Configuration  
    GOOGLE_API_KEY=your-google-api-key-here
-   GEMINI_MODEL_NAME=gemini-2.0-flash-exp  # Optional: default is gemini-2.0-flash-exp
+   GEMINI_MODEL_NAME=gemini-2.5-flash  # Optional: default is gemini-2.5-flash
    
    # === Optional Settings ===
    # Custom document storage directory
@@ -158,16 +158,16 @@ The example uses:
 
 The system automatically detects which LLM to use based on your `.env` configuration:
 
-1. **OpenAI** (Priority 1): If `OPENAI_API_KEY` is set, uses OpenAI models (default: `gpt-4o-mini`)
-2. **Gemini** (Priority 2): If `GOOGLE_API_KEY` is set, uses Gemini models (default: `gemini-2.0-flash-exp`)
+1. **OpenAI** (Priority 1): If `OPENAI_API_KEY` is set, uses OpenAI models (default: `gpt-4.1-mini`)
+2. **Gemini** (Priority 2): If `GOOGLE_API_KEY` is set, uses Gemini models (default: `gemini-2.5-flash`)
 
 When the agent starts, it will display which model it's using:
 ```
-Using OpenAI model: gpt-4o-mini
+Using OpenAI model: gpt-4.1-mini
 ```
 or
 ```
-Using Gemini model: gemini-2.0-flash-exp
+Using Gemini model: gemini-2.5-flash
 ```
 
 ### Example Interactions
