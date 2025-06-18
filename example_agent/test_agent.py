@@ -39,7 +39,7 @@ except ImportError:
 def test_agent_environment_setup():
     """Test agent environment setup and configuration."""
 
-    assert os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"), "API key not found in .env"
+    assert os.environ.get("OPENAI_API_KEY") or os.environ.get("GOOGLE_API_KEY"), "API key not found in .env"
 
 def test_agent_package_imports():
     """Test if all required packages can be imported for agent functionality."""

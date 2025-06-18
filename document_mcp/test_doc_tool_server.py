@@ -36,7 +36,7 @@ from . import doc_tool_server # Import the module itself to modify its global
 def test_environment_setup():
     """Test environment setup and configuration."""
     
-    assert os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"), "API key not found in .env"
+    assert os.environ.get("OPENAI_API_KEY") or os.environ.get("GOOGLE_API_KEY"), "API key not found in .env"
 
 def test_package_imports():
     """Test if all required packages can be imported."""

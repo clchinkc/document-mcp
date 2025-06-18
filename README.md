@@ -20,9 +20,17 @@ python -m document_mcp.doc_tool_server sse --host localhost --port 3001
 # Install the agent dependencies
 pip install -r requirements.txt
 
-# Set .env file
-GEMINI_API_KEY="XXXXXXXXXXXX"
-DOCUMENT_ROOT_DIR=sample_doc/ (optional)
+# Set .env file with your API key (one of the following):
+# For OpenAI (priority 1):
+OPENAI_API_KEY="sk-your-openai-api-key-here"
+OPENAI_MODEL_NAME="gpt-4o-mini"  # optional
+
+# For Gemini (priority 2):
+GOOGLE_API_KEY="your-google-api-key-here"
+GEMINI_MODEL_NAME="gemini-2.0-flash-exp"  # optional
+
+# Optional settings:
+DOCUMENT_ROOT_DIR=sample_doc/
 
 # Run the example agent (in another terminal)
 python example_agent/agent.py
@@ -84,15 +92,23 @@ Document MCP provides a structured way to manage large documents composed of mul
    ```
 
 2. **Set up environment variables:**
-   Create a `.env` file in your project directory:
+   Create a `.env` file in your project directory. The system automatically detects and uses the first available API key:
    ```env
-   # Required: Google API key for Gemini
-   GOOGLE_API_KEY=your_google_api_key_here
+   # === LLM Configuration (choose one) ===
+   # The system will use the first available API key in this priority order:
+   # 1. OpenAI (if OPENAI_API_KEY is set)
+   # 2. Gemini (if GOOGLE_API_KEY is set)
    
-   # Optional: Specify Gemini model (defaults to gemini-2.5-flash-preview-04-17)
-   GEMINI_MODEL_NAME=gemini-2.5-flash-preview-04-17
+   # Option 1: OpenAI Configuration
+   OPENAI_API_KEY=sk-your-openai-api-key-here
+   OPENAI_MODEL_NAME=gpt-4o-mini  # Optional: default is gpt-4o-mini
    
-   # Optional: Custom document storage directory
+   # Option 2: Gemini Configuration  
+   GOOGLE_API_KEY=your-google-api-key-here
+   GEMINI_MODEL_NAME=gemini-2.0-flash-exp  # Optional: default is gemini-2.0-flash-exp
+   
+   # === Optional Settings ===
+   # Custom document storage directory
    DOCUMENT_ROOT_DIR=sample_doc/
    
    # Optional: MCP server connection (defaults shown)
@@ -107,6 +123,10 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 4. **Run the example agent:**
    ```bash
+   # Check your configuration first (optional)
+   python example_agent/agent.py --check-config
+   
+   # Run the interactive agent
    python example_agent/agent.py
    ```
 
@@ -130,9 +150,25 @@ User Query → Pydantic AI Agent → MCP Client → Document MCP Server → File
 
 The example uses:
 - **Pydantic AI**: For LLM integration and structured outputs
-- **Google Gemini**: As the language model (configurable)
+- **Flexible LLM Support**: Automatically detects and uses OpenAI or Gemini based on available API keys
 - **MCP Client**: To communicate with the document server
 - **Structured Responses**: Using Pydantic models for consistent output
+
+### Automatic LLM Detection
+
+The system automatically detects which LLM to use based on your `.env` configuration:
+
+1. **OpenAI** (Priority 1): If `OPENAI_API_KEY` is set, uses OpenAI models (default: `gpt-4o-mini`)
+2. **Gemini** (Priority 2): If `GOOGLE_API_KEY` is set, uses Gemini models (default: `gemini-2.0-flash-exp`)
+
+When the agent starts, it will display which model it's using:
+```
+Using OpenAI model: gpt-4o-mini
+```
+or
+```
+Using Gemini model: gemini-2.0-flash-exp
+```
 
 ### Example Interactions
 

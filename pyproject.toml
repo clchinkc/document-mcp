@@ -23,6 +23,7 @@ dependencies = [
     "mcp[cli]",
     "python-dotenv",
     "google-generativeai",
+    "openai",
 ]
 
 [project.optional-dependencies]
