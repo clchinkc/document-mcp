@@ -28,11 +28,7 @@ from document_mcp.doc_tool_server import (
 
 # --- Configuration ---
 def load_llm_config():
-    """
-    Automatically detects and loads the appropriate LLM based on available API keys.
-    Priority: OpenAI -> Gemini
-    Returns the configured model instance.
-    """
+    """Load and configure the LLM model based on available environment variables."""
     load_dotenv()
     
     # Check for OpenAI API key first
@@ -43,7 +39,7 @@ def load_llm_config():
         return OpenAIModel(model_name=model_name)
     
     # Check for Gemini API keys
-    gemini_api_key = os.environ.get('GOOGLE_API_KEY')
+    gemini_api_key = os.environ.get('GEMINI_API_KEY')
     if gemini_api_key and gemini_api_key.strip():
         model_name = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.5-flash')
         print(f"Using Gemini model: {model_name}")
@@ -54,7 +50,7 @@ def load_llm_config():
         "No valid API key found in environment variables. "
         "Please set one of the following in your .env file:\n"
         "- OPENAI_API_KEY for OpenAI models\n"
-        "- GOOGLE_API_KEY for Google Gemini models\n"
+        "- GEMINI_API_KEY for Google Gemini models\n"
         "\nOptionally, you can also set:\n"
         "- OPENAI_MODEL_NAME (default: gpt-4.1-mini)\n"
         "- GEMINI_MODEL_NAME (default: gemini-2.5-flash)"
@@ -84,7 +80,7 @@ def check_api_keys_config():
             config_status['active_model'] = config_status['openai_model']
     
     # Check Gemini
-    gemini_api_key = os.environ.get('GOOGLE_API_KEY')
+    gemini_api_key = os.environ.get('GEMINI_API_KEY')
     if gemini_api_key and gemini_api_key.strip():
         config_status['gemini_configured'] = True
         config_status['gemini_model'] = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.5-flash')
@@ -281,7 +277,7 @@ async def process_single_user_query(
         error_msg = str(e)
         if "ReadTimeout" in error_msg or "Event loop is closed" in error_msg:
             summary = "API connection timeout or network error occurred"
-        elif "test_api_key_placeholder" in os.environ.get("GOOGLE_API_KEY", ""):
+        elif "test_api_key_placeholder" in os.environ.get("GEMINI_API_KEY", ""):
             summary = "API authentication error (placeholder key used)"
         else:
             summary = f"Exception during query processing: {e}"
@@ -316,7 +312,7 @@ async def main():
             print(f"Active model: {config['active_model']}")
         else:
             print("❌ No API keys configured!")
-            print("Please set either OPENAI_API_KEY or GOOGLE_API_KEY in your .env file.")
+            print("Please set either OPENAI_API_KEY or GEMINI_API_KEY in your .env file.")
         return
 
     try:

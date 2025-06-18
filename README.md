@@ -26,7 +26,7 @@ OPENAI_API_KEY="sk-your-openai-api-key-here"
 OPENAI_MODEL_NAME="gpt-4.1-mini"  # optional
 
 # For Gemini (priority 2):
-GOOGLE_API_KEY="your-google-api-key-here"
+GEMINI_API_KEY="your-google-api-key-here"
 GEMINI_MODEL_NAME="gemini-2.5-flash"  # optional
 
 # Optional settings:
@@ -97,14 +97,14 @@ Document MCP provides a structured way to manage large documents composed of mul
    # === LLM Configuration (choose one) ===
    # The system will use the first available API key in this priority order:
    # 1. OpenAI (if OPENAI_API_KEY is set)
-   # 2. Gemini (if GOOGLE_API_KEY is set)
+   # 2. Gemini (if GEMINI_API_KEY is set)
    
    # Option 1: OpenAI Configuration
    OPENAI_API_KEY=sk-your-openai-api-key-here
    OPENAI_MODEL_NAME=gpt-4.1-mini  # Optional: default is gpt-4.1-mini
    
    # Option 2: Gemini Configuration  
-   GOOGLE_API_KEY=your-google-api-key-here
+   GEMINI_API_KEY=your-google-api-key-here
    GEMINI_MODEL_NAME=gemini-2.5-flash  # Optional: default is gemini-2.5-flash
    
    # === Optional Settings ===
@@ -159,7 +159,7 @@ The example uses:
 The system automatically detects which LLM to use based on your `.env` configuration:
 
 1. **OpenAI** (Priority 1): If `OPENAI_API_KEY` is set, uses OpenAI models (default: `gpt-4.1-mini`)
-2. **Gemini** (Priority 2): If `GOOGLE_API_KEY` is set, uses Gemini models (default: `gemini-2.5-flash`)
+2. **Gemini** (Priority 2): If `GEMINI_API_KEY` is set, uses Gemini models (default: `gemini-2.5-flash`)
 
 When the agent starts, it will display which model it's using:
 ```
