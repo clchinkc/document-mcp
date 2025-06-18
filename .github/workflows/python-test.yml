@@ -34,7 +34,8 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        python run_tests.py --cov-report=xml --cov-report=term-missing run_tests.py
+        source .venv/bin/activate
+        python run_tests.py --cov=document_mcp --cov=example_agent --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings -n 4
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
