@@ -4,6 +4,7 @@ pydantic-ai
 mcp
 python-dotenv
 google-generativeai
+openai
 pytest
 pytest-asyncio
 pytest-xdist

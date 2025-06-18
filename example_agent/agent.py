@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.models.gemini import GeminiModel
+from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.mcp import MCPServerHTTP
 
 # Import models from the server to ensure compatibility
@@ -26,15 +27,72 @@ from document_mcp.doc_tool_server import (
 )
 
 # --- Configuration ---
-def load_gemini_llm_config() -> GeminiModel:
+def load_llm_config():
+    """
+    Automatically detects and loads the appropriate LLM based on available API keys.
+    Priority: OpenAI -> Gemini
+    Returns the configured model instance.
+    """
     load_dotenv()
-    # Default model, can be overridden by GEMINI_MODEL_NAME in .env
-    # Keeping gemini-2.5-flash-preview-04-17 as per current content unless a change is explicitly requested.
-    model_name = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.5-flash-preview-04-17')
-    model = GeminiModel(
-        model_name=model_name,
+    
+    # Check for OpenAI API key first
+    openai_api_key = os.environ.get('OPENAI_API_KEY')
+    if openai_api_key and openai_api_key.strip():
+        model_name = os.environ.get('OPENAI_MODEL_NAME', 'gpt-4o-mini')
+        print(f"Using OpenAI model: {model_name}")
+        return OpenAIModel(model_name=model_name)
+    
+    # Check for Gemini API keys
+    gemini_api_key = os.environ.get('GOOGLE_API_KEY')
+    if gemini_api_key and gemini_api_key.strip():
+        model_name = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.0-flash-exp')
+        print(f"Using Gemini model: {model_name}")
+        return GeminiModel(model_name=model_name)
+    
+    # If no API keys are found, raise an error with helpful message
+    raise ValueError(
+        "No valid API key found in environment variables. "
+        "Please set one of the following in your .env file:\n"
+        "- OPENAI_API_KEY for OpenAI models\n"
+        "- GOOGLE_API_KEY for Google Gemini models\n"
+        "\nOptionally, you can also set:\n"
+        "- OPENAI_MODEL_NAME (default: gpt-4o-mini)\n"
+        "- GEMINI_MODEL_NAME (default: gemini-2.0-flash-exp)"
     )
-    return model
+
+def check_api_keys_config():
+    """
+    Utility function to check which API keys are configured.
+    Returns a dictionary with configuration status.
+    """
+    load_dotenv()
+    
+    config_status = {
+        'openai_configured': False,
+        'gemini_configured': False,
+        'active_provider': None,
+        'active_model': None
+    }
+    
+    # Check OpenAI
+    openai_api_key = os.environ.get('OPENAI_API_KEY')
+    if openai_api_key and openai_api_key.strip():
+        config_status['openai_configured'] = True
+        config_status['openai_model'] = os.environ.get('OPENAI_MODEL_NAME', 'gpt-4o-mini')
+        if not config_status['active_provider']:  # First priority
+            config_status['active_provider'] = 'openai'
+            config_status['active_model'] = config_status['openai_model']
+    
+    # Check Gemini
+    gemini_api_key = os.environ.get('GOOGLE_API_KEY')
+    if gemini_api_key and gemini_api_key.strip():
+        config_status['gemini_configured'] = True
+        config_status['gemini_model'] = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.0-flash-exp')
+        if not config_status['active_provider']:  # Second priority
+            config_status['active_provider'] = 'gemini'
+            config_status['active_model'] = config_status['gemini_model']
+    
+    return config_status
 
 # --- Agent Response Model (for Pydantic AI Agent's structured output) ---
 # Using imported models from the server to ensure compatibility
@@ -133,7 +191,7 @@ Follow the user's instructions carefully and to the letter without asking for cl
 async def initialize_agent_and_mcp_server() -> tuple[Agent[FinalAgentResponse], MCPServerHTTP]:
     """Initializes the Pydantic AI agent and its MCP server configuration."""
     try:
-        llm = load_gemini_llm_config()
+        llm = load_llm_config()
     except ValueError as e:
         print(f"Error loading LLM config: {e}", file=sys.stderr)
         raise
@@ -239,7 +297,27 @@ async def main():
     """Initializes and runs the Pydantic AI agent."""
     parser = argparse.ArgumentParser(description="Pydantic AI Document Agent")
     parser.add_argument("--query", type=str, help="A single query to process. If provided, the agent will run non-interactively.")
+    parser.add_argument("--check-config", action="store_true", help="Check API key configuration and exit.")
     args = parser.parse_args()
+    
+    # Handle configuration check
+    if args.check_config:
+        config = check_api_keys_config()
+        print("=== API Configuration Status ===")
+        print(f"OpenAI configured: {'✓' if config['openai_configured'] else '✗'}")
+        if config['openai_configured']:
+            print(f"  Model: {config.get('openai_model', 'N/A')}")
+        print(f"Gemini configured: {'✓' if config['gemini_configured'] else '✗'}")
+        if config['gemini_configured']:
+            print(f"  Model: {config.get('gemini_model', 'N/A')}")
+        print()
+        if config['active_provider']:
+            print(f"Active provider: {config['active_provider'].upper()}")
+            print(f"Active model: {config['active_model']}")
+        else:
+            print("❌ No API keys configured!")
+            print("Please set either OPENAI_API_KEY or GOOGLE_API_KEY in your .env file.")
+        return
 
     try:
         agent, doc_tools_http_server = await initialize_agent_and_mcp_server()
