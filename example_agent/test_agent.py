@@ -114,24 +114,44 @@ class MCPServerManager:
         # Wait for server to be ready
         await self._wait_for_server()
         
-    async def _wait_for_server(self, timeout=15):
+    async def _wait_for_server(self, timeout=20):
         """Wait for the server to be ready to accept connections."""
+        print(f"Waiting for MCP server at {self.server_url}")
         start_time = time.time()
+        attempts = 0
         while time.time() - start_time < timeout:
             try:
-                response = requests.get(f"{self.server_url}/health", timeout=1)
+                attempts += 1
+                response = requests.get(f"{self.server_url}/health", timeout=2)
                 if response.status_code == 200:
+                    print(f"MCP server ready after {attempts} attempts")
                     return
-            except requests.exceptions.RequestException:
-                pass
-            await asyncio.sleep(0.5)
+                else:
+                    print(f"Server responded with status {response.status_code}")
+            except requests.exceptions.RequestException as e:
+                if attempts % 5 == 0:  # Log every 5th attempt
+                    print(f"Attempt {attempts}: Server not ready yet ({e})")
+            await asyncio.sleep(1.0)  # Increased wait time
             
-        raise TimeoutError(f"MCP server did not start within {timeout} seconds")
+        raise TimeoutError(f"MCP server did not start within {timeout} seconds after {attempts} attempts")
         
     async def stop_server(self):
         """Stop the MCP server process."""
         if self.process is not None:
             try:
+                # Cancel any pending tasks first
+                try:
+                    current_task = asyncio.current_task()
+                    all_tasks = [t for t in asyncio.all_tasks() if t != current_task and not t.done()]
+                    if all_tasks:
+                        for task in all_tasks:
+                            if not task.done():
+                                task.cancel()
+                        # Give tasks a moment to cancel
+                        await asyncio.sleep(0.1)
+                except Exception:
+                    pass  # Ignore task cleanup errors
+                
                 # First, try graceful termination
                 self.process.terminate()
                 
@@ -164,8 +184,9 @@ class MCPServerManager:
                 except:
                     pass
                 
-            except Exception:
+            except Exception as e:
                 # Force cleanup even if there's an error
+                print(f"Error during server stop: {e}")
                 if self.process:
                     try:
                         self.process.kill()
@@ -173,8 +194,8 @@ class MCPServerManager:
                             asyncio.to_thread(self.process.wait),
                             timeout=3.0  # Increased timeout
                         )
-                    except:
-                        pass
+                    except Exception as kill_err:
+                        print(f"Error during force kill: {kill_err}")
             finally:
                 # Always clear the process reference
                 self.process = None
@@ -189,10 +210,19 @@ async def mcp_server_context(test_docs_root=None, host="localhost", port=None):
     try:
         await manager.start_server()
         yield manager
+    except Exception as e:
+        import traceback
+        print(f"Error in MCP server context: {e}")
+        print(f"MCP context traceback: {traceback.format_exc()}")
+        raise
     finally:
-        await manager.stop_server()
-        # Additional cleanup time to ensure all resources are released, especially in CI
-        await asyncio.sleep(3.0)
+        try:
+            await manager.stop_server()
+            # Additional cleanup time to ensure all resources are released, especially in CI
+            await asyncio.sleep(3.0)
+        except Exception as e:
+            print(f"Error during MCP server cleanup: {e}")
+            # Don't re-raise cleanup errors
 
 # --- Pytest Fixtures ---
 
@@ -201,12 +231,32 @@ def event_loop():
     """
     Creates an asyncio event loop for each test function, preventing
     'Event loop is closed' errors when running multiple async tests.
+    Compatible with pytest-xdist.
     """
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
+    # Create a new event loop for this test
+    loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+    
     yield loop
-    loop.close()
+    
+    # Ensure proper cleanup
+    try:
+        # Cancel all pending tasks
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
+        
+        # Wait for all tasks to complete cancellation
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+    except Exception:
+        pass  # Ignore cleanup errors
+    finally:
+        # Close the loop
+        try:
+            loop.close()
+        except Exception:
+            pass  # Ignore close errors
 
 @pytest.fixture
 def test_docs_root(tmp_path_factory):
@@ -250,16 +300,19 @@ async def run_agent_test(query, test_docs_root=None, server_port=None):
         cleanup_dir = True
     else:
         cleanup_dir = False
+        
+    # Ensure we have a server port
+    if server_port is None:
+        server_port = _get_worker_port()
 
     # Store original environment state
     old_env = os.environ.get("DOCUMENT_ROOT_DIR")
-    old_host_env = os.environ.get("MCP_SERVER_HOST")
     old_port_env = os.environ.get("MCP_SERVER_PORT")
 
     # Set environment for the test
     os.environ["DOCUMENT_ROOT_DIR"] = str(test_docs_root)
-    os.environ["MCP_SERVER_HOST"] = "localhost"
-    os.environ["MCP_SERVER_PORT"] = str(server_port)
+    if server_port:
+        os.environ["MCP_SERVER_PORT"] = str(server_port)
 
     # Configure server path
     old_path = doc_tool_server.DOCS_ROOT_PATH
@@ -268,16 +321,6 @@ async def run_agent_test(query, test_docs_root=None, server_port=None):
     result = None
     
     try:
-        # Get current event loop
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            # Create new loop if current one is closed
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        
-        # Track initial tasks
-        initial_tasks = set(asyncio.all_tasks(loop))
-
         async with mcp_server_context(test_docs_root=test_docs_root, port=server_port):
             agent, server_instance = await initialize_agent_and_mcp_server()
             async with agent.run_mcp_servers():
@@ -285,26 +328,36 @@ async def run_agent_test(query, test_docs_root=None, server_port=None):
                     process_single_user_query(agent, query),
                     timeout=40.0  # Generous timeout for agent processing
                 )
+                return result
         
-        # Clean up any new tasks
-        current_tasks = set(asyncio.all_tasks(loop))
-        new_tasks = current_tasks - initial_tasks
-        for task in new_tasks:
-            if not task.done():
-                task.cancel()
-        
-        if new_tasks:
-            await asyncio.gather(*new_tasks, return_exceptions=True)
-            
-        return result
-        
+    except asyncio.TimeoutError:
+        from agent import FinalAgentResponse
+        return FinalAgentResponse(
+            summary="Query timed out after 40 seconds",
+            details=None,
+            error_message="Timeout error"
+        )
     except Exception as e:
         # Return error response instead of raising
         from agent import FinalAgentResponse
+        import traceback
+        
+        # Get more detailed error information for TaskGroup errors
+        error_details = str(e)
+        if hasattr(e, 'exceptions'):
+            # This is likely an ExceptionGroup/TaskGroup error
+            sub_exceptions = []
+            for sub_exc in e.exceptions:
+                sub_exceptions.append(f"{type(sub_exc).__name__}: {sub_exc}")
+            error_details = f"TaskGroup errors: {'; '.join(sub_exceptions)}"
+        
+        print(f"Error in run_agent_test: {error_details}")
+        print(f"Full traceback: {traceback.format_exc()}")
+        
         return FinalAgentResponse(
-            summary=f"Event loop closed during processing",
+            summary=f"Error during processing: {error_details}",
             details=None,
-            error_message=f"Event loop is closed"
+            error_message=error_details
         )
     finally:
         # 2. Restore environment variables
@@ -312,12 +365,7 @@ async def run_agent_test(query, test_docs_root=None, server_port=None):
             os.environ.pop("DOCUMENT_ROOT_DIR", None)
         else:
             os.environ["DOCUMENT_ROOT_DIR"] = old_env
-
-        if old_host_env is None:
-            os.environ.pop("MCP_SERVER_HOST", None)
-        else:
-            os.environ["MCP_SERVER_HOST"] = old_host_env
-
+            
         if old_port_env is None:
             os.environ.pop("MCP_SERVER_PORT", None)
         else:
@@ -330,8 +378,8 @@ async def run_agent_test(query, test_docs_root=None, server_port=None):
         if cleanup_dir:
             shutil.rmtree(test_docs_root, ignore_errors=True)
             
-        # 5. Small delay to allow cleanup
-        await asyncio.sleep(0.1)
+        # 5. Delay to allow cleanup and reduce race conditions with multiple workers
+        await asyncio.sleep(0.5)
 
 # --- Core Agent Test Cases ---
 
