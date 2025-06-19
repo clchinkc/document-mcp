@@ -145,7 +145,7 @@ class SimpleServerManager:
 
 # --- Pytest Fixtures ---
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def server_manager():
     """Session-scoped server manager to avoid starting/stopping server for each test."""
     # Create a temporary docs root for the entire test session
