@@ -476,7 +476,7 @@ def write_chapter_content(document_name: str, chapter_name: str, new_content: st
         updated_content_details = _read_chapter_content_details(document_name, chapter_path)
         return OperationStatus(
             success=True, 
-            message=f"Content of chapter '{chapter_name}' in document '{document_name}' overwritten successfully.",
+            message=f"Content of chapter '{chapter_name}' in document '{document_name}' updated successfully.",
             details=updated_content_details.model_dump() if updated_content_details else None
         )
     except Exception as e:
