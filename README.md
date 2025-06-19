@@ -11,16 +11,28 @@ A Model Context Protocol (MCP) server and example agent for managing structured 
 ## 🚀 Quick Start
 
 ```bash
-# Install the package
-pip install document-mcp
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Start the MCP server
-python -m document_mcp.doc_tool_server sse --host localhost --port 3001
+# Install the package in development mode
+pip install -e .
 
-# Install the agent dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Set .env file with your API key (one of the following):
+# Set .env file with your API key (see below)
+
+# Start the MCP server in one terminal
+source .venv/bin/activate && python -m document_mcp.doc_tool_server sse --host localhost --port 3001
+
+# Run the example agent (in another terminal, also activate virtual environment)
+source .venv/bin/activate && python example_agent/agent.py
+```
+
+### Environment Configuration
+Create a `.env` file with your API key (one of the following):
+```bash
 # For OpenAI (priority 1):
 OPENAI_API_KEY="sk-your-openai-api-key-here"
 OPENAI_MODEL_NAME="gpt-4.1-mini"  # optional
@@ -31,9 +43,6 @@ GEMINI_MODEL_NAME="gemini-2.5-flash"  # optional
 
 # Optional settings:
 DOCUMENT_ROOT_DIR=sample_doc/
-
-# Run the example agent (in another terminal)
-python example_agent/agent.py
 ```
 
 ## 📖 What is Document MCP?
@@ -86,9 +95,17 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 #### Prerequisites
 
-1. **Install the package:**
+1. **Set up virtual environment:**
    ```bash
-   pip install document-mcp
+   # Create and activate virtual environment
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   
+   # Install the package in development mode
+   pip install -e .
+   
+   # Install dependencies
+   pip install -r requirements.txt
    ```
 
 2. **Set up environment variables:**
@@ -118,16 +135,16 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 3. **Start the MCP server:**
    ```bash
-   python -m document_mcp.doc_tool_server sse --host localhost --port 3001
+   source .venv/bin/activate && python -m document_mcp.doc_tool_server sse --host localhost --port 3001
    ```
 
 4. **Run the example agent:**
    ```bash
    # Check your configuration first (optional)
-   python example_agent/agent.py --check-config
+   source .venv/bin/activate && python example_agent/agent.py --check-config
    
    # Run the interactive agent
-   python example_agent/agent.py
+   source .venv/bin/activate && python example_agent/agent.py
    ```
 
 ### What You'll Learn
@@ -209,6 +226,28 @@ Details: Complete document with all chapters and their content.
 🤖 Agent: Successfully appended paragraph to chapter '01-prologue.md'.
 ```
 
+## 🧪 Testing
+
+Run the test suite to verify everything is working correctly:
+
+```bash
+# Run all tests
+source .venv/bin/activate && python -m pytest
+
+# Run specific test suites
+source .venv/bin/activate && python -m pytest document_mcp/     # Test the MCP server
+source .venv/bin/activate && python -m pytest example_agent/    # Test the example agent
+
+# Run with coverage
+source .venv/bin/activate && python -m pytest --cov=document_mcp --cov=example_agent
+```
+
+The test suite includes:
+- **MCP Server Tests**: Comprehensive testing of all document operations
+- **Agent Tests**: Testing the AI agent integration and responses
+- **Error Handling**: Testing edge cases and error conditions
+- **Data Consistency**: Ensuring document integrity across operations
+
 ### Agent Features
 
 #### Natural Language Processing
@@ -232,8 +271,8 @@ git clone https://github.com/document-mcp/document-mcp.git
 cd document-mcp
 
 # Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install development dependencies
 pip install -r requirements.txt
