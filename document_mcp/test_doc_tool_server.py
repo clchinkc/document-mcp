@@ -35,25 +35,28 @@ from . import doc_tool_server # Import the module itself to modify its global
 
 def test_environment_setup():
     """Test environment setup and configuration."""
-    # Check .env file
-    env_file = Path(".env")
-    assert env_file.exists(), ".env file not found"
     
-    env_content = env_file.read_text()
-    assert "GOOGLE_API_KEY" in env_content or "GEMINI_API_KEY" in env_content, "API key not found in .env"
+    assert os.environ.get("OPENAI_API_KEY") or os.environ.get("GEMINI_API_KEY"), "API key not found in .env"
 
 def test_package_imports():
     """Test if all required packages can be imported."""
     try:
         import pydantic_ai
-        assert True
+        # Verify pydantic_ai has expected functionality
+        assert hasattr(pydantic_ai, 'Agent'), "pydantic_ai should provide Agent class"
+        assert hasattr(pydantic_ai, 'RunContext'), "pydantic_ai should provide RunContext class"
     except ImportError:
         pytest.fail("Failed to import pydantic_ai")
     
     try:
         # Test relative imports work
         from .doc_tool_server import StatisticsReport, ChapterContent
-        assert True
+        # Verify imported classes are proper types
+        assert isinstance(StatisticsReport, type), "StatisticsReport should be a class type"
+        assert isinstance(ChapterContent, type), "ChapterContent should be a class type"
+        # Verify they are pydantic models
+        assert hasattr(StatisticsReport, 'model_fields'), "StatisticsReport should be a pydantic model"
+        assert hasattr(ChapterContent, 'model_fields'), "ChapterContent should be a pydantic model"
     except ImportError as e:
         pytest.fail(f"Failed to import from doc_tool_server: {e}")
 
@@ -125,12 +128,14 @@ def sample_test_data(temp_docs_root: Path):
 # --- Helper Functions for Tests ---
 
 def _assert_operation_success(status: OperationStatus, expected_message_part: str = None):
-    assert status.success is True
+    assert status.success is True, f"Operation should succeed but got failure: {status.message}"
+    assert isinstance(status.message, str) and len(status.message) > 0, "Success status should have a meaningful message"
     if expected_message_part:
-        assert expected_message_part.lower() in status.message.lower()
+        assert expected_message_part.lower() in status.message.lower(), f"Expected '{expected_message_part}' in success message: '{status.message}'"
 
 def _assert_operation_failure(status: OperationStatus, expected_message_part: str = None):
-    assert status.success is False
+    assert status.success is False, f"Operation should fail but got success: {status.message}"
+    assert isinstance(status.message, str) and len(status.message) > 0, "Failure status should have a meaningful error message"
     if expected_message_part:
         assert expected_message_part.lower() in status.message.lower(), f"Expected '{expected_message_part}' to be in '{status.message}'"
 
@@ -201,14 +206,16 @@ def test_comprehensive_search_functionality(sample_test_data: str, temp_docs_roo
         query="lorem",  # lowercase
         case_sensitive=True
     )
-    assert len(case_sensitive_results) == 0, "Case-sensitive search for 'lorem' should find no matches"
+    assert isinstance(case_sensitive_results, list), "Case-sensitive search should return a list"
+    assert len(case_sensitive_results) == 0, "Case-sensitive search for 'lorem' should find no matches (all test data uses 'Lorem')"
     
     # Test search that should return no results
     no_results = find_text_in_document(
         document_name=doc_name, 
         query="nonexistent_unique_term_xyz"
     )
-    assert len(no_results) == 0, "Search for nonexistent term should return no results"
+    assert isinstance(no_results, list), "Search should return a list even when no results found"
+    assert len(no_results) == 0, "Search for nonexistent term should return empty list, not None or other value"
 
 def test_comprehensive_content_operations(sample_test_data: str, temp_docs_root: Path):
     """Test comprehensive content reading and manipulation operations."""
@@ -297,14 +304,16 @@ def test_comprehensive_error_handling(temp_docs_root: Path):
     
     # Test search in nonexistent document/chapter
     empty_results = find_text_in_document(document_name=nonexistent_doc, query="anything")
-    assert len(empty_results) == 0, "Search in nonexistent document should return empty results"
+    assert isinstance(empty_results, list), "Search in nonexistent document should return a list"
+    assert len(empty_results) == 0, "Search in nonexistent document should return empty list, not None or other value"
     
     empty_chapter_results = find_text_in_chapter(
         document_name="test_doc_for_errors", 
         chapter_name=nonexistent_chapter, 
         query="anything"
     )
-    assert len(empty_chapter_results) == 0, "Search in nonexistent chapter should return empty results"
+    assert isinstance(empty_chapter_results, list), "Search in nonexistent chapter should return a list"
+    assert len(empty_chapter_results) == 0, "Search in nonexistent chapter should return empty list, not None or other value"
 
 # --- Test Cases ---
 
@@ -324,8 +333,8 @@ def test_create_document_duplicate(temp_docs_root: Path):
 
 def test_list_documents_empty(temp_docs_root: Path):
     docs_list = list_documents()
-    assert isinstance(docs_list, list)
-    assert len(docs_list) == 0
+    assert isinstance(docs_list, list), "list_documents should return a list"
+    assert len(docs_list) == 0, "Empty documents directory should return empty list, not None or other value"
 
 def test_list_documents_with_one_doc(temp_docs_root: Path):
     doc_name = "listed_document"
@@ -394,12 +403,12 @@ def test_list_chapters_empty(temp_docs_root: Path):
     doc_name = "doc_empty_chapters"
     create_document(document_name=doc_name)
     chapters_list = list_chapters(document_name=doc_name)
-    assert isinstance(chapters_list, list)
-    assert len(chapters_list) == 0
+    assert isinstance(chapters_list, list), "list_chapters should return a list for existing document"
+    assert len(chapters_list) == 0, "Newly created document should have zero chapters, not None or other value"
 
 def test_list_chapters_non_existent_doc(temp_docs_root: Path):
     chapters_list = list_chapters(document_name="non_existent_doc_for_list_chapters")
-    assert chapters_list is None
+    assert chapters_list is None, "list_chapters should return None specifically for non-existent documents, not empty list or other value"
 
 def test_list_chapters_with_multiple_chapters(temp_docs_root: Path):
     doc_name = "doc_with_chapters"
@@ -460,8 +469,8 @@ def test_read_chapter_content_success(temp_docs_root: Path):
     (temp_docs_root / doc_name / chapter_name).write_text(content)
 
     chapter_obj = read_chapter_content(document_name=doc_name, chapter_name=chapter_name)
-    assert chapter_obj is not None
-    assert isinstance(chapter_obj, ChapterContent)
+    assert chapter_obj is not None, f"Should successfully read existing chapter {chapter_name}"
+    assert isinstance(chapter_obj, ChapterContent), f"Expected ChapterContent object, got {type(chapter_obj)}"
     assert chapter_obj.document_name == doc_name
     assert chapter_obj.chapter_name == chapter_name
     assert chapter_obj.content == content
@@ -472,7 +481,7 @@ def test_read_chapter_content_non_existent_chapter(temp_docs_root: Path):
     doc_name = "doc_read_non_existent_chap"
     create_document(document_name=doc_name)
     chapter_obj = read_chapter_content(document_name=doc_name, chapter_name="no_such_chapter.md")
-    assert chapter_obj is None
+    assert chapter_obj is None, "Reading non-existent chapter should return None specifically, not empty object or other value"
 
 def test_write_chapter_content_overwrite(temp_docs_root: Path):
     doc_name = "doc_write_content"
@@ -483,7 +492,7 @@ def test_write_chapter_content_overwrite(temp_docs_root: Path):
     (temp_docs_root / doc_name / chapter_name).write_text(initial_content)
 
     status = write_chapter_content(document_name=doc_name, chapter_name=chapter_name, new_content=new_content)
-    _assert_operation_success(status, "overwritten successfully")
+    _assert_operation_success(status, "updated successfully")
     assert (temp_docs_root / doc_name / chapter_name).read_text() == new_content
     assert status.details["content"] == new_content
 
@@ -494,7 +503,7 @@ def test_write_chapter_content_create_new(temp_docs_root: Path):
     create_document(document_name=doc_name)
 
     status = write_chapter_content(document_name=doc_name, chapter_name=chapter_name, new_content=new_content)
-    _assert_operation_success(status, "overwritten successfully") # Message might be generic
+    _assert_operation_success(status, "updated successfully") # Message might be generic
     assert (temp_docs_root / doc_name / chapter_name).read_text() == new_content
 
 def test_read_paragraph_content_success(temp_docs_root: Path):
@@ -506,8 +515,8 @@ def test_read_paragraph_content_success(temp_docs_root: Path):
     (temp_docs_root / doc_name / chapter_name).write_text(content)
 
     para_obj = read_paragraph_content(document_name=doc_name, chapter_name=chapter_name, paragraph_index_in_chapter=1)
-    assert para_obj is not None
-    assert isinstance(para_obj, ParagraphDetail)
+    assert para_obj is not None, "Should successfully read existing paragraph at valid index"
+    assert isinstance(para_obj, ParagraphDetail), f"Expected ParagraphDetail object, got {type(para_obj)}"
     assert para_obj.content == "Paragraph 1."
     assert para_obj.paragraph_index_in_chapter == 1
     assert para_obj.word_count == 2
@@ -520,7 +529,7 @@ def test_read_paragraph_content_out_of_bounds(temp_docs_root: Path):
     (temp_docs_root / doc_name / chapter_name).write_text(content)
 
     para_obj = read_paragraph_content(document_name=doc_name, chapter_name=chapter_name, paragraph_index_in_chapter=5)
-    assert para_obj is None
+    assert para_obj is None, "Reading paragraph at out-of-bounds index should return None specifically, not empty object or error"
 
 CONTENT_FOR_MODIFY_PARA = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph."
 

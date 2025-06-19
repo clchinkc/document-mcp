@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/YOUR_USERNAME/YOUR_REPOSITORY/graph/badge.svg)](https://codecov.io/gh/YOUR_USERNAME/YOUR_REPOSITORY)
+<!-- TODO: Update the Codecov badge URL above with your actual GitHub username and repository name. You can find the correct snippet on your repository's page on Codecov. -->
 # Document MCP
 
 [![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
@@ -9,21 +11,38 @@ A Model Context Protocol (MCP) server and example agent for managing structured 
 ## 🚀 Quick Start
 
 ```bash
-# Install the package
-pip install document-mcp
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Start the MCP server
-python -m document_mcp.doc_tool_server sse --host localhost --port 3001
+# Install the package in development mode
+pip install -e .
 
-# Install the agent dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Set .env file
-GEMINI_API_KEY="XXXXXXXXXXXX"
-DOCUMENT_ROOT_DIR=sample_doc/ (optional)
+# Set .env file with your API key (see below)
 
-# Run the example agent (in another terminal)
-python example_agent/agent.py
+# Start the MCP server in one terminal
+source .venv/bin/activate && python -m document_mcp.doc_tool_server sse --host localhost --port 3001
+
+# Run the example agent (in another terminal, also activate virtual environment)
+source .venv/bin/activate && python example_agent/agent.py
+```
+
+### Environment Configuration
+Create a `.env` file with your API key (one of the following):
+```bash
+# For OpenAI (priority 1):
+OPENAI_API_KEY="sk-your-openai-api-key-here"
+OPENAI_MODEL_NAME="gpt-4.1-mini"  # optional
+
+# For Gemini (priority 2):
+GEMINI_API_KEY="your-google-api-key-here"
+GEMINI_MODEL_NAME="gemini-2.5-flash"  # optional
+
+# Optional settings:
+DOCUMENT_ROOT_DIR=sample_doc/
 ```
 
 ## 📖 What is Document MCP?
@@ -76,21 +95,37 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 #### Prerequisites
 
-1. **Install the package:**
+1. **Set up virtual environment:**
    ```bash
-   pip install document-mcp
+   # Create and activate virtual environment
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   
+   # Install the package in development mode
+   pip install -e .
+   
+   # Install dependencies
+   pip install -r requirements.txt
    ```
 
 2. **Set up environment variables:**
-   Create a `.env` file in your project directory:
+   Create a `.env` file in your project directory. The system automatically detects and uses the first available API key:
    ```env
-   # Required: Google API key for Gemini
-   GOOGLE_API_KEY=your_google_api_key_here
+   # === LLM Configuration (choose one) ===
+   # The system will use the first available API key in this priority order:
+   # 1. OpenAI (if OPENAI_API_KEY is set)
+   # 2. Gemini (if GEMINI_API_KEY is set)
    
-   # Optional: Specify Gemini model (defaults to gemini-2.5-flash-preview-04-17)
-   GEMINI_MODEL_NAME=gemini-2.5-flash-preview-04-17
+   # Option 1: OpenAI Configuration
+   OPENAI_API_KEY=sk-your-openai-api-key-here
+   OPENAI_MODEL_NAME=gpt-4.1-mini  # Optional: default is gpt-4.1-mini
    
-   # Optional: Custom document storage directory
+   # Option 2: Gemini Configuration  
+   GEMINI_API_KEY=your-google-api-key-here
+   GEMINI_MODEL_NAME=gemini-2.5-flash  # Optional: default is gemini-2.5-flash
+   
+   # === Optional Settings ===
+   # Custom document storage directory
    DOCUMENT_ROOT_DIR=sample_doc/
    
    # Optional: MCP server connection (defaults shown)
@@ -100,12 +135,16 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 3. **Start the MCP server:**
    ```bash
-   python -m document_mcp.doc_tool_server sse --host localhost --port 3001
+   source .venv/bin/activate && python -m document_mcp.doc_tool_server sse --host localhost --port 3001
    ```
 
 4. **Run the example agent:**
    ```bash
-   python example_agent/agent.py
+   # Check your configuration first (optional)
+   source .venv/bin/activate && python example_agent/agent.py --check-config
+   
+   # Run the interactive agent
+   source .venv/bin/activate && python example_agent/agent.py
    ```
 
 ### What You'll Learn
@@ -128,9 +167,25 @@ User Query → Pydantic AI Agent → MCP Client → Document MCP Server → File
 
 The example uses:
 - **Pydantic AI**: For LLM integration and structured outputs
-- **Google Gemini**: As the language model (configurable)
+- **Flexible LLM Support**: Automatically detects and uses OpenAI or Gemini based on available API keys
 - **MCP Client**: To communicate with the document server
 - **Structured Responses**: Using Pydantic models for consistent output
+
+### Automatic LLM Detection
+
+The system automatically detects which LLM to use based on your `.env` configuration:
+
+1. **OpenAI** (Priority 1): If `OPENAI_API_KEY` is set, uses OpenAI models (default: `gpt-4.1-mini`)
+2. **Gemini** (Priority 2): If `GEMINI_API_KEY` is set, uses Gemini models (default: `gemini-2.5-flash`)
+
+When the agent starts, it will display which model it's using:
+```
+Using OpenAI model: gpt-4.1-mini
+```
+or
+```
+Using Gemini model: gemini-2.5-flash
+```
 
 ### Example Interactions
 
@@ -171,6 +226,28 @@ Details: Complete document with all chapters and their content.
 🤖 Agent: Successfully appended paragraph to chapter '01-prologue.md'.
 ```
 
+## 🧪 Testing
+
+Run the test suite to verify everything is working correctly:
+
+```bash
+# Run all tests
+source .venv/bin/activate && python -m pytest
+
+# Run specific test suites
+source .venv/bin/activate && python -m pytest document_mcp/     # Test the MCP server
+source .venv/bin/activate && python -m pytest example_agent/    # Test the example agent
+
+# Run with coverage
+source .venv/bin/activate && python -m pytest --cov=document_mcp --cov=example_agent
+```
+
+The test suite includes:
+- **MCP Server Tests**: Comprehensive testing of all document operations
+- **Agent Tests**: Testing the AI agent integration and responses
+- **Error Handling**: Testing edge cases and error conditions
+- **Data Consistency**: Ensuring document integrity across operations
+
 ### Agent Features
 
 #### Natural Language Processing
@@ -194,8 +271,8 @@ git clone https://github.com/document-mcp/document-mcp.git
 cd document-mcp
 
 # Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install development dependencies
 pip install -r requirements.txt

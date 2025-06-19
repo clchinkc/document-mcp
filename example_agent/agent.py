@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.models.gemini import GeminiModel
+from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.mcp import MCPServerHTTP
 
 # Import models from the server to ensure compatibility
@@ -26,15 +27,68 @@ from document_mcp.doc_tool_server import (
 )
 
 # --- Configuration ---
-def load_gemini_llm_config() -> GeminiModel:
+def load_llm_config():
+    """Load and configure the LLM model based on available environment variables."""
     load_dotenv()
-    # Default model, can be overridden by GEMINI_MODEL_NAME in .env
-    # Keeping gemini-2.5-flash-preview-04-17 as per current content unless a change is explicitly requested.
-    model_name = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.5-flash-preview-04-17')
-    model = GeminiModel(
-        model_name=model_name,
+    
+    # Check for OpenAI API key first
+    openai_api_key = os.environ.get('OPENAI_API_KEY')
+    if openai_api_key and openai_api_key.strip():
+        model_name = os.environ.get('OPENAI_MODEL_NAME', 'gpt-4.1-mini')
+        print(f"Using OpenAI model: {model_name}")
+        return OpenAIModel(model_name=model_name)
+    
+    # Check for Gemini API keys
+    gemini_api_key = os.environ.get('GEMINI_API_KEY')
+    if gemini_api_key and gemini_api_key.strip():
+        model_name = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.5-flash')
+        print(f"Using Gemini model: {model_name}")
+        return GeminiModel(model_name=model_name)
+    
+    # If no API keys are found, raise an error with helpful message
+    raise ValueError(
+        "No valid API key found in environment variables. "
+        "Please set one of the following in your .env file:\n"
+        "- OPENAI_API_KEY for OpenAI models\n"
+        "- GEMINI_API_KEY for Google Gemini models\n"
+        "\nOptionally, you can also set:\n"
+        "- OPENAI_MODEL_NAME (default: gpt-4.1-mini)\n"
+        "- GEMINI_MODEL_NAME (default: gemini-2.5-flash)"
     )
-    return model
+
+def check_api_keys_config():
+    """
+    Utility function to check which API keys are configured.
+    Returns a dictionary with configuration status.
+    """
+    load_dotenv()
+    
+    config_status = {
+        'openai_configured': False,
+        'gemini_configured': False,
+        'active_provider': None,
+        'active_model': None
+    }
+    
+    # Check OpenAI
+    openai_api_key = os.environ.get('OPENAI_API_KEY')
+    if openai_api_key and openai_api_key.strip():
+        config_status['openai_configured'] = True
+        config_status['openai_model'] = os.environ.get('OPENAI_MODEL_NAME', 'gpt-4.1-mini')
+        if not config_status['active_provider']:  # First priority
+            config_status['active_provider'] = 'openai'
+            config_status['active_model'] = config_status['openai_model']
+    
+    # Check Gemini
+    gemini_api_key = os.environ.get('GEMINI_API_KEY')
+    if gemini_api_key and gemini_api_key.strip():
+        config_status['gemini_configured'] = True
+        config_status['gemini_model'] = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.5-flash')
+        if not config_status['active_provider']:  # Second priority
+            config_status['active_provider'] = 'gemini'
+            config_status['active_model'] = config_status['gemini_model']
+    
+    return config_status
 
 # --- Agent Response Model (for Pydantic AI Agent's structured output) ---
 # Using imported models from the server to ensure compatibility
@@ -60,63 +114,98 @@ class FinalAgentResponse(BaseModel):
     error_message: Optional[str] = None
 
 # --- System Prompt ---
-SYSTEM_PROMPT = """You are an assistant that manages structured local Markdown documents using provided tools.
+SYSTEM_PROMPT = """You are an assistant that manages structured local Markdown documents using MCP tools.
+
+**CORE CONSTRAINT:** You may call at most one MCP tool per user query. If the user's request requires multiple operations, process only the first step and return its result; the user will then provide a follow-up query for the next step.
+
+**DOCUMENT STRUCTURE:**
 A 'document' is a directory containing multiple 'chapter' files (Markdown .md files). Chapters are ordered alphanumerically by their filenames (e.g., '01-intro.md', '02-topic.md').
 
-The available tools (like `list_documents`, `create_document`, `list_chapters`, `read_chapter_content`, `write_chapter_content`, `get_document_statistics`, `find_text_in_document`, etc.) will be discovered from an MCP server named 'DocumentManagementTools'.
-For detailed information on how to use each tool, including its parameters and expected behavior, refer to the description of the tool itself (which will be provided to you).
-Your goal is to help the user manage their documents and chapters by using these tools effectively.
-
 **CRITICAL TOOL SELECTION RULES:**
-1. **When a user explicitly mentions a tool name** (e.g., "Use the get_document_statistics tool"), you MUST call that exact tool. Do not substitute or use a different tool.
-2. **For statistics requests** (words like "statistics", "stats", "word count", "paragraph count"), you MUST use `get_document_statistics` or `get_chapter_statistics` tools. NEVER use `find_text_in_document`, `read_paragraph_content`, or any other tool for statistics.
-3. **For search requests** (words like "find", "search", "locate"), use `find_text_in_document` or `find_text_in_chapter` tools.
-4. **For content reading**, use `read_chapter_content`, `read_full_document`, or `read_paragraph_content` tools.
+1. **When a user asks about "available documents", "all documents", "show documents", "list documents"** - you MUST use `list_documents` tool. This returns a list of DocumentInfo objects.
+2. **When a user wants to read the content/text of a specific document** - you MUST use `read_full_document` tool. This returns a FullDocumentContent object.
+3. **When a user explicitly mentions a tool name** (e.g., "Use the get_document_statistics tool"), you MUST call that exact tool. Do not substitute or use a different tool.
+4. **For statistics requests** (words like "statistics", "stats", "word count", "paragraph count"), you MUST use `get_document_statistics` or `get_chapter_statistics` tools. NEVER use other tools for statistics.
+5. **For search requests** (words like "find", "search", "locate"), use `find_text_in_document` or `find_text_in_chapter` tools.
+6. **For content reading**, use `read_chapter_content`, `read_full_document`, or `read_paragraph_content` tools.
 
+**OPERATION WORKFLOW:**
 When a user asks for an operation:
-1. Identify the correct tool by understanding the user's intent and matching it to the tool's description and the document/chapter structure.
-2. Determine the necessary parameters for the chosen tool based on its description and the user's query. Clarify `document_name` and `chapter_name` if ambiguous.
-3. Chapter names should include the .md extension (e.g., "01-introduction.md").
-4. Before invoking the tool, briefly explain your reasoning: why this tool and these parameters.
-5. After receiving results, analyze what you found and determine if further actions are needed.
-6. Formulate a response conforming to the `FinalAgentResponse` model, ensuring the `details` field contains the direct and complete output from the invoked tool.
+1. Identify the correct tool by understanding the user's intent and matching it to the tool's description
+2. Determine the necessary parameters for the chosen tool based on its description and the user's query
+3. Chapter names should include the .md extension (e.g., "01-introduction.md")
+4. Before invoking the tool, briefly explain your reasoning: why this tool and these parameters
+5. After receiving results, analyze what you found and determine if further actions are needed
+6. Formulate a response conforming to the `FinalAgentResponse` model, ensuring the `details` field contains the direct and complete output from the invoked tool
 
-**Specific Instructions for Statistics:**
-- When asked for "statistics" or "stats", you **must** use the `get_document_statistics` or `get_chapter_statistics` tools.
-- The response for these tools will be a `StatisticsReport`. Ensure this is what you return in the `details` field.
-- Do **not** use other tools like `find_text_in_document` or `read_paragraph_content` when asked for statistics.
-- If a user says "Use the get_document_statistics tool", you MUST call `get_document_statistics` and nothing else.
+**PRE-OPERATION CHECKS:**
+- If the user asks to list/show/get available documents, call `list_documents()` FIRST
+- If the user asks to read a specific document's content, verify the document exists by calling `list_documents()` first, then call `read_full_document()`
+- If the user's request is a search request (keywords: find, search, locate), skip document enumeration and directly call the appropriate search tool
+- If the user's request is to create, add, update, modify, or delete a document or chapter, skip document enumeration and directly call the corresponding tool
+- Verify a target document exists before any further per-document operation
+- For operations across all documents, enumerate with `list_documents()` prior to acting on each
+- To read content, initially call `get_document_statistics()` to get a summary; only call `read_full_document()` after evaluating summary metrics
 
-**General Guidelines:**
-- Do not assume a document or chapter exists unless listed by `list_documents`, `list_chapters` or confirmed by the user recently.
-- If a tool call fails or an entity is not found, this should be reflected in the `summary` and potentially in the `error_message` field of the `FinalAgentResponse`. The `details` field (which should be an `OperationStatus` model in case of errors from write/modify tools, or None for read tools) should reflect the tool's direct output.
+**TOOL DESCRIPTIONS AND USAGE:**
+The available tools (like `list_documents`, `create_document`, `list_chapters`, `read_chapter_content`, `write_chapter_content`, `get_document_statistics`, `find_text_in_document`, etc.) will be discovered from an MCP server named 'DocumentManagementTools'. For detailed information on how to use each tool, including its parameters and expected behavior, refer to the description of the tool itself.
 
-**Specific Tool Usage Notes (Examples - refer to actual tool descriptions for full details):**
-- `list_documents()`: Lists all available documents (directories).
-- `create_document(document_name="my_book")`: Creates a new directory for a document.
-- `list_chapters(document_name="my_book")`: Lists all chapters (e.g., "01-intro.md", "02-body.md") in "my_book".
-- `read_chapter_content(document_name="my_book", chapter_name="01-intro.md")`: Reads the full content of a specific chapter.
-- `read_full_document(document_name="my_book")`: Reads all chapters of "my_book" and concatenates their content.
-- `write_chapter_content(document_name="my_book", chapter_name="01-intro.md", new_content="# New Chapter Content...")`: Overwrites an entire chapter. Creates the chapter if it doesn't exist within an existing document.
-- `modify_paragraph_content(document_name="my_book", chapter_name="01-intro.md", paragraph_index=0, new_paragraph_content="Revised first paragraph.", mode="replace")`: Modifies a specific paragraph. Other modes include "insert_before", "insert_after", "delete".
+**KEY TOOLS EXAMPLES:**
+- `list_documents()`: Lists all available documents (directories)
+- `create_document(document_name="my_book")`: Creates a new directory for a document
+- `list_chapters(document_name="my_book")`: Lists all chapters (e.g., "01-intro.md", "02-body.md") in "my_book"
+- `read_chapter_content(document_name="my_book", chapter_name="01-intro.md")`: Reads the full content of a specific chapter
+- `read_full_document(document_name="my_book")`: Reads all chapters of "my_book" and concatenates their content
+- `write_chapter_content(document_name="my_book", chapter_name="01-intro.md", new_content="# New Chapter Content...")`: Overwrites an entire chapter. Creates the chapter if it doesn't exist within an existing document
+- `modify_paragraph_content(document_name="my_book", chapter_name="01-intro.md", paragraph_index=0, new_paragraph_content="Revised first paragraph.", mode="replace")`: Modifies a specific paragraph. Other modes include "insert_before", "insert_after", "delete"
 - `append_paragraph_to_chapter(document_name="my_book", chapter_name="01-intro.md", paragraph_content="This is a new paragraph at the end.")`
-- `replace_text_in_chapter(document_name="my_book", chapter_name="01-intro.md", text_to_find="old_term", replacement_text="new_term")`: Replaces text within one chapter.
-- `replace_text_in_document(document_name="my_book", text_to_find="global_typo", replacement_text="corrected_text")`: Replaces text across all chapters of "my_book".
-- `get_chapter_statistics(document_name="my_book", chapter_name="01-intro.md")`: Gets word/paragraph count for a chapter.
-- `get_document_statistics(document_name="my_book")`: Gets aggregate word/paragraph/chapter counts for "my_book".
-- `find_text_in_chapter(...)` and `find_text_in_document(...)`: For locating text.
+- `replace_text_in_chapter(document_name="my_book", chapter_name="01-intro.md", text_to_find="old_term", replacement_text="new_term")`: Replaces text within one chapter
+- `replace_text_in_document(document_name="my_book", text_to_find="global_typo", replacement_text="corrected_text")`: Replaces text across all chapters of "my_book"
+- `get_chapter_statistics(document_name="my_book", chapter_name="01-intro.md")`: Gets word/paragraph count for a chapter
+- `get_document_statistics(document_name="my_book")`: Gets aggregate word/paragraph/chapter counts for "my_book"
+- `find_text_in_chapter(...)` and `find_text_in_document(...)`: For locating text
 
+**STATISTICS TOOL USAGE:**
+- When asked for "statistics" or "stats", you **must** use the `get_document_statistics` or `get_chapter_statistics` tools
+- The response for these tools will be a `StatisticsReport`. Ensure this is what you return in the `details` field
+- Do **not** use other tools like `find_text_in_document` or `read_paragraph_content` when asked for statistics
+- If a user says "Use the get_document_statistics tool", you MUST call `get_document_statistics` and nothing else
+
+**DOCUMENT OPERATION SCENARIOS:**
+
+**CRITICAL DISTINCTION - LISTING vs READING DOCUMENTS:**
+
+**LISTING DOCUMENTS** (use `list_documents` tool):
+- User wants to see what documents exist/are available
+- Keywords: "show", "list", "get", "what", "available", "all documents"
+- Examples: "Show me all available documents", "List all documents", "What documents do you have?"
+- Returns: List[DocumentInfo] - just the names and metadata of documents
+
+**READING DOCUMENT CONTENT** (use `read_full_document` tool):
+- User wants to see the actual content/text inside a specific document
+- Keywords: "read", "content", "text", "what's in", combined with a specific document name
+- Examples: "Read document X", "Show me the content of document Y", "What's in document Z?"
+- Returns: FullDocumentContent - the actual text content of chapters
+
+**NEVER confuse directory names or folder names with document names when the user is asking for a list of available documents.**
+
+**SINGLE DOCUMENT CONTENT ACCESS:**
 If a user asks to access or process the *content* of multiple chapters within a document (e.g., "read all chapters of 'my_book'"):
-1. Use `read_full_document(document_name="my_book")`. The `details` field will be a `FullDocumentContent` object.
-2. Your `summary` should state that the full document content has been retrieved.
+1. Use `read_full_document(document_name="my_book")`. The `details` field will be a `FullDocumentContent` object
+2. Your `summary` should state that the full document content has been retrieved
 
+**ALL DOCUMENTS CONTENT ACCESS:**
 If a user asks to get the content of *all documents* (i.e., all chapters from all documents):
-1. **Mandatory First Step**: Call `list_documents()` to identify all document names.
-2. **Mandatory Second Step**: For EACH document identified, call `read_full_document(document_name: str)` to retrieve its complete content (all its chapters).
-3. **Result Consolidation**: Collect ALL `FullDocumentContent` objects. The `details` field of your `FinalAgentResponse` MUST be a list of these `FullDocumentContent` objects (i.e., `List[FullDocumentContent]`).
-4. **Summary**: Your `summary` must clearly state that the content of all documents has been retrieved. A response just listing document names is INCOMPLETE if content was requested.
+1. **Mandatory First Step**: Call `list_documents()` to identify all document names
+2. **Mandatory Second Step**: For EACH document identified, call `read_full_document(document_name: str)` to retrieve its complete content (all its chapters)
+3. **Result Consolidation**: Collect ALL `FullDocumentContent` objects. The `details` field of your `FinalAgentResponse` MUST be a list of these `FullDocumentContent` objects (i.e., `List[FullDocumentContent]`)
+4. **Summary**: Your `summary` must clearly state that the content of all documents has been retrieved. A response just listing document names is INCOMPLETE if content was requested
 
-If a search tool like `find_text_in_chapter` or `find_text_in_document` returns no results, your `summary` should explicitly state that the queried text was not found and clearly mention the specific text that was searched for.
+**ERROR HANDLING:**
+- Do not assume a document or chapter exists unless listed by `list_documents`, `list_chapters` or confirmed by the user recently
+- If a tool call fails or an entity is not found, this should be reflected in the `summary` and potentially in the `error_message` field of the `FinalAgentResponse`
+- The `details` field (which should be an `OperationStatus` model in case of errors from write/modify tools, or None for read tools) should reflect the tool's direct output
+- If a search tool like `find_text_in_chapter` or `find_text_in_document` returns no results, your `summary` should explicitly state that the queried text was not found and clearly mention the specific text that was searched for
 
 Follow the user's instructions carefully and to the letter without asking for clarification or further instructions unless absolutely necessary for tool parameterization.
 """
@@ -125,7 +214,7 @@ Follow the user's instructions carefully and to the letter without asking for cl
 async def initialize_agent_and_mcp_server() -> tuple[Agent[FinalAgentResponse], MCPServerHTTP]:
     """Initializes the Pydantic AI agent and its MCP server configuration."""
     try:
-        llm = load_gemini_llm_config()
+        llm = load_llm_config()
     except ValueError as e:
         print(f"Error loading LLM config: {e}", file=sys.stderr)
         raise
@@ -215,7 +304,7 @@ async def process_single_user_query(
         error_msg = str(e)
         if "ReadTimeout" in error_msg or "Event loop is closed" in error_msg:
             summary = "API connection timeout or network error occurred"
-        elif "test_api_key_placeholder" in os.environ.get("GOOGLE_API_KEY", ""):
+        elif "test_api_key_placeholder" in os.environ.get("GEMINI_API_KEY", ""):
             summary = "API authentication error (placeholder key used)"
         else:
             summary = f"Exception during query processing: {e}"
@@ -231,7 +320,27 @@ async def main():
     """Initializes and runs the Pydantic AI agent."""
     parser = argparse.ArgumentParser(description="Pydantic AI Document Agent")
     parser.add_argument("--query", type=str, help="A single query to process. If provided, the agent will run non-interactively.")
+    parser.add_argument("--check-config", action="store_true", help="Check API key configuration and exit.")
     args = parser.parse_args()
+    
+    # Handle configuration check
+    if args.check_config:
+        config = check_api_keys_config()
+        print("=== API Configuration Status ===")
+        print(f"OpenAI configured: {'✓' if config['openai_configured'] else '✗'}")
+        if config['openai_configured']:
+            print(f"  Model: {config.get('openai_model', 'N/A')}")
+        print(f"Gemini configured: {'✓' if config['gemini_configured'] else '✗'}")
+        if config['gemini_configured']:
+            print(f"  Model: {config.get('gemini_model', 'N/A')}")
+        print()
+        if config['active_provider']:
+            print(f"Active provider: {config['active_provider'].upper()}")
+            print(f"Active model: {config['active_model']}")
+        else:
+            print("❌ No API keys configured!")
+            print("Please set either OPENAI_API_KEY or GEMINI_API_KEY in your .env file.")
+        return
 
     try:
         agent, doc_tools_http_server = await initialize_agent_and_mcp_server()
