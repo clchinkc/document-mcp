@@ -167,7 +167,7 @@ def server_manager():
 def test_docs_root(server_manager):
     """Create a clean subdirectory for each test."""
     test_id = str(uuid.uuid4().hex[:8])
-    test_subdir = server_manager.test_docs_root / f"test_{test_id}"
+    test_subdir = server_manager.test_docs_root / f"docs_{test_id}"
     test_subdir.mkdir()
     
     # Override doc_tool_server paths for this test
@@ -224,7 +224,7 @@ async def run_simple_agent_test(query: str):
 @pytest.mark.asyncio
 async def test_agent_list_documents_empty(test_docs_root):
     """Test that listing documents works when no documents exist."""
-    response = await run_simple_agent_test("List all documents")
+    response = await run_simple_agent_test("Show me all available documents")
     
     assert response is not None, "Agent should provide a response to document listing request"
     assert isinstance(response.summary, str), "Summary must be a string"
@@ -255,7 +255,7 @@ async def test_agent_add_chapter_to_document(test_docs_root):
 
     # Step 2: Add a chapter to the newly created document
     add_chapter_response = await run_simple_agent_test(
-        f"Add a chapter named '{chapter_name}' to document '{doc_name}' with content: {chapter_content}"
+        f"Create a chapter named '{chapter_name}' in document '{doc_name}' with content: {chapter_content}"
     )
     
     assert add_chapter_response is not None, "Agent should respond to chapter addition"
