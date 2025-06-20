@@ -82,8 +82,8 @@ def _get_worker_port():
         # Fallback to base port if parsing fails
         return base_port
 
-class SimpleServerManager:
-    """Simplified MCP server manager for testing."""
+class MCPServerManager:
+    """MCP server manager for testing."""
     
     def __init__(self, test_docs_root=None, port=None):
         self.port = port or _get_worker_port()
@@ -153,7 +153,7 @@ def server_manager():
     
     # Use worker-specific port
     port = _get_worker_port()
-    manager = SimpleServerManager(test_docs_root=temp_root, port=port)
+    manager = MCPServerManager(test_docs_root=temp_root, port=port)
     manager.start_server()
     
     yield manager
@@ -321,4 +321,87 @@ async def test_agent_find_text_in_document(test_docs_root):
     response = await run_simple_agent_test(f"Find the text 'searchable' in document '{doc_name}'")
     
     assert response is not None, "Agent should respond to search request"
-    assert isinstance(response.summary, str) and len(response.summary) > 0, "Search response should have meaningful summary" 
+    assert isinstance(response.summary, str) and len(response.summary) > 0, "Search response should have meaningful summary"
+
+# --- AI Model-Specific Tests ---
+
+@pytest.mark.asyncio
+async def test_openai_gpt_model_integration(test_docs_root):
+    """Test that OpenAI GPT model works correctly with the agent."""
+    # Skip test if OpenAI API key is not available
+    if not os.environ.get('OPENAI_API_KEY'):
+        pytest.skip("OPENAI_API_KEY not found in environment - skipping OpenAI test")
+    
+    # Temporarily force OpenAI model by clearing Gemini key
+    original_gemini_key = os.environ.get('GEMINI_API_KEY')
+    if 'GEMINI_API_KEY' in os.environ:
+        del os.environ['GEMINI_API_KEY']
+    
+    try:
+        doc_name = f"openai_test_doc_{uuid.uuid4().hex[:8]}"
+        
+        # Test document creation with OpenAI model
+        create_response = await run_simple_agent_test(f"Create a new document named '{doc_name}'")
+        
+        assert create_response is not None, "OpenAI model should respond to document creation request"
+        assert isinstance(create_response.summary, str) and len(create_response.summary) > 0, \
+            "OpenAI model should provide meaningful summary"
+        assert create_response.error_message is None, "OpenAI model should not produce error messages for valid requests"
+        
+        # Test listing documents to verify creation worked
+        list_response = await run_simple_agent_test("Show me all available documents")
+        assert list_response is not None, "OpenAI model should respond to document listing request"
+        assert isinstance(list_response.details, list), "OpenAI model should return list of documents"
+        
+        # Verify our document was created and appears in the list (using correct attribute name)
+        doc_names = [doc.document_name for doc in list_response.details if hasattr(doc, 'document_name')]
+        assert doc_name in doc_names, f"Document '{doc_name}' should be in the list created by OpenAI model"
+        
+        print("✅ OpenAI GPT model test passed")
+        
+    finally:
+        # Restore original Gemini key if it existed
+        if original_gemini_key is not None:
+            os.environ['GEMINI_API_KEY'] = original_gemini_key
+
+@pytest.mark.asyncio
+async def test_google_gemini_model_integration(test_docs_root):
+    """Test that Google Gemini model works correctly with the agent."""
+    # Skip test if Gemini API key is not available
+    if not os.environ.get('GEMINI_API_KEY'):
+        pytest.skip("GEMINI_API_KEY not found in environment - skipping Gemini test")
+    
+    # Temporarily force Gemini model by clearing OpenAI key
+    original_openai_key = os.environ.get('OPENAI_API_KEY')
+    if 'OPENAI_API_KEY' in os.environ:
+        del os.environ['OPENAI_API_KEY']
+    
+    try:
+        doc_name = f"gemini_test_doc_{uuid.uuid4().hex[:8]}"
+        
+        # Test document creation with Gemini model
+        create_response = await run_simple_agent_test(f"Create a new document named '{doc_name}'")
+        
+        assert create_response is not None, "Gemini model should respond to document creation request"
+        assert isinstance(create_response.summary, str) and len(create_response.summary) > 0, \
+            "Gemini model should provide meaningful summary"
+        assert create_response.error_message is None, "Gemini model should not produce error messages for valid requests"
+        
+        # Test statistics with Gemini model
+        doc_dir = test_docs_root / doc_name
+        if doc_dir.exists():
+            # Add some content to test statistics
+            chapter_path = doc_dir / "01-test.md"
+            chapter_path.write_text("# Test Chapter\n\nThis is test content for Gemini model.")
+            
+            stats_response = await run_simple_agent_test(f"Get statistics for document '{doc_name}'")
+            assert stats_response is not None, "Gemini model should respond to statistics request"
+            assert isinstance(stats_response.summary, str) and len(stats_response.summary) > 0, \
+                "Gemini model should provide meaningful statistics summary"
+        
+        print("✅ Google Gemini model test passed")
+        
+    finally:
+        # Restore original OpenAI key if it existed
+        if original_openai_key is not None:
+            os.environ['OPENAI_API_KEY'] = original_openai_key
