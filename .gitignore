@@ -188,6 +188,8 @@ cython_debug/
 
 .documents_storage/
 
+.project-info/
+
 .taskmaster/
 # Added by Task Master AI
 # Logs
