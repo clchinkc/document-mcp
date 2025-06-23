@@ -478,10 +478,9 @@ async def test_simple_agent_three_round_conversation_document_workflow(test_docs
     2. Add a chapter with content
     3. Read the chapter content back
     """
-    # Use worker ID, timestamp and test ID for better isolation in parallel runs
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    # Use timestamp and test ID for better isolation
     timestamp = int(time.time() * 1000)  # millisecond timestamp for uniqueness
-    doc_name = f"multiround_doc_{worker_id}_{timestamp}_{uuid.uuid4().hex[:8]}"
+    doc_name = f"multiround_doc_{timestamp}_{uuid.uuid4().hex[:8]}"
     chapter_name = "01-intro.md"
     chapter_content = (
         "# Introduction\n\nThis is the first chapter of our multi-round test."
@@ -543,10 +542,9 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
     2. Recover by creating the document
     3. Successfully add content to demonstrate recovery
     """
-    # Use worker ID, timestamp and test ID for better isolation in parallel runs
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    # Use timestamp and test ID for better isolation
     timestamp = int(time.time() * 1000)  # millisecond timestamp for uniqueness
-    doc_name = f"error_recovery_doc_{worker_id}_{timestamp}_{uuid.uuid4().hex[:8]}"
+    doc_name = f"error_recovery_doc_{timestamp}_{uuid.uuid4().hex[:8]}"
 
     # Run all rounds in a single conversation to maintain agent connection
     queries = [
@@ -611,10 +609,9 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
     2. Create second document (should not interfere with first)
     3. Verify both documents exist independently
     """
-    # Use worker ID, timestamp and test ID for better isolation in parallel runs
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    # Use timestamp and test ID for better isolation
     timestamp = int(time.time() * 1000)  # millisecond timestamp for uniqueness
-    base_doc_name = f"isolation_test_{worker_id}_{timestamp}_{uuid.uuid4().hex[:8]}"
+    base_doc_name = f"isolation_test_{timestamp}_{uuid.uuid4().hex[:8]}"
     doc1_name = f"{base_doc_name}_1"
     doc2_name = f"{base_doc_name}_2"
 
@@ -682,10 +679,9 @@ async def test_simple_agent_three_round_conversation_resource_cleanup(test_docs_
     2. Add content to document
     3. Access document statistics (tests resource availability)
     """
-    # Use worker ID, timestamp and test ID for better isolation in parallel runs
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    # Use timestamp and test ID for better isolation
     timestamp = int(time.time() * 1000)  # millisecond timestamp for uniqueness
-    doc_name = f"cleanup_test_{worker_id}_{timestamp}_{uuid.uuid4().hex[:8]}"
+    doc_name = f"cleanup_test_{timestamp}_{uuid.uuid4().hex[:8]}"
 
     # Run all rounds in a single conversation to maintain agent connection
     queries = [
@@ -751,10 +747,9 @@ async def test_simple_agent_three_round_conversation_complex_workflow(test_docs_
     2. Search for text in the document
     3. Get comprehensive statistics
     """
-    # Use worker ID, timestamp and test ID for better isolation in parallel runs
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    # Use timestamp and test ID for better isolation
     timestamp = int(time.time() * 1000)  # millisecond timestamp for uniqueness
-    doc_name = f"complex_workflow_{worker_id}_{timestamp}_{uuid.uuid4().hex[:8]}"
+    doc_name = f"complex_workflow_{timestamp}_{uuid.uuid4().hex[:8]}"
     search_content = (
         "# Introduction\n\nThis document contains searchable content for testing."
     )
