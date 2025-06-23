@@ -423,8 +423,8 @@ class TestErrorHandling:
 
         assert result is not None
         assert isinstance(result, FinalAgentResponse)
-        assert ("event loop closed" in result.summary.lower() or "event loop was closed" in result.summary.lower())
-        assert (result.error_message == "Event loop closed" or result.error_message is None)
+        assert "a critical error occurred due to a closed event loop" in result.summary.lower()
+        assert "event loop closed: event loop is closed" in result.error_message.lower()
 
     @pytest.mark.asyncio
     async def test_process_single_user_query_runtime_error_generator(self):
