@@ -2,6 +2,7 @@ import asyncio
 import os
 import uuid
 import time
+import shutil
 
 import pytest
 
@@ -78,6 +79,18 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     # might change the global DOCS_ROOT_PATH during our conversation
     conversation_docs_root = doc_tool_server.DOCS_ROOT_PATH
     
+    # Ensure the conversation directory exists and is clean
+    # This helps prevent contamination from other tests
+    if conversation_docs_root.exists():
+        # Clean out any existing documents to ensure test isolation
+        for item in conversation_docs_root.iterdir():
+            if item.is_dir():
+                shutil.rmtree(item, ignore_errors=True)
+            else:
+                item.unlink(missing_ok=True)
+    else:
+        conversation_docs_root.mkdir(parents=True, exist_ok=True)
+    
     results = []
     
     # Create a fresh event loop context for this conversation
@@ -103,6 +116,9 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                     # Ensure the document root path is still set correctly for this conversation
                     # This prevents race conditions with other parallel tests
                     doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
+                    
+                    # Also update the environment variable to ensure consistency
+                    os.environ["DOCUMENT_ROOT_DIR"] = str(conversation_docs_root)
                     
                     # Add a delay between queries to prevent race conditions
                     # Increased delay for CI stability
@@ -191,6 +207,7 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
         # This is important for cleanup in parallel test execution
         try:
             doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
+            os.environ["DOCUMENT_ROOT_DIR"] = str(conversation_docs_root)
         except Exception:
             pass  # Don't let cleanup errors affect the test results
     
