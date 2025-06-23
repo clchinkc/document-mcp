@@ -259,12 +259,11 @@ async def process_single_user_query(
 ) -> Optional[FinalAgentResponse]:
     """Processes a single user query using the provided agent and returns the structured response."""
     try:
-        # Ensure we have a valid event loop
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            # Create a new event loop if the current one is closed
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        # Event loop should be managed by the caller (e.g., asyncio.run() or pytest-asyncio)
+        # loop = asyncio.get_event_loop() # Can get loop if needed for other reasons, but don't reset it.
+        # if loop.is_closed(): # This check itself can be problematic if no loop is set for the thread
+            # loop = asyncio.new_event_loop() # Avoid creating/setting new loops here
+            # asyncio.set_event_loop(loop)
         
         # Add timeout to prevent hanging
         run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
@@ -296,22 +295,14 @@ async def process_single_user_query(
         )
     except RuntimeError as e:
         if "Event loop is closed" in str(e):
-            print(f"Event loop closed during query processing: {e}", file=sys.stderr)
-            # Try to recover by creating a new event loop
-            try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                return FinalAgentResponse(
-                    summary="Event loop was closed but recovered",
-                    details=None,
-                    error_message=None,
-                )
-            except Exception:
-                return FinalAgentResponse(
-                    summary="Event loop closed and could not recover",
-                    details=None,
-                    error_message="Event loop closed",
-                )
+            error_message = f"Critical: Event loop was closed during processing. Error: {e}"
+            print(error_message, file=sys.stderr)
+            # Do not attempt to recover by creating a new loop.
+            return FinalAgentResponse(
+                summary="A critical error occurred due to a closed event loop.",
+                details=None,
+                error_message=f"Event loop closed: {e}", # Propagate the error clearly
+            )
         elif "generator didn't stop after athrow" in str(e):
             print(
                 f"Generator cleanup error during query processing: {e}", file=sys.stderr
