@@ -266,10 +266,10 @@ async def process_single_user_query(
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
         
-        # Add timeout to prevent hanging - but use a shorter timeout since we have outer timeout
+        # Add timeout to prevent hanging - increase timeout for heavy load conditions
         run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
             agent.run(user_query),
-            timeout=40.0,  # 40 second timeout (less than outer 45s timeout)
+            timeout=60.0,  # 60 second timeout to handle CI load better
         )
 
         if run_result and run_result.output:
@@ -283,9 +283,9 @@ async def process_single_user_query(
         else:
             return None
     except asyncio.TimeoutError:
-        print("Agent query timed out after 40 seconds", file=sys.stderr)
+        print("Agent query timed out after 60 seconds", file=sys.stderr)
         return FinalAgentResponse(
-            summary="Query timed out after 40 seconds",
+            summary="Query timed out after 60 seconds",
             details=None,
             error_message="Timeout error",
         )
