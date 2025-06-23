@@ -68,18 +68,18 @@ def pytest_runtest_teardown(item, nextitem):
 # ================================
 
 
-@pytest.fixture(scope="session")
-def session_server_manager():
+@pytest.fixture(scope="function") # Changed scope from session to function
+def server_manager_fixture(): # Renamed for clarity, as it's now per-function
     """
-    Session-scoped server manager to minimize server startup/shutdown overhead.
+    Function-scoped server manager to ensure test isolation.
 
-    This fixture creates a single server instance that is shared across
-    all tests in the session, significantly improving test performance.
+    This fixture creates a new server instance with its own document root
+    for each test function.
     """
-    # Create a temporary docs root for the entire test session
-    temp_root = Path(tempfile.mkdtemp(prefix="mcp_test_session_"))
+    # Create a temporary docs root for this specific test function
+    temp_root = Path(tempfile.mkdtemp(prefix="mcp_test_func_"))
 
-    # Create server manager with session-scoped temp directory
+    # Create server manager with function-scoped temp directory
     manager = MCPServerManager(test_docs_root=temp_root)
     manager.start_server()
 
@@ -92,7 +92,7 @@ def session_server_manager():
 
 
 @pytest.fixture
-def test_docs_root(session_server_manager):
+def test_docs_root(server_manager_fixture): # Updated to use the new function-scoped fixture
     """
     Create a clean subdirectory for each test.
 
@@ -100,7 +100,7 @@ def test_docs_root(session_server_manager):
     Each test gets its own document directory but shares the server.
     """
     test_id = str(uuid.uuid4().hex[:8])
-    test_subdir = session_server_manager.test_docs_root / f"test_{test_id}"
+    test_subdir = server_manager_fixture.test_docs_root / f"test_{test_id}" # Corrected fixture name
     test_subdir.mkdir()
 
     # Override doc_tool_server paths for this test
@@ -111,7 +111,7 @@ def test_docs_root(session_server_manager):
     original_env_vars = {}
     test_env_vars = {
         "DOCUMENT_ROOT_DIR": str(test_subdir),
-        "MCP_SERVER_PORT": str(session_server_manager.get_port()),
+        "MCP_SERVER_PORT": str(server_manager_fixture.get_port()), # Corrected fixture name
         "MCP_SERVER_HOST": "localhost",
     }
 
@@ -365,15 +365,15 @@ def unique_name():
 
 
 @pytest.fixture
-def server_url(session_server_manager):
+def server_url(server_manager_fixture): # Updated to use the new function-scoped fixture
     """Get the server URL for the current test session."""
-    return session_server_manager.get_server_url()
+    return server_manager_fixture.get_server_url()
 
 
 @pytest.fixture
-def server_port(session_server_manager):
+def server_port(server_manager_fixture): # Updated to use the new function-scoped fixture
     """Get the server port for the current test session."""
-    return session_server_manager.get_port()
+    return server_manager_fixture.get_port()
 
 
 # ================================
