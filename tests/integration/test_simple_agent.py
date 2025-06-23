@@ -69,16 +69,32 @@ async def run_conversation_test(queries: list[str], timeout: float = 45.0):
     Returns:
         List of FinalAgentResponse objects, one per query
     """
+    from document_mcp import doc_tool_server
+    from pathlib import Path
+    import os
+    
+    # Store the original docs root path to restore later
+    original_docs_root = doc_tool_server.DOCS_ROOT_PATH
+    
     agent, _ = await initialize_agent_and_mcp_server()
     results = []
     
     try:
         async with agent.run_mcp_servers():
+            # Ensure we maintain the test's document root throughout the conversation
+            test_docs_root = os.environ.get("DOCUMENT_ROOT_DIR")
+            if test_docs_root:
+                doc_tool_server.DOCS_ROOT_PATH = Path(test_docs_root)
+            
             for i, query in enumerate(queries):
                 try:
                     # Add a longer delay between queries to prevent race conditions
                     if i > 0:
                         await asyncio.sleep(0.5)
+                    
+                    # Verify document root is still correct for this test before each query
+                    if test_docs_root:
+                        doc_tool_server.DOCS_ROOT_PATH = Path(test_docs_root)
                     
                     # Use the agent's process function directly which has its own timeout handling
                     result = await process_single_user_query(agent, query)
@@ -117,6 +133,9 @@ async def run_conversation_test(queries: list[str], timeout: float = 45.0):
                 error_message=str(e)
             )
             results.append(error_response)
+    finally:
+        # Restore the original docs root path
+        doc_tool_server.DOCS_ROOT_PATH = original_docs_root
     
     return results
 
