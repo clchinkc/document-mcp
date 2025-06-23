@@ -17,26 +17,15 @@ import requests
 
 def _get_worker_port(base_port: int = 3001) -> int:
     """
-    Get a unique port for this pytest worker to avoid conflicts.
+    Get the port for sequential test execution.
 
     Args:
-        base_port: Base port number to start from
+        base_port: Base port number to use
 
     Returns:
-        Unique port number for this worker
+        Port number for this test run
     """
-    try:
-        # Check if running with pytest-xdist
-        worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
-        if worker_id == "master":
-            return base_port
-        else:
-            # Extract worker number (e.g., 'gw0' -> 0, 'gw1' -> 1)
-            worker_num = int(worker_id.replace("gw", ""))
-            return base_port + worker_num + 1
-    except (ValueError, TypeError):
-        # Fallback to base port if parsing fails
-        return base_port
+    return base_port
 
 
 class MCPServerManager:
