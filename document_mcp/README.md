@@ -13,8 +13,45 @@ pip install document-mcp
 
 ## Quick Start
 
+### Setup for MCP-Compatible IDEs
+
+1. **Install the package:**
+   ```bash
+   pip install document-mcp
+   ```
+
+2. **Add MCP server configuration:**
+   
+   Add this configuration to your IDE's MCP settings file:
+   ```json
+   {
+     "mcpServers": {
+       "document-mcp": {
+         "command": "document-mcp",
+         "args": ["stdio"],
+         "env": {}
+       }
+     }
+   }
+   ```
+
+3. **IDE-specific configuration locations:**
+   
+   - **Cursor**: `~/.cursor/mcp.json`
+   - **Windsurf**: Add to Windsurf MCP configuration file
+   - **Claude Desktop**: Add to Claude Desktop MCP settings
+   - **Other MCP clients**: Refer to your client's MCP configuration documentation
+
+4. **Enable the MCP server:**
+   - Open your IDE
+   - Enable/turn on the MCP server (usually in settings or toolbar)
+   - Wait for the connection indicator to turn green
+   - The document-mcp tools are now available!
+
+### Manual Server Mode
+
 ```bash
-# Start the MCP server
+# Start the MCP server manually
 python -m document_mcp.doc_tool_server sse --host localhost --port 3001
 ```
 
@@ -137,6 +174,16 @@ The server uses Pydantic models for structured data exchange:
 - mcp[cli]
 - python-dotenv
 - google-generativeai
+
+## Testing
+
+The MCP server uses a three-tier testing approach:
+
+1. **Unit Tests**: Mock all dependencies for fast, reliable component testing
+2. **Integration Tests**: Real MCP server with mocked AI for tool validation
+3. **E2E Tests**: Real MCP server with real AI for complete system validation (runs in CI/CD)
+
+Tests cover all MCP tools, error handling, boundary conditions, and multi-step workflows.
 
 ## Examples and Documentation
 
