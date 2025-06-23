@@ -38,6 +38,7 @@ def load_llm_config():
 
     # Check for OpenAI API key first
     openai_api_key = os.environ.get("OPENAI_API_KEY")
+    print(f"DEBUG: OpenAI API key present: {bool(openai_api_key and openai_api_key.strip())}", file=sys.stderr)
     if openai_api_key and openai_api_key.strip():
         model_name = os.environ.get("OPENAI_MODEL_NAME", "gpt-4.1-mini")
         print(f"Using OpenAI model: {model_name}")
@@ -45,6 +46,7 @@ def load_llm_config():
 
     # Check for Gemini API keys
     gemini_api_key = os.environ.get("GEMINI_API_KEY")
+    print(f"DEBUG: Gemini API key present: {bool(gemini_api_key and gemini_api_key.strip())}", file=sys.stderr)
     if gemini_api_key and gemini_api_key.strip():
         model_name = os.environ.get("GEMINI_MODEL_NAME", "gemini-2.5-flash")
         print(f"Using Gemini model: {model_name}")
