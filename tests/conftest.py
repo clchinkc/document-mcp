@@ -68,72 +68,75 @@ def pytest_runtest_teardown(item, nextitem):
 # ================================
 
 
-@pytest.fixture(scope="session")
-def session_server_manager():
+@pytest.fixture(scope="function")
+def server_manager_fixture():
     """
-    Session-scoped server manager to minimize server startup/shutdown overhead.
-
-    This fixture creates a single server instance that is shared across
-    all tests in the session, significantly improving test performance.
+    Function-scoped server manager. Does NOT start the server initially.
+    Provides an MCP server manager instance that can be configured and started by other fixtures.
+    Ensures server is stopped on cleanup if it was started.
     """
-    # Create a temporary docs root for the entire test session
-    temp_root = Path(tempfile.mkdtemp(prefix="mcp_test_session_"))
-
-    # Create server manager with session-scoped temp directory
-    manager = MCPServerManager(test_docs_root=temp_root)
-    manager.start_server()
-
+    # MCPServerManager's __init__ can determine a port if not provided.
+    # _get_worker_port is internal to MCPServerManager or needs to be available here.
+    # Assuming MCPServerManager handles port assignment if None.
+    manager = MCPServerManager(port=None, host="localhost") # Port will be set by MCPServerManager
     yield manager
-
-    # Cleanup
-    manager.stop_server()
-    if temp_root.exists():
-        shutil.rmtree(temp_root, ignore_errors=True)
+    # Cleanup: Ensure server is stopped if it was started
+    if manager.process and manager.is_running():
+        manager.stop_server()
+    # The test_docs_root created by the dependent fixture will be cleaned by that fixture.
 
 
 @pytest.fixture
-def test_docs_root(session_server_manager):
+def test_docs_root(server_manager_fixture):
     """
-    Create a clean subdirectory for each test.
-
-    This fixture provides test isolation while reusing the same server instance.
-    Each test gets its own document directory but shares the server.
+    Creates a unique document root for a test, configures the server manager for it,
+    starts the server, and yields the path. Stops server and cleans up on teardown.
     """
-    test_id = str(uuid.uuid4().hex[:8])
-    test_subdir = session_server_manager.test_docs_root / f"test_{test_id}"
-    test_subdir.mkdir()
+    # 1. Create the unique directory for this test
+    test_specific_root = Path(tempfile.mkdtemp(prefix="mcp_test_docs_"))
 
-    # Override doc_tool_server paths for this test
-    original_server_path = doc_tool_server.DOCS_ROOT_PATH
-    doc_tool_server.DOCS_ROOT_PATH = test_subdir
+    # 2. Configure the server_manager_fixture instance
+    server_manager_fixture.test_docs_root = test_specific_root
+    # Port should be assigned by MCPServerManager if it was None, or use its existing port.
+    # Ensure server_url is correctly updated if port was dynamically assigned.
+    server_manager_fixture.server_url = f"http://{server_manager_fixture.host}:{server_manager_fixture.port}"
 
-    # Set environment variables for the test
+    # 3. Set environment variables *before* server starts
     original_env_vars = {}
-    test_env_vars = {
-        "DOCUMENT_ROOT_DIR": str(test_subdir),
-        "MCP_SERVER_PORT": str(session_server_manager.get_port()),
-        "MCP_SERVER_HOST": "localhost",
+    env_vars_to_set = {
+        "DOCUMENT_ROOT_DIR": str(test_specific_root),
+        "MCP_SERVER_PORT": str(server_manager_fixture.get_port()),
+        "MCP_SERVER_HOST": server_manager_fixture.host,
     }
-
-    for key, value in test_env_vars.items():
+    for key, value in env_vars_to_set.items():
         original_env_vars[key] = os.environ.get(key)
         os.environ[key] = value
 
-    yield test_subdir
+    # 4. Start the server
+    server_manager_fixture.start_server()
 
-    # Cleanup test data
-    if test_subdir.exists():
-        shutil.rmtree(test_subdir, ignore_errors=True)
+    # Monkeypatch DOCS_ROOT_PATH in the current (pytest) process
+    original_module_path = doc_tool_server.DOCS_ROOT_PATH
+    doc_tool_server.DOCS_ROOT_PATH = test_specific_root
 
-    # Restore original environment
+    yield test_specific_root
+
+    # 5. Cleanup
+    # Server stop is handled by server_manager_fixture's yield
+
+    # Restore environment variables
     for key, original_value in original_env_vars.items():
         if original_value is None:
             os.environ.pop(key, None)
         else:
             os.environ[key] = original_value
 
-    # Restore original server path
-    doc_tool_server.DOCS_ROOT_PATH = original_server_path
+    # Restore module path
+    doc_tool_server.DOCS_ROOT_PATH = original_module_path
+
+    # Remove the test-specific directory
+    if test_specific_root.exists():
+        shutil.rmtree(test_specific_root, ignore_errors=True)
 
 
 # ================================
@@ -365,15 +368,15 @@ def unique_name():
 
 
 @pytest.fixture
-def server_url(session_server_manager):
+def server_url(server_manager_fixture): # Updated to use the new function-scoped fixture
     """Get the server URL for the current test session."""
-    return session_server_manager.get_server_url()
+    return server_manager_fixture.get_server_url()
 
 
 @pytest.fixture
-def server_port(session_server_manager):
+def server_port(server_manager_fixture): # Updated to use the new function-scoped fixture
     """Get the server port for the current test session."""
-    return session_server_manager.get_port()
+    return server_manager_fixture.get_port()
 
 
 # ================================
