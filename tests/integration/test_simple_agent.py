@@ -1,6 +1,5 @@
 import asyncio
 import os
-import sys
 import uuid
 
 import pytest
@@ -74,30 +73,30 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     from pathlib import Path
     import os
     
-    # Store the original docs root path to restore later
+    # Get the test document root from environment (set by conftest.py)
+    test_docs_root = os.environ.get("DOCUMENT_ROOT_DIR")
+    if not test_docs_root:
+        raise ValueError("DOCUMENT_ROOT_DIR environment variable not set for test")
+    
+    # Ensure the test document root path exists
+    test_docs_path = Path(test_docs_root)
+    test_docs_path.mkdir(parents=True, exist_ok=True)
+    
+    # Store the original docs root path to restore later  
     original_docs_root = doc_tool_server.DOCS_ROOT_PATH
+    
+    # Set the document root path for this conversation
+    doc_tool_server.DOCS_ROOT_PATH = test_docs_path
     
     agent, _ = await initialize_agent_and_mcp_server()
     results = []
     
     try:
         async with agent.run_mcp_servers():
-            # Ensure we maintain the test's document root throughout the conversation
-            test_docs_root = os.environ.get("DOCUMENT_ROOT_DIR")
-            if test_docs_root:
-                doc_tool_server.DOCS_ROOT_PATH = Path(test_docs_root)
-            
             for i, query in enumerate(queries):
                 try:
-                    # Add a delay between queries to prevent race conditions
-                    if i > 0:
-                        await asyncio.sleep(0.5)
-                    
-                    # Verify document root is still correct for this test before each query
-                    if test_docs_root:
-                        doc_tool_server.DOCS_ROOT_PATH = Path(test_docs_root)
-                        # Ensure the directory still exists
-                        Path(test_docs_root).mkdir(parents=True, exist_ok=True)
+                    # Ensure document root is still correct before each query
+                    doc_tool_server.DOCS_ROOT_PATH = test_docs_path
                     
                     # Use the agent's process function directly which has its own timeout handling
                     result = await process_single_user_query(agent, query)
@@ -145,97 +144,22 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
 
 async def run_conversation_test_with_retry(queries: list[str], max_retries: int = 2, timeout: float = 50.0):
     """
-    Run conversation test with retry logic for CI stability.
+    Run conversation test - simplified since root cause is fixed.
     
-    This function will retry the entire conversation if any timeouts occur,
-    which helps handle intermittent load issues in CI environments.
+    This function now just calls run_conversation_test directly since
+    the document root configuration issue has been resolved.
     """
-    last_exception = None
-    
-    for attempt in range(max_retries + 1):
-        try:
-            if attempt > 0:
-                # Add delay before retry
-                await asyncio.sleep(1.0)
-            
-            results = await run_conversation_test(queries, timeout)
-            
-            # Check if any results have timeout errors or event loop issues
-            has_timeout_or_loop_error = any(
-                result.error_message in ["Timeout error", "Event loop closed"] for result in results if result.error_message
-            )
-            
-            if not has_timeout_or_loop_error:
-                return results  # Success, return results
-            else:
-                if attempt < max_retries:
-                    continue
-                else:
-                    return results  # Return the last attempt results
-                    
-        except Exception as e:
-            last_exception = e
-            if attempt < max_retries:
-                continue
-            else:
-                raise e
-    
-    # If we get here, all retries failed
-    if last_exception:
-        raise last_exception
-    else:
-        raise Exception("Conversation test failed for unknown reason")
+    return await run_conversation_test(queries, timeout)
 
 
 async def run_conversation_test_with_cleanup_retry(queries: list[str], cleanup_query: str = None, max_retries: int = 2, timeout: float = 50.0):
     """
-    Run conversation test with retry logic and cleanup between retries for tests that create persistent state.
+    Run conversation test - simplified since root cause is fixed.
     
-    This function ensures clean state between retry attempts by running a cleanup query.
+    This function now just calls run_conversation_test directly since
+    the document root configuration issue has been resolved.
     """
-    last_exception = None
-    
-    for attempt in range(max_retries + 1):
-        try:
-            if attempt > 0:
-                # Add delay before retry
-                await asyncio.sleep(1.0)
-                
-                # Run cleanup query if provided
-                if cleanup_query:
-                    try:
-                        await run_simple_agent_test(cleanup_query)
-                    except Exception:
-                        # Cleanup failed, but continue anyway
-                        pass
-            
-            results = await run_conversation_test(queries, timeout)
-            
-            # Check if any results have timeout errors or event loop issues
-            has_timeout_or_loop_error = any(
-                result.error_message in ["Timeout error", "Event loop closed"] for result in results if result.error_message
-            )
-            
-            if not has_timeout_or_loop_error:
-                return results  # Success, return results
-            else:
-                if attempt < max_retries:
-                    continue
-                else:
-                    return results  # Return the last attempt results
-                    
-        except Exception as e:
-            last_exception = e
-            if attempt < max_retries:
-                continue
-            else:
-                raise e
-    
-    # If we get here, all retries failed
-    if last_exception:
-        raise last_exception
-    else:
-        raise Exception("Conversation test failed for unknown reason")
+    return await run_conversation_test(queries, timeout)
 
 
 # --- Core Agent Test Cases ---
@@ -464,9 +388,7 @@ async def test_simple_agent_three_round_conversation_document_workflow(test_docs
     2. Add a chapter with content
     3. Read the chapter content back
     """
-    # Use worker ID and test ID for better isolation in parallel runs
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
-    doc_name = f"multiround_doc_{worker_id}_{uuid.uuid4().hex[:8]}"
+    doc_name = f"multiround_doc_{uuid.uuid4().hex[:8]}"
     chapter_name = "01-intro.md"
     chapter_content = (
         "# Introduction\n\nThis is the first chapter of our multi-round test."
@@ -480,7 +402,7 @@ async def test_simple_agent_three_round_conversation_document_workflow(test_docs
         f"Read chapter '{chapter_name}' from document '{doc_name}'"
     ]
     
-    responses = await run_conversation_test_with_retry(queries)
+    responses = await run_conversation_test(queries)
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -522,9 +444,7 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
     2. Recover by creating the document
     3. Successfully add content to demonstrate recovery
     """
-    # Use worker ID and test ID for better isolation in parallel runs
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
-    doc_name = f"error_recovery_doc_{worker_id}_{uuid.uuid4().hex[:8]}"
+    doc_name = f"error_recovery_doc_{uuid.uuid4().hex[:8]}"
 
     # Run all rounds in a single conversation to maintain agent connection
     queries = [
@@ -534,8 +454,7 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
         f"with content: # Recovery Chapter"
     ]
     
-    # Use regular conversation test without retry since this test expects specific error patterns
-    responses = await run_conversation_test(queries, timeout=50.0)
+    responses = await run_conversation_test(queries)
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -545,27 +464,15 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
     # Note: Error is expected here, but response should still be valid
 
     assert_agent_response_valid(round2_response, "Simple agent")
-    # Allow for the case where document was already created due to timing or retries
-    if round2_response.error_message is not None and "already exists" in round2_response.error_message:
-        # This is acceptable in CI environments - the test can continue
-        pass
-    else:
-        assert (
-            round2_response.error_message is None
-        ), "Round 2 should succeed after error recovery or be idempotent"
+    assert round2_response.error_message is None, "Round 2 should succeed after error recovery"
 
     assert_agent_response_valid(round3_response, "Simple agent")
-    assert (
-        round3_response.error_message is None
-    ), "Round 3 should succeed after recovery"
+    assert round3_response.error_message is None, "Round 3 should succeed after recovery"
 
     # Verify error recovery behavior
     assert (
         round1_response.summary != round2_response.summary
     ), "Error and recovery should have different responses"
-    assert (
-        round2_response.error_message is None
-    ), "Recovery round should not have errors"
 
 
 @pytest.mark.asyncio
@@ -583,11 +490,8 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
     2. Create second document (should not interfere with first)
     3. Verify both documents exist independently
     """
-    # Use worker ID and test ID for better isolation in parallel runs
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
-    base_doc_name = f"isolation_test_{worker_id}_{uuid.uuid4().hex[:8]}"
-    doc1_name = f"{base_doc_name}_1"
-    doc2_name = f"{base_doc_name}_2"
+    doc1_name = f"isolation_test_1_{uuid.uuid4().hex[:8]}"
+    doc2_name = f"isolation_test_2_{uuid.uuid4().hex[:8]}"
 
     # Run all rounds in a single conversation to maintain agent connection
     queries = [
@@ -596,9 +500,7 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
         "Show me all available documents"
     ]
     
-    # Use cleanup retry logic to ensure clean state between retries
-    cleanup_query = f"Show me all available documents"  # This will help verify state
-    responses = await run_conversation_test_with_cleanup_retry(queries, cleanup_query=cleanup_query)
+    responses = await run_conversation_test(queries)
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -615,8 +517,6 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
         for doc in round3_response.details
         if hasattr(doc, "document_name")
     ]
-    
-    # Validate state isolation: both documents should exist independently
     
     assert doc1_name in doc_names, f"First document {doc1_name} should exist"
     assert doc2_name in doc_names, f"Second document {doc2_name} should exist"
@@ -642,9 +542,7 @@ async def test_simple_agent_three_round_conversation_resource_cleanup(test_docs_
     2. Add content to document
     3. Access document statistics (tests resource availability)
     """
-    # Use worker ID and test ID for better isolation in parallel runs
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
-    doc_name = f"cleanup_test_{worker_id}_{uuid.uuid4().hex[:8]}"
+    doc_name = f"cleanup_test_{uuid.uuid4().hex[:8]}"
 
     # Run all rounds in a single conversation to maintain agent connection
     queries = [
@@ -654,9 +552,7 @@ async def test_simple_agent_three_round_conversation_resource_cleanup(test_docs_
         f"Get statistics for document '{doc_name}'"
     ]
     
-    # Use cleanup retry logic to ensure clean state between retries
-    cleanup_query = f"Show me all available documents"  # This will help verify state
-    responses = await run_conversation_test_with_cleanup_retry(queries, cleanup_query=cleanup_query)
+    responses = await run_conversation_test(queries)
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -707,6 +603,7 @@ async def test_simple_agent_three_round_conversation_complex_workflow(test_docs_
         f"Create a new document named '{doc_name}'"
     )
     assert_agent_response_valid(round1_response, "Simple agent")
+    assert round1_response.error_message is None, "Document creation should succeed"
 
     # Setup: Add content for subsequent rounds to work with
     setup_response = await run_simple_agent_test(
@@ -714,6 +611,7 @@ async def test_simple_agent_three_round_conversation_complex_workflow(test_docs_
         f"with content: {search_content}"
     )
     assert_agent_response_valid(setup_response, "Simple agent")
+    assert setup_response.error_message is None, "Chapter creation should succeed"
 
     # Round 2: Search for text in the document
     round2_response = await run_simple_agent_test(
