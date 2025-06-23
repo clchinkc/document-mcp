@@ -7,6 +7,5 @@ google-generativeai
 openai
 pytest
 pytest-asyncio
-pytest-xdist
 requests
 pytest-cov
