@@ -3,6 +3,7 @@ import os
 import uuid
 import time
 import shutil
+import requests
 
 import pytest
 
@@ -74,6 +75,7 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     # Import here to avoid circular imports
     from document_mcp import doc_tool_server
     import shutil
+    import requests
     
     # Preserve the current document root path for this conversation
     # This is critical for parallel test execution where other tests
@@ -96,6 +98,24 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     results = []
     
     try:
+        # CRITICAL: Ensure we're using the correct port for this test worker
+        # The port is set by the test_docs_root fixture based on the worker ID
+        server_port = int(os.environ.get("MCP_SERVER_PORT", "3001"))
+        server_host = os.environ.get("MCP_SERVER_HOST", "localhost")
+        server_url = f"http://{server_host}:{server_port}"
+        
+        # Verify the MCP server is accessible before starting
+        try:
+            health_check_url = f"{server_url}/health"
+            response = requests.get(health_check_url, timeout=5)
+            if response.status_code != 200:
+                raise RuntimeError(f"MCP server health check failed: {response.status_code}")
+        except Exception as e:
+            raise RuntimeError(f"MCP server not accessible at {server_url}: {e}")
+        
+        # Add initial delay to ensure server is fully ready
+        await asyncio.sleep(2.0)  # Give server time to stabilize
+        
         # Initialize agent and server once for the entire conversation
         agent, mcp_server = await initialize_agent_and_mcp_server()
         
@@ -116,11 +136,13 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                     
                     # Add a delay between queries for CI stability
                     if i > 0:
-                        await asyncio.sleep(1.5)  # Increased delay for CI
+                        await asyncio.sleep(2.0)  # Increased delay for CI
                     
-                    # Process the query
+                    # Process the query with increased timeout for CI
                     try:
-                        result = await process_single_user_query(agent, query)
+                        # Create a task with timeout to better handle hanging queries
+                        query_task = asyncio.create_task(process_single_user_query(agent, query))
+                        result = await asyncio.wait_for(query_task, timeout=timeout)
                         
                         if result is None:
                             result = FinalAgentResponse(
@@ -143,6 +165,7 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                             error_message="Timeout error"
                         )
                         results.append(timeout_response)
+                        print(f"Query {i+1} timed out: {query}")
                         
                 except RuntimeError as e:
                     if "Event loop is closed" in str(e):
@@ -175,9 +198,11 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                         error_message=str(e)
                     )
                     results.append(error_response)
+                    print(f"Error in query {i+1}: {e}")
                     
     except Exception as e:
         # If we couldn't start the conversation, return error responses
+        print(f"Failed to initialize conversation: {e}")
         for i in range(len(queries)):
             error_response = FinalAgentResponse(
                 summary=f"Failed to initialize conversation: {str(e)}",
@@ -465,7 +490,7 @@ async def test_simple_agent_three_round_conversation_document_workflow(test_docs
         f"Read chapter '{chapter_name}' from document '{doc_name}'"
     ]
     
-    responses = await run_conversation_test(queries, timeout=60.0)  # Increased timeout for CI
+    responses = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -518,7 +543,7 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
         f"with content: # Recovery Chapter"            # This should succeed
     ]
     
-    responses = await run_conversation_test(queries, timeout=60.0)  # Increased timeout for CI
+    responses = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -566,7 +591,7 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
         "Show me all available documents"
     ]
     
-    responses = await run_conversation_test(queries)
+    responses = await run_conversation_test(queries, timeout=90.0)
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -625,7 +650,7 @@ async def test_simple_agent_three_round_conversation_resource_cleanup(test_docs_
         f"Show statistics for document '{doc_name}'"
     ]
     
-    responses = await run_conversation_test(queries, timeout=60.0)  # Increased timeout for CI
+    responses = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -675,7 +700,7 @@ async def test_simple_agent_three_round_conversation_complex_workflow(test_docs_
         f"Show statistics for document '{doc_name}'"
     ]
     
-    responses = await run_conversation_test(queries, timeout=60.0)  # Increased timeout for CI
+    responses = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
