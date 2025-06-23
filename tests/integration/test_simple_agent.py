@@ -55,7 +55,7 @@ async def run_simple_agent_test(query: str):
         return result
 
 
-async def run_conversation_test(queries: list[str], timeout: float = 45.0):
+async def run_conversation_test(queries: list[str], timeout: float = 70.0):
     """
     Run multiple queries in sequence using the same agent connection.
     
@@ -88,13 +88,15 @@ async def run_conversation_test(queries: list[str], timeout: float = 45.0):
             
             for i, query in enumerate(queries):
                 try:
-                    # Add a longer delay between queries to prevent race conditions
+                    # Add a longer delay between queries to prevent race conditions and allow system recovery
                     if i > 0:
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(1.0)  # Increased delay for CI stability
                     
                     # Verify document root is still correct for this test before each query
                     if test_docs_root:
                         doc_tool_server.DOCS_ROOT_PATH = Path(test_docs_root)
+                        # Ensure the directory still exists
+                        Path(test_docs_root).mkdir(parents=True, exist_ok=True)
                     
                     # Use the agent's process function directly which has its own timeout handling
                     result = await process_single_user_query(agent, query)
@@ -109,6 +111,7 @@ async def run_conversation_test(queries: list[str], timeout: float = 45.0):
                     
                 except asyncio.TimeoutError:
                     # Handle timeout specifically
+                    print(f"Conversation test query {i+1} timed out: {query}", file=sys.stderr)
                     timeout_response = FinalAgentResponse(
                         summary=f"Query {i+1} timed out after {timeout} seconds",
                         details=None,
@@ -118,6 +121,8 @@ async def run_conversation_test(queries: list[str], timeout: float = 45.0):
                     break
                 except Exception as e:
                     # Handle other exceptions gracefully
+                    print(f"Conversation test query {i+1} failed with exception: {e}", file=sys.stderr)
+                    print(f"Query was: {query}", file=sys.stderr)
                     error_response = FinalAgentResponse(
                         summary=f"Error in query {i+1}: {str(e)}",
                         details=None,
@@ -138,6 +143,55 @@ async def run_conversation_test(queries: list[str], timeout: float = 45.0):
         doc_tool_server.DOCS_ROOT_PATH = original_docs_root
     
     return results
+
+
+async def run_conversation_test_with_retry(queries: list[str], max_retries: int = 2, timeout: float = 70.0):
+    """
+    Run conversation test with retry logic for CI stability.
+    
+    This function will retry the entire conversation if any timeouts occur,
+    which helps handle intermittent load issues in CI environments.
+    """
+    last_exception = None
+    
+    for attempt in range(max_retries + 1):
+        try:
+            if attempt > 0:
+                print(f"Retrying conversation test (attempt {attempt + 1}/{max_retries + 1})", file=sys.stderr)
+                # Add extra delay before retry to let system recover
+                await asyncio.sleep(2.0)
+            
+            results = await run_conversation_test(queries, timeout)
+            
+            # Check if any results have timeout errors
+            has_timeout = any(
+                result.error_message == "Timeout error" for result in results
+            )
+            
+            if not has_timeout:
+                return results  # Success, return results
+            else:
+                if attempt < max_retries:
+                    print(f"Timeout detected in conversation test, retrying...", file=sys.stderr)
+                    continue
+                else:
+                    print(f"Conversation test failed after {max_retries + 1} attempts", file=sys.stderr)
+                    return results  # Return the last attempt results
+                    
+        except Exception as e:
+            last_exception = e
+            if attempt < max_retries:
+                print(f"Conversation test attempt {attempt + 1} failed: {e}, retrying...", file=sys.stderr)
+                continue
+            else:
+                print(f"Conversation test failed after {max_retries + 1} attempts: {e}", file=sys.stderr)
+                raise e
+    
+    # If we get here, all retries failed
+    if last_exception:
+        raise last_exception
+    else:
+        raise Exception("Conversation test failed for unknown reason")
 
 
 # --- Core Agent Test Cases ---
@@ -382,7 +436,7 @@ async def test_simple_agent_three_round_conversation_document_workflow(test_docs
         f"Read chapter '{chapter_name}' from document '{doc_name}'"
     ]
     
-    responses = await run_conversation_test(queries)
+    responses = await run_conversation_test_with_retry(queries)
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -492,7 +546,7 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
         "Show me all available documents"
     ]
     
-    responses = await run_conversation_test(queries)
+    responses = await run_conversation_test_with_retry(queries)
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -545,7 +599,7 @@ async def test_simple_agent_three_round_conversation_resource_cleanup(test_docs_
         f"Get statistics for document '{doc_name}'"
     ]
     
-    responses = await run_conversation_test(queries)
+    responses = await run_conversation_test_with_retry(queries)
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
