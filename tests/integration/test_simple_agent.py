@@ -79,24 +79,12 @@ async def run_conversation_test(queries: list[str], timeout: float = 90.0):
     import requests
     from pathlib import Path
     
-    # Create a unique test identifier for document names
-    test_id = f"test_{int(time.time() * 1000000)}_{uuid.uuid4().hex[:8]}"
+    # The conversation test will work with the server's actual document root.
+    # This is now managed by the per-function server_manager_fixture and test_docs_root.
+    conversation_docs_root = doc_tool_server.DOCS_ROOT_PATH # This will be the test-specific root.
     
-    # The conversation test will work with the server's actual document root
-    # and create uniquely named documents to avoid conflicts
-    conversation_docs_root = doc_tool_server.DOCS_ROOT_PATH
-    
-    # Clean the directory to ensure test isolation
-    if conversation_docs_root.exists():
-        # Clean out any documents that match our test pattern
-        for item in conversation_docs_root.iterdir():
-            if item.is_dir() and (item.name.startswith("test_") or 
-                                 item.name.startswith("conv_test_") or
-                                 "test_" in item.name):
-                try:
-                    shutil.rmtree(item, ignore_errors=True)
-                except Exception:
-                    pass
+    # Initial cleanup and test_id for unique naming are no longer needed here
+    # as each test gets a fresh directory and server.
     
     results = []
     
@@ -207,32 +195,17 @@ async def run_conversation_test(queries: list[str], timeout: float = 90.0):
             async with agent.run_mcp_servers():
                 for i, query in enumerate(queries):
                     try:
-                        # Modify the query to use unique document names for this test
-                        # This ensures we don't conflict with other tests or existing documents
-                        modified_query = query
-                        
-                        # Replace document names in queries to include our test identifier
-                        import re
-                        # Find document names in quotes
-                        doc_name_matches = re.findall(r"'([^']+)'", query)
-                        for original_name in doc_name_matches:
-                            # Only modify if it looks like a document name (not a chapter or other content)
-                            if any(keyword in query.lower() for keyword in ["document", "create", "named"]):
-                                # Create a unique name for this test
-                                unique_name = f"{test_id}_{original_name}"
-                                modified_query = modified_query.replace(f"'{original_name}'", f"'{unique_name}'")
-                        
-                        # Ensure the document root path is still correct
-                        doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
-                        os.environ["DOCUMENT_ROOT_DIR"] = str(conversation_docs_root)
+                        # Document name modification for isolation is no longer needed here.
+                        # The per-function server ensures isolation.
+                        # The DOCS_ROOT_PATH is set by the test_docs_root fixture and used by the server.
                         
                         # Add delay between queries
                         if i > 0:
                             await asyncio.sleep(2.0)
                         
-                        # Process the modified query
-                        print(f"Processing query {i+1}: {modified_query[:100]}...")
-                        result = await process_single_user_query(agent, modified_query)
+                        # Process the original query
+                        print(f"Processing query {i+1}: {query[:100]}...")
+                        result = await process_single_user_query(agent, query)
                         
                         if result is None:
                             result = FinalAgentResponse(
@@ -243,13 +216,10 @@ async def run_conversation_test(queries: list[str], timeout: float = 90.0):
                         
                         results.append(result)
                         
-                        # Debug output - look for documents with our test ID
+                        # Simplified Debug output
                         if conversation_docs_root.exists():
-                            test_docs = [d.name for d in conversation_docs_root.iterdir() 
-                                       if d.is_dir() and test_id in d.name]
-                            all_docs = [d.name for d in conversation_docs_root.iterdir() if d.is_dir()]
-                            print(f"After query {i+1}: Test documents ({test_id}): {test_docs}")
-                            print(f"After query {i+1}: All documents: {all_docs[:10]}...")  # Limit output
+                            current_docs = [d.name for d in conversation_docs_root.iterdir() if d.is_dir()]
+                            print(f"After query {i+1}: Documents in test root: {current_docs}")
                             print(f"Response summary: {result.summary}")
                             if result.error_message:
                                 print(f"Error: {result.error_message}")
@@ -269,32 +239,26 @@ async def run_conversation_test(queries: list[str], timeout: float = 90.0):
                     
     except Exception as e:
         print(f"Failed to initialize conversation: {e}")
-        for i in range(len(queries)):
-            error_response = FinalAgentResponse(
-                summary=f"Failed to initialize conversation: {str(e)}",
-                details=None,
-                error_message=str(e)
-            )
-            results.append(error_response)
-    finally:
-        # Clean up any documents we created
-        if conversation_docs_root.exists():
-            for item in conversation_docs_root.iterdir():
-                if item.is_dir() and test_id in item.name:
-                    try:
-                        shutil.rmtree(item, ignore_errors=True)
-                    except Exception:
-                        pass
+        for i in range(len(queries)): # Ensure results list is populated even on init failure
+            if len(results) < len(queries):
+                error_response = FinalAgentResponse(
+                    summary=f"Failed to initialize conversation: {str(e)}",
+                    details=None,
+                    error_message=str(e)
+                )
+                results.append(error_response)
+    # Final cleanup of test-specific documents is no longer needed here.
+    # The server_manager_fixture (function-scoped) handles teardown of its temp directory.
     
     # Ensure we have responses for all queries
     while len(results) < len(queries):
         results.append(FinalAgentResponse(
-            summary="No response generated for this query",
+            summary="No response generated for this query (e.g. due to init failure)",
             details=None,
             error_message="Missing response"
         ))
     
-    return results, test_id
+    return results # test_id is no longer returned
 
 
 async def run_conversation_test_with_retry(queries: list[str], max_retries: int = 2, timeout: float = 50.0):
@@ -558,7 +522,7 @@ async def test_simple_agent_three_round_conversation_document_workflow(test_docs
         f"Read chapter '{chapter_name}' from document '{doc_name}'"
     ]
     
-    responses, test_id = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
+    responses = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -611,7 +575,7 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
         f"with content: # Recovery Chapter"            # This should succeed
     ]
     
-    responses, test_id = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
+    responses = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -659,7 +623,7 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
         "Show me all available documents"
     ]
     
-    responses, test_id = await run_conversation_test(queries, timeout=90.0)
+    responses = await run_conversation_test(queries, timeout=90.0) # test_id removed
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -682,16 +646,11 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
         if hasattr(doc, "document_name")
     ]
     
-    # Check that our documents were created (they should be in the list with test ID prefix)
-    # The conversation test modifies document names to include a test ID, so we need to look for partial matches
-    expected_doc1_name = f"{test_id}_{doc1_name}"
-    expected_doc2_name = f"{test_id}_{doc2_name}"
+    # Check that our documents were created.
+    # The unique naming prefix from test_id is removed, so we look for exact names.
     
-    doc1_found = any(expected_doc1_name in doc_name for doc_name in doc_names)
-    doc2_found = any(expected_doc2_name in doc_name for doc_name in doc_names)
-    
-    assert doc1_found, f"First document containing '{expected_doc1_name}' should exist in {doc_names}"
-    assert doc2_found, f"Second document containing '{expected_doc2_name}' should exist in {doc_names}"
+    assert doc1_name in doc_names, f"First document '{doc1_name}' should exist in {doc_names}"
+    assert doc2_name in doc_names, f"Second document '{doc2_name}' should exist in {doc_names}"
 
     # Verify each round was independent
     assert (
@@ -725,7 +684,7 @@ async def test_simple_agent_three_round_conversation_resource_cleanup(test_docs_
         f"Show statistics for document '{doc_name}'"
     ]
     
-    responses, test_id = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
+    responses = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -775,7 +734,7 @@ async def test_simple_agent_three_round_conversation_complex_workflow(test_docs_
         f"Show statistics for document '{doc_name}'"
     ]
     
-    responses, test_id = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
+    responses = await run_conversation_test(queries, timeout=90.0)  # Increased timeout for CI
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
