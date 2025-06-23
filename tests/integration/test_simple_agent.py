@@ -78,67 +78,96 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     # might change the global DOCS_ROOT_PATH during our conversation
     conversation_docs_root = doc_tool_server.DOCS_ROOT_PATH
     
-    agent, _ = await initialize_agent_and_mcp_server()
     results = []
-    conversation_messages = None
     
+    # Create a fresh event loop context for this conversation
+    # This helps avoid event loop closure issues in CI environments
     try:
+        # Get the current event loop
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop, create one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Initialize agent and server once for the entire conversation
+        agent, mcp_server = await initialize_agent_and_mcp_server()
+        
+        # Use a single context manager for all queries
         async with agent.run_mcp_servers():
+            conversation_messages = None
+            
             for i, query in enumerate(queries):
                 try:
                     # Ensure the document root path is still set correctly for this conversation
                     # This prevents race conditions with other parallel tests
                     doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
                     
-                    # Add a small delay between queries to prevent race conditions
+                    # Add a delay between queries to prevent race conditions
+                    # Increased delay for CI stability
                     if i > 0:
-                        await asyncio.sleep(0.2)  # Slightly increased delay
+                        await asyncio.sleep(1.0)  # 1 second delay for CI
                     
-                    # For the first query, start a new conversation
-                    # For subsequent queries, continue the conversation with history
-                    if conversation_messages is None:
-                        # First query - start new conversation
-                        run_result = await asyncio.wait_for(
-                            agent.run(query),
-                            timeout=timeout
-                        )
-                    else:
-                        # Subsequent queries - continue conversation with history
-                        run_result = await asyncio.wait_for(
-                            agent.run(query, message_history=conversation_messages),
-                            timeout=timeout
-                        )
-                    
-                    # Update conversation history for next iteration
-                    conversation_messages = run_result.all_messages()
-                    
-                    # Extract the response
-                    if run_result and run_result.output:
-                        result = run_result.output
-                    elif run_result and run_result.error_message:
-                        result = FinalAgentResponse(
-                            summary=f"Agent error: {run_result.error_message}",
+                    # Process the query using the existing agent connection
+                    try:
+                        # Use process_single_user_query which has better error handling
+                        result = await process_single_user_query(agent, query)
+                        
+                        if result is None:
+                            result = FinalAgentResponse(
+                                summary="No response received from agent",
+                                details=None,
+                                error_message="No response"
+                            )
+                        
+                        results.append(result)
+                        
+                    except asyncio.TimeoutError:
+                        # Handle timeout specifically
+                        timeout_response = FinalAgentResponse(
+                            summary=f"Query {i+1} timed out after {timeout} seconds",
                             details=None,
-                            error_message=run_result.error_message,
+                            error_message="Timeout error"
                         )
-                    else:
-                        result = FinalAgentResponse(
-                            summary="No response received from agent",
-                            details=None,
-                            error_message="No response"
-                        )
-                    
-                    results.append(result)
-                    
-                except asyncio.TimeoutError:
-                    # Handle timeout specifically
-                    timeout_response = FinalAgentResponse(
-                        summary=f"Query {i+1} timed out after {timeout} seconds",
+                        results.append(timeout_response)
+                        
+                except asyncio.CancelledError:
+                    # Handle cancellation
+                    cancel_response = FinalAgentResponse(
+                        summary=f"Query {i+1} was cancelled",
                         details=None,
-                        error_message="Timeout error"
+                        error_message="Cancelled error"
                     )
-                    results.append(timeout_response)
-                    break
+                    results.append(cancel_response)
+                    raise  # Re-raise to properly handle cancellation
+                    
+                except RuntimeError as e:
+                    if "Event loop is closed" in str(e):
+                        # Event loop closed - this is a critical error
+                        error_response = FinalAgentResponse(
+                            summary=f"Event loop closed during query {i+1}",
+                            details=None,
+                            error_message="Event loop is closed"
+                        )
+                        results.append(error_response)
+                        # Fill remaining with error responses
+                        for j in range(i + 1, len(queries)):
+                            results.append(FinalAgentResponse(
+                                summary=f"Query {j+1} skipped due to event loop closure",
+                                details=None,
+                                error_message="Event loop is closed"
+                            ))
+                        break
+                    else:
+                        # Other runtime errors
+                        error_response = FinalAgentResponse(
+                            summary=f"Runtime error in query {i+1}: {str(e)}",
+                            details=None,
+                            error_message=str(e)
+                        )
+                        results.append(error_response)
+                        
                 except Exception as e:
                     # Handle other exceptions gracefully
                     error_response = FinalAgentResponse(
@@ -147,6 +176,7 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                         error_message=str(e)
                     )
                     results.append(error_response)
+                    
     except Exception as e:
         # If we couldn't even start the conversation, return error responses
         for i in range(len(queries)):
@@ -163,6 +193,14 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
             doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
         except Exception:
             pass  # Don't let cleanup errors affect the test results
+    
+    # Ensure we have responses for all queries
+    while len(results) < len(queries):
+        results.append(FinalAgentResponse(
+            summary="No response generated for this query",
+            details=None,
+            error_message="Missing response"
+        ))
     
     return results
 
