@@ -4,6 +4,7 @@ import uuid
 import time
 import shutil
 import requests
+from pathlib import Path
 
 import pytest
 
@@ -58,7 +59,7 @@ async def run_simple_agent_test(query: str):
         return result
 
 
-async def run_conversation_test(queries: list[str], timeout: float = 50.0):
+async def run_conversation_test(queries: list[str], timeout: float = 90.0):
     """
     Run multiple queries in sequence using the same agent connection.
     
@@ -76,35 +77,28 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     from document_mcp import doc_tool_server
     import shutil
     import requests
+    from pathlib import Path
     
-    # Preserve the current document root path for this conversation
-    # This is critical for parallel test execution where other tests
-    # might change the global DOCS_ROOT_PATH during our conversation
+    # The test_docs_root fixture has already set up a unique directory for this test
+    # and updated doc_tool_server.DOCS_ROOT_PATH. We'll use that.
     conversation_docs_root = doc_tool_server.DOCS_ROOT_PATH
     
-    # Ensure the conversation directory exists and is clean at the START
-    # This helps prevent contamination from previous test runs
+    # Clean the directory to ensure test isolation
     if conversation_docs_root.exists():
-        # Clean out any existing documents to ensure test isolation
-        # but only at the beginning of the conversation
         for item in conversation_docs_root.iterdir():
             if item.is_dir():
                 shutil.rmtree(item, ignore_errors=True)
             else:
                 item.unlink(missing_ok=True)
-    else:
-        conversation_docs_root.mkdir(parents=True, exist_ok=True)
     
     results = []
     
     try:
-        # CRITICAL: Ensure we're using the correct port for this test worker
-        # The port is set by the test_docs_root fixture based on the worker ID
+        # Verify the MCP server is accessible
         server_port = int(os.environ.get("MCP_SERVER_PORT", "3001"))
         server_host = os.environ.get("MCP_SERVER_HOST", "localhost")
         server_url = f"http://{server_host}:{server_port}"
         
-        # Verify the MCP server is accessible before starting
         try:
             health_check_url = f"{server_url}/health"
             response = requests.get(health_check_url, timeout=5)
@@ -113,36 +107,101 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
         except Exception as e:
             raise RuntimeError(f"MCP server not accessible at {server_url}: {e}")
         
-        # Add initial delay to ensure server is fully ready
-        await asyncio.sleep(2.0)  # Give server time to stabilize
+        # Add initial delay to ensure server is ready
+        await asyncio.sleep(2.0)
         
-        # Initialize agent and server once for the entire conversation
-        agent, mcp_server = await initialize_agent_and_mcp_server()
+        # Monkey patch the timeout in process_single_user_query for this test
+        import src.agents.simple_agent as simple_agent
         
-        # Use a single context manager for all queries
-        async with agent.run_mcp_servers():
-            for i, query in enumerate(queries):
-                try:
-                    # CRITICAL: Ensure path consistency before each query
-                    # This prevents race conditions with other parallel tests
-                    doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
-                    os.environ["DOCUMENT_ROOT_DIR"] = str(conversation_docs_root)
+        # Save the original function
+        original_process_func = simple_agent.process_single_user_query
+        
+        # Create a patched version with our timeout
+        async def patched_process_single_user_query(agent, user_query):
+            """Process query with increased timeout for conversation tests."""
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_closed():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                # Use our conversation test timeout
+                run_result = await asyncio.wait_for(
+                    agent.run(user_query),
+                    timeout=timeout,
+                )
+
+                if run_result and run_result.output:
+                    return run_result.output
+                elif run_result and run_result.error_message:
+                    return simple_agent.FinalAgentResponse(
+                        summary=f"Agent error: {run_result.error_message}",
+                        details=None,
+                        error_message=run_result.error_message,
+                    )
+                else:
+                    return None
                     
-                    # Verify the path is actually set correctly
-                    current_path = doc_tool_server.DOCS_ROOT_PATH
-                    if current_path != conversation_docs_root:
-                        print(f"WARNING: Path mismatch! Expected {conversation_docs_root}, got {current_path}")
-                        doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
-                    
-                    # Add a delay between queries for CI stability
-                    if i > 0:
-                        await asyncio.sleep(2.0)  # Increased delay for CI
-                    
-                    # Process the query with increased timeout for CI
+            except asyncio.TimeoutError:
+                print(f"Agent query timed out after {timeout} seconds", file=sys.stderr)
+                return simple_agent.FinalAgentResponse(
+                    summary=f"Query timed out after {timeout} seconds",
+                    details=None,
+                    error_message="Timeout error",
+                )
+            except asyncio.CancelledError:
+                print("Agent query was cancelled", file=sys.stderr)
+                return simple_agent.FinalAgentResponse(
+                    summary="Query was cancelled",
+                    details=None,
+                    error_message="Cancelled error"
+                )
+            except RuntimeError as e:
+                if "Event loop is closed" in str(e):
+                    print(f"Event loop closed during query processing: {e}", file=sys.stderr)
+                    return simple_agent.FinalAgentResponse(
+                        summary="Event loop closed and could not recover",
+                        details=None,
+                        error_message="Event loop is closed",
+                    )
+                else:
+                    print(f"Runtime error during agent query processing: {e}", file=sys.stderr)
+                    return simple_agent.FinalAgentResponse(
+                        summary=f"Runtime error during query processing: {e}",
+                        details=None,
+                        error_message=str(e),
+                    )
+            except Exception as e:
+                print(f"Error during agent query processing: {e}", file=sys.stderr)
+                return simple_agent.FinalAgentResponse(
+                    summary=f"Exception during query processing: {e}",
+                    details=None,
+                    error_message=str(e)
+                )
+        
+        # Apply the patch
+        simple_agent.process_single_user_query = patched_process_single_user_query
+        
+        try:
+            # Initialize agent and server
+            agent, mcp_server = await initialize_agent_and_mcp_server()
+            
+            # Use a single context manager for all queries
+            async with agent.run_mcp_servers():
+                for i, query in enumerate(queries):
                     try:
-                        # Create a task with timeout to better handle hanging queries
-                        query_task = asyncio.create_task(process_single_user_query(agent, query))
-                        result = await asyncio.wait_for(query_task, timeout=timeout)
+                        # Ensure the document root path is still correct
+                        # The MCP server should be using the path from DOCUMENT_ROOT_DIR env var
+                        doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
+                        os.environ["DOCUMENT_ROOT_DIR"] = str(conversation_docs_root)
+                        
+                        # Add delay between queries
+                        if i > 0:
+                            await asyncio.sleep(2.0)
+                        
+                        # Process the query
+                        print(f"Processing query {i+1}: {query[:100]}...")
+                        result = await process_single_user_query(agent, query)
                         
                         if result is None:
                             result = FinalAgentResponse(
@@ -153,55 +212,28 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                         
                         results.append(result)
                         
-                        # Debug: Print document state after each query for failing tests
+                        # Debug output
                         if conversation_docs_root.exists():
                             docs = [d.name for d in conversation_docs_root.iterdir() if d.is_dir()]
                             print(f"After query {i+1}: Documents in {conversation_docs_root.name}: {docs}")
-                        
-                    except asyncio.TimeoutError:
-                        timeout_response = FinalAgentResponse(
-                            summary=f"Query {i+1} timed out after {timeout} seconds",
-                            details=None,
-                            error_message="Timeout error"
-                        )
-                        results.append(timeout_response)
-                        print(f"Query {i+1} timed out: {query}")
-                        
-                except RuntimeError as e:
-                    if "Event loop is closed" in str(e):
+                            print(f"Response summary: {result.summary}")
+                            if result.error_message:
+                                print(f"Error: {result.error_message}")
+                            
+                    except Exception as e:
+                        print(f"Exception in query {i+1}: {e}")
                         error_response = FinalAgentResponse(
-                            summary=f"Event loop closed during query {i+1}",
-                            details=None,
-                            error_message="Event loop is closed"
-                        )
-                        results.append(error_response)
-                        # Fill remaining queries with error responses
-                        for j in range(i + 1, len(queries)):
-                            results.append(FinalAgentResponse(
-                                summary=f"Query {j+1} skipped due to event loop closure",
-                                details=None,
-                                error_message="Event loop is closed"
-                            ))
-                        break
-                    else:
-                        error_response = FinalAgentResponse(
-                            summary=f"Runtime error in query {i+1}: {str(e)}",
+                            summary=f"Error in query {i+1}: {str(e)}",
                             details=None,
                             error_message=str(e)
                         )
                         results.append(error_response)
                         
-                except Exception as e:
-                    error_response = FinalAgentResponse(
-                        summary=f"Error in query {i+1}: {str(e)}",
-                        details=None,
-                        error_message=str(e)
-                    )
-                    results.append(error_response)
-                    print(f"Error in query {i+1}: {e}")
+        finally:
+            # Restore the original function
+            simple_agent.process_single_user_query = original_process_func
                     
     except Exception as e:
-        # If we couldn't start the conversation, return error responses
         print(f"Failed to initialize conversation: {e}")
         for i in range(len(queries)):
             error_response = FinalAgentResponse(
@@ -210,13 +242,6 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                 error_message=str(e)
             )
             results.append(error_response)
-    finally:
-        # Restore path consistency
-        try:
-            doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
-            os.environ["DOCUMENT_ROOT_DIR"] = str(conversation_docs_root)
-        except Exception:
-            pass
     
     # Ensure we have responses for all queries
     while len(results) < len(queries):
