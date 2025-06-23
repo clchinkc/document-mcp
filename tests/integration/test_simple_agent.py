@@ -72,6 +72,7 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     """
     agent, _ = await initialize_agent_and_mcp_server()
     results = []
+    conversation_messages = None
     
     try:
         async with agent.run_mcp_servers():
@@ -81,15 +82,40 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                     if i > 0:
                         await asyncio.sleep(0.1)
                     
-                    # Use the agent's process function directly which has its own timeout handling
-                    result = await process_single_user_query(agent, query)
-                    if result is None:
-                        # Handle case where no response is returned
+                    # For the first query, start a new conversation
+                    # For subsequent queries, continue the conversation with history
+                    if conversation_messages is None:
+                        # First query - start new conversation
+                        run_result = await asyncio.wait_for(
+                            agent.run(query),
+                            timeout=timeout
+                        )
+                    else:
+                        # Subsequent queries - continue conversation with history
+                        run_result = await asyncio.wait_for(
+                            agent.run(query, message_history=conversation_messages),
+                            timeout=timeout
+                        )
+                    
+                    # Update conversation history for next iteration
+                    conversation_messages = run_result.all_messages()
+                    
+                    # Extract the response
+                    if run_result and run_result.output:
+                        result = run_result.output
+                    elif run_result and run_result.error_message:
+                        result = FinalAgentResponse(
+                            summary=f"Agent error: {run_result.error_message}",
+                            details=None,
+                            error_message=run_result.error_message,
+                        )
+                    else:
                         result = FinalAgentResponse(
                             summary="No response received from agent",
                             details=None,
                             error_message="No response"
                         )
+                    
                     results.append(result)
                     
                 except asyncio.TimeoutError:
