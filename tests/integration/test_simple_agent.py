@@ -56,7 +56,7 @@ async def run_simple_agent_test(query: str):
         return result
 
 
-async def run_conversation_test(queries: list[str], timeout: float = 70.0):
+async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     """
     Run multiple queries in sequence using the same agent connection.
     
@@ -89,9 +89,9 @@ async def run_conversation_test(queries: list[str], timeout: float = 70.0):
             
             for i, query in enumerate(queries):
                 try:
-                    # Add a longer delay between queries to prevent race conditions and allow system recovery
+                    # Add a delay between queries to prevent race conditions
                     if i > 0:
-                        await asyncio.sleep(1.0)  # Increased delay for CI stability
+                        await asyncio.sleep(0.5)
                     
                     # Verify document root is still correct for this test before each query
                     if test_docs_root:
@@ -112,7 +112,6 @@ async def run_conversation_test(queries: list[str], timeout: float = 70.0):
                     
                 except asyncio.TimeoutError:
                     # Handle timeout specifically
-                    print(f"Conversation test query {i+1} timed out: {query}", file=sys.stderr)
                     timeout_response = FinalAgentResponse(
                         summary=f"Query {i+1} timed out after {timeout} seconds",
                         details=None,
@@ -122,8 +121,6 @@ async def run_conversation_test(queries: list[str], timeout: float = 70.0):
                     break
                 except Exception as e:
                     # Handle other exceptions gracefully
-                    print(f"Conversation test query {i+1} failed with exception: {e}", file=sys.stderr)
-                    print(f"Query was: {query}", file=sys.stderr)
                     error_response = FinalAgentResponse(
                         summary=f"Error in query {i+1}: {str(e)}",
                         details=None,
@@ -146,7 +143,7 @@ async def run_conversation_test(queries: list[str], timeout: float = 70.0):
     return results
 
 
-async def run_conversation_test_with_retry(queries: list[str], max_retries: int = 2, timeout: float = 70.0):
+async def run_conversation_test_with_retry(queries: list[str], max_retries: int = 2, timeout: float = 50.0):
     """
     Run conversation test with retry logic for CI stability.
     
@@ -158,9 +155,8 @@ async def run_conversation_test_with_retry(queries: list[str], max_retries: int 
     for attempt in range(max_retries + 1):
         try:
             if attempt > 0:
-                print(f"Retrying conversation test (attempt {attempt + 1}/{max_retries + 1})", file=sys.stderr)
-                # Add extra delay before retry to let system recover
-                await asyncio.sleep(2.0)
+                # Add delay before retry
+                await asyncio.sleep(1.0)
             
             results = await run_conversation_test(queries, timeout)
             
@@ -173,19 +169,15 @@ async def run_conversation_test_with_retry(queries: list[str], max_retries: int 
                 return results  # Success, return results
             else:
                 if attempt < max_retries:
-                    print(f"Timeout or event loop error detected in conversation test, retrying...", file=sys.stderr)
                     continue
                 else:
-                    print(f"Conversation test failed after {max_retries + 1} attempts", file=sys.stderr)
                     return results  # Return the last attempt results
                     
         except Exception as e:
             last_exception = e
             if attempt < max_retries:
-                print(f"Conversation test attempt {attempt + 1} failed: {e}, retrying...", file=sys.stderr)
                 continue
             else:
-                print(f"Conversation test failed after {max_retries + 1} attempts: {e}", file=sys.stderr)
                 raise e
     
     # If we get here, all retries failed
@@ -195,7 +187,7 @@ async def run_conversation_test_with_retry(queries: list[str], max_retries: int 
         raise Exception("Conversation test failed for unknown reason")
 
 
-async def run_conversation_test_with_cleanup_retry(queries: list[str], cleanup_query: str = None, max_retries: int = 2, timeout: float = 70.0):
+async def run_conversation_test_with_cleanup_retry(queries: list[str], cleanup_query: str = None, max_retries: int = 2, timeout: float = 50.0):
     """
     Run conversation test with retry logic and cleanup between retries for tests that create persistent state.
     
@@ -206,17 +198,16 @@ async def run_conversation_test_with_cleanup_retry(queries: list[str], cleanup_q
     for attempt in range(max_retries + 1):
         try:
             if attempt > 0:
-                print(f"Retrying conversation test with cleanup (attempt {attempt + 1}/{max_retries + 1})", file=sys.stderr)
-                # Add extra delay before retry to let system recover
-                await asyncio.sleep(2.0)
+                # Add delay before retry
+                await asyncio.sleep(1.0)
                 
                 # Run cleanup query if provided
                 if cleanup_query:
-                    print(f"Running cleanup query: {cleanup_query}", file=sys.stderr)
                     try:
                         await run_simple_agent_test(cleanup_query)
-                    except Exception as cleanup_error:
-                        print(f"Cleanup failed (continuing anyway): {cleanup_error}", file=sys.stderr)
+                    except Exception:
+                        # Cleanup failed, but continue anyway
+                        pass
             
             results = await run_conversation_test(queries, timeout)
             
@@ -229,19 +220,15 @@ async def run_conversation_test_with_cleanup_retry(queries: list[str], cleanup_q
                 return results  # Success, return results
             else:
                 if attempt < max_retries:
-                    print(f"Timeout or event loop error detected in conversation test, retrying with cleanup...", file=sys.stderr)
                     continue
                 else:
-                    print(f"Conversation test failed after {max_retries + 1} attempts", file=sys.stderr)
                     return results  # Return the last attempt results
                     
         except Exception as e:
             last_exception = e
             if attempt < max_retries:
-                print(f"Conversation test attempt {attempt + 1} failed: {e}, retrying...", file=sys.stderr)
                 continue
             else:
-                print(f"Conversation test failed after {max_retries + 1} attempts: {e}", file=sys.stderr)
                 raise e
     
     # If we get here, all retries failed
@@ -548,7 +535,7 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
     ]
     
     # Use regular conversation test without retry since this test expects specific error patterns
-    responses = await run_conversation_test(queries, timeout=70.0)
+    responses = await run_conversation_test(queries, timeout=50.0)
     assert len(responses) == 3, "Should have responses for all 3 rounds"
     
     round1_response, round2_response, round3_response = responses
@@ -560,8 +547,8 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
     assert_agent_response_valid(round2_response, "Simple agent")
     # Allow for the case where document was already created due to timing or retries
     if round2_response.error_message is not None and "already exists" in round2_response.error_message:
-        print(f"Document already exists, which can happen in parallel test environments", file=sys.stderr)
         # This is acceptable in CI environments - the test can continue
+        pass
     else:
         assert (
             round2_response.error_message is None
@@ -629,18 +616,7 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
         if hasattr(doc, "document_name")
     ]
     
-    # Be more tolerant of document persistence issues in CI environments
-    if doc1_name not in doc_names:
-        print(f"First document {doc1_name} not found in doc_names: {doc_names}", file=sys.stderr)
-        print(f"This can happen in high-load CI environments due to state persistence issues", file=sys.stderr)
-        # For CI stability, we'll accept this and skip the rest of the test
-        pytest.skip("Document state persistence issue in high-load CI environment")
-    
-    if doc2_name not in doc_names:
-        print(f"Second document {doc2_name} not found in doc_names: {doc_names}", file=sys.stderr)
-        print(f"This can happen in high-load CI environments due to state persistence issues", file=sys.stderr)
-        # For CI stability, we'll accept this and skip the rest of the test
-        pytest.skip("Document state persistence issue in high-load CI environment")
+    # Validate state isolation: both documents should exist independently
     
     assert doc1_name in doc_names, f"First document {doc1_name} should exist"
     assert doc2_name in doc_names, f"Second document {doc2_name} should exist"
@@ -690,14 +666,7 @@ async def test_simple_agent_three_round_conversation_resource_cleanup(test_docs_
     assert round1_response.error_message is None, "Round 1 should succeed"
 
     assert_agent_response_valid(round2_response, "Simple agent")
-    # Be more tolerant of document not found errors in CI environments
-    if round2_response.error_message is not None and "not found" in round2_response.error_message:
-        print(f"Document not found error in round 2: {round2_response.error_message}", file=sys.stderr)
-        print(f"This can happen in high-load CI environments due to timing issues", file=sys.stderr)
-        # For CI stability, we'll accept this and skip the rest of the test
-        pytest.skip("Document persistence issue in high-load CI environment")
-    else:
-        assert round2_response.error_message is None, "Round 2 should succeed"
+    assert round2_response.error_message is None, "Round 2 should succeed"
 
     assert_agent_response_valid(round3_response, "Simple agent")
     assert round3_response.error_message is None, "Round 3 should succeed"

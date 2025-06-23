@@ -266,10 +266,10 @@ async def process_single_user_query(
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
         
-        # Add timeout to prevent hanging - increase timeout for heavy load conditions
+        # Add timeout to prevent hanging
         run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
             agent.run(user_query),
-            timeout=60.0,  # 60 second timeout to handle CI load better
+            timeout=45.0,  # 45 second timeout for production use
         )
 
         if run_result and run_result.output:
@@ -283,9 +283,9 @@ async def process_single_user_query(
         else:
             return None
     except asyncio.TimeoutError:
-        print("Agent query timed out after 60 seconds", file=sys.stderr)
+        print("Agent query timed out after 45 seconds", file=sys.stderr)
         return FinalAgentResponse(
-            summary="Query timed out after 60 seconds",
+            summary="Query timed out after 45 seconds",
             details=None,
             error_message="Timeout error",
         )
@@ -323,9 +323,6 @@ async def process_single_user_query(
             )
         else:
             print(f"Runtime error during agent query processing: {e}", file=sys.stderr)
-            import traceback
-
-            print(f"Full traceback: {traceback.format_exc()}", file=sys.stderr)
             return FinalAgentResponse(
                 summary=f"Runtime error during query processing: {e}",
                 details=None,
@@ -333,10 +330,6 @@ async def process_single_user_query(
             )
     except Exception as e:
         print(f"Error during agent query processing: {e}", file=sys.stderr)
-        # Add more detailed error information
-        import traceback
-
-        print(f"Full traceback: {traceback.format_exc()}", file=sys.stderr)
 
         # Handle specific API timeout/connection errors more gracefully
         error_msg = str(e)

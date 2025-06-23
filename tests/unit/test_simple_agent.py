@@ -551,7 +551,7 @@ class TestErrorHandling:
 
             mock_wait_for.assert_called_once()
             args, kwargs = mock_wait_for.call_args
-            assert kwargs["timeout"] == 60.0
+            assert kwargs["timeout"] == 45.0
 
     @pytest.mark.asyncio
     async def test_process_single_user_query_prints_errors_to_stderr(self):
