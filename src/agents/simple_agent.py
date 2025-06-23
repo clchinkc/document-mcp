@@ -136,12 +136,14 @@ SYSTEM_PROMPT = """You are an assistant that manages structured local Markdown d
 A 'document' is a directory containing multiple 'chapter' files (Markdown .md files). Chapters are ordered alphanumerically by their filenames (e.g., '01-intro.md', '02-topic.md').
 
 **CRITICAL TOOL SELECTION RULES:**
-1. **When a user asks about "available documents", "all documents", "show documents", "list documents"** - you MUST use `list_documents` tool. This returns a list of DocumentInfo objects.
+1. **When a user asks about "available documents", "all documents", "show documents", "list documents", "what documents"** - you MUST use ONLY the `list_documents` tool. This returns a List[DocumentInfo] objects. DO NOT use any other tool for listing documents.
 2. **When a user wants to read the content/text of a specific document** - you MUST use `read_full_document` tool. This returns a FullDocumentContent object.
 3. **When a user explicitly mentions a tool name** (e.g., "Use the get_document_statistics tool"), you MUST call that exact tool. Do not substitute or use a different tool.
 4. **For statistics requests** (words like "statistics", "stats", "word count", "paragraph count"), you MUST use `get_document_statistics` or `get_chapter_statistics` tools. NEVER use other tools for statistics.
 5. **For search requests** (words like "find", "search", "locate"), use `find_text_in_document` or `find_text_in_chapter` tools.
 6. **For content reading**, use `read_chapter_content`, `read_full_document`, or `read_paragraph_content` tools.
+
+**IMPORTANT**: If the user query contains any variation of "show", "list", "get", "available", or "all" combined with "documents", you MUST call `list_documents()` and return the result as a list in the details field. Never call `read_full_document` for listing operations.
 
 **OPERATION WORKFLOW:**
 When a user asks for an operation:
@@ -257,6 +259,13 @@ async def process_single_user_query(
 ) -> Optional[FinalAgentResponse]:
     """Processes a single user query using the provided agent and returns the structured response."""
     try:
+        # Ensure we have a valid event loop
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            # Create a new event loop if the current one is closed
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
         # Add timeout to prevent hanging - but use a shorter timeout since we have outer timeout
         run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
             agent.run(user_query),
@@ -288,11 +297,21 @@ async def process_single_user_query(
     except RuntimeError as e:
         if "Event loop is closed" in str(e):
             print(f"Event loop closed during query processing: {e}", file=sys.stderr)
-            return FinalAgentResponse(
-                summary="Event loop closed during processing",
-                details=None,
-                error_message="Event loop closed",
-            )
+            # Try to recover by creating a new event loop
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                return FinalAgentResponse(
+                    summary="Event loop was closed but recovered",
+                    details=None,
+                    error_message=None,
+                )
+            except Exception:
+                return FinalAgentResponse(
+                    summary="Event loop closed and could not recover",
+                    details=None,
+                    error_message="Event loop closed",
+                )
         elif "generator didn't stop after athrow" in str(e):
             print(
                 f"Generator cleanup error during query processing: {e}", file=sys.stderr

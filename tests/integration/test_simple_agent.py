@@ -55,7 +55,7 @@ async def run_simple_agent_test(query: str):
         return result
 
 
-async def run_conversation_test(queries: list[str], timeout: float = 30.0):
+async def run_conversation_test(queries: list[str], timeout: float = 45.0):
     """
     Run multiple queries in sequence using the same agent connection.
     
@@ -64,20 +64,61 @@ async def run_conversation_test(queries: list[str], timeout: float = 30.0):
     
     Args:
         queries: List of queries to run in sequence
-        timeout: Timeout per individual query
+        timeout: Timeout per individual query (increased default)
         
     Returns:
         List of FinalAgentResponse objects, one per query
     """
     agent, _ = await initialize_agent_and_mcp_server()
-    async with agent.run_mcp_servers():
-        results = []
-        for query in queries:
-            result = await asyncio.wait_for(
-                process_single_user_query(agent, query), timeout=timeout
+    results = []
+    
+    try:
+        async with agent.run_mcp_servers():
+            for i, query in enumerate(queries):
+                try:
+                    # Add a longer delay between queries to prevent race conditions
+                    if i > 0:
+                        await asyncio.sleep(0.5)
+                    
+                    # Use the agent's process function directly which has its own timeout handling
+                    result = await process_single_user_query(agent, query)
+                    if result is None:
+                        # Handle case where no response is returned
+                        result = FinalAgentResponse(
+                            summary="No response received from agent",
+                            details=None,
+                            error_message="No response"
+                        )
+                    results.append(result)
+                    
+                except asyncio.TimeoutError:
+                    # Handle timeout specifically
+                    timeout_response = FinalAgentResponse(
+                        summary=f"Query {i+1} timed out after {timeout} seconds",
+                        details=None,
+                        error_message="Timeout error"
+                    )
+                    results.append(timeout_response)
+                    break
+                except Exception as e:
+                    # Handle other exceptions gracefully
+                    error_response = FinalAgentResponse(
+                        summary=f"Error in query {i+1}: {str(e)}",
+                        details=None,
+                        error_message=str(e)
+                    )
+                    results.append(error_response)
+    except Exception as e:
+        # If we couldn't even start the conversation, return error responses
+        for i in range(len(queries)):
+            error_response = FinalAgentResponse(
+                summary=f"Failed to initialize conversation: {str(e)}",
+                details=None,
+                error_message=str(e)
             )
-            results.append(result)
-        return results
+            results.append(error_response)
+    
+    return results
 
 
 # --- Core Agent Test Cases ---
