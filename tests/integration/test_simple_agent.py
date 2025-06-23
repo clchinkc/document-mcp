@@ -69,75 +69,84 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     Returns:
         List of FinalAgentResponse objects, one per query
     """
-    from document_mcp import doc_tool_server
+    from tests.shared import MCPServerManager
+    import tempfile
     from pathlib import Path
     import os
     
-    # Get the test document root from environment (set by conftest.py)
-    test_docs_root = os.environ.get("DOCUMENT_ROOT_DIR")
-    if not test_docs_root:
-        raise ValueError("DOCUMENT_ROOT_DIR environment variable not set for test")
+    # Create a temporary directory for this conversation test
+    temp_dir = Path(tempfile.mkdtemp(prefix="conversation_test_"))
     
-    # Ensure the test document root path exists
-    test_docs_path = Path(test_docs_root)
-    test_docs_path.mkdir(parents=True, exist_ok=True)
-    
-    # Store the original docs root path to restore later  
-    original_docs_root = doc_tool_server.DOCS_ROOT_PATH
-    
-    # Set the document root path for this conversation
-    doc_tool_server.DOCS_ROOT_PATH = test_docs_path
-    
-    agent, _ = await initialize_agent_and_mcp_server()
-    results = []
-    
-    try:
-        async with agent.run_mcp_servers():
-            for i, query in enumerate(queries):
-                try:
-                    # Ensure document root is still correct before each query
-                    doc_tool_server.DOCS_ROOT_PATH = test_docs_path
-                    
-                    # Use the agent's process function directly which has its own timeout handling
-                    result = await process_single_user_query(agent, query)
-                    if result is None:
-                        # Handle case where no response is returned
-                        result = FinalAgentResponse(
-                            summary="No response received from agent",
+    # Use a fresh MCP server for the conversation test to ensure clean state
+    with MCPServerManager(test_docs_root=temp_dir) as server_manager:
+        # Set environment variables to point to our server
+        original_env = {}
+        test_env = {
+            "MCP_SERVER_HOST": "localhost",
+            "MCP_SERVER_PORT": str(server_manager.get_port()),
+            "DOCUMENT_ROOT_DIR": str(temp_dir),
+        }
+        
+        for key, value in test_env.items():
+            original_env[key] = os.environ.get(key)
+            os.environ[key] = value
+        
+        try:
+            agent, _ = await initialize_agent_and_mcp_server()
+            results = []
+            
+            async with agent.run_mcp_servers():
+                for i, query in enumerate(queries):
+                    try:
+                        # Use the agent's process function directly which has its own timeout handling
+                        result = await process_single_user_query(agent, query)
+                        if result is None:
+                            # Handle case where no response is returned
+                            result = FinalAgentResponse(
+                                summary="No response received from agent",
+                                details=None,
+                                error_message="No response"
+                            )
+                        results.append(result)
+                        
+                    except asyncio.TimeoutError:
+                        # Handle timeout specifically
+                        timeout_response = FinalAgentResponse(
+                            summary=f"Query {i+1} timed out after {timeout} seconds",
                             details=None,
-                            error_message="No response"
+                            error_message="Timeout error"
                         )
-                    results.append(result)
-                    
-                except asyncio.TimeoutError:
-                    # Handle timeout specifically
-                    timeout_response = FinalAgentResponse(
-                        summary=f"Query {i+1} timed out after {timeout} seconds",
-                        details=None,
-                        error_message="Timeout error"
-                    )
-                    results.append(timeout_response)
-                    break
-                except Exception as e:
-                    # Handle other exceptions gracefully
-                    error_response = FinalAgentResponse(
-                        summary=f"Error in query {i+1}: {str(e)}",
-                        details=None,
-                        error_message=str(e)
-                    )
-                    results.append(error_response)
-    except Exception as e:
-        # If we couldn't even start the conversation, return error responses
-        for i in range(len(queries)):
-            error_response = FinalAgentResponse(
-                summary=f"Failed to initialize conversation: {str(e)}",
-                details=None,
-                error_message=str(e)
-            )
-            results.append(error_response)
-    finally:
-        # Restore the original docs root path
-        doc_tool_server.DOCS_ROOT_PATH = original_docs_root
+                        results.append(timeout_response)
+                        break
+                    except Exception as e:
+                        # Handle other exceptions gracefully
+                        error_response = FinalAgentResponse(
+                            summary=f"Error in query {i+1}: {str(e)}",
+                            details=None,
+                            error_message=str(e)
+                        )
+                        results.append(error_response)
+        except Exception as e:
+            # If we couldn't even start the conversation, return error responses
+            for i in range(len(queries)):
+                error_response = FinalAgentResponse(
+                    summary=f"Failed to initialize conversation: {str(e)}",
+                    details=None,
+                    error_message=str(e)
+                )
+                results.append(error_response)
+        finally:
+            # Restore original environment
+            for key, original_value in original_env.items():
+                if original_value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = original_value
+            
+            # Cleanup temp directory
+            import shutil
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
     
     return results
 
