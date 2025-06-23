@@ -73,16 +73,18 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     """
     # Import here to avoid circular imports
     from document_mcp import doc_tool_server
+    import shutil
     
     # Preserve the current document root path for this conversation
     # This is critical for parallel test execution where other tests
     # might change the global DOCS_ROOT_PATH during our conversation
     conversation_docs_root = doc_tool_server.DOCS_ROOT_PATH
     
-    # Ensure the conversation directory exists and is clean
-    # This helps prevent contamination from other tests
+    # Ensure the conversation directory exists and is clean at the START
+    # This helps prevent contamination from previous test runs
     if conversation_docs_root.exists():
         # Clean out any existing documents to ensure test isolation
+        # but only at the beginning of the conversation
         for item in conversation_docs_root.iterdir():
             if item.is_dir():
                 shutil.rmtree(item, ignore_errors=True)
@@ -93,41 +95,31 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     
     results = []
     
-    # Create a fresh event loop context for this conversation
-    # This helps avoid event loop closure issues in CI environments
     try:
-        # Get the current event loop
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            # No running loop, create one
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        
         # Initialize agent and server once for the entire conversation
         agent, mcp_server = await initialize_agent_and_mcp_server()
         
         # Use a single context manager for all queries
         async with agent.run_mcp_servers():
-            conversation_messages = None
-            
             for i, query in enumerate(queries):
                 try:
-                    # Ensure the document root path is still set correctly for this conversation
+                    # CRITICAL: Ensure path consistency before each query
                     # This prevents race conditions with other parallel tests
                     doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
-                    
-                    # Also update the environment variable to ensure consistency
                     os.environ["DOCUMENT_ROOT_DIR"] = str(conversation_docs_root)
                     
-                    # Add a delay between queries to prevent race conditions
-                    # Increased delay for CI stability
-                    if i > 0:
-                        await asyncio.sleep(1.0)  # 1 second delay for CI
+                    # Verify the path is actually set correctly
+                    current_path = doc_tool_server.DOCS_ROOT_PATH
+                    if current_path != conversation_docs_root:
+                        print(f"WARNING: Path mismatch! Expected {conversation_docs_root}, got {current_path}")
+                        doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
                     
-                    # Process the query using the existing agent connection
+                    # Add a delay between queries for CI stability
+                    if i > 0:
+                        await asyncio.sleep(1.5)  # Increased delay for CI
+                    
+                    # Process the query
                     try:
-                        # Use process_single_user_query which has better error handling
                         result = await process_single_user_query(agent, query)
                         
                         if result is None:
@@ -139,8 +131,12 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                         
                         results.append(result)
                         
+                        # Debug: Print document state after each query for failing tests
+                        if conversation_docs_root.exists():
+                            docs = [d.name for d in conversation_docs_root.iterdir() if d.is_dir()]
+                            print(f"After query {i+1}: Documents in {conversation_docs_root.name}: {docs}")
+                        
                     except asyncio.TimeoutError:
-                        # Handle timeout specifically
                         timeout_response = FinalAgentResponse(
                             summary=f"Query {i+1} timed out after {timeout} seconds",
                             details=None,
@@ -148,26 +144,15 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                         )
                         results.append(timeout_response)
                         
-                except asyncio.CancelledError:
-                    # Handle cancellation
-                    cancel_response = FinalAgentResponse(
-                        summary=f"Query {i+1} was cancelled",
-                        details=None,
-                        error_message="Cancelled error"
-                    )
-                    results.append(cancel_response)
-                    raise  # Re-raise to properly handle cancellation
-                    
                 except RuntimeError as e:
                     if "Event loop is closed" in str(e):
-                        # Event loop closed - this is a critical error
                         error_response = FinalAgentResponse(
                             summary=f"Event loop closed during query {i+1}",
                             details=None,
                             error_message="Event loop is closed"
                         )
                         results.append(error_response)
-                        # Fill remaining with error responses
+                        # Fill remaining queries with error responses
                         for j in range(i + 1, len(queries)):
                             results.append(FinalAgentResponse(
                                 summary=f"Query {j+1} skipped due to event loop closure",
@@ -176,7 +161,6 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                             ))
                         break
                     else:
-                        # Other runtime errors
                         error_response = FinalAgentResponse(
                             summary=f"Runtime error in query {i+1}: {str(e)}",
                             details=None,
@@ -185,7 +169,6 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                         results.append(error_response)
                         
                 except Exception as e:
-                    # Handle other exceptions gracefully
                     error_response = FinalAgentResponse(
                         summary=f"Error in query {i+1}: {str(e)}",
                         details=None,
@@ -194,7 +177,7 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                     results.append(error_response)
                     
     except Exception as e:
-        # If we couldn't even start the conversation, return error responses
+        # If we couldn't start the conversation, return error responses
         for i in range(len(queries)):
             error_response = FinalAgentResponse(
                 summary=f"Failed to initialize conversation: {str(e)}",
@@ -203,13 +186,12 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
             )
             results.append(error_response)
     finally:
-        # Ensure the document root path is restored even if there are exceptions
-        # This is important for cleanup in parallel test execution
+        # Restore path consistency
         try:
             doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
             os.environ["DOCUMENT_ROOT_DIR"] = str(conversation_docs_root)
         except Exception:
-            pass  # Don't let cleanup errors affect the test results
+            pass
     
     # Ensure we have responses for all queries
     while len(results) < len(queries):
@@ -521,7 +503,7 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
     - Continued operation after error recovery
 
     Workflow:
-    1. Attempt invalid operation (read non-existent content)
+    1. Attempt invalid operation (list non-existent document)
     2. Recover by creating the document
     3. Successfully add content to demonstrate recovery
     """
@@ -530,10 +512,10 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
 
     # Run all rounds in a single conversation to maintain agent connection
     queries = [
-        f"Read chapter 'nonexistent.md' from document '{doc_name}'",
-        f"Create a new document named '{doc_name}'",
+        f"Show statistics for document '{doc_name}'",  # Changed: This should fail without creating the document
+        f"Create a new document named '{doc_name}'",    # This should succeed
         f"Create a chapter named '01-recovery.md' in document '{doc_name}' "
-        f"with content: # Recovery Chapter"
+        f"with content: # Recovery Chapter"            # This should succeed
     ]
     
     responses = await run_conversation_test(queries, timeout=60.0)  # Increased timeout for CI
@@ -543,7 +525,7 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
 
     # Validate each round
     assert_agent_response_valid(round1_response, "Simple agent")
-    # Note: Error is expected here, but response should still be valid
+    # Note: Error is expected here for non-existent document, but response should still be valid
 
     assert_agent_response_valid(round2_response, "Simple agent")
     assert round2_response.error_message is None, "Round 2 should succeed after error recovery"
