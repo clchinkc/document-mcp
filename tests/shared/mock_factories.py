@@ -1,5 +1,5 @@
 """
-Unified mock factories for Document MCP testing.
+Mock factories for Document MCP testing.
 
 This module provides consistent mock object creation patterns
 used across all test types to reduce duplication and ensure

@@ -1,5 +1,5 @@
 """
-Unified assertion helpers for Document MCP testing.
+Assertion helpers for Document MCP testing.
 
 This module provides consistent assertion patterns used across
 all test types to ensure robust and readable test validation.

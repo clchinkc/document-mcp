@@ -7,6 +7,7 @@ using the shared testing infrastructure for consistency.
 
 import os
 import shutil
+import sys
 import tempfile
 import uuid
 from pathlib import Path
@@ -15,18 +16,22 @@ import pytest
 
 # Import shared testing utilities
 from tests.shared import (
-    UnifiedMCPServerManager,
+    MCPServerManager,
     create_mock_environment,
     create_test_document,
     generate_unique_name,
+)
+from tests.shared.test_data import (
+    TestDataRegistry,
+    TestDataType,
+    TestDocumentSpec,
+    create_test_document_from_spec,
 )
 
 # Import for direct doc_tool_server manipulation in tests
 try:
     from document_mcp import doc_tool_server
 except ImportError:
-    import sys
-
     sys.path.insert(0, "..")
     from document_mcp import doc_tool_server
 
@@ -75,7 +80,7 @@ def session_server_manager():
     temp_root = Path(tempfile.mkdtemp(prefix="mcp_test_session_"))
 
     # Create server manager with session-scoped temp directory
-    manager = UnifiedMCPServerManager(test_docs_root=temp_root)
+    manager = MCPServerManager(test_docs_root=temp_root)
     manager.start_server()
 
     yield manager
@@ -249,6 +254,106 @@ def empty_document(test_docs_root):
 
 
 # ================================
+# Test Data Management Fixtures
+# ================================
+
+
+@pytest.fixture
+def test_data_registry(test_docs_root):
+    """
+    Provide a test data registry for tracking created test data.
+
+    This fixture automatically cleans up all registered test data
+    after the test completes.
+    """
+    registry = TestDataRegistry()
+    yield registry
+
+    # Cleanup all registered test data
+    registry.cleanup_all(test_docs_root)
+
+
+@pytest.fixture
+def document_factory(test_docs_root, test_data_registry):
+    """
+    Factory fixture for creating test documents from specifications.
+
+    Returns a function that creates documents and automatically
+    registers them for cleanup.
+    """
+    def _create_document(
+        doc_type=None,
+        name=None,
+        chapter_count=3,
+        chapters=None,
+        search_terms=None,
+        target_word_count=None,
+        target_paragraph_count=None,
+        paragraphs_per_chapter=5,
+        cleanup_on_error=True,
+    ):
+        """Create a test document from parameters."""
+        # Convert string to enum if needed
+        if isinstance(doc_type, str):
+            doc_type = TestDataType(doc_type)
+        elif doc_type is None:
+            doc_type = TestDataType.SIMPLE
+
+        spec = TestDocumentSpec(
+            name=name,
+            doc_type=doc_type,
+            chapter_count=chapter_count,
+            chapters=chapters,
+            search_terms=search_terms,
+            target_word_count=target_word_count,
+            target_paragraph_count=target_paragraph_count,
+            paragraphs_per_chapter=paragraphs_per_chapter,
+            cleanup_on_error=cleanup_on_error,
+        )
+
+        return create_test_document_from_spec(
+            docs_root=test_docs_root,
+            spec=spec,
+            registry=test_data_registry,
+        )
+
+    return _create_document
+
+
+@pytest.fixture(params=[
+    "simple",
+    "large",
+    "searchable",
+    "multi_format",
+    "statistical"
+])
+def parametrized_document(request, document_factory):
+    """
+    Parametrized fixture that creates different types of test documents.
+
+    This fixture automatically runs tests with different document types,
+    useful for comprehensive testing.
+    """
+    doc_type = request.param
+
+    # Adjust parameters based on document type
+    if doc_type == "large":
+        return document_factory(
+            doc_type=doc_type,
+            chapter_count=5,  # Smaller for test performance
+            paragraphs_per_chapter=3,
+        )
+    elif doc_type == "statistical":
+        return document_factory(
+            doc_type=doc_type,
+            target_word_count=200,  # Smaller for test performance
+            target_paragraph_count=10,
+        )
+    else:
+        return document_factory(doc_type=doc_type)
+
+
+# ================================
 # Utility Fixtures
 # ================================
 
@@ -326,6 +431,53 @@ def cleanup_environment():
     for var in test_vars_to_clear:
         if var in os.environ:
             del os.environ[var]
+
+
+@pytest.fixture
+def validate_test_data():
+    """
+    Fixture to validate test data integrity during and after tests.
+
+    This fixture provides utilities to ensure test data is in the expected state.
+    """
+    class Validator:
+        """Test data validator with bound methods."""
+
+        def document_exists(self, docs_root, doc_name):
+            """Validate that a document exists and has the expected structure."""
+            doc_path = docs_root / doc_name
+            assert doc_path.exists(), f"Document {doc_name} does not exist"
+            assert doc_path.is_dir(), f"Document {doc_name} is not a directory"
+
+            # Check for at least one markdown file
+            md_files = list(doc_path.glob("*.md"))
+            assert len(md_files) > 0, f"Document {doc_name} has no markdown files"
+
+            return True
+
+        def registry_state(self, registry, docs_root):
+            """Validate that the registry state matches the actual filesystem."""
+            issues = registry.validate_test_state(docs_root)
+            assert len(issues) == 0, f"Test data validation issues: {issues}"
+            return True
+
+        def document_content(self, docs_root, doc_name, expected_chapters=None):
+            """Validate document content structure."""
+            doc_path = docs_root / doc_name
+
+            if expected_chapters:
+                for chapter_name, expected_content in expected_chapters:
+                    chapter_path = doc_path / chapter_name
+                    assert chapter_path.exists(), f"Chapter {chapter_name} does not exist"
+
+                    actual_content = chapter_path.read_text()
+                    if expected_content:
+                        assert expected_content in actual_content, \
+                            f"Expected content not found in {chapter_name}"
+
+            return True
+
+    return Validator()
 
 
 @pytest.fixture

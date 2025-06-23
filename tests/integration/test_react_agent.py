@@ -10,7 +10,7 @@ import pytest
 
 from src.agents.react_agent.main import ReActStep
 from tests.shared import (
-    UnifiedMCPServerManager,
+    MCPServerManager,
     validate_agent_environment,
     validate_package_imports,
     validate_react_agent_imports,
@@ -27,7 +27,7 @@ def test_docs_root(tmp_path):
 @pytest.fixture
 async def mock_react_environment(test_docs_root):
     """Mock environment for React agent testing."""
-    server_manager = UnifiedMCPServerManager(test_docs_root=test_docs_root)
+    server_manager = MCPServerManager(test_docs_root=test_docs_root)
     server_manager.start_server(timeout=30)
     yield server_manager
     server_manager.stop_server()

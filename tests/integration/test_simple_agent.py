@@ -47,19 +47,37 @@ def test_agent_package_imports():
 
 async def run_simple_agent_test(query: str):
     """Simplified agent test runner."""
-    try:
-        agent, _ = await initialize_agent_and_mcp_server()
-        async with agent.run_mcp_servers():
-            result = await asyncio.wait_for(
-                process_single_user_query(agent, query), timeout=30.0
-            )
-            return result
-    except Exception as e:
-        return FinalAgentResponse(
-            summary=f"Error during processing: {str(e)}",
-            details=None,
-            error_message=str(e),
+    agent, _ = await initialize_agent_and_mcp_server()
+    async with agent.run_mcp_servers():
+        result = await asyncio.wait_for(
+            process_single_user_query(agent, query), timeout=30.0
         )
+        return result
+
+
+async def run_conversation_test(queries: list[str], timeout: float = 30.0):
+    """
+    Run multiple queries in sequence using the same agent connection.
+    
+    This is specifically designed for conversation tests that need to maintain
+    state across multiple rounds of interaction.
+    
+    Args:
+        queries: List of queries to run in sequence
+        timeout: Timeout per individual query
+        
+    Returns:
+        List of FinalAgentResponse objects, one per query
+    """
+    agent, _ = await initialize_agent_and_mcp_server()
+    async with agent.run_mcp_servers():
+        results = []
+        for query in queries:
+            result = await asyncio.wait_for(
+                process_single_user_query(agent, query), timeout=timeout
+            )
+            results.append(result)
+        return results
 
 
 # --- Core Agent Test Cases ---
@@ -288,31 +306,34 @@ async def test_simple_agent_three_round_conversation_document_workflow(test_docs
     2. Add a chapter with content
     3. Read the chapter content back
     """
-    doc_name = f"multiround_doc_{uuid.uuid4().hex[:8]}"
+    # Use worker ID and test ID for better isolation in parallel runs
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    doc_name = f"multiround_doc_{worker_id}_{uuid.uuid4().hex[:8]}"
     chapter_name = "01-intro.md"
     chapter_content = (
         "# Introduction\n\nThis is the first chapter of our multi-round test."
     )
 
-    # Round 1: Create a document
-    round1_response = await run_simple_agent_test(
-        f"Create a new document named '{doc_name}'"
-    )
+    # Run all rounds in a single conversation to maintain agent connection
+    queries = [
+        f"Create a new document named '{doc_name}'",
+        f"Create a chapter named '{chapter_name}' in document '{doc_name}' "
+        f"with content: {chapter_content}",
+        f"Read chapter '{chapter_name}' from document '{doc_name}'"
+    ]
+    
+    responses = await run_conversation_test(queries)
+    assert len(responses) == 3, "Should have responses for all 3 rounds"
+    
+    round1_response, round2_response, round3_response = responses
+
+    # Validate each round
     assert_agent_response_valid(round1_response, "Simple agent")
     assert round1_response.error_message is None, "Round 1 should not have errors"
 
-    # Round 2: Add a chapter to the document
-    round2_response = await run_simple_agent_test(
-        f"Create a chapter named '{chapter_name}' in document '{doc_name}' "
-        f"with content: {chapter_content}"
-    )
     assert_agent_response_valid(round2_response, "Simple agent")
     assert round2_response.error_message is None, "Round 2 should not have errors"
 
-    # Round 3: Read the chapter content back
-    round3_response = await run_simple_agent_test(
-        f"Read chapter '{chapter_name}' from document '{doc_name}'"
-    )
     assert_agent_response_valid(round3_response, "Simple agent")
     assert round3_response.error_message is None, "Round 3 should not have errors"
 
@@ -343,29 +364,32 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
     2. Recover by creating the document
     3. Successfully add content to demonstrate recovery
     """
-    doc_name = f"error_recovery_doc_{uuid.uuid4().hex[:8]}"
+    # Use worker ID and test ID for better isolation in parallel runs
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    doc_name = f"error_recovery_doc_{worker_id}_{uuid.uuid4().hex[:8]}"
 
-    # Round 1: Try to read from non-existent document (should handle gracefully)
-    round1_response = await run_simple_agent_test(
-        f"Read chapter 'nonexistent.md' from document '{doc_name}'"
-    )
+    # Run all rounds in a single conversation to maintain agent connection
+    queries = [
+        f"Read chapter 'nonexistent.md' from document '{doc_name}'",
+        f"Create a new document named '{doc_name}'",
+        f"Create a chapter named '01-recovery.md' in document '{doc_name}' "
+        f"with content: # Recovery Chapter"
+    ]
+    
+    responses = await run_conversation_test(queries)
+    assert len(responses) == 3, "Should have responses for all 3 rounds"
+    
+    round1_response, round2_response, round3_response = responses
+
+    # Validate each round
     assert_agent_response_valid(round1_response, "Simple agent")
     # Note: Error is expected here, but response should still be valid
 
-    # Round 2: Create the document (recovery)
-    round2_response = await run_simple_agent_test(
-        f"Create a new document named '{doc_name}'"
-    )
     assert_agent_response_valid(round2_response, "Simple agent")
     assert (
         round2_response.error_message is None
     ), "Round 2 should succeed after error recovery"
 
-    # Round 3: Now successfully add content
-    round3_response = await run_simple_agent_test(
-        f"Create a chapter named '01-recovery.md' in document '{doc_name}' "
-        f"with content: # Recovery Chapter"
-    )
     assert_agent_response_valid(round3_response, "Simple agent")
     assert (
         round3_response.error_message is None
@@ -395,24 +419,27 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
     2. Create second document (should not interfere with first)
     3. Verify both documents exist independently
     """
-    base_doc_name = f"isolation_test_{uuid.uuid4().hex[:8]}"
+    # Use worker ID and test ID for better isolation in parallel runs
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    base_doc_name = f"isolation_test_{worker_id}_{uuid.uuid4().hex[:8]}"
     doc1_name = f"{base_doc_name}_1"
     doc2_name = f"{base_doc_name}_2"
 
-    # Round 1: Create first document
-    round1_response = await run_simple_agent_test(
-        f"Create a new document named '{doc1_name}'"
-    )
+    # Run all rounds in a single conversation to maintain agent connection
+    queries = [
+        f"Create a new document named '{doc1_name}'",
+        f"Create a new document named '{doc2_name}'",
+        "Show me all available documents"
+    ]
+    
+    responses = await run_conversation_test(queries)
+    assert len(responses) == 3, "Should have responses for all 3 rounds"
+    
+    round1_response, round2_response, round3_response = responses
+
+    # Validate each round
     assert_agent_response_valid(round1_response, "Simple agent")
-
-    # Round 2: Create second document (should not interfere with first)
-    round2_response = await run_simple_agent_test(
-        f"Create a new document named '{doc2_name}'"
-    )
     assert_agent_response_valid(round2_response, "Simple agent")
-
-    # Round 3: List all documents to verify both exist
-    round3_response = await run_simple_agent_test("Show me all available documents")
     assert_agent_response_valid(round3_response, "Simple agent")
     assert isinstance(round3_response.details, list), "Should return list of documents"
 
@@ -446,34 +473,37 @@ async def test_simple_agent_three_round_conversation_resource_cleanup(test_docs_
     2. Add content to document
     3. Access document statistics (tests resource availability)
     """
-    doc_name = f"cleanup_test_{uuid.uuid4().hex[:8]}"
+    # Use worker ID and test ID for better isolation in parallel runs
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    doc_name = f"cleanup_test_{worker_id}_{uuid.uuid4().hex[:8]}"
 
-    # Round 1: Create document and verify it exists
-    round1_response = await run_simple_agent_test(
-        f"Create a new document named '{doc_name}'"
-    )
+    # Run all rounds in a single conversation to maintain agent connection
+    queries = [
+        f"Create a new document named '{doc_name}'",
+        f"Create a chapter named '01-test.md' in document '{doc_name}' "
+        f"with content: # Test Content",
+        f"Get statistics for document '{doc_name}'"
+    ]
+    
+    responses = await run_conversation_test(queries)
+    assert len(responses) == 3, "Should have responses for all 3 rounds"
+    
+    round1_response, round2_response, round3_response = responses
+
+    # Validate each round
     assert_agent_response_valid(round1_response, "Simple agent")
     assert round1_response.error_message is None, "Round 1 should succeed"
 
-    # Round 2: Add content to document
-    round2_response = await run_simple_agent_test(
-        f"Create a chapter named '01-test.md' in document '{doc_name}' "
-        f"with content: # Test Content"
-    )
     assert_agent_response_valid(round2_response, "Simple agent")
     assert round2_response.error_message is None, "Round 2 should succeed"
 
-    # Round 3: Get statistics (tests resource access after previous operations)
-    round3_response = await run_simple_agent_test(
-        f"Get statistics for document '{doc_name}'"
-    )
     assert_agent_response_valid(round3_response, "Simple agent")
     assert round3_response.error_message is None, "Round 3 should succeed"
     assert round3_response.details is not None, "Statistics should be available"
 
     # Verify resource cleanup: each round should complete successfully without resource conflicts
-    responses = [round1_response, round2_response, round3_response]
-    for i, response in enumerate(responses, 1):
+    responses_list = [round1_response, round2_response, round3_response]
+    for i, response in enumerate(responses_list, 1):
         assert (
             response.error_message is None
         ), f"Round {i} should not have resource-related errors"

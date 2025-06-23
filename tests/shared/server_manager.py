@@ -1,5 +1,5 @@
 """
-Unified MCP Server Manager for testing.
+MCP Server Manager for testing.
 
 This module provides a single, robust server management solution
 that replaces the duplicate server managers in agent test files.
@@ -39,9 +39,9 @@ def _get_worker_port(base_port: int = 3001) -> int:
         return base_port
 
 
-class UnifiedMCPServerManager:
+class MCPServerManager:
     """
-    Unified MCP server manager for all testing scenarios.
+    MCP server manager for all testing scenarios.
 
     This replaces the duplicate MCPServerManager and ReactMCPServerManager
     classes with a single, robust implementation.
