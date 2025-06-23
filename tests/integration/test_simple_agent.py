@@ -113,7 +113,6 @@ async def run_conversation_test(queries: list[str], timeout: float = 70.0):
                     
                 except asyncio.TimeoutError:
                     # Handle timeout specifically
-                    print(f"Conversation test query {i+1} timed out: {query}", file=sys.stderr)
                     timeout_response = FinalAgentResponse(
                         summary=f"Query {i+1} timed out after {timeout} seconds",
                         details=None,
@@ -123,8 +122,6 @@ async def run_conversation_test(queries: list[str], timeout: float = 70.0):
                     break
                 except Exception as e:
                     # Handle other exceptions gracefully
-                    print(f"Conversation test query {i+1} failed with exception: {e}", file=sys.stderr)
-                    print(f"Query was: {query}", file=sys.stderr)
                     error_response = FinalAgentResponse(
                         summary=f"Error in query {i+1}: {str(e)}",
                         details=None,
@@ -159,7 +156,6 @@ async def run_conversation_test_with_retry(queries: list[str], max_retries: int 
     for attempt in range(max_retries + 1):
         try:
             if attempt > 0:
-                print(f"Retrying conversation test (attempt {attempt + 1}/{max_retries + 1})", file=sys.stderr)
                 # Add extra delay before retry to let system recover
                 await asyncio.sleep(2.0)
             
@@ -174,19 +170,15 @@ async def run_conversation_test_with_retry(queries: list[str], max_retries: int 
                 return results  # Success, return results
             else:
                 if attempt < max_retries:
-                    print(f"Timeout or event loop error detected in conversation test, retrying...", file=sys.stderr)
                     continue
                 else:
-                    print(f"Conversation test failed after {max_retries + 1} attempts", file=sys.stderr)
                     return results  # Return the last attempt results
                     
         except Exception as e:
             last_exception = e
             if attempt < max_retries:
-                print(f"Conversation test attempt {attempt + 1} failed: {e}, retrying...", file=sys.stderr)
                 continue
             else:
-                print(f"Conversation test failed after {max_retries + 1} attempts: {e}", file=sys.stderr)
                 raise e
     
     # If we get here, all retries failed
@@ -207,17 +199,16 @@ async def run_conversation_test_with_cleanup_retry(queries: list[str], cleanup_q
     for attempt in range(max_retries + 1):
         try:
             if attempt > 0:
-                print(f"Retrying conversation test with cleanup (attempt {attempt + 1}/{max_retries + 1})", file=sys.stderr)
                 # Add extra delay before retry to let system recover
                 await asyncio.sleep(2.0)
                 
                 # Run cleanup query if provided
                 if cleanup_query:
-                    print(f"Running cleanup query: {cleanup_query}", file=sys.stderr)
                     try:
                         await run_simple_agent_test(cleanup_query)
-                    except Exception as cleanup_error:
-                        print(f"Cleanup failed (continuing anyway): {cleanup_error}", file=sys.stderr)
+                    except Exception:
+                        # Cleanup failed, but continue anyway
+                        pass
             
             results = await run_conversation_test(queries, timeout)
             
@@ -230,19 +221,15 @@ async def run_conversation_test_with_cleanup_retry(queries: list[str], cleanup_q
                 return results  # Success, return results
             else:
                 if attempt < max_retries:
-                    print(f"Timeout or event loop error detected in conversation test, retrying with cleanup...", file=sys.stderr)
                     continue
                 else:
-                    print(f"Conversation test failed after {max_retries + 1} attempts", file=sys.stderr)
                     return results  # Return the last attempt results
                     
         except Exception as e:
             last_exception = e
             if attempt < max_retries:
-                print(f"Conversation test attempt {attempt + 1} failed: {e}, retrying...", file=sys.stderr)
                 continue
             else:
-                print(f"Conversation test failed after {max_retries + 1} attempts: {e}", file=sys.stderr)
                 raise e
     
     # If we get here, all retries failed
@@ -503,17 +490,14 @@ async def test_simple_agent_three_round_conversation_document_workflow(test_docs
     assert_agent_response_valid(round1_response, "Simple agent")
     # Handle the case where document already exists in CI environments
     if round1_response.error_message is not None and "already exists" in round1_response.error_message:
-        print(f"Document already exists: {round1_response.error_message}", file=sys.stderr)
-        print(f"This can happen in CI environments - treating as success", file=sys.stderr)
-        # Document exists, which is functionally equivalent to successful creation
+        # Document exists, which is functionally equivalent to successful creation in CI
+        pass
     else:
         assert round1_response.error_message is None, "Round 1 should not have errors"
 
     assert_agent_response_valid(round2_response, "Simple agent")
     # Handle the case where document is not found in CI environments
     if round2_response.error_message is not None and "not found" in round2_response.error_message:
-        print(f"Document not found error in round 2: {round2_response.error_message}", file=sys.stderr)
-        print(f"This can happen in CI environments due to state persistence issues - skipping remaining validation", file=sys.stderr)
         pytest.skip("Document state persistence issue in CI environment")
     else:
         assert round2_response.error_message is None, "Round 2 should not have errors"
@@ -530,8 +514,7 @@ async def test_simple_agent_three_round_conversation_document_workflow(test_docs
         assert (
             round2_response.summary != round3_response.summary
         ), "Each round should have different summaries"
-    else:
-        print(f"Skipping round 3 validation due to round 2 failure", file=sys.stderr)
+    # Round 3 validation skipped if round 2 failed
 
 
 @pytest.mark.asyncio
@@ -576,8 +559,8 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
     assert_agent_response_valid(round2_response, "Simple agent")
     # Allow for the case where document was already created due to timing or retries
     if round2_response.error_message is not None and "already exists" in round2_response.error_message:
-        print(f"Document already exists, which can happen in parallel test environments", file=sys.stderr)
         # This is acceptable in CI environments - the test can continue
+        pass
     else:
         assert (
             round2_response.error_message is None
@@ -586,9 +569,8 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
     assert_agent_response_valid(round3_response, "Simple agent")
     # Handle the case where chapter already exists in CI environments
     if round3_response.error_message is not None and "already exists" in round3_response.error_message:
-        print(f"Chapter already exists: {round3_response.error_message}", file=sys.stderr)
-        print(f"This can happen in CI environments - treating as success for recovery test", file=sys.stderr)
         # Chapter exists, which is functionally equivalent to successful creation
+        pass
     else:
         assert (
             round3_response.error_message is None
@@ -601,9 +583,8 @@ async def test_simple_agent_three_round_conversation_with_error_recovery(
     
     # Allow for the case where document was already created due to timing or retries
     if round2_response.error_message is not None and "already exists" in round2_response.error_message:
-        print(f"Document already exists in recovery round: {round2_response.error_message}", file=sys.stderr)
-        print(f"This is acceptable for error recovery test - document creation is idempotent", file=sys.stderr)
-        # This is acceptable in CI environments - the test can continue
+        # This is acceptable for error recovery test - document creation is idempotent
+        pass
     else:
         assert (
             round2_response.error_message is None
@@ -659,16 +640,7 @@ async def test_simple_agent_three_round_conversation_state_isolation(test_docs_r
     ]
     
     # Be more tolerant of document persistence issues in CI environments
-    if doc1_name not in doc_names:
-        print(f"First document {doc1_name} not found in doc_names: {doc_names}", file=sys.stderr)
-        print(f"This can happen in high-load CI environments due to state persistence issues", file=sys.stderr)
-        # For CI stability, we'll accept this and skip the rest of the test
-        pytest.skip("Document state persistence issue in high-load CI environment")
-    
-    if doc2_name not in doc_names:
-        print(f"Second document {doc2_name} not found in doc_names: {doc_names}", file=sys.stderr)
-        print(f"This can happen in high-load CI environments due to state persistence issues", file=sys.stderr)
-        # For CI stability, we'll accept this and skip the rest of the test
+    if doc1_name not in doc_names or doc2_name not in doc_names:
         pytest.skip("Document state persistence issue in high-load CI environment")
     
     assert doc1_name in doc_names, f"First document {doc1_name} should exist"
@@ -716,20 +688,16 @@ async def test_simple_agent_three_round_conversation_resource_cleanup(test_docs_
 
     # Validate each round
     assert_agent_response_valid(round1_response, "Simple agent")
-    # Handle the case where document already exists in CI environments
+    # Handle the case where document already exists in CI environments  
     if round1_response.error_message is not None and "already exists" in round1_response.error_message:
-        print(f"Document already exists: {round1_response.error_message}", file=sys.stderr)
-        print(f"This can happen in CI environments - treating as success", file=sys.stderr)
         # Document exists, which is functionally equivalent to successful creation
+        pass
     else:
         assert round1_response.error_message is None, "Round 1 should succeed"
 
     assert_agent_response_valid(round2_response, "Simple agent")
     # Be more tolerant of document not found errors in CI environments
     if round2_response.error_message is not None and "not found" in round2_response.error_message:
-        print(f"Document not found error in round 2: {round2_response.error_message}", file=sys.stderr)
-        print(f"This can happen in high-load CI environments due to timing issues", file=sys.stderr)
-        # For CI stability, we'll accept this and skip the rest of the test
         pytest.skip("Document persistence issue in high-load CI environment")
     else:
         assert round2_response.error_message is None, "Round 2 should succeed"
@@ -793,8 +761,6 @@ async def test_simple_agent_three_round_conversation_complex_workflow(test_docs_
     assert_agent_response_valid(round2_response, "Simple agent")
     # Be more tolerant of chapter creation issues in CI environments
     if round2_response.error_message is not None and "not found" in round2_response.error_message:
-        print(f"Document not found error in round 2: {round2_response.error_message}", file=sys.stderr)
-        print(f"This can happen in high-load CI environments due to timing issues", file=sys.stderr)
         pytest.skip("Document persistence issue in high-load CI environment")
     else:
         assert round2_response.error_message is None, "Chapter creation should succeed"
