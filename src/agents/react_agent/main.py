@@ -336,22 +336,7 @@ async def load_llm_config():
         print(f"Using Gemini model: {model_name}")
         return GeminiModel(model_name=model_name)
 
-    # Check for OpenAI API key first
-    openai_api_key = os.environ.get("OPENAI_API_KEY")
-    if openai_api_key and openai_api_key.strip():
-        try:
-            # Use circuit breaker for OpenAI model loading in non-test environments
-            if not os.environ.get("PYTEST_CURRENT_TEST"):
-                circuit_breaker = get_circuit_breaker("openai")
-                return await circuit_breaker.call(_load_openai_model)
-            else:
-                # For tests, load directly without circuit breaker
-                return await _load_openai_model()
-        except Exception as e:
-            print(f"OpenAI model loading failed: {e}")
-            print("Falling back to Gemini...")
-
-    # Check for Gemini API keys
+    # Check for Gemini API keys first
     gemini_api_key = os.environ.get("GEMINI_API_KEY")
     if gemini_api_key and gemini_api_key.strip():
         try:
@@ -364,16 +349,31 @@ async def load_llm_config():
                 return await _load_gemini_model()
         except Exception as e:
             print(f"Gemini model loading failed: {e}")
+            print("Falling back to OpenAI...")
+
+    # Check for OpenAI API key
+    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    if openai_api_key and openai_api_key.strip():
+        try:
+            # Use circuit breaker for OpenAI model loading in non-test environments
+            if not os.environ.get("PYTEST_CURRENT_TEST"):
+                circuit_breaker = get_circuit_breaker("openai")
+                return await circuit_breaker.call(_load_openai_model)
+            else:
+                # For tests, load directly without circuit breaker
+                return await _load_openai_model()
+        except Exception as e:
+            print(f"OpenAI model loading failed: {e}")
 
     # If no API keys are found, raise an error with helpful message
     raise ValueError(
         "No valid API key found in environment variables. "
         "Please set one of the following in your .env file:\n"
-        "- OPENAI_API_KEY for OpenAI models\n"
         "- GEMINI_API_KEY for Google Gemini models\n"
+        "- OPENAI_API_KEY for OpenAI models\n"
         "\nOptionally, you can also set:\n"
-        "- OPENAI_MODEL_NAME (default: gpt-4.1-mini)\n"
-        "- GEMINI_MODEL_NAME (default: gemini-2.5-flash)"
+        "- GEMINI_MODEL_NAME (default: gemini-2.5-flash)\n"
+        "- OPENAI_MODEL_NAME (default: gpt-4.1-mini)"
     )
 
 
@@ -391,17 +391,6 @@ def check_api_keys_config():
         "active_model": None,
     }
 
-    # Check OpenAI
-    openai_api_key = os.environ.get("OPENAI_API_KEY")
-    if openai_api_key and openai_api_key.strip():
-        config_status["openai_configured"] = True
-        config_status["openai_model"] = os.environ.get(
-            "OPENAI_MODEL_NAME", "gpt-4.1-mini"
-        )
-        if not config_status["active_provider"]:  # First priority
-            config_status["active_provider"] = "openai"
-            config_status["active_model"] = config_status["openai_model"]
-
     # Check Gemini
     gemini_api_key = os.environ.get("GEMINI_API_KEY")
     if gemini_api_key and gemini_api_key.strip():
@@ -409,9 +398,20 @@ def check_api_keys_config():
         config_status["gemini_model"] = os.environ.get(
             "GEMINI_MODEL_NAME", "gemini-2.5-flash"
         )
-        if not config_status["active_provider"]:  # Second priority
+        if not config_status["active_provider"]:  # First priority
             config_status["active_provider"] = "gemini"
             config_status["active_model"] = config_status["gemini_model"]
+
+    # Check OpenAI
+    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    if openai_api_key and openai_api_key.strip():
+        config_status["openai_configured"] = True
+        config_status["openai_model"] = os.environ.get(
+            "OPENAI_MODEL_NAME", "gpt-4.1-mini"
+        )
+        if not config_status["active_provider"]:  # Second priority
+            config_status["active_provider"] = "openai"
+            config_status["active_model"] = config_status["openai_model"]
 
     return config_status
 
