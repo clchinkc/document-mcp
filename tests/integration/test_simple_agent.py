@@ -70,6 +70,14 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
     Returns:
         List of FinalAgentResponse objects, one per query
     """
+    # Import here to avoid circular imports
+    from document_mcp import doc_tool_server
+    
+    # Preserve the current document root path for this conversation
+    # This is critical for parallel test execution where other tests
+    # might change the global DOCS_ROOT_PATH during our conversation
+    conversation_docs_root = doc_tool_server.DOCS_ROOT_PATH
+    
     agent, _ = await initialize_agent_and_mcp_server()
     results = []
     conversation_messages = None
@@ -78,9 +86,13 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
         async with agent.run_mcp_servers():
             for i, query in enumerate(queries):
                 try:
+                    # Ensure the document root path is still set correctly for this conversation
+                    # This prevents race conditions with other parallel tests
+                    doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
+                    
                     # Add a small delay between queries to prevent race conditions
                     if i > 0:
-                        await asyncio.sleep(0.1)
+                        await asyncio.sleep(0.2)  # Slightly increased delay
                     
                     # For the first query, start a new conversation
                     # For subsequent queries, continue the conversation with history
@@ -144,6 +156,13 @@ async def run_conversation_test(queries: list[str], timeout: float = 50.0):
                 error_message=str(e)
             )
             results.append(error_response)
+    finally:
+        # Ensure the document root path is restored even if there are exceptions
+        # This is important for cleanup in parallel test execution
+        try:
+            doc_tool_server.DOCS_ROOT_PATH = conversation_docs_root
+        except Exception:
+            pass  # Don't let cleanup errors affect the test results
     
     return results
 
