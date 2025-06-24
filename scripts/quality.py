@@ -47,13 +47,15 @@ class CodeQualityManager:
                 return False
 
         except FileNotFoundError:
-            print(
-                f"❌ {description} - Command not found. Is '{cmd[0]}' installed and in your PATH?"
-            )
-            print(
-                "   Please ensure all development dependencies from 'requirements.txt' are installed."
-            )
+            print(f"❌ {description} - Tool not found. Installing...")
+            self._install_missing_tools()
             return False
+
+    def _install_missing_tools(self):
+        """Install missing quality tools."""
+        tools = ["black", "flake8", "isort", "mypy", "autoflake"]
+        print(f"📦 Installing missing tools: {', '.join(tools)}")
+        subprocess.run([sys.executable, "-m", "pip", "install"] + tools)
 
     def format_code(self) -> bool:
         """Format code with black and isort."""
@@ -61,13 +63,12 @@ class CodeQualityManager:
 
         # Run black
         black_success = self._run_command(
-            [sys.executable, "-m", "black"] + self.target_dirs, "Black code formatting"
+            ["black"] + self.target_dirs, "Black code formatting"
         )
 
         # Run isort
         isort_success = self._run_command(
-            [sys.executable, "-m", "isort"] + self.target_dirs,
-            "Import sorting with isort",
+            ["isort"] + self.target_dirs, "Import sorting with isort"
         )
 
         return black_success and isort_success
@@ -80,34 +81,38 @@ class CodeQualityManager:
         python_files = []
         for pattern in ["**/*.py"]:
             for target_dir in self.target_dirs:
-                python_files.extend(
-                    str(p) for p in self.root_dir.glob(f"{target_dir}{pattern}")
-                )
+                python_files.extend(self.root_dir.glob(f"{target_dir}{pattern}"))
 
         if not python_files:
             print("📁 No Python files found")
             return True
 
-        cmd = [
-            sys.executable,
-            "-m",
-            "autoflake",
-            "--remove-all-unused-imports",
-            "--remove-unused-variables",
-            "--remove-duplicate-keys",
-            "--in-place",
-        ] + python_files
+        # Run autoflake on each file
+        success = True
+        for file_path in python_files:
+            file_success = self._run_command(
+                [
+                    "autoflake",
+                    "--remove-all-unused-imports",
+                    "--remove-unused-variables",
+                    "--remove-duplicate-keys",
+                    "--in-place",
+                    str(file_path),
+                ],
+                f"Fixing {file_path.relative_to(self.root_dir)}",
+            )
 
-        return self._run_command(cmd, "Fixing with autoflake")
+            if not file_success:
+                success = False
+
+        return success
 
     def lint_code(self) -> bool:
         """Run flake8 linting."""
         print("🔍 Running flake8 linting...")
 
         return self._run_command(
-            [sys.executable, "-m", "flake8"]
-            + self.target_dirs
-            + ["--count", "--statistics"],
+            ["flake8"] + self.target_dirs + ["--count", "--statistics"],
             "Flake8 linting",
         )
 
@@ -115,9 +120,7 @@ class CodeQualityManager:
         """Run mypy type checking."""
         print("🔎 Running mypy type checking...")
 
-        return self._run_command(
-            [sys.executable, "-m", "mypy"] + self.target_dirs, "MyPy type checking"
-        )
+        return self._run_command(["mypy"] + self.target_dirs, "MyPy type checking")
 
     def check_all(self) -> bool:
         """Run all code quality checks (linting and type checking only)."""

@@ -265,7 +265,7 @@ async def process_single_user_query(
             # Create a new event loop if the current one is closed
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-
+        
         # Add timeout to prevent hanging - increase timeout for heavy load conditions
         run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
             agent.run(user_query),

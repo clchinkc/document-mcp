@@ -281,7 +281,6 @@ def document_factory(test_docs_root, test_data_registry):
     Returns a function that creates documents and automatically
     registers them for cleanup.
     """
-
     def _create_document(
         doc_type=None,
         name=None,
@@ -321,7 +320,13 @@ def document_factory(test_docs_root, test_data_registry):
     return _create_document
 
 
-@pytest.fixture(params=["simple", "large", "searchable", "multi_format", "statistical"])
+@pytest.fixture(params=[
+    "simple",
+    "large",
+    "searchable",
+    "multi_format",
+    "statistical"
+])
 def parametrized_document(request, document_factory):
     """
     Parametrized fixture that creates different types of test documents.
@@ -435,7 +440,6 @@ def validate_test_data():
 
     This fixture provides utilities to ensure test data is in the expected state.
     """
-
     class Validator:
         """Test data validator with bound methods."""
 
@@ -464,15 +468,12 @@ def validate_test_data():
             if expected_chapters:
                 for chapter_name, expected_content in expected_chapters:
                     chapter_path = doc_path / chapter_name
-                    assert (
-                        chapter_path.exists()
-                    ), f"Chapter {chapter_name} does not exist"
+                    assert chapter_path.exists(), f"Chapter {chapter_name} does not exist"
 
                     actual_content = chapter_path.read_text()
                     if expected_content:
-                        assert (
-                            expected_content in actual_content
-                        ), f"Expected content not found in {chapter_name}"
+                        assert expected_content in actual_content, \
+                            f"Expected content not found in {chapter_name}"
 
             return True
 
