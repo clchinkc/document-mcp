@@ -174,13 +174,13 @@ class TestRunReactLoop:
         """Test that the loop returns properly structured history."""
 
         # Mock the entire run_react_loop function call chain
-        with patch(
-            "src.agents.react_agent.main.load_llm_config"
-        ) as mock_load_config, patch(
-            "src.agents.react_agent.main.MCPServerSSE"
-        ) as mock_mcp_server_class, patch(
-            "src.agents.react_agent.main.get_cached_agent"
-        ) as mock_get_cached_agent:
+        with (
+            patch("src.agents.react_agent.main.load_llm_config") as mock_load_config,
+            patch("src.agents.react_agent.main.MCPServerSSE") as mock_mcp_server_class,
+            patch(
+                "src.agents.react_agent.main.get_cached_agent"
+            ) as mock_get_cached_agent,
+        ):
 
             # Setup mocks - make load_llm_config async
             mock_model = Mock()
@@ -220,15 +220,16 @@ class TestRunReactLoop:
     async def test_max_steps_limit(self):
         """Test that the loop respects the max steps limit."""
 
-        with patch(
-            "src.agents.react_agent.main.load_llm_config"
-        ) as mock_load_config, patch(
-            "src.agents.react_agent.main.MCPServerSSE"
-        ) as mock_mcp_server_class, patch(
-            "src.agents.react_agent.main.get_cached_agent"
-        ) as mock_get_cached_agent, patch(
-            "src.agents.react_agent.main.execute_mcp_tool_directly"
-        ) as mock_execute_tool:
+        with (
+            patch("src.agents.react_agent.main.load_llm_config") as mock_load_config,
+            patch("src.agents.react_agent.main.MCPServerSSE") as mock_mcp_server_class,
+            patch(
+                "src.agents.react_agent.main.get_cached_agent"
+            ) as mock_get_cached_agent,
+            patch(
+                "src.agents.react_agent.main.execute_mcp_tool_directly"
+            ) as mock_execute_tool,
+        ):
 
             # Setup mocks - make load_llm_config async
             mock_model = Mock()
@@ -279,15 +280,16 @@ class TestRunReactLoop:
     async def test_history_format_consistency(self):
         """Test that history entries have consistent format."""
 
-        with patch(
-            "src.agents.react_agent.main.load_llm_config"
-        ) as mock_load_config, patch(
-            "src.agents.react_agent.main.MCPServerSSE"
-        ) as mock_mcp_server_class, patch(
-            "src.agents.react_agent.main.get_cached_agent"
-        ) as mock_get_cached_agent, patch(
-            "src.agents.react_agent.main.execute_mcp_tool_directly"
-        ) as mock_execute_tool:
+        with (
+            patch("src.agents.react_agent.main.load_llm_config") as mock_load_config,
+            patch("src.agents.react_agent.main.MCPServerSSE") as mock_mcp_server_class,
+            patch(
+                "src.agents.react_agent.main.get_cached_agent"
+            ) as mock_get_cached_agent,
+            patch(
+                "src.agents.react_agent.main.execute_mcp_tool_directly"
+            ) as mock_execute_tool,
+        ):
 
             # Setup mocks - make load_llm_config async
             mock_model = Mock()

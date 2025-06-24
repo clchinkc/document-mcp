@@ -5,13 +5,14 @@ This module validates the test data management infrastructure,
 including test data factories, registries, and validation utilities.
 """
 
-import pytest
 from pathlib import Path
 
+import pytest
+
 from tests.shared.test_data import (
+    TestDataRegistry,
     TestDataType,
     TestDocumentSpec,
-    TestDataRegistry,
     create_test_document_from_spec,
     get_test_registry,
 )
@@ -134,7 +135,9 @@ class TestTestDocumentSpec:
 
     def test_spec_validation_negative_paragraph_count(self):
         """Test specification validation rejects negative paragraph count."""
-        with pytest.raises(ValueError, match="Target paragraph count must be non-negative"):
+        with pytest.raises(
+            ValueError, match="Target paragraph count must be non-negative"
+        ):
             TestDocumentSpec(target_paragraph_count=-10)
 
 
@@ -223,7 +226,9 @@ class TestDocumentFactory:
         for term in search_terms:
             assert term in all_content
 
-    def test_create_document_with_existing_name_cleanup(self, test_docs_root, test_data_registry):
+    def test_create_document_with_existing_name_cleanup(
+        self, test_docs_root, test_data_registry
+    ):
         """Test document creation with existing name and cleanup enabled."""
         doc_name = "existing_doc"
 
@@ -252,7 +257,9 @@ class TestDocumentFactory:
         assert not (doc_path / "existing_file.txt").exists()
         assert len(list(doc_path.glob("*.md"))) > 0
 
-    def test_create_document_with_existing_name_no_cleanup(self, test_docs_root, test_data_registry):
+    def test_create_document_with_existing_name_no_cleanup(
+        self, test_docs_root, test_data_registry
+    ):
         """Test document creation with existing name and cleanup disabled."""
         doc_name = "existing_doc_no_cleanup"
 
@@ -267,7 +274,9 @@ class TestDocumentFactory:
             cleanup_on_error=False,
         )
 
-        with pytest.raises(FileExistsError, match=f"Document {doc_name} already exists"):
+        with pytest.raises(
+            FileExistsError, match=f"Document {doc_name} already exists"
+        ):
             create_test_document_from_spec(
                 docs_root=test_docs_root,
                 spec=spec,
@@ -292,7 +301,9 @@ class TestDocumentFactory:
 class TestFixtureIntegration:
     """Test suite for fixture integration and usage patterns."""
 
-    def test_document_factory_fixture(self, document_factory, test_docs_root, validate_test_data):
+    def test_document_factory_fixture(
+        self, document_factory, test_docs_root, validate_test_data
+    ):
         """Test the document factory fixture functionality."""
         # Create a document using the factory fixture
         doc_name = document_factory(
@@ -306,7 +317,9 @@ class TestFixtureIntegration:
         # Validate the document was created correctly
         validate_test_data.document_exists(test_docs_root, doc_name)
 
-    def test_parametrized_document_fixture(self, parametrized_document, test_docs_root, validate_test_data):
+    def test_parametrized_document_fixture(
+        self, parametrized_document, test_docs_root, validate_test_data
+    ):
         """Test the parametrized document fixture."""
         # This test will run multiple times with different document types
         assert parametrized_document is not None
@@ -320,7 +333,7 @@ class TestFixtureIntegration:
         assert len(test_data_registry.created_documents) == 0
 
         # Register a document manually
-        from tests.shared.test_data import TestDocumentSpec, TestDataType
+        from tests.shared.test_data import TestDataType, TestDocumentSpec
 
         spec = TestDocumentSpec(name="registry_test", doc_type=TestDataType.SIMPLE)
         test_data_registry.register_document("registry_test", spec)
@@ -328,7 +341,9 @@ class TestFixtureIntegration:
         assert "registry_test" in test_data_registry.created_documents
         assert test_data_registry.get_document_spec("registry_test") == spec
 
-    def test_validation_fixture(self, document_factory, test_docs_root, test_data_registry, validate_test_data):
+    def test_validation_fixture(
+        self, document_factory, test_docs_root, test_data_registry, validate_test_data
+    ):
         """Test the validation fixture functionality."""
         # Create a document
         doc_name = document_factory(
