@@ -27,6 +27,7 @@ DEFAULT_DOC_CHAPTERS = [
 
 class TestDataType(Enum):
     """Enumeration of test data types for consistent categorization."""
+
     SIMPLE = "simple"
     LARGE = "large"
     SEARCHABLE = "searchable"
@@ -39,6 +40,7 @@ class TestDataType(Enum):
 @dataclass
 class TestDocumentSpec:
     """Specification for creating test documents with validation."""
+
     name: Optional[str] = None
     doc_type: TestDataType = TestDataType.SIMPLE
     chapter_count: int = 3
@@ -62,6 +64,7 @@ class TestDocumentSpec:
 @dataclass
 class TestDataRegistry:
     """Registry to track created test data for cleanup and validation."""
+
     created_documents: List[str] = field(default_factory=list)
     created_directories: List[Path] = field(default_factory=list)
     temp_files: List[Path] = field(default_factory=list)
@@ -225,7 +228,7 @@ def create_test_document_from_spec(
 
         return actual_doc_name
 
-    except Exception as e:
+    except Exception:
         # Cleanup on error if requested
         if spec.cleanup_on_error and doc_path.exists():
             shutil.rmtree(doc_path, ignore_errors=True)

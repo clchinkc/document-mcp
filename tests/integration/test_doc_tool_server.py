@@ -1,5 +1,4 @@
 import os
-import shutil
 from pathlib import Path
 
 import pytest
@@ -151,7 +150,9 @@ def _assert_operation_failure(
 # --- Comprehensive Integration Tests ---
 
 
-def test_comprehensive_statistics_functionality(document_factory, test_docs_root: Path, validate_test_data):
+def test_comprehensive_statistics_functionality(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     """Test comprehensive statistics functionality for documents and chapters."""
     # Create a document with 5 chapters, each with Lorem ipsum content and 10 paragraphs
     chapters = []
@@ -161,13 +162,11 @@ def test_comprehensive_statistics_functionality(document_factory, test_docs_root
         for j in range(1, 11):
             content += f"Lorem ipsum dolor sit amet, consectetur adipiscing elit paragraph {j}.\n\n"
         chapters.append((f"{i:02d}-chapter.md", content))
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="test_story_document",
-        chapters=chapters
+        doc_type="simple", name="test_story_document", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -221,16 +220,16 @@ def test_comprehensive_statistics_functionality(document_factory, test_docs_root
         ), f"Expected reasonable word count for chapter {chapter_num}"
 
 
-def test_comprehensive_search_functionality(document_factory, test_docs_root: Path, validate_test_data):
+def test_comprehensive_search_functionality(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     """Test comprehensive search functionality across different scenarios."""
     # Create a searchable document with Lorem ipsum content
     search_terms = ["Lorem", "paragraph"]
     doc_name = document_factory(
-        doc_type="searchable",
-        name="search_test_document",
-        search_terms=search_terms
+        doc_type="searchable", name="search_test_document", search_terms=search_terms
     )
-    
+
     # Also create additional content to match the original test expectations
     # We need 5 chapters with 10 "Lorem" occurrences each
     chapters = []
@@ -240,14 +239,12 @@ def test_comprehensive_search_functionality(document_factory, test_docs_root: Pa
         for j in range(1, 11):
             content += f"Lorem ipsum dolor sit amet, consectetur adipiscing elit paragraph {j}.\n\n"
         chapters.append((f"{i:02d}-chapter.md", content))
-    
+
     # Override the searchable document with our specific structure
     doc_name = document_factory(
-        doc_type="simple",
-        name="comprehensive_search_doc",
-        chapters=chapters
+        doc_type="simple", name="comprehensive_search_doc", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -296,7 +293,9 @@ def test_comprehensive_search_functionality(document_factory, test_docs_root: Pa
     ), "Search for nonexistent term should return empty list, not None or other value"
 
 
-def test_comprehensive_content_operations(document_factory, test_docs_root: Path, validate_test_data):
+def test_comprehensive_content_operations(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     """Test comprehensive content reading and manipulation operations."""
     # Create a document with 5 chapters, each with Lorem ipsum content and 10 paragraphs
     chapters = []
@@ -306,13 +305,11 @@ def test_comprehensive_content_operations(document_factory, test_docs_root: Path
         for j in range(1, 11):
             content += f"Lorem ipsum dolor sit amet, consectetur adipiscing elit paragraph {j}.\n\n"
         chapters.append((f"{i:02d}-chapter.md", content))
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="content_ops_document",
-        chapters=chapters
+        doc_type="simple", name="content_ops_document", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -361,7 +358,9 @@ def test_comprehensive_content_operations(document_factory, test_docs_root: Path
     assert len(paragraph.content) > 10, "Paragraph should have meaningful content"
 
 
-def test_comprehensive_data_consistency(document_factory, test_docs_root: Path, validate_test_data):
+def test_comprehensive_data_consistency(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     """Test data consistency across different operations and views."""
     # Create a document with 5 chapters, each with Lorem ipsum content and 10 paragraphs
     chapters = []
@@ -371,13 +370,11 @@ def test_comprehensive_data_consistency(document_factory, test_docs_root: Path, 
         for j in range(1, 11):
             content += f"Lorem ipsum dolor sit amet, consectetur adipiscing elit paragraph {j}.\n\n"
         chapters.append((f"{i:02d}-chapter.md", content))
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="consistency_test_document",
-        chapters=chapters
+        doc_type="simple", name="consistency_test_document", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -444,7 +441,9 @@ def test_comprehensive_error_handling(document_factory, test_docs_root: Path):
 
     # Test operations on nonexistent chapters
     # Create a valid document using document_factory
-    test_doc_name = document_factory(doc_type="simple", name="test_doc_for_errors", chapter_count=0)
+    test_doc_name = document_factory(
+        doc_type="simple", name="test_doc_for_errors", chapter_count=0
+    )
 
     assert (
         read_chapter_content(
@@ -510,14 +509,16 @@ def test_list_documents_empty(test_docs_root: Path):
     ), "Empty documents directory should return empty list, not None or other value"
 
 
-def test_list_documents_with_one_doc(document_factory, test_docs_root: Path, validate_test_data):
+def test_list_documents_with_one_doc(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     doc_name = document_factory(
         doc_type="simple",
         name="listed_document",
         chapter_count=1,
-        chapters=[("01-intro.md", "# Hello")]
+        chapters=[("01-intro.md", "# Hello")],
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -534,7 +535,7 @@ def test_delete_document_success(document_factory, test_docs_root: Path):
         doc_type="simple",
         name="to_be_deleted_doc",
         chapter_count=1,
-        chapters=[("file.md", "content")]
+        chapters=[("file.md", "content")],
     )
 
     status = delete_document(document_name=doc_name)
@@ -549,7 +550,9 @@ def test_delete_document_non_existent(test_docs_root: Path):
 
 # Test Chapter Management Tools
 def test_create_chapter_success(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="doc_for_chapters", chapter_count=0)
+    doc_name = document_factory(
+        doc_type="simple", name="doc_for_chapters", chapter_count=0
+    )
     chapter_name = "01-my_chapter.md"
     initial_content = "# Chapter Title"
 
@@ -567,8 +570,10 @@ def test_create_chapter_success(document_factory, test_docs_root: Path):
 
 
 def test_create_chapter_invalid_name(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="doc_invalid_chapter_name", chapter_count=0)
-    
+    doc_name = document_factory(
+        doc_type="simple", name="doc_invalid_chapter_name", chapter_count=0
+    )
+
     status = create_chapter(
         document_name=doc_name, chapter_name="chapter_no_md", initial_content=""
     )
@@ -588,9 +593,11 @@ def test_create_chapter_in_non_existent_document(test_docs_root: Path):
 
 
 def test_create_chapter_duplicate(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="doc_for_duplicate_chapter", chapter_count=0)
+    doc_name = document_factory(
+        doc_type="simple", name="doc_for_duplicate_chapter", chapter_count=0
+    )
     chapter_name = "01-dupe.md"
-    
+
     create_chapter(document_name=doc_name, chapter_name=chapter_name)  # First one
     status = create_chapter(
         document_name=doc_name, chapter_name=chapter_name
@@ -599,8 +606,10 @@ def test_create_chapter_duplicate(document_factory, test_docs_root: Path):
 
 
 def test_list_chapters_empty(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="doc_empty_chapters", chapter_count=0)
-    
+    doc_name = document_factory(
+        doc_type="simple", name="doc_empty_chapters", chapter_count=0
+    )
+
     chapters_list = list_chapters(document_name=doc_name)
     assert isinstance(
         chapters_list, list
@@ -617,20 +626,20 @@ def test_list_chapters_non_existent_doc(test_docs_root: Path):
     ), "list_chapters should return None specifically for non-existent documents, not empty list or other value"
 
 
-def test_list_chapters_with_multiple_chapters(document_factory, test_docs_root: Path, validate_test_data):
+def test_list_chapters_with_multiple_chapters(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     chapters = [
         ("00-zeroth.md", "Content 0"),  # To test ordering
         ("01-first.md", "Content 1"),
         ("02-second.md", "Content 2"),
-        ("notes.txt", "ignore this")  # Non-md file, should be ignored
+        ("notes.txt", "ignore this"),  # Non-md file, should be ignored
     ]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_with_chapters",
-        chapters=chapters
+        doc_type="simple", name="doc_with_chapters", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -647,9 +656,11 @@ def test_list_chapters_with_multiple_chapters(document_factory, test_docs_root: 
 
 
 def test_delete_chapter_success(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="doc_for_deleting_chapter", chapter_count=0)
+    doc_name = document_factory(
+        doc_type="simple", name="doc_for_deleting_chapter", chapter_count=0
+    )
     chapter_name = "ch_to_delete.md"
-    
+
     create_chapter(document_name=doc_name, chapter_name=chapter_name)
     assert (test_docs_root / doc_name / chapter_name).exists()
 
@@ -659,15 +670,19 @@ def test_delete_chapter_success(document_factory, test_docs_root: Path):
 
 
 def test_delete_chapter_non_existent(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="doc_for_deleting_non_existent_chapter", chapter_count=0)
-    
+    doc_name = document_factory(
+        doc_type="simple", name="doc_for_deleting_non_existent_chapter", chapter_count=0
+    )
+
     status = delete_chapter(document_name=doc_name, chapter_name="ghost_chapter.md")
     _assert_operation_failure(status, "not found")
 
 
 def test_delete_chapter_invalid_name(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="doc_delete_invalid_chapter", chapter_count=0)
-    
+    doc_name = document_factory(
+        doc_type="simple", name="doc_delete_invalid_chapter", chapter_count=0
+    )
+
     status = delete_chapter(document_name=doc_name, chapter_name="not_a_md_file.txt")
     _assert_operation_failure(status, "not a valid chapter")
 
@@ -675,16 +690,16 @@ def test_delete_chapter_invalid_name(document_factory, test_docs_root: Path):
 # --- Test Read/Write Content Tools ---
 
 
-def test_read_chapter_content_success(document_factory, test_docs_root: Path, validate_test_data):
+def test_read_chapter_content_success(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     content = "# Title\nHello World\n\nThis is a paragraph."
     chapters = [("readable_chapter.md", content)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_read_content",
-        chapters=chapters
+        doc_type="simple", name="doc_read_content", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -708,9 +723,13 @@ def test_read_chapter_content_success(document_factory, test_docs_root: Path, va
     )  # "# Title\nHello World" and "This is a paragraph."
 
 
-def test_read_chapter_content_non_existent_chapter(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="doc_read_non_existent_chap", chapter_count=0)
-    
+def test_read_chapter_content_non_existent_chapter(
+    document_factory, test_docs_root: Path
+):
+    doc_name = document_factory(
+        doc_type="simple", name="doc_read_non_existent_chap", chapter_count=0
+    )
+
     chapter_obj = read_chapter_content(
         document_name=doc_name, chapter_name="no_such_chapter.md"
     )
@@ -719,29 +738,35 @@ def test_read_chapter_content_non_existent_chapter(document_factory, test_docs_r
     ), "Reading non-existent chapter should return None specifically, not empty object or other value"
 
 
-def test_write_chapter_content_overwrite(document_factory, test_docs_root: Path, validate_test_data):
+def test_write_chapter_content_overwrite(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     initial_content = "Old content."
     new_content = "# New Content\nThis is fresh."
     chapters = [("writable_chapter.md", initial_content)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_write_content",
-        chapters=chapters
+        doc_type="simple", name="doc_write_content", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
     status = write_chapter_content(
-        document_name=doc_name, chapter_name="writable_chapter.md", new_content=new_content
+        document_name=doc_name,
+        chapter_name="writable_chapter.md",
+        new_content=new_content,
     )
     _assert_operation_success(status, "updated successfully")
-    assert (test_docs_root / doc_name / "writable_chapter.md").read_text() == new_content
+    assert (
+        test_docs_root / doc_name / "writable_chapter.md"
+    ).read_text() == new_content
 
 
 def test_write_chapter_content_create_new(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="doc_write_new_chap", chapter_count=0)
+    doc_name = document_factory(
+        doc_type="simple", name="doc_write_new_chap", chapter_count=0
+    )
     chapter_name = "newly_written_chapter.md"
     new_content = "Content for a new chapter."
 
@@ -754,22 +779,24 @@ def test_write_chapter_content_create_new(document_factory, test_docs_root: Path
     assert (test_docs_root / doc_name / chapter_name).read_text() == new_content
 
 
-def test_read_paragraph_content_success(document_factory, test_docs_root: Path, validate_test_data):
+def test_read_paragraph_content_success(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     paras = ["Paragraph 0.", "Paragraph 1.", "Paragraph 2."]
     content = "\n\n".join(paras)
     chapters = [("chapter_with_paras.md", content)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_read_para",
-        chapters=chapters
+        doc_type="simple", name="doc_read_para", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
     para_obj = read_paragraph_content(
-        document_name=doc_name, chapter_name="chapter_with_paras.md", paragraph_index_in_chapter=1
+        document_name=doc_name,
+        chapter_name="chapter_with_paras.md",
+        paragraph_index_in_chapter=1,
     )
     assert (
         para_obj is not None
@@ -782,21 +809,23 @@ def test_read_paragraph_content_success(document_factory, test_docs_root: Path, 
     assert para_obj.word_count == 2
 
 
-def test_read_paragraph_content_out_of_bounds(document_factory, test_docs_root: Path, validate_test_data):
+def test_read_paragraph_content_out_of_bounds(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     content = "Para1\n\nPara2"
     chapters = [("chapter_few_paras.md", content)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_read_para_oob",
-        chapters=chapters
+        doc_type="simple", name="doc_read_para_oob", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
     para_obj = read_paragraph_content(
-        document_name=doc_name, chapter_name="chapter_few_paras.md", paragraph_index_in_chapter=5
+        document_name=doc_name,
+        chapter_name="chapter_few_paras.md",
+        paragraph_index_in_chapter=5,
     )
     assert (
         para_obj is None
@@ -806,15 +835,15 @@ def test_read_paragraph_content_out_of_bounds(document_factory, test_docs_root: 
 CONTENT_FOR_MODIFY_PARA = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph."
 
 
-def test_modify_paragraph_content_replace(document_factory, test_docs_root: Path, validate_test_data):
+def test_modify_paragraph_content_replace(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     chapters = [("chap_mod_replace.md", CONTENT_FOR_MODIFY_PARA)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_mod_para_replace",
-        chapters=chapters
+        doc_type="simple", name="doc_mod_para_replace", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -825,18 +854,20 @@ def test_modify_paragraph_content_replace(document_factory, test_docs_root: Path
     expected_content = (
         "First paragraph.\n\nReplaced second paragraph.\n\nThird paragraph."
     )
-    assert (test_docs_root / doc_name / "chap_mod_replace.md").read_text() == expected_content
+    assert (
+        test_docs_root / doc_name / "chap_mod_replace.md"
+    ).read_text() == expected_content
 
 
-def test_modify_paragraph_content_insert_before(document_factory, test_docs_root: Path, validate_test_data):
+def test_modify_paragraph_content_insert_before(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     chapters = [("chap_mod_insert_b.md", CONTENT_FOR_MODIFY_PARA)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_mod_para_insert_before",
-        chapters=chapters
+        doc_type="simple", name="doc_mod_para_insert_before", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -845,18 +876,20 @@ def test_modify_paragraph_content_insert_before(document_factory, test_docs_root
     )
     _assert_operation_success(status)
     expected_content = "First paragraph.\n\nInserted before second.\n\nSecond paragraph.\n\nThird paragraph."
-    assert (test_docs_root / doc_name / "chap_mod_insert_b.md").read_text() == expected_content
+    assert (
+        test_docs_root / doc_name / "chap_mod_insert_b.md"
+    ).read_text() == expected_content
 
 
-def test_modify_paragraph_content_insert_after(document_factory, test_docs_root: Path, validate_test_data):
+def test_modify_paragraph_content_insert_after(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     chapters = [("chap_mod_insert_a.md", CONTENT_FOR_MODIFY_PARA)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_mod_para_insert_after",
-        chapters=chapters
+        doc_type="simple", name="doc_mod_para_insert_after", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -865,18 +898,20 @@ def test_modify_paragraph_content_insert_after(document_factory, test_docs_root:
     )
     _assert_operation_success(status)
     expected_content = "First paragraph.\n\nSecond paragraph.\n\nInserted after second.\n\nThird paragraph."
-    assert (test_docs_root / doc_name / "chap_mod_insert_a.md").read_text() == expected_content
+    assert (
+        test_docs_root / doc_name / "chap_mod_insert_a.md"
+    ).read_text() == expected_content
 
 
-def test_modify_paragraph_content_delete(document_factory, test_docs_root: Path, validate_test_data):
+def test_modify_paragraph_content_delete(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     chapters = [("chap_mod_delete.md", CONTENT_FOR_MODIFY_PARA)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_mod_para_delete",
-        chapters=chapters
+        doc_type="simple", name="doc_mod_para_delete", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -885,92 +920,104 @@ def test_modify_paragraph_content_delete(document_factory, test_docs_root: Path,
     )  # content irrelevant for delete
     _assert_operation_success(status)
     expected_content = "First paragraph.\n\nThird paragraph."
-    assert (test_docs_root / doc_name / "chap_mod_delete.md").read_text() == expected_content
+    assert (
+        test_docs_root / doc_name / "chap_mod_delete.md"
+    ).read_text() == expected_content
 
 
-def test_modify_paragraph_content_invalid_mode(document_factory, test_docs_root: Path, validate_test_data):
+def test_modify_paragraph_content_invalid_mode(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     chapters = [("chap_mod_invalid.md", "Some content.")]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_mod_para_invalid_mode",
-        chapters=chapters
+        doc_type="simple", name="doc_mod_para_invalid_mode", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
-    
-    status = modify_paragraph_content(doc_name, "chap_mod_invalid.md", 0, "Content", "uppercut")
+
+    status = modify_paragraph_content(
+        doc_name, "chap_mod_invalid.md", 0, "Content", "uppercut"
+    )
     _assert_operation_failure(status, "invalid mode")
 
 
-def test_append_paragraph_to_chapter_success(document_factory, test_docs_root: Path, validate_test_data):
+def test_append_paragraph_to_chapter_success(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     initial_content = "First line.\n\nSecond line."
     appended_para = "Third line, appended."
     chapters = [("chap_append.md", initial_content)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_append_para",
-        chapters=chapters
+        doc_type="simple", name="doc_append_para", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
     status = append_paragraph_to_chapter(doc_name, "chap_append.md", appended_para)
     _assert_operation_success(status)
     expected_content = initial_content + "\n\n" + appended_para
-    assert (test_docs_root / doc_name / "chap_append.md").read_text() == expected_content
+    assert (
+        test_docs_root / doc_name / "chap_append.md"
+    ).read_text() == expected_content
 
 
-def test_append_paragraph_to_empty_chapter(document_factory, test_docs_root: Path, validate_test_data):
+def test_append_paragraph_to_empty_chapter(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     appended_para = "Only line."
     chapters = [("chap_append_empty.md", "")]  # Empty chapter
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_append_para_empty",
-        chapters=chapters
+        doc_type="simple", name="doc_append_para_empty", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
-    status = append_paragraph_to_chapter(doc_name, "chap_append_empty.md", appended_para)
+    status = append_paragraph_to_chapter(
+        doc_name, "chap_append_empty.md", appended_para
+    )
     _assert_operation_success(status)
-    assert (test_docs_root / doc_name / "chap_append_empty.md").read_text() == appended_para
+    assert (
+        test_docs_root / doc_name / "chap_append_empty.md"
+    ).read_text() == appended_para
 
 
-def test_replace_text_in_chapter_success(document_factory, test_docs_root: Path, validate_test_data):
+def test_replace_text_in_chapter_success(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     content = "Old text is old. Another old occurrence."
     chapters = [("chap_replace.md", content)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_replace_text_chap",
-        chapters=chapters
+        doc_type="simple", name="doc_replace_text_chap", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
     status = replace_text_in_chapter(doc_name, "chap_replace.md", "old", "new")
     _assert_operation_success(status, "replaced")
     expected_content = "Old text is new. Another new occurrence."
-    assert (test_docs_root / doc_name / "chap_replace.md").read_text() == expected_content
+    assert (
+        test_docs_root / doc_name / "chap_replace.md"
+    ).read_text() == expected_content
 
 
-def test_replace_text_in_chapter_no_occurrence(document_factory, test_docs_root: Path, validate_test_data):
+def test_replace_text_in_chapter_no_occurrence(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     content = "Some text without the target."
     chapters = [("chap_replace_no_op.md", content)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_replace_text_chap_no_op",
-        chapters=chapters
+        doc_type="simple", name="doc_replace_text_chap_no_op", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -984,20 +1031,17 @@ def test_replace_text_in_chapter_no_occurrence(document_factory, test_docs_root:
 
 
 # Test reading full document
-def test_read_full_document_success(document_factory, test_docs_root: Path, validate_test_data):
+def test_read_full_document_success(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     ch1_content = "# Chapter 1\nContent of chapter one."
     ch2_content = "## Chapter 2\nSome more text here."
-    chapters = [
-        ("01_ch1.md", ch1_content),
-        ("02_ch2.md", ch2_content)
-    ]
-    
+    chapters = [("01_ch1.md", ch1_content), ("02_ch2.md", ch2_content)]
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="full_doc_read",
-        chapters=chapters
+        doc_type="simple", name="full_doc_read", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -1015,8 +1059,10 @@ def test_read_full_document_success(document_factory, test_docs_root: Path, vali
 
 
 def test_read_full_document_empty_doc(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="empty_doc_for_full_read", chapter_count=0)
-    
+    doc_name = document_factory(
+        doc_type="simple", name="empty_doc_for_full_read", chapter_count=0
+    )
+
     full_doc_obj = read_full_document(document_name=doc_name)
     assert full_doc_obj is not None
     assert len(full_doc_obj.chapters) == 0
@@ -1029,22 +1075,22 @@ def test_read_full_document_non_existent(test_docs_root: Path):
 
 
 # Test replacing text across document
-def test_replace_text_in_document_success(document_factory, test_docs_root: Path, validate_test_data):
+def test_replace_text_in_document_success(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     ch1_content = "Global old term, chapter 1. Another old one."
     ch2_content = "Chapter 2, no target. But old is here!"
     ch3_content = "Only fresh new terms."
     chapters = [
         ("01_ch1.md", ch1_content),
         ("02_ch2.md", ch2_content),
-        ("03_ch3.md", ch3_content)
+        ("03_ch3.md", ch3_content),
     ]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_replace_global",
-        chapters=chapters
+        doc_type="simple", name="doc_replace_global", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -1067,20 +1113,22 @@ def test_replace_text_in_document_success(document_factory, test_docs_root: Path
 # --- Test Analyze and Retrieval Tools ---
 
 
-def test_get_chapter_statistics_success(document_factory, test_docs_root: Path, validate_test_data):
+def test_get_chapter_statistics_success(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     content = "# Stats Test\nThis chapter has five words.\n\nAnd two paragraphs total."
     chapters = [("chap_for_stats.md", content)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_stats_chap",
-        chapters=chapters
+        doc_type="simple", name="doc_stats_chap", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
-    stats = get_chapter_statistics(document_name=doc_name, chapter_name="chap_for_stats.md")
+    stats = get_chapter_statistics(
+        document_name=doc_name, chapter_name="chap_for_stats.md"
+    )
     assert stats is not None
     assert isinstance(stats, StatisticsReport)
     assert stats.scope == f"chapter: {doc_name}/chap_for_stats.md"
@@ -1093,24 +1141,26 @@ def test_get_chapter_statistics_success(document_factory, test_docs_root: Path, 
 
 
 def test_get_chapter_statistics_non_existent(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="doc_stats_chap_ne", chapter_count=0)
-    
+    doc_name = document_factory(
+        doc_type="simple", name="doc_stats_chap_ne", chapter_count=0
+    )
+
     stats = get_chapter_statistics(document_name=doc_name, chapter_name="no_chap.md")
     assert stats is None
 
 
-def test_get_document_statistics_success(document_factory, test_docs_root: Path, validate_test_data):
+def test_get_document_statistics_success(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     chapters = [
         ("01.md", "# Chapter 1\n\nFirst chapter content here."),
-        ("02.md", "# Chapter 2\n\nSecond chapter content here.")
+        ("02.md", "# Chapter 2\n\nSecond chapter content here."),
     ]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_stats_success",
-        chapters=chapters
+        doc_type="simple", name="doc_stats_success", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -1124,8 +1174,10 @@ def test_get_document_statistics_success(document_factory, test_docs_root: Path,
 
 
 def test_get_document_statistics_empty_doc(document_factory, test_docs_root: Path):
-    doc_name = document_factory(doc_type="simple", name="empty_doc_stats", chapter_count=0)
-    
+    doc_name = document_factory(
+        doc_type="simple", name="empty_doc_stats", chapter_count=0
+    )
+
     stats = get_document_statistics(document_name=doc_name)
     assert stats is not None
     assert stats.chapter_count == 0
@@ -1138,16 +1190,18 @@ def test_get_document_statistics_non_existent_doc(test_docs_root: Path):
     assert stats is None
 
 
-def test_find_text_in_chapter_success_case_insensitive(document_factory, test_docs_root: Path, validate_test_data):
-    content = "Hello World. This is a test chapter.\n\nAnother paragraph with HELLO again."
-    chapters = [("search_chapter.md", content)]
-    
-    doc_name = document_factory(
-        doc_type="simple",
-        name="doc_search_chapter_case_insensitive",
-        chapters=chapters
+def test_find_text_in_chapter_success_case_insensitive(
+    document_factory, test_docs_root: Path, validate_test_data
+):
+    content = (
+        "Hello World. This is a test chapter.\n\nAnother paragraph with HELLO again."
     )
-    
+    chapters = [("search_chapter.md", content)]
+
+    doc_name = document_factory(
+        doc_type="simple", name="doc_search_chapter_case_insensitive", chapters=chapters
+    )
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -1164,16 +1218,18 @@ def test_find_text_in_chapter_success_case_insensitive(document_factory, test_do
         assert match.paragraph_index_in_chapter >= 0
 
 
-def test_find_text_in_chapter_success_case_sensitive(document_factory, test_docs_root: Path, validate_test_data):
-    content = "Hello World. This is a test chapter.\n\nAnother paragraph with HELLO again."
-    chapters = [("search_chapter_case.md", content)]
-    
-    doc_name = document_factory(
-        doc_type="simple",
-        name="doc_search_chapter_case_sensitive",
-        chapters=chapters
+def test_find_text_in_chapter_success_case_sensitive(
+    document_factory, test_docs_root: Path, validate_test_data
+):
+    content = (
+        "Hello World. This is a test chapter.\n\nAnother paragraph with HELLO again."
     )
-    
+    chapters = [("search_chapter_case.md", content)]
+
+    doc_name = document_factory(
+        doc_type="simple", name="doc_search_chapter_case_sensitive", chapters=chapters
+    )
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -1189,16 +1245,16 @@ def test_find_text_in_chapter_success_case_sensitive(document_factory, test_docs
     assert results[0].chapter_name == "search_chapter_case.md"
 
 
-def test_find_text_in_chapter_no_match(document_factory, test_docs_root: Path, validate_test_data):
+def test_find_text_in_chapter_no_match(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     content = "This chapter has no matching terms."
     chapters = [("no_match_chapter.md", content)]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_search_no_match",
-        chapters=chapters
+        doc_type="simple", name="doc_search_no_match", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -1208,22 +1264,22 @@ def test_find_text_in_chapter_no_match(document_factory, test_docs_root: Path, v
     assert len(results) == 0  # Should find no matches
 
 
-def test_find_text_in_document_success(document_factory, test_docs_root: Path, validate_test_data):
+def test_find_text_in_document_success(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     ch1_content = "First chapter with searchable content."
     ch2_content = "Second chapter also has searchable text."
     ch3_content = "Third chapter without the target word."
     chapters = [
         ("01_search.md", ch1_content),
         ("02_search.md", ch2_content),
-        ("03_search.md", ch3_content)
+        ("03_search.md", ch3_content),
     ]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_search_multi_chapter",
-        chapters=chapters
+        doc_type="simple", name="doc_search_multi_chapter", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 
@@ -1247,18 +1303,18 @@ def test_find_text_in_document_success(document_factory, test_docs_root: Path, v
     assert chapter_results[0].chapter_name == "01_search.md"
 
 
-def test_find_text_in_document_no_match(document_factory, test_docs_root: Path, validate_test_data):
+def test_find_text_in_document_no_match(
+    document_factory, test_docs_root: Path, validate_test_data
+):
     chapters = [
         ("01_no_match.md", "This chapter has some content."),
-        ("02_no_match.md", "This chapter has different content.")
+        ("02_no_match.md", "This chapter has different content."),
     ]
-    
+
     doc_name = document_factory(
-        doc_type="simple",
-        name="doc_search_no_match_multi",
-        chapters=chapters
+        doc_type="simple", name="doc_search_no_match_multi", chapters=chapters
     )
-    
+
     # Validate the document was created correctly
     validate_test_data.document_exists(test_docs_root, doc_name)
 

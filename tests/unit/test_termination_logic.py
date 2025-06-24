@@ -43,13 +43,13 @@ class TestTerminationLogicIntegration:
         """Test that the agent terminates successfully when task is complete."""
 
         # Mock the optimized components
-        with patch(
-            "src.agents.react_agent.main.load_llm_config"
-        ) as mock_load_config, patch(
-            "src.agents.react_agent.main.MCPServerSSE"
-        ) as mock_mcp_server_class, patch(
-            "src.agents.react_agent.main.get_cached_agent"
-        ) as mock_get_cached_agent:
+        with (
+            patch("src.agents.react_agent.main.load_llm_config") as mock_load_config,
+            patch("src.agents.react_agent.main.MCPServerSSE") as mock_mcp_server_class,
+            patch(
+                "src.agents.react_agent.main.get_cached_agent"
+            ) as mock_get_cached_agent,
+        ):
 
             # Setup mocks - make load_llm_config async
             mock_model = Mock()
@@ -102,13 +102,13 @@ class TestTerminationLogicIntegration:
     async def test_max_steps_termination(self, mock_environment):
         """Test that the agent terminates when maximum steps are reached."""
 
-        with patch(
-            "src.agents.react_agent.main.load_llm_config"
-        ) as mock_load_config, patch(
-            "src.agents.react_agent.main.MCPServerSSE"
-        ) as mock_mcp_server_class, patch(
-            "src.agents.react_agent.main.get_cached_agent"
-        ) as mock_get_cached_agent:
+        with (
+            patch("src.agents.react_agent.main.load_llm_config") as mock_load_config,
+            patch("src.agents.react_agent.main.MCPServerSSE") as mock_mcp_server_class,
+            patch(
+                "src.agents.react_agent.main.get_cached_agent"
+            ) as mock_get_cached_agent,
+        ):
 
             # Setup mocks - make load_llm_config async
             mock_model = Mock()
@@ -154,13 +154,13 @@ class TestTerminationLogicIntegration:
     async def test_llm_error_termination(self, mock_environment):
         """Test that the agent terminates gracefully on LLM errors."""
 
-        with patch(
-            "src.agents.react_agent.main.load_llm_config"
-        ) as mock_load_config, patch(
-            "src.agents.react_agent.main.MCPServerSSE"
-        ) as mock_mcp_server_class, patch(
-            "src.agents.react_agent.main.get_cached_agent"
-        ) as mock_get_cached_agent:
+        with (
+            patch("src.agents.react_agent.main.load_llm_config") as mock_load_config,
+            patch("src.agents.react_agent.main.MCPServerSSE") as mock_mcp_server_class,
+            patch(
+                "src.agents.react_agent.main.get_cached_agent"
+            ) as mock_get_cached_agent,
+        ):
 
             # Setup mocks - make load_llm_config async
             mock_model = Mock()
@@ -194,13 +194,13 @@ class TestTerminationLogicIntegration:
     async def test_tool_execution_error_continuation(self, mock_environment):
         """Test that the agent continues after tool execution errors."""
 
-        with patch(
-            "src.agents.react_agent.main.load_llm_config"
-        ) as mock_load_config, patch(
-            "src.agents.react_agent.main.MCPServerSSE"
-        ) as mock_mcp_server_class, patch(
-            "src.agents.react_agent.main.get_cached_agent"
-        ) as mock_get_cached_agent:
+        with (
+            patch("src.agents.react_agent.main.load_llm_config") as mock_load_config,
+            patch("src.agents.react_agent.main.MCPServerSSE") as mock_mcp_server_class,
+            patch(
+                "src.agents.react_agent.main.get_cached_agent"
+            ) as mock_get_cached_agent,
+        ):
 
             # Setup mocks - make load_llm_config async
             mock_model = Mock()
@@ -253,13 +253,13 @@ class TestTerminationLogicIntegration:
     async def test_action_parsing_error_continuation(self, mock_environment):
         """Test that the agent continues after action parsing errors."""
 
-        with patch(
-            "src.agents.react_agent.main.load_llm_config"
-        ) as mock_load_config, patch(
-            "src.agents.react_agent.main.MCPServerSSE"
-        ) as mock_mcp_server_class, patch(
-            "src.agents.react_agent.main.get_cached_agent"
-        ) as mock_get_cached_agent:
+        with (
+            patch("src.agents.react_agent.main.load_llm_config") as mock_load_config,
+            patch("src.agents.react_agent.main.MCPServerSSE") as mock_mcp_server_class,
+            patch(
+                "src.agents.react_agent.main.get_cached_agent"
+            ) as mock_get_cached_agent,
+        ):
 
             # Setup mocks - make load_llm_config async
             mock_model = Mock()
