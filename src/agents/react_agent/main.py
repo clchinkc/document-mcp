@@ -454,6 +454,7 @@ You have access to these document management tools:
 - `read_chapter_content(document_name="My Book", chapter_name="01-intro.md")` - Reads a specific chapter
 - `read_full_document(document_name="My Book")` - Reads all chapters of a document
 - `read_paragraph_content(document_name="My Book", chapter_name="01-intro.md", paragraph_index_in_chapter=0)` - Reads a specific paragraph
+- `read_document_summary(document_name="My Book")` - Reads the _SUMMARY.md file for a document.
 
 **Content Modification:**
 - `append_paragraph_to_chapter(document_name="My Book", chapter_name="01-intro.md", paragraph_content="New paragraph.")` - Adds content to end of chapter
@@ -502,6 +503,7 @@ User Query: "Create a document named 'Project Alpha' and add a chapter to it cal
 5. **Error Handling**: If a tool returns an error, analyze the error message and adjust your approach in the next thought.
 6. **Completion**: When the user's request is fully satisfied, set `action` to `null` to indicate completion.
 7. **Step-by-Step**: Break complex requests into logical, sequential steps.
+8. **Using Summaries**: When exploring documents with `list_documents`, the output will indicate if a summary exists (`has_summary: true`). If a summary is present and you need to understand the document's content, prefer reading the summary first using `read_document_summary(document_name=\"...\")`. This can help you decide if reading the full document or specific chapters is necessary.
 
 Remember: Think clearly, act precisely, and observe carefully. Each step should move you closer to fulfilling the user's complete request."""
 
