@@ -33,10 +33,12 @@ from document_mcp.doc_tool_server import (
     list_documents,
     modify_paragraph_content,
     read_chapter_content,
+    read_document_summary, # Added
     read_paragraph_content,
     replace_text_in_chapter,
     replace_text_in_document,
     write_chapter_content,
+    DOCUMENT_SUMMARY_FILE # Added
 )
 
 # --- Environment Testing Functions ---
@@ -527,6 +529,33 @@ def test_list_documents_with_one_doc(document_factory, test_docs_root: Path, val
     assert isinstance(doc_info, DocumentInfo)
     assert doc_info.document_name == doc_name
     assert doc_info.total_chapters == 1  # Because we added one chapter
+    assert doc_info.has_summary is False # Default from factory
+
+def test_list_documents_with_summary_file(document_factory, test_docs_root: Path, validate_test_data):
+    doc_name = document_factory(
+        doc_type="simple",
+        name="doc_with_actual_summary",
+        chapter_count=1,
+        chapters=[("01-intro.md", "# Hello")]
+    )
+    # Manually create a _SUMMARY.md file
+    summary_content = "This is a test summary."
+    summary_file_path = test_docs_root / doc_name / DOCUMENT_SUMMARY_FILE
+    summary_file_path.write_text(summary_content, encoding="utf-8")
+
+    validate_test_data.document_exists(test_docs_root, doc_name)
+    assert summary_file_path.exists()
+
+    docs_list = list_documents()
+    assert len(docs_list) >= 1
+
+    doc_info = next((d for d in docs_list if d.document_name == doc_name), None)
+    assert doc_info is not None, f"Document {doc_name} not found in list_documents output."
+
+    assert isinstance(doc_info, DocumentInfo)
+    assert doc_info.document_name == doc_name
+    assert doc_info.total_chapters == 1
+    assert doc_info.has_summary is True
 
 
 def test_delete_document_success(document_factory, test_docs_root: Path):
@@ -1013,6 +1042,33 @@ def test_read_full_document_success(document_factory, test_docs_root: Path, vali
         full_doc_obj.total_paragraph_count == 2
     )  # "# Chapter 1\nContent of chapter one." is 1 para. "## Chapter 2\nSome more text here." is 1 para.
 
+def test_read_full_document_ignores_summary(document_factory, test_docs_root: Path, validate_test_data):
+    ch1_content = "# Chapter 1\nContent of chapter one."
+    chapters = [("01_ch1.md", ch1_content)]
+    doc_name = document_factory(
+        doc_type="simple",
+        name="doc_ignores_summary",
+        chapters=chapters
+    )
+    # Manually create a _SUMMARY.md file
+    summary_content = "This summary should be ignored by read_full_document."
+    summary_file_path = test_docs_root / doc_name / DOCUMENT_SUMMARY_FILE
+    summary_file_path.write_text(summary_content, encoding="utf-8")
+
+    validate_test_data.document_exists(test_docs_root, doc_name)
+    assert summary_file_path.exists()
+
+    full_doc_obj = read_full_document(document_name=doc_name)
+    assert full_doc_obj is not None
+    assert len(full_doc_obj.chapters) == 1 # Only the actual chapter, not the summary
+    assert full_doc_obj.chapters[0].content == ch1_content
+    assert summary_content not in full_doc_obj.chapters[0].content # Double check
+
+    # Verify that total counts also ignore the summary file
+    stats = get_document_statistics(document_name=doc_name)
+    assert stats is not None
+    assert stats.chapter_count == 1 # Only counts actual chapters
+
 
 def test_read_full_document_empty_doc(document_factory, test_docs_root: Path):
     doc_name = document_factory(doc_type="simple", name="empty_doc_for_full_read", chapter_count=0)
@@ -1266,14 +1322,62 @@ def test_find_text_in_document_no_match(document_factory, test_docs_root: Path, 
     assert len(results) == 0  # Should find no matches
 
 
+# --- Test Document Summary Tool ---
+
+def test_read_document_summary_success(document_factory, test_docs_root: Path, validate_test_data):
+    doc_name = document_factory(doc_type="simple", name="doc_for_summary_read", chapter_count=0)
+    summary_content = "This is the official summary of the document."
+    summary_file = test_docs_root / doc_name / DOCUMENT_SUMMARY_FILE
+    summary_file.write_text(summary_content, encoding="utf-8")
+
+    validate_test_data.document_exists(test_docs_root, doc_name) # Checks doc dir
+    assert summary_file.exists()
+
+    result = read_document_summary(document_name=doc_name)
+    assert result == summary_content
+
+def test_read_document_summary_no_summary_file(document_factory, test_docs_root: Path, validate_test_data):
+    doc_name = document_factory(doc_type="simple", name="doc_no_summary_file", chapter_count=1)
+
+    validate_test_data.document_exists(test_docs_root, doc_name)
+    summary_file = test_docs_root / doc_name / DOCUMENT_SUMMARY_FILE
+    assert not summary_file.exists() # Ensure it really doesn't exist
+
+    result = read_document_summary(document_name=doc_name)
+    assert result is None
+
+def test_read_document_summary_non_existent_document(test_docs_root: Path):
+    result = read_document_summary(document_name="non_existent_doc_for_summary")
+    assert result is None
+
+def test_read_document_summary_empty_summary_file(document_factory, test_docs_root: Path, validate_test_data):
+    doc_name = document_factory(doc_type="simple", name="doc_empty_summary", chapter_count=0)
+    summary_file = test_docs_root / doc_name / DOCUMENT_SUMMARY_FILE
+    summary_file.write_text("", encoding="utf-8") # Empty summary
+
+    validate_test_data.document_exists(test_docs_root, doc_name)
+    assert summary_file.exists()
+
+    result = read_document_summary(document_name=doc_name)
+    assert result == ""
+
+
 # Cleanup function to ensure all test artifacts are removed
 def pytest_sessionfinish(session, exitstatus):
     """Clean up any remaining test artifacts after all tests complete."""
     try:
         # Ensure doc_tool_server path is restored to default
         if hasattr(doc_tool_server, "DOCS_ROOT_PATH"):
-            default_path = Path.cwd() / ".documents_storage"
-            doc_tool_server.DOCS_ROOT_PATH = default_path
+            default_path = Path.cwd() / ".documents_storage" # Default from server
+            # Check if original_server_path was captured, if so restore it
+            # This part might need more robust handling if tests modify DOCS_ROOT_PATH in complex ways
+            # For now, assume it should revert to the standard default if not otherwise managed by fixtures.
+            # The `test_docs_root` fixture in conftest.py should handle restoring its specific changes.
+            current_server_path_obj = getattr(doc_tool_server, "DOCS_ROOT_PATH")
+            if str(current_server_path_obj) != str(default_path) and not str(current_server_path_obj).startswith(tempfile.gettempdir()):
+                 print(f"Finalizing session: Restoring DOCS_ROOT_PATH to {default_path} from {current_server_path_obj}")
+                 doc_tool_server.DOCS_ROOT_PATH = default_path
+
 
     except Exception as e:
         print(f"Warning: Could not fully clean up after tests: {e}")
