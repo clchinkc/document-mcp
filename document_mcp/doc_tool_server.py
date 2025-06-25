@@ -451,25 +451,25 @@ def read_document_summary(document_name: str) -> Optional[str]:
     # Validate document name (optional, but good practice if it can be invalid)
     is_valid_doc, doc_error = _validate_document_name(document_name)
     if not is_valid_doc:
-        logger.warning(f"Invalid document name provided: {doc_error}")
+        print(f"Invalid document name provided: {doc_error}")
         # Depending on desired strictness, could return None or raise error
         return None # For now, let's be lenient if the path check below handles it
 
     doc_path = _get_document_path(document_name)
     if not doc_path.is_dir():
-        logger.error(f"Document '{document_name}' not found at {doc_path}")
+        print(f"Document '{document_name}' not found at {doc_path}")
         return None
 
     summary_file_path = doc_path / DOCUMENT_SUMMARY_FILE
     if not summary_file_path.is_file():
-        logger.error(f"Summary file '{DOCUMENT_SUMMARY_FILE}' not found in document '{document_name}'.")
+        print(f"Summary file '{DOCUMENT_SUMMARY_FILE}' not found in document '{document_name}'.")
         return None
 
     try:
         summary_content = summary_file_path.read_text(encoding="utf-8")
         return summary_content
     except Exception as e:
-        logger.error(f"Error reading summary file for document '{document_name}': {e}")
+        print(f"Error reading summary file for document '{document_name}': {e}")
         return None
 
 
