@@ -10,7 +10,7 @@ This module tests individual functions in isolation with focus on:
 
 import datetime
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock # Added MagicMock
 
 from document_mcp.doc_tool_server import (
     _count_words,
@@ -21,6 +21,10 @@ from document_mcp.doc_tool_server import (
     _is_valid_chapter_filename,
     _read_chapter_content_details,
     _split_into_paragraphs,
+    read_document_summary,
+    list_documents,
+    DocumentInfo,
+    DOCUMENT_SUMMARY_FILE # Import for use in tests
 )
 
 
@@ -114,6 +118,10 @@ class TestHelperFunctions:
     def test_is_valid_chapter_filename_manifest_file(self):
         """Test filename validation rejects manifest file."""
         assert _is_valid_chapter_filename("_manifest.json") is False
+
+    def test_is_valid_chapter_filename_summary_file(self):
+        """Test filename validation rejects summary file."""
+        assert _is_valid_chapter_filename("_SUMMARY.md") is False
 
     def test_is_valid_chapter_filename_empty_string(self):
         """Test filename validation with empty string."""
@@ -228,6 +236,10 @@ class TestFileOrdering:
         text_file.name = "notes.txt"
         text_file.is_file.return_value = True
 
+        summary_file = Mock()
+        summary_file.name = "_SUMMARY.md"
+        summary_file.is_file.return_value = True
+
         manifest_file = Mock()
         manifest_file.name = "_manifest.json"
         manifest_file.is_file.return_value = True
@@ -243,6 +255,7 @@ class TestFileOrdering:
             chapter1,
             text_file,
             manifest_file,
+            summary_file, # Add summary file to the list of items
             directory,
         ]
 
@@ -253,6 +266,29 @@ class TestFileOrdering:
             result = _get_ordered_chapter_files("test_doc")
 
             # Should only include the markdown file
+            assert len(result) == 1
+            assert result[0].name == "01-intro.md"
+
+    @patch("document_mcp.doc_tool_server.DOCS_ROOT_PATH", Path("/test/docs"))
+    def test_get_ordered_chapter_files_filters_summary_file(self):
+        """Test that _SUMMARY.md files are filtered out."""
+        chapter1 = Mock()
+        chapter1.name = "01-intro.md"
+        chapter1.is_file.return_value = True
+
+        summary_file = Mock()
+        summary_file.name = "_SUMMARY.md"
+        summary_file.is_file.return_value = True
+
+        mock_doc_path = Mock()
+        mock_doc_path.is_dir.return_value = True
+        mock_doc_path.iterdir.return_value = [chapter1, summary_file]
+
+        with patch(
+            "document_mcp.doc_tool_server._get_document_path",
+            return_value=mock_doc_path,
+        ):
+            result = _get_ordered_chapter_files("test_doc_with_summary")
             assert len(result) == 1
             assert result[0].name == "01-intro.md"
 
@@ -708,3 +744,177 @@ class TestMCPToolBoundaryConditions:
         )
         assert result.success is False
         # Should fail with chapter not found first, but if chapter existed, would fail with out of bounds
+
+
+class TestReadDocumentSummaryTool:
+    """Test suite for the read_document_summary tool."""
+
+    @patch("document_mcp.doc_tool_server._get_document_path")
+    def test_read_document_summary_success(self, mock_get_document_path):
+        """Test successful reading of a document summary."""
+        mock_doc_path_obj = MagicMock(spec=Path)
+        mock_doc_path_obj.is_dir.return_value = True
+
+        mock_summary_file_path_obj = MagicMock(spec=Path)
+        mock_summary_file_path_obj.is_file.return_value = True
+        # Ensure read_text is a callable mock that returns the value
+        mock_summary_file_path_obj.read_text = MagicMock(return_value="This is a summary.")
+
+        # Configure the __truediv__ method for the document path mock
+        mock_doc_path_obj.__truediv__.return_value = mock_summary_file_path_obj
+
+        mock_get_document_path.return_value = mock_doc_path_obj
+
+        summary_content = read_document_summary("test_doc")
+
+        assert summary_content == "This is a summary."
+        mock_get_document_path.assert_called_once_with("test_doc")
+        mock_doc_path_obj.__truediv__.assert_called_once_with(DOCUMENT_SUMMARY_FILE)
+        mock_summary_file_path_obj.read_text.assert_called_once_with(encoding="utf-8")
+
+    @patch("document_mcp.doc_tool_server._get_document_path")
+    def test_read_document_summary_document_not_found(self, mock_get_document_path):
+        """Test reading summary when document directory doesn't exist."""
+        mock_doc_path_instance = MagicMock(spec=Path)
+        mock_doc_path_instance.is_dir.return_value = False
+        mock_doc_path_instance.__str__.return_value = "/mocked/path/to/nonexistent_doc"
+
+        mock_get_document_path.return_value = mock_doc_path_instance
+
+        with patch("builtins.print") as mock_print:
+            summary_content = read_document_summary("nonexistent_doc")
+            assert summary_content is None
+            called_with_arg = mock_print.call_args[0][0]
+            assert "Document 'nonexistent_doc' not found" in called_with_arg
+            assert str(mock_doc_path_instance) in called_with_arg
+
+    @patch("document_mcp.doc_tool_server._get_document_path")
+    def test_read_document_summary_summary_file_not_found(self, mock_get_document_path):
+        """Test reading summary when _SUMMARY.md file doesn't exist."""
+        mock_doc_path_obj = MagicMock(spec=Path)
+        mock_doc_path_obj.is_dir.return_value = True
+
+        mock_summary_file_path_obj = MagicMock(spec=Path)
+        mock_summary_file_path_obj.is_file.return_value = False # Summary file does not exist
+
+        mock_doc_path_obj.__truediv__.return_value = mock_summary_file_path_obj
+        mock_get_document_path.return_value = mock_doc_path_obj
+
+        with patch("builtins.print") as mock_print:
+            summary_content = read_document_summary("doc_no_summary")
+            assert summary_content is None
+            mock_print.assert_any_call("Summary file '_SUMMARY.md' not found in document 'doc_no_summary'.")
+
+    @patch("document_mcp.doc_tool_server._get_document_path")
+    def test_read_document_summary_read_error(self, mock_get_document_path):
+        """Test handling of read errors when accessing summary file."""
+        mock_doc_path_obj = MagicMock(spec=Path)
+        mock_doc_path_obj.is_dir.return_value = True
+
+        mock_summary_file_path_obj = MagicMock(spec=Path)
+        mock_summary_file_path_obj.is_file.return_value = True
+        # Ensure read_text is a callable mock that raises an exception
+        mock_summary_file_path_obj.read_text = MagicMock(side_effect=Exception("Read permission denied"))
+
+        mock_doc_path_obj.__truediv__.return_value = mock_summary_file_path_obj
+        mock_get_document_path.return_value = mock_doc_path_obj
+
+        with patch("builtins.print") as mock_print:
+            summary_content = read_document_summary("doc_read_error")
+            assert summary_content is None
+            mock_print.assert_any_call("Error reading summary file for document 'doc_read_error': Read permission denied")
+
+    @patch("document_mcp.doc_tool_server._validate_document_name", return_value=(False, "Invalid name"))
+    @patch("builtins.print")
+    def test_read_document_summary_invalid_doc_name(self, mock_print, mock_validate):
+        """Test read_document_summary with an invalid document name."""
+        summary_content = read_document_summary("invalid/docname")
+        assert summary_content is None
+        mock_validate.assert_called_once_with("invalid/docname")
+        mock_print.assert_any_call("Invalid document name provided: Invalid name")
+
+
+class TestListDocumentsTool:
+    """Test suite for the list_documents tool, focusing on has_summary."""
+
+    @patch("document_mcp.doc_tool_server.DOCS_ROOT_PATH")
+    @patch("document_mcp.doc_tool_server._get_ordered_chapter_files", return_value=[]) # Assume no chapters for simplicity
+    @patch("document_mcp.doc_tool_server._get_chapter_metadata", return_value=None)
+    def test_list_documents_with_summary(self, mock_get_meta, mock_get_files, mock_docs_root):
+        """Test list_documents correctly identifies a document with a summary."""
+        mock_doc_dir = MagicMock(spec=Path)
+        mock_doc_dir.name = "doc_with_summary"
+        mock_doc_dir.is_dir.return_value = True
+
+        mock_summary_file_path_obj = MagicMock(spec=Path)
+        mock_summary_file_path_obj.is_file.return_value = True # Summary exists
+
+        # Configure mock_doc_dir's __truediv__ to return this summary file path object
+        mock_doc_dir.__truediv__.return_value = mock_summary_file_path_obj
+
+        # Mock stat for last_modified time if no chapters
+        mock_stat_result = Mock()
+        mock_stat_result.st_mtime = 1678886400.0 # Example timestamp
+        mock_doc_dir.stat.return_value = mock_stat_result
+
+
+        mock_docs_root.exists.return_value = True
+        mock_docs_root.is_dir.return_value = True
+        mock_docs_root.iterdir.return_value = [mock_doc_dir]
+
+
+        result = list_documents()
+        assert len(result) == 1
+        doc_info = result[0]
+        assert isinstance(doc_info, DocumentInfo)
+        assert doc_info.document_name == "doc_with_summary"
+        assert doc_info.has_summary is True
+        mock_doc_dir.__truediv__.assert_called_once_with(DOCUMENT_SUMMARY_FILE)
+
+
+    @patch("document_mcp.doc_tool_server.DOCS_ROOT_PATH")
+    @patch("document_mcp.doc_tool_server._get_ordered_chapter_files", return_value=[])
+    @patch("document_mcp.doc_tool_server._get_chapter_metadata", return_value=None)
+    def test_list_documents_without_summary(self, mock_get_meta, mock_get_files, mock_docs_root):
+        """Test list_documents correctly identifies a document without a summary."""
+        mock_doc_dir = Mock(spec=Path)
+        mock_doc_dir = MagicMock(spec=Path)
+        mock_doc_dir.name = "doc_no_summary"
+        mock_doc_dir.is_dir.return_value = True
+
+        mock_summary_file_path_obj = MagicMock(spec=Path)
+        mock_summary_file_path_obj.is_file.return_value = False # Summary does NOT exist
+        mock_doc_dir.__truediv__.return_value = mock_summary_file_path_obj # Corrected to __truediv__
+
+        mock_stat_result = Mock()
+        mock_stat_result.st_mtime = 1678886400.0
+        mock_doc_dir.stat.return_value = mock_stat_result
+
+        mock_docs_root.exists.return_value = True
+        mock_docs_root.is_dir.return_value = True
+        mock_docs_root.iterdir.return_value = [mock_doc_dir]
+
+        result = list_documents()
+        assert len(result) == 1
+        doc_info = result[0]
+        assert isinstance(doc_info, DocumentInfo)
+        assert doc_info.document_name == "doc_no_summary"
+        assert doc_info.has_summary is False # This assertion should now pass
+        mock_doc_dir.__truediv__.assert_called_once_with(DOCUMENT_SUMMARY_FILE) # Corrected to __truediv__
+
+    @patch("document_mcp.doc_tool_server.DOCS_ROOT_PATH")
+    def test_list_documents_empty_root(self, mock_docs_root):
+        """Test list_documents with an empty root directory."""
+        mock_docs_root.exists.return_value = True
+        mock_docs_root.is_dir.return_value = True
+        mock_docs_root.iterdir.return_value = [] # No documents
+
+        result = list_documents()
+        assert result == []
+
+    @patch("document_mcp.doc_tool_server.DOCS_ROOT_PATH")
+    def test_list_documents_root_not_exist(self, mock_docs_root):
+        """Test list_documents when the root directory doesn't exist."""
+        mock_docs_root.exists.return_value = False
+        result = list_documents()
+        assert result == []

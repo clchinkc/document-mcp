@@ -4,7 +4,7 @@ Tests the React Agent's ability to process queries and interact with the Documen
 """
 
 import uuid
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
 
@@ -15,6 +15,10 @@ from tests.shared import (
     validate_package_imports,
     validate_react_agent_imports,
 )
+from tests.shared.environment import TEST_DOCUMENT_ROOT
+from tests.shared.test_data import TestDataRegistry, TestDocumentSpec, create_test_document_from_spec
+from src.agents.react_agent.main import run_react_loop
+import shutil
 
 
 # Mock test_docs_root fixture
@@ -1725,3 +1729,100 @@ async def test_react_agent_comprehensive_workflow(
     assert (
         len(action_types) >= 1
     ), f"Should have used at least one tool, used: {action_types}"
+
+
+# --- Summary Workflow Tests ---
+
+@pytest.fixture(scope="module")
+def test_data_registry():
+    """Provides a TestDataRegistry instance for the module."""
+    return TestDataRegistry()
+
+@pytest.fixture(scope="function")
+def document_with_summary(test_data_registry: TestDataRegistry):
+    """Creates a document with a _SUMMARY.md file and ensures cleanup."""
+    doc_name = "SummaryWorkflowDoc"
+    spec = TestDocumentSpec(name=doc_name)
+    
+    doc_path = TEST_DOCUMENT_ROOT / doc_name
+    if doc_path.exists():
+        shutil.rmtree(doc_path)
+    TEST_DOCUMENT_ROOT.mkdir(exist_ok=True)
+
+    create_test_document_from_spec(TEST_DOCUMENT_ROOT, spec, test_data_registry)
+    
+    summary_path = doc_path / "_SUMMARY.md"
+    summary_path.write_text("This is a test summary for workflow validation.")
+    
+    yield doc_name
+
+    if doc_path.exists():
+        shutil.rmtree(doc_path)
+
+@pytest.fixture
+def mocked_react_agent_infra():
+    """Fixture to patch and mock the infrastructure for the ReAct Agent."""
+    with patch('src.agents.react_agent.main.get_cached_agent') as mock_get_agent, \
+         patch('src.agents.react_agent.main.execute_mcp_tool_directly') as mock_execute_tool, \
+         patch('pydantic_ai.mcp.MCPServerSSE.__aenter__', new_callable=AsyncMock), \
+         patch('pydantic_ai.mcp.MCPServerSSE.__aexit__', new_callable=AsyncMock):
+        
+        mock_agent = MagicMock()
+        mock_agent.run = AsyncMock()
+        mock_get_agent.return_value = mock_agent
+        yield mock_agent, mock_execute_tool
+
+class TestReActAgentSummaryWorkflows:
+    """Tests the two distinct summary workflows for the ReAct Agent."""
+
+    @pytest.mark.asyncio
+    async def test_explicit_content_request_flow(self, mocked_react_agent_infra, document_with_summary):
+        """Verify ReAct Agent reads content directly on explicit user request."""
+        mock_agent, mock_execute_tool = mocked_react_agent_infra
+        doc_name = document_with_summary
+        user_query = f"Show me the content of the first chapter in '{doc_name}'."
+
+        action_step = ReActStep(
+            thought="The user explicitly asked for chapter content. I should read it directly.",
+            action=f'read_chapter_content(document_name="{doc_name}", chapter_name="01-chapter.md")'
+        )
+        final_step = ReActStep(thought="Done.", action=None)
+        
+        mock_agent.run.side_effect = [
+            MagicMock(output=action_step),
+            MagicMock(output=final_step)
+        ]
+        mock_execute_tool.return_value = '{"status": "success", "content": "Chapter one content."}'
+        
+        history = await run_react_loop(user_query)
+
+        assert len(history) > 1
+        first_step = history[0]
+        assert 'read_chapter_content' in first_step['action']
+        assert 'read_document_summary' not in first_step['action']
+
+    @pytest.mark.asyncio
+    async def test_broad_screening_flow(self, mocked_react_agent_infra, document_with_summary):
+        """Verify ReAct Agent reads summary first for broad screening commands."""
+        mock_agent, mock_execute_tool = mocked_react_agent_infra
+        doc_name = document_with_summary
+        user_query = f"Can you refactor the document '{doc_name}' for clarity?"
+
+        summary_step = ReActStep(
+            thought="The user wants to refactor this document. I should read the summary first.",
+            action=f'read_document_summary(document_name="{doc_name}")'
+        )
+        final_step = ReActStep(thought="Okay, I have the summary.", action=None)
+
+        mock_agent.run.side_effect = [
+            MagicMock(output=summary_step),
+            MagicMock(output=final_step)
+        ]
+        mock_execute_tool.return_value = '{"status": "success", "summary": "This is the summary content."}'
+
+        history = await run_react_loop(user_query)
+            
+        assert len(history) > 1
+        first_step = history[0]
+        assert 'read_document_summary' in first_step['action']
+        assert 'read_full_document' not in first_step['action']
