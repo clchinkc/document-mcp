@@ -24,15 +24,12 @@ Before getting started, ensure you have the following:
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# 2. Install the package in development mode
-pip install -e .
+# 2. Install the package with development dependencies
+pip install -e ".[dev]"
 
-# 3. Install dependencies
-pip install -r requirements.txt
+# 3. Set up environment variables (see configuration below)
 
-# 4. Set up environment variables (see configuration below)
-
-# 5. Verify your setup
+# 4. Verify your setup
 python src/agents/simple_agent.py --check-config
 ```
 
@@ -295,8 +292,7 @@ Run through this checklist if you're having issues:
 
 - [ ] ✅ `.env` file exists with valid API key
 - [ ] ✅ Virtual environment activated (`source .venv/bin/activate`)
-- [ ] ✅ Dependencies installed (`pip install -r requirements.txt`)
-- [ ] ✅ Package installed in development mode (`pip install -e .`)
+- [ ] ✅ Package and dependencies installed (`pip install -e ".[dev]"`)
 - [ ] ✅ MCP server running on localhost:3001
 - [ ] ✅ Configuration check passes (`--check-config`)
 
@@ -375,11 +371,8 @@ cd document-mcp
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install development dependencies
-pip install -r requirements.txt
-
-# Install package in development mode
-pip install -e .
+# Install package in editable mode with development dependencies
+pip install -e ".[dev]"
 ```
 
 ### Running Tests
