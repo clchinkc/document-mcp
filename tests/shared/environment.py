@@ -7,7 +7,11 @@ functions used across different test types.
 
 import os
 from typing import List, Optional
+from pathlib import Path
 
+# The root directory for all test-generated documents.
+# This ensures tests run in an isolated directory.
+TEST_DOCUMENT_ROOT = Path("./E2E_TEST_DOCUMENT_ROOT").resolve()
 
 def check_api_keys_available(required_keys: Optional[List[str]] = None) -> bool:
     """

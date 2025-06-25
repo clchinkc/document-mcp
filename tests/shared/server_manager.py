@@ -11,6 +11,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Optional
+import shutil
 
 import requests
 
@@ -191,6 +192,26 @@ class MCPServerManager:
     def get_port(self) -> int:
         """Get the server port."""
         return self.port
+
+    def setup_server_environment(self, clean: bool = False) -> None:
+        """
+        Set up the server test environment.
+
+        Args:
+            clean: If True, clean the test directory before setup
+        """
+        if self.test_docs_root:
+            if clean and self.test_docs_root.exists():
+                shutil.rmtree(self.test_docs_root)
+            self.test_docs_root.mkdir(exist_ok=True)
+
+    def teardown_server_environment(self) -> None:
+        """Tear down the server test environment."""
+        if self.test_docs_root and self.test_docs_root.exists():
+            try:
+                shutil.rmtree(self.test_docs_root)
+            except OSError as e:
+                print(f"Error removing test directory {self.test_docs_root}: {e}")
 
     def __enter__(self):
         """Context manager entry."""
