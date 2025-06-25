@@ -13,6 +13,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from unittest.mock import AsyncMock, Mock, MagicMock
 
 # Import shared testing utilities
 from tests.shared import (
@@ -27,6 +28,7 @@ from tests.shared.test_data import (
     TestDocumentSpec,
     create_test_document_from_spec,
 )
+from tests.shared.mock_factories import create_mock_agent
 
 # Import for direct doc_tool_server manipulation in tests
 try:
@@ -497,3 +499,306 @@ def capture_logs(caplog):
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     return caplog
+
+
+# ================================
+# Pytest-Mock Based Fixtures (Replaces unittest.mock patches)
+# ================================
+
+@pytest.fixture
+def mock_path_operations(mocker):
+    """
+    Centralized fixture for mocking pathlib.Path operations.
+    
+    Returns a namespace object with common path mocking utilities.
+    """
+    class PathMocks:
+        def __init__(self, mocker):
+            self.mocker = mocker
+            
+        def mock_docs_root_path(self, path="/test/docs"):
+            """Mock DOCS_ROOT_PATH with specified path."""
+            # Create a mock Path object that can be configured
+            mock_path_obj = MagicMock(spec=Path)
+            mock_path_obj.exists.return_value = True
+            mock_path_obj.is_dir.return_value = True
+            mock_path_obj.iterdir.return_value = []
+            
+            # Make path division operations return real Path objects
+            base_path = Path(path)
+            mock_path_obj.__truediv__ = lambda self, other: base_path / other
+            
+            # Patch DOCS_ROOT_PATH to use our mock
+            self.mocker.patch(
+                "document_mcp.doc_tool_server.DOCS_ROOT_PATH", 
+                mock_path_obj
+            )
+            
+            # Return the mock object so tests can configure it
+            return mock_path_obj
+            
+        def mock_document_path(self, document_name, path=None):
+            """Mock _get_document_path function."""
+            if path is None:
+                path = Path(f"/test/docs/{document_name}")
+            return self.mocker.patch(
+                "document_mcp.doc_tool_server._get_document_path",
+                return_value=path
+            )
+            
+        def mock_chapter_path(self, document_name, chapter_name, path=None):
+            """Mock _get_chapter_path function."""
+            if path is None:
+                path = Path(f"/test/docs/{document_name}/{chapter_name}")
+            return self.mocker.patch(
+                "document_mcp.doc_tool_server._get_chapter_path",
+                return_value=path
+            )
+            
+        def create_mock_file(self, name, content="", is_file=True, is_dir=False):
+            """Create a mock file/directory object."""
+            mock_file = Mock()
+            mock_file.name = name
+            mock_file.is_file.return_value = is_file
+            mock_file.is_dir.return_value = is_dir
+            if content:
+                mock_file.read_text.return_value = content
+            # Add sorting support for chapter ordering
+            mock_file.__lt__ = lambda self, other: self.name < other.name
+            return mock_file
+            
+    return PathMocks(mocker)
+
+
+@pytest.fixture
+def mock_file_operations(mocker):
+    """
+    Centralized fixture for mocking file I/O operations.
+    
+    Returns utilities for mocking file read/write operations.
+    """
+    class FileMocks:
+        def __init__(self, mocker):
+            self.mocker = mocker
+            
+        def mock_read_text(self, target, content="", side_effect=None):
+            """Mock file read_text method."""
+            if side_effect:
+                return self.mocker.patch.object(target, 'read_text', side_effect=side_effect)
+            return self.mocker.patch.object(target, 'read_text', return_value=content)
+            
+        def mock_write_text(self, target):
+            """Mock file write_text method."""
+            return self.mocker.patch.object(target, 'write_text')
+            
+        def mock_stat(self, target, mtime=1640995200.0):
+            """Mock file stat method."""
+            mock_stat = Mock()
+            mock_stat.st_mtime = mtime
+            return self.mocker.patch.object(target, 'stat', return_value=mock_stat)
+            
+        def mock_print(self):
+            """Mock print function for error message testing."""
+            return self.mocker.patch("builtins.print")
+            
+    return FileMocks(mocker)
+
+
+@pytest.fixture  
+def mock_agent_operations(mocker):
+    """
+    Centralized fixture for mocking AI agent operations.
+    
+    Returns utilities for mocking agent initialization and execution.
+    """
+    class AgentMocks:
+        def __init__(self, mocker):
+            self.mocker = mocker
+            
+        def mock_load_llm_config(self, return_value=None):
+            """Mock load_llm_config function."""
+            if return_value is None:
+                return_value = Mock()
+            # Handle both sync and async versions
+            mock_sync = self.mocker.patch("src.agents.simple_agent.load_llm_config", return_value=return_value)
+            mock_async = self.mocker.patch("src.agents.react_agent.main.load_llm_config", return_value=AsyncMock(return_value=return_value))
+            return mock_sync, mock_async
+            
+        def mock_mcp_server(self, host="localhost", port=3001):
+            """Mock MCP server class and instance."""
+            mock_server_instance = Mock()
+            mock_server_instance.host = host
+            mock_server_instance.port = port
+            mock_server_instance.server_url = f"http://{host}:{port}"
+            mock_server_instance.__aenter__ = AsyncMock(return_value=mock_server_instance)
+            mock_server_instance.__aexit__ = AsyncMock(return_value=False)
+            
+            mock_server_class = self.mocker.patch("src.agents.simple_agent.MCPServerSSE", return_value=mock_server_instance)
+            mock_server_class_react = self.mocker.patch("src.agents.react_agent.main.MCPServerSSE", return_value=mock_server_instance)
+            
+            return mock_server_instance, mock_server_class, mock_server_class_react
+            
+        def mock_agent_class(self, response_data=None):
+            """Mock Agent class with configurable response."""
+            if response_data is None:
+                response_data = {"summary": "Mock response", "details": None, "error_message": None}
+                
+            mock_agent = create_mock_agent(response_data)
+            mock_agent_class = self.mocker.patch("src.agents.simple_agent.Agent", return_value=mock_agent)
+            mock_agent_class_react = self.mocker.patch("src.agents.react_agent.main.get_cached_agent", return_value=mock_agent)
+            
+            return mock_agent, mock_agent_class, mock_agent_class_react
+            
+        def mock_execute_tool(self, return_value='{"success": true}'):
+            """Mock MCP tool execution."""
+            return self.mocker.patch("src.agents.react_agent.main.execute_mcp_tool_directly", return_value=return_value)
+            
+        def setup_agent_test_environment(self, api_type="openai"):
+            """Set up complete agent testing environment."""
+            # Mock agent components
+            mock_agent, mock_agent_class, mock_agent_class_react = self.mock_agent_class()
+            mock_server_instance, mock_server_class, mock_server_class_react = self.mock_mcp_server()
+            mock_sync_llm, mock_async_llm = self.mock_load_llm_config()
+            
+            return {
+                'agent': mock_agent,
+                'agent_class': mock_agent_class,
+                'agent_class_react': mock_agent_class_react,
+                'server_instance': mock_server_instance,
+                'server_class': mock_server_class,
+                'server_class_react': mock_server_class_react,
+                'llm_sync': mock_sync_llm,
+                'llm_async': mock_async_llm
+            }
+            
+    return AgentMocks(mocker)
+
+
+@pytest.fixture
+def mock_environment_operations(mocker, monkeypatch):
+    """
+    Centralized fixture for mocking environment operations.
+    
+    Combines monkeypatch with mocker for environment variable management.
+    """
+    class EnvironmentMocks:
+        def __init__(self, mocker, monkeypatch):
+            self.mocker = mocker
+            self.monkeypatch = monkeypatch
+            
+        def set_api_environment(self, api_type="openai", **custom_vars):
+            """Set up API environment variables using monkeypatch."""
+            env_vars = create_mock_environment(
+                api_key_type=api_type,
+                include_server_config=True,
+                custom_vars=custom_vars
+            )
+            
+            for key, value in env_vars.items():
+                self.monkeypatch.setenv(key, value)
+                
+            return env_vars
+            
+        def mock_os_environ(self, env_vars):
+            """Mock os.environ with specified variables."""
+            return self.mocker.patch.dict("os.environ", env_vars, clear=True)
+            
+    return EnvironmentMocks(mocker, monkeypatch)
+
+
+@pytest.fixture
+def mock_validation_operations(mocker):
+    """
+    Centralized fixture for mocking validation functions.
+    """
+    class ValidationMocks:
+        def __init__(self, mocker):
+            self.mocker = mocker
+            
+        def mock_validate_document_name(self, is_valid=True, error_message=""):
+            """Mock document name validation."""
+            return self.mocker.patch(
+                "document_mcp.doc_tool_server._validate_document_name",
+                return_value=(is_valid, error_message)
+            )
+            
+        def mock_validate_chapter_name(self, is_valid=True, error_message=""):
+            """Mock chapter name validation."""
+            return self.mocker.patch(
+                "document_mcp.doc_tool_server._validate_chapter_name", 
+                return_value=(is_valid, error_message)
+            )
+            
+    return ValidationMocks(mocker)
+
+
+@pytest.fixture 
+def mock_complete_test_environment(
+    mock_path_operations, 
+    mock_file_operations, 
+    mock_agent_operations, 
+    mock_environment_operations,
+    mock_validation_operations
+):
+    """
+    Comprehensive fixture that provides all mocking utilities in one place.
+    
+    This is a convenience fixture for tests that need multiple mocking capabilities.
+    """
+    class CompleteMockEnvironment:
+        def __init__(self):
+            self.paths = mock_path_operations
+            self.files = mock_file_operations  
+            self.agents = mock_agent_operations
+            self.environment = mock_environment_operations
+            self.validation = mock_validation_operations
+            
+        def setup_basic_document_test(self, doc_name="test_doc", chapters=None):
+            """Set up a basic document testing environment."""
+            if chapters is None:
+                chapters = ["01-intro.md", "02-content.md"]
+                
+            # Mock docs root
+            self.paths.mock_docs_root_path("/test/docs")
+            
+            # Create mock chapters
+            mock_chapters = []
+            for chapter_name in chapters:
+                mock_chapter = self.paths.create_mock_file(
+                    chapter_name, 
+                    content=f"# {chapter_name}\n\nContent for {chapter_name}",
+                    is_file=True
+                )
+                mock_chapters.append(mock_chapter)
+                
+            # Mock document directory
+            mock_doc_path = Mock()
+            mock_doc_path.is_dir.return_value = True
+            mock_doc_path.iterdir.return_value = mock_chapters
+            
+            self.paths.mock_document_path(doc_name, mock_doc_path)
+            
+            return mock_doc_path, mock_chapters
+            
+        def setup_agent_test_environment(self, api_type="openai"):
+            """Set up complete agent testing environment."""
+            # Set environment variables
+            self.environment.set_api_environment(api_type)
+            
+            # Mock agent components
+            mock_agent, mock_agent_class, mock_agent_class_react = self.agents.mock_agent_class()
+            mock_server_instance, mock_server_class, mock_server_class_react = self.agents.mock_mcp_server()
+            mock_sync_llm, mock_async_llm = self.agents.mock_load_llm_config()
+            
+            return {
+                'agent': mock_agent,
+                'agent_class': mock_agent_class,
+                'agent_class_react': mock_agent_class_react,
+                'server_instance': mock_server_instance,
+                'server_class': mock_server_class,
+                'server_class_react': mock_server_class_react,
+                'llm_sync': mock_sync_llm,
+                'llm_async': mock_async_llm
+            }
+            
+    return CompleteMockEnvironment()
