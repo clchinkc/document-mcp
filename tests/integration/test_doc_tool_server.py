@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -44,6 +45,10 @@ from document_mcp.doc_tool_server import (
 # --- Environment Testing Functions ---
 
 
+@pytest.mark.skipif(
+    not (os.environ.get("OPENAI_API_KEY") or os.environ.get("GEMINI_API_KEY")),
+    reason="API keys not found in .env, skipping environment-dependent test",
+)
 def test_environment_setup():
     """Test environment setup and configuration."""
 

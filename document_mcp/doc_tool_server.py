@@ -20,8 +20,17 @@ from .logger_config import (  # Import the configured logger and the decorator
 # --- Configuration ---
 # Each "document" will be a subdirectory within DOCS_ROOT_DIR.
 # Chapters will be .md files within their respective document subdirectory.
-load_dotenv()
-DOCS_ROOT_DIR_NAME = os.environ.get("DOCUMENT_ROOT_DIR", ".documents_storage")
+# Default for production
+_DEFAULT_DOCS_ROOT = ".documents_storage"
+
+# Check if running under pytest. If so, allow override via .env for test isolation.
+# In production, this is not used and the path is fixed.
+if "PYTEST_CURRENT_TEST" in os.environ:
+    load_dotenv()
+    DOCS_ROOT_DIR_NAME = os.environ.get("DOCUMENT_ROOT_DIR", _DEFAULT_DOCS_ROOT)
+else:
+    DOCS_ROOT_DIR_NAME = _DEFAULT_DOCS_ROOT
+
 DOCS_ROOT_PATH = Path(DOCS_ROOT_DIR_NAME)
 DOCS_ROOT_PATH.mkdir(parents=True, exist_ok=True)  # Ensure the root directory exists
 
@@ -1277,9 +1286,6 @@ def main():
     # This print will show the path used by the subprocess
     print(
         f"doc_tool_server.py: Initializing with DOCS_ROOT_PATH = {DOCS_ROOT_PATH.resolve()}"
-    )
-    print(
-        f"doc_tool_server.py: Environment DOCUMENT_ROOT_DIR = {os.environ.get('DOCUMENT_ROOT_DIR')}"
     )
     print(f"Document tool server starting. Tools exposed by '{mcp_server.name}':")
     print(f"Serving tools for root directory: {DOCS_ROOT_PATH.resolve()}")

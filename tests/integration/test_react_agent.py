@@ -7,6 +7,8 @@ import uuid
 from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
+import shutil
+import os
 
 from src.agents.react_agent.main import ReActStep
 from tests.shared import (
@@ -18,7 +20,6 @@ from tests.shared import (
 from tests.shared.environment import TEST_DOCUMENT_ROOT
 from tests.shared.test_data import TestDataRegistry, TestDocumentSpec, create_test_document_from_spec
 from src.agents.react_agent.main import run_react_loop
-import shutil
 
 
 # Mock test_docs_root fixture
@@ -837,6 +838,10 @@ def mock_llm_for_integration():
 # --- Environment Testing Functions ---
 
 
+@pytest.mark.skipif(
+    not (os.environ.get("OPENAI_API_KEY") or os.environ.get("GEMINI_API_KEY")),
+    reason="API keys not found in .env, skipping environment-dependent test",
+)
 def test_react_agent_environment_setup():
     """Test React Agent environment setup and configuration."""
     validate_agent_environment()

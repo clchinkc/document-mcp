@@ -74,12 +74,6 @@ This MCP server treats "documents" as directories containing multiple "chapter" 
     └── 02-results.md
 ```
 
-## Configuration
-
-The server uses the following environment variables:
-
-- `DOCUMENT_ROOT_DIR`: Root directory for storing documents (default: `.documents_storage/`)
-
 ## Running the Server
 
 The server supports both HTTP SSE and stdio transports. HTTP SSE is the default and recommended transport.

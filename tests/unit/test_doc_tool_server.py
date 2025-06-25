@@ -24,7 +24,8 @@ from document_mcp.doc_tool_server import (
     read_document_summary,
     list_documents,
     DocumentInfo,
-    DOCUMENT_SUMMARY_FILE # Import for use in tests
+    DOCUMENT_SUMMARY_FILE,
+    CHAPTER_MANIFEST_FILE,
 )
 
 
@@ -117,11 +118,11 @@ class TestHelperFunctions:
 
     def test_is_valid_chapter_filename_manifest_file(self):
         """Test filename validation rejects manifest file."""
-        assert _is_valid_chapter_filename("_manifest.json") is False
+        assert _is_valid_chapter_filename(CHAPTER_MANIFEST_FILE) is False
 
     def test_is_valid_chapter_filename_summary_file(self):
         """Test filename validation rejects summary file."""
-        assert _is_valid_chapter_filename("_SUMMARY.md") is False
+        assert _is_valid_chapter_filename(DOCUMENT_SUMMARY_FILE) is False
 
     def test_is_valid_chapter_filename_empty_string(self):
         """Test filename validation with empty string."""
