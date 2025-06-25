@@ -1,37 +1,42 @@
-[![codecov](https://codecov.io/gh/YOUR_USERNAME/YOUR_REPOSITORY/graph/badge.svg)](https://codecov.io/gh/YOUR_USERNAME/YOUR_REPOSITORY)
-<!-- TODO: Update the Codecov badge URL above with your actual GitHub username and repository name. You can find the correct snippet on your repository's page on Codecov. -->
+[![codecov](https://codecov.io/gh/clchinkc/document-mcp/graph/badge.svg?token=TEGUTD2DIF)](https://codecov.io/gh/clchinkc/document-mcp)
 # Document MCP
 
 [![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Model Context Protocol (MCP) server and example agent for managing structured Markdown documents.
+A Model Context Protocol (MCP) server and agent implementations for managing structured Markdown documents.
 
 ## 🚀 Quick Start
 
+### Prerequisites Check
+
+Before getting started, ensure you have the following:
+
+1. **Python 3.8+** installed
+2. **API Key** from either OpenAI or Google (for Gemini)
+3. **Virtual Environment** set up
+
+### Step-by-Step Setup
+
 ```bash
-# Create and activate virtual environment
+# 1. Create and activate virtual environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install the package in development mode
-pip install -e .
+# 2. Install the package with development dependencies
+pip install -e ".[dev]"
 
-# Install dependencies
-pip install -r requirements.txt
+# 3. Set up environment variables (see configuration below)
 
-# Set .env file with your API key (see below)
-
-# Start the MCP server in one terminal
-source .venv/bin/activate && python -m document_mcp.doc_tool_server sse --host localhost --port 3001
-
-# Run the example agent (in another terminal, also activate virtual environment)
-source .venv/bin/activate && python example_agent/agent.py
+# 4. Verify your setup
+python src/agents/simple_agent.py --check-config
 ```
 
 ### Environment Configuration
+
 Create a `.env` file with your API key (one of the following):
+
 ```bash
 # For OpenAI (priority 1):
 OPENAI_API_KEY="sk-your-openai-api-key-here"
@@ -45,6 +50,8 @@ GEMINI_MODEL_NAME="gemini-2.5-flash"  # optional
 DOCUMENT_ROOT_DIR=sample_doc/
 ```
 
+### Running the System
+
 ## 📖 What is Document MCP?
 
 Document MCP provides a structured way to manage large documents composed of multiple chapters. Think of it as a file system specifically designed for books, research papers, documentation, or any content that benefits from being split into manageable sections.
@@ -53,7 +60,7 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 - **📁 Document Structure**: Organize content as directories with chapter files
 - **🔧 MCP Integration**: Full HTTP SSE Model Context Protocol support for AI agents
-- **🤖 AI Agent Example**: Ready-to-use Pydantic AI agent with natural language interface
+- **🤖 Dual AI Agents**: Simple single-step agent and advanced ReAct multi-step agent
 - **📊 Analytics**: Built-in statistics and search capabilities
 - **🔄 Version Control Friendly**: Plain Markdown files work great with Git
 
@@ -77,99 +84,171 @@ Document MCP provides a structured way to manage large documents composed of mul
 .
 ├── document_mcp/               # 📦 Main MCP server package
 │   ├── doc_tool_server.py      # MCP server implementation
-│   ├── test_doc_tool_server.py # Test suite for MCP server
 │   ├── __init__.py             # Package initializer
-│   ├── conftest.py             # Pytest configuration for server tests
 │   └── README.md               # Package documentation (PyPI)
-├── example_agent/              # 💡 Usage examples and tutorials
-│   ├── agent.py                # Example Pydantic AI agent
-│   ├── test_agent.py           # Comprehensive test suite for the agent
-│   └── conftest.py             # Pytest configuration for agent tests
+├── src/                        # 💡 Agent implementations
+│   └── agents/
+│       ├── simple_agent.py     # Simple single-step agent
+│       └── react_agent/
+│           └── main.py         # Advanced ReAct multi-step agent
+├── tests/                      # 🧪 Comprehensive test suite
+│   ├── unit/                   # Unit tests
+│   ├── integration/            # Integration tests
+│   └── fixtures/               # Test fixtures and demos
+├── docs/                       # 📚 Documentation
+│   ├── README.md               # Agent architecture guide
+│   └── examples/               # Usage examples
+├── scripts/                    # 🛠️ Development utilities
+│   ├── run_pytest.py           # Pytest test runner
+│   └── quality.py              # Code quality management
 ├── pyproject.toml              # Package configuration
 └── README.md                   # This file (GitHub)
 ```
 
 ## 🤖 Agent Examples and Tutorials
 
-### Getting Started with the Example Agent
+### Agent Architecture Overview
 
-#### Prerequisites
+This project provides two distinct agent implementations for document management using the Model Context Protocol (MCP). Both agents interact with the same document management tools but use different architectural approaches and execution patterns.
 
-1. **Set up virtual environment:**
-   ```bash
-   # Create and activate virtual environment
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   
-   # Install the package in development mode
-   pip install -e .
-   
-   # Install dependencies
-   pip install -r requirements.txt
-   ```
+#### Quick Reference
 
-2. **Set up environment variables:**
-   Create a `.env` file in your project directory. The system automatically detects and uses the first available API key:
-   ```env
-   # === LLM Configuration (choose one) ===
-   # The system will use the first available API key in this priority order:
-   # 1. OpenAI (if OPENAI_API_KEY is set)
-   # 2. Gemini (if GEMINI_API_KEY is set)
-   
-   # Option 1: OpenAI Configuration
-   OPENAI_API_KEY=sk-your-openai-api-key-here
-   OPENAI_MODEL_NAME=gpt-4.1-mini  # Optional: default is gpt-4.1-mini
-   
-   # Option 2: Gemini Configuration  
-   GEMINI_API_KEY=your-google-api-key-here
-   GEMINI_MODEL_NAME=gemini-2.5-flash  # Optional: default is gemini-2.5-flash
-   
-   # === Optional Settings ===
-   # Custom document storage directory
-   DOCUMENT_ROOT_DIR=sample_doc/
-   
-   # Optional: MCP server connection (defaults shown)
-   MCP_SERVER_HOST=localhost
-   MCP_SERVER_PORT=3001
-   ```
+| Feature | Simple Agent | ReAct Agent |
+|---------|-------------|-------------|
+| **Architecture** | Single-step execution | Multi-step reasoning loop with intelligent termination |
+| **Chat History** | No memory between queries | Full history maintained across steps |
+| **Context Retention** | Each query is independent | Builds context from all previous steps |
+| **Best For** | Simple queries, direct operations | Complex multi-step tasks |
+| **Output** | Structured JSON response | Step-by-step execution log |
+| **Error Handling** | Basic timeout handling | Advanced retry & circuit breaker |
+| **Performance** | Fast for simple tasks | Optimized for complex workflows |
+| **Complexity** | Simple, straightforward | Advanced with caching & optimization |
+| **Termination Logic** | N/A (single step) | **Intelligent completion detection**: task completion, step limits, error recovery, timeout management |
+| **Conversational Flow** | **Independent query processing** | **Multi-round conversation support** |
+| **State Management** | **Clean isolation between queries** | **Persistent context with proper cleanup** |
 
-3. **Start the MCP server:**
-   ```bash
-   source .venv/bin/activate && python -m document_mcp.doc_tool_server sse --host localhost --port 3001
-   ```
+### Getting Started with the Agents
 
-4. **Run the example agent:**
-   ```bash
-   # Check your configuration first (optional)
-   source .venv/bin/activate && python example_agent/agent.py --check-config
-   
-   # Run the interactive agent
-   source .venv/bin/activate && python example_agent/agent.py
-   ```
+This project provides two agent implementations with unified command patterns. Choose based on your needs:
 
-### What You'll Learn
+- **Simple Agent** (`src/agents/simple_agent.py`): For straightforward single-step operations
+- **ReAct Agent** (`src/agents/react_agent/main.py`): For complex multi-step workflows with reasoning
 
-The example demonstrates how to:
-- Connect to the Document MCP Server
-- Use Pydantic AI with Google Gemini for natural language processing
-- Translate user requests into appropriate MCP tool calls
-- Provide structured responses about document operations
-- Handle errors gracefully
-- Build extensible AI agents
 
-### Architecture Overview
 
-```
-User Query → Pydantic AI Agent → MCP Client → Document MCP Server → File System
-                ↓
-         Structured Response ← Tool Results ← Tool Execution ← MCP Tools
+### When to Choose Each Agent
+
+**Choose Simple Agent when**:
+- You need simple, predictable single-step operations
+- Each query should be processed independently without previous context
+- Your application requires structured JSON output for parsing
+- You're building integrations that expect specific response formats
+- Performance is critical for simple operations
+- You're prototyping or testing basic functionality
+
+**Choose ReAct Agent when**:
+- You have complex, multi-step workflows
+- You need the agent to remember previous steps and build upon context
+- You need transparency in the reasoning process
+- You're working in production environments requiring robust error handling
+- Your tasks benefit from adaptive problem-solving and cumulative learning
+- You need detailed execution logs for debugging or auditing
+
+### Practical Examples - Step by Step
+
+Once you have both the MCP server and an agent running, try these structured examples:
+
+#### Example 1: Create Your First Document
+```bash
+👤 User: Create a new document called 'Getting Started Guide'
+🤖 Agent: ✅ Successfully created the new document named 'Getting Started Guide'.
 ```
 
-The example uses:
-- **Pydantic AI**: For LLM integration and structured outputs
-- **Flexible LLM Support**: Automatically detects and uses OpenAI or Gemini based on available API keys
-- **MCP Client**: To communicate with the document server
-- **Structured Responses**: Using Pydantic models for consistent output
+#### Example 2: Add Content with Chapters
+```bash
+👤 User: Add a chapter named '01-introduction.md' to 'Getting Started Guide' with content '# Introduction\nWelcome to Document MCP!'
+🤖 Agent: ✅ Chapter '01-introduction.md' created successfully in document 'Getting Started Guide'.
+```
+
+#### Example 3: View Your Documents
+```bash
+👤 User: List all my documents
+🤖 Agent: ✅ Found 1 document: 'Getting Started Guide' with 1 chapter, 4 words total.
+```
+
+#### Example 4: Analyze Document Statistics
+```bash
+👤 User: Get statistics for 'Getting Started Guide'
+🤖 Agent: ✅ Document 'Getting Started Guide' contains 1 chapter, 4 words, and 1 paragraph.
+```
+
+#### Example 5: Read Full Content
+```bash
+👤 User: Read the full document 'Getting Started Guide'
+🤖 Agent: ✅ Retrieved the full content of document 'Getting Started Guide'.
+   Content: # Introduction
+   Welcome to Document MCP!
+```
+
+#### Advanced Examples
+
+**Search and Replace Operations:**
+```bash
+👤 User: Find "Welcome" in document 'Getting Started Guide'
+🤖 Agent: ✅ Found 1 paragraph containing "Welcome" in chapter '01-introduction.md'.
+
+👤 User: Replace "Welcome" with "Hello" in document 'Getting Started Guide'
+🤖 Agent: ✅ Replaced 1 occurrence across 1 chapter in document 'Getting Started Guide'.
+```
+
+**Complex Multi-Step Workflows (ReAct Agent):**
+```bash
+👤 User: Create a research paper structure with an abstract, introduction, methodology, and conclusion
+🤖 ReAct Agent: 
+   Thought: I need to create a document and then add multiple chapters for a research paper structure.
+   Action: create_document with name 'Research Paper'
+   Observation: Document created successfully
+   Thought: Now I need to add the abstract chapter...
+   Action: add_chapter with name '00-abstract.md'...
+   [Continues with step-by-step execution]
+```
+
+#### Try It Now - Interactive Walkthrough
+
+Once you have the MCP server running, you can immediately test all features:
+
+**Quick Configuration Check:**
+```bash
+# Verify your setup is working
+python src/agents/simple_agent.py --check-config
+```
+
+**Test the Complete Workflow:**
+```bash
+# Start with simple operations
+python src/agents/simple_agent.py --query "Create a new document called 'Test Document'"
+python src/agents/simple_agent.py --query "Add a chapter named '01-intro.md' with content 'Hello World!'"
+python src/agents/simple_agent.py --query "List all my documents"
+python src/agents/simple_agent.py --query "Read the full document 'Test Document'"
+
+# Try complex multi-step workflows
+python src/agents/react_agent/main.py --query "Create a book outline with 3 chapters"
+```
+
+**Interactive Mode for Extended Testing:**
+```bash
+# Simple agent for straightforward tasks
+python src/agents/simple_agent.py --interactive
+
+# ReAct agent for complex reasoning
+python src/agents/react_agent/main.py --interactive
+```
+
+This immediate hands-on approach lets you:
+- ✅ Verify your configuration works correctly
+- 🚀 See real responses from both agent types
+- 🧠 Experience the ReAct agent's reasoning process
+- 📋 Build confidence before diving deeper
 
 ### Automatic LLM Detection
 
@@ -178,7 +257,7 @@ The system automatically detects which LLM to use based on your `.env` configura
 1. **OpenAI** (Priority 1): If `OPENAI_API_KEY` is set, uses OpenAI models (default: `gpt-4.1-mini`)
 2. **Gemini** (Priority 2): If `GEMINI_API_KEY` is set, uses Gemini models (default: `gemini-2.5-flash`)
 
-When the agent starts, it will display which model it's using:
+When an agent starts, it will display which model it's using:
 ```
 Using OpenAI model: gpt-4.1-mini
 ```
@@ -187,71 +266,89 @@ or
 Using Gemini model: gemini-2.5-flash
 ```
 
-### Example Interactions
+### Configuration
 
-#### Creating and Managing Documents
+Both agents share the same configuration system and support the same command-line interface:
 
-```
-👤 User: Create a new document called 'My Novel'
-🤖 Agent: Successfully created the new document named 'My Novel'.
+```bash
+# Check configuration (both agents)
+python src/agents/simple_agent.py --check-config
+python src/agents/react_agent/main.py --check-config
 
-👤 User: Add a chapter named '01-prologue.md' to 'My Novel' with content "# Prologue\nIt was a dark and stormy night..."
-🤖 Agent: Chapter '01-prologue.md' created successfully in document 'My Novel'.
+# Single query mode (both agents)
+python src/agents/simple_agent.py --query "list all documents"
+python src/agents/react_agent/main.py --query "create a book with multiple chapters"
 
-👤 User: List all my documents
-🤖 Agent: Found 1 document: 'My Novel' with 1 chapter, 8 words total.
-```
-
-#### Reading and Analyzing Content
-
-```
-👤 User: Read the full document 'My Novel'
-🤖 Agent: Retrieved the full content of document 'My Novel'.
-Details: Complete document with all chapters and their content.
-
-👤 User: Get statistics for 'My Novel'
-🤖 Agent: Document 'My Novel' contains 1 chapter, 8 words, and 1 paragraph.
-
-👤 User: Find "stormy" in document 'My Novel'
-🤖 Agent: Found 1 paragraph containing "stormy" in chapter '01-prologue.md'.
+# Interactive mode (both agents)
+python src/agents/simple_agent.py --interactive
+python src/agents/react_agent/main.py --interactive
 ```
 
-#### Advanced Operations
+## 🔧 Troubleshooting
 
-```
-👤 User: Replace "dark and stormy" with "bright and sunny" in document 'My Novel'
-🤖 Agent: Replaced 1 occurrence across 1 chapter in document 'My Novel'.
+### Setup Verification Checklist
 
-👤 User: Add a new paragraph to chapter '01-prologue.md' in 'My Novel': "The rain poured down relentlessly."
-🤖 Agent: Successfully appended paragraph to chapter '01-prologue.md'.
-```
+Run through this checklist if you're having issues:
+
+- [ ] ✅ `.env` file exists with valid API key
+- [ ] ✅ Virtual environment activated (`source .venv/bin/activate`)
+- [ ] ✅ Package and dependencies installed (`pip install -e ".[dev]"`)
+- [ ] ✅ MCP server running on localhost:3001
+- [ ] ✅ Configuration check passes (`--check-config`)
+
+### Getting Help
+
+If you're still having issues:
+
+1. **Run the configuration check**: `python src/agents/simple_agent.py --check-config`
+2. **Test basic functionality**: `python src/agents/simple_agent.py --query "list documents"`
+3. **Review the test suite**: `python scripts/run_pytest.py`
+4. **Check the documentation**: See the Agent Examples section above for detailed agent architecture
 
 ## 🧪 Testing
 
-Run the test suite to verify everything is working correctly:
+Run the comprehensive test suite to verify everything is working correctly:
 
 ```bash
-# Run all tests
-source .venv/bin/activate && python -m pytest
+# Run all tests with the pytest runner
+source .venv/bin/activate && python scripts/run_pytest.py
 
-# Run specific test suites
-source .venv/bin/activate && python -m pytest document_mcp/     # Test the MCP server
-source .venv/bin/activate && python -m pytest example_agent/    # Test the example agent
+# Run specific test categories
+source .venv/bin/activate && python -m pytest tests/unit/ -v       # Unit tests
+source .venv/bin/activate && python -m pytest tests/integration/ -v # Integration tests
+source .venv/bin/activate && python -m pytest tests/fixtures/ -v    # Fixture tests
 
 # Run with coverage
-source .venv/bin/activate && python -m pytest --cov=document_mcp --cov=example_agent
+source .venv/bin/activate && python -m pytest --cov=document_mcp --cov=src
 ```
 
-The test suite includes:
-- **MCP Server Tests**: Comprehensive testing of all document operations
-- **Agent Tests**: Testing the AI agent integration and responses
-- **Error Handling**: Testing edge cases and error conditions
-- **Data Consistency**: Ensuring document integrity across operations
+The test suite uses a three-tier testing strategy:
+
+**1. Unit Tests** (Mock everything - fast, reliable)
+- 188 tests across 7 files with comprehensive component testing
+- Individual component testing with all dependencies mocked
+- Uses shared testing infrastructure for consistency
+
+**2. Integration Tests** (Real MCP server + Mocked AI)  
+- 81+ tests across 3 files with real MCP server communication
+- Tests MCP tool execution and server communication
+- **Multi-round conversation tests** for both Simple and React agents validating:
+  - State management across conversation rounds
+  - Error recovery and handling between rounds
+  - Resource cleanup and isolation
+  - Complex multi-step workflows
+  - Conversation context preservation
+- Deterministic tests without AI API dependencies
+
+**3. E2E Tests** (Real MCP server + Real AI)
+- 8 tests across 2 files for complete system validation
+- Complete system validation with real AI models
+- Runs in CI/CD with configured API keys
 
 ### Agent Features
 
 #### Natural Language Processing
-The agent understands various ways to express document operations:
+The agents understand various ways to express document operations:
 - "Create a document" / "Make a new book" / "Start a project called..."
 - "Add a chapter" / "Create a new section" / "Write a chapter named..."
 - "Read the document" / "Show me the content" / "What's in my book?"
@@ -274,43 +371,95 @@ cd document-mcp
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install development dependencies
-pip install -r requirements.txt
-
-# Install package in development mode
-pip install -e .
+# Install package in editable mode with development dependencies
+pip install -e ".[dev]"
 ```
 
 ### Running Tests
 
 ```bash
-# Test the MCP server
-cd document_mcp
-pytest test_doc_tool_server.py -v
+# Use the pytest runner
+python scripts/run_pytest.py
 
-# Test the example agent
-cd ../example_agent
-pytest test_agent.py -v
-
-# Run all tests
-cd ..
-python run_tests.py
+# Or run pytest directly
+python -m pytest tests/ -v
 ```
 
-#### Agent Test Coverage
+### Code Quality Management
 
-The agent test suite covers:
-- Document creation and management
-- Chapter operations (create, read, update, delete)
-- Content reading and writing
-- Search and analysis features
-- Error handling scenarios
-- Agent response formatting
-- Natural language understanding
+This project maintains high code quality standards through automated tools and scripts. The quality system is managed through a dedicated script:
+
+```bash
+# Quick quality check (linting and type checking only)
+python scripts/quality.py check
+
+# Apply automatic fixes and format code
+python scripts/quality.py fix        # Remove unused imports, fix issues
+python scripts/quality.py format     # Black formatting + isort
+
+# Run specific quality tools
+python scripts/quality.py lint       # flake8 linting
+python scripts/quality.py typecheck  # mypy type checking
+
+# Complete quality pass (recommended before commits)
+python scripts/quality.py full       # fix + format + check
+
+# Get detailed output for debugging
+python scripts/quality.py check --verbose
+
+# For running tests, use the dedicated pytest runner
+python scripts/run_pytest.py
+```
+
+#### Quality Tools Configured
+
+- **Black**: Code formatting (88 character line length)
+- **isort**: Import sorting and organization  
+- **flake8**: Linting and style checking (configured in `.flake8`)
+- **mypy**: Static type checking (configured in `pyproject.toml`)
+- **autoflake**: Automated cleanup of unused imports/variables
+- **pytest**: Comprehensive test suite execution
+
+#### Quality Standards
+
+- **Line Length**: 88 characters (Black standard)
+- **Import Style**: Black-compatible with isort
+- **Type Hints**: Encouraged for public APIs
+- **Complexity**: Maximum cyclomatic complexity of 10
+- **Test Coverage**: Comprehensive unit and integration tests (267+ tests)
+
+#### Recommended Workflow
+
+```bash
+# During development
+python scripts/quality.py format    # Format as you code
+
+# Before committing  
+python scripts/quality.py full      # Complete quality pass
+python scripts/run_pytest.py        # Run tests
+
+# Quick check
+python scripts/quality.py check     # Verify quality standards
+```
+
+The quality management system provides comprehensive automation for maintaining code standards throughout development.
+
+#### Test Coverage
+
+The system provides enterprise-grade reliability with **277+ comprehensive tests** covering:
+
+**Core Testing Areas:**
+- **Document Operations**: Full CRUD operations and management
+- **Agent Architecture**: Complete testing of both Simple and React agent implementations  
+- **MCP Protocol**: End-to-end server-client communication validation
+- **Multi-round Conversations**: Complex workflows with state management and error recovery
+- **Performance & Reliability**: Timeout handling, resource management, and cleanup verification
+
+The test suite spans unit, integration, and end-to-end categories, ensuring production-ready reliability with proper resource management and state isolation.
 
 ## 📚 Documentation
 
-- **[Package Documentation](document_mcp/README.md)**: MCP server API reference and installation
+- **[Package Documentation](document_mcp/README.md)**: MCP server API reference
 - **[API Reference](document_mcp/doc_tool_server.py)**: Complete MCP tools documentation
 
 ## 🤝 Contributing
@@ -331,7 +480,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with [Model Context Protocol (MCP)](https://github.com/modelcontextprotocol)
 - Powered by [Pydantic AI](https://github.com/pydantic/pydantic-ai)
-- Example agent uses [Google Gemini](https://ai.google.dev/)
+- Agents support both [OpenAI](https://openai.com/) and [Google Gemini](https://ai.google.dev/)
 
 ---
 
