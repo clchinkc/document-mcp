@@ -27,6 +27,8 @@ DOCS_ROOT_PATH.mkdir(parents=True, exist_ok=True)  # Ensure the root directory e
 
 # Manifest file name to store chapter order and metadata (optional, for future explicit ordering)
 CHAPTER_MANIFEST_FILE = "_manifest.json"
+# Summary file name
+DOCUMENT_SUMMARY_FILE = "_SUMMARY.md"
 
 # Validation constants
 MAX_DOCUMENT_NAME_LENGTH = 100
@@ -147,6 +149,7 @@ class DocumentInfo(BaseModel):
         datetime.datetime
     )  # Could be latest of any chapter or document folder itself
     chapters: List[ChapterMetadata]  # Ordered list of chapter metadata
+    has_summary: bool = False
 
 
 class ParagraphDetail(BaseModel):
@@ -202,10 +205,18 @@ def _get_chapter_path(document_name: str, chapter_filename: str) -> Path:
     doc_path = _get_document_path(document_name)
     return doc_path / chapter_filename
 
-
 def _is_valid_chapter_filename(filename: str) -> bool:
-    """Checks if a filename is a valid Markdown file and not a manifest file."""
-    return filename.lower().endswith(".md") and filename != CHAPTER_MANIFEST_FILE
+    """
+    Checks if a filename is a valid Markdown file for a chapter.
+    Excludes manifest and summary files.
+    """
+    if not filename.lower().endswith(".md"):
+        return False
+    if filename == CHAPTER_MANIFEST_FILE:
+        return False
+    if filename == DOCUMENT_SUMMARY_FILE: # Exclude document summary file
+        return False
+    return True
 
 
 def _split_into_paragraphs(text: str) -> List[str]:
@@ -355,6 +366,9 @@ def list_documents() -> List[DocumentInfo]:
                         stat_dir.st_mtime, tz=datetime.timezone.utc
                     )
 
+            summary_file_path = doc_dir / DOCUMENT_SUMMARY_FILE
+            has_summary_file = summary_file_path.is_file()
+
             docs_info.append(
                 DocumentInfo(
                     document_name=document_name,
@@ -370,6 +384,7 @@ def list_documents() -> List[DocumentInfo]:
                         )
                     ),
                     chapters=chapters_metadata_list,
+                    has_summary=has_summary_file,
                 )
             )
     return docs_info
@@ -423,6 +438,39 @@ def read_chapter_content(
         )
         return None
     return _read_chapter_content_details(document_name, chapter_file_path)
+
+
+@mcp_server.tool()
+@log_mcp_call
+def read_document_summary(document_name: str) -> Optional[str]:
+    """
+    Reads the content of the _SUMMARY.md file for a given document.
+    Requires `document_name`.
+    Returns the summary content as a string, or None if the summary file doesn't exist or cannot be read.
+    """
+    # Validate document name (optional, but good practice if it can be invalid)
+    is_valid_doc, doc_error = _validate_document_name(document_name)
+    if not is_valid_doc:
+        print(f"Invalid document name provided: {doc_error}")
+        # Depending on desired strictness, could return None or raise error
+        return None # For now, let's be lenient if the path check below handles it
+
+    doc_path = _get_document_path(document_name)
+    if not doc_path.is_dir():
+        print(f"Document '{document_name}' not found at {doc_path}")
+        return None
+
+    summary_file_path = doc_path / DOCUMENT_SUMMARY_FILE
+    if not summary_file_path.is_file():
+        print(f"Summary file '{DOCUMENT_SUMMARY_FILE}' not found in document '{document_name}'.")
+        return None
+
+    try:
+        summary_content = summary_file_path.read_text(encoding="utf-8")
+        return summary_content
+    except Exception as e:
+        print(f"Error reading summary file for document '{document_name}': {e}")
+        return None
 
 
 @mcp_server.tool()

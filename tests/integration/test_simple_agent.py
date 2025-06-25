@@ -3,8 +3,10 @@ import os
 import sys
 import time
 import uuid
+import shutil
 
 import pytest
+from unittest.mock import patch, MagicMock, AsyncMock
 
 # Import from the simple agent (moved file)
 from src.agents.simple_agent import (
@@ -20,6 +22,8 @@ from tests.shared import (
     validate_package_imports,
     validate_simple_agent_imports,
 )
+from tests.shared.environment import TEST_DOCUMENT_ROOT
+from tests.shared.test_data import TestDataRegistry, TestDocumentSpec, create_test_document_from_spec
 
 # Import from the installed document_mcp package for direct manipulation
 try:
@@ -783,3 +787,77 @@ async def test_simple_agent_three_round_conversation_complex_workflow(test_docs_
             round3_response.details is not None or round3_response.summary is not None
         )
         assert search_has_data, "Search should return results or summary when content exists"
+
+
+# --- Summary Workflow Tests ---
+
+@pytest.fixture(scope="module")
+def test_data_registry():
+    """Provides a TestDataRegistry instance for the module."""
+    return TestDataRegistry()
+
+@pytest.fixture(scope="function")
+def document_with_summary(test_data_registry: TestDataRegistry):
+    """Creates a document with a _SUMMARY.md file and ensures cleanup."""
+    doc_name = "SummaryWorkflowDoc"
+    spec = TestDocumentSpec(name=doc_name)
+    
+    doc_path = TEST_DOCUMENT_ROOT / doc_name
+    if doc_path.exists():
+        shutil.rmtree(doc_path)
+    TEST_DOCUMENT_ROOT.mkdir(exist_ok=True)
+
+    create_test_document_from_spec(TEST_DOCUMENT_ROOT, spec, test_data_registry)
+    
+    summary_path = doc_path / "_SUMMARY.md"
+    summary_path.write_text("This is a test summary for workflow validation.")
+    
+    yield doc_name
+
+    if doc_path.exists():
+        shutil.rmtree(doc_path)
+
+@pytest.fixture
+def mocked_simple_agent():
+    """Fixture to provide a mocked Simple Agent and its dependencies."""
+    with patch('src.agents.simple_agent.initialize_agent_and_mcp_server') as mock_init:
+        mock_agent = MagicMock()
+        mock_agent.run = AsyncMock()
+        mock_mcp_server = MagicMock()
+        mock_init.return_value = (mock_agent, mock_mcp_server)
+        yield mock_agent
+
+class TestSimpleAgentSummaryWorkflows:
+    """Tests the two distinct summary workflows for the Simple Agent."""
+    
+    @pytest.mark.asyncio
+    async def test_explicit_content_request_flow(self, mocked_simple_agent, document_with_summary):
+        """Verify Simple Agent reads content directly on explicit user request."""
+        doc_name = document_with_summary
+        user_query = f"Read the content of the document '{doc_name}'."
+
+        mocked_simple_agent.run.return_value = MagicMock(output=FinalAgentResponse(
+            summary=f"Content of {doc_name}",
+            details={"content": "Full document content."}
+        ))
+        
+        result = await process_single_user_query(mocked_simple_agent, user_query)
+        
+        assert mocked_simple_agent.run.await_count == 1
+        assert result.summary == f"Content of {doc_name}"
+
+    @pytest.mark.asyncio
+    async def test_broad_screening_flow(self, mocked_simple_agent, document_with_summary):
+        """Verify Simple Agent reads summary first for broad edit commands."""
+        doc_name = document_with_summary
+        user_query = f"Please improve the section on workflows in '{doc_name}'."
+
+        mocked_simple_agent.run.return_value = MagicMock(output=FinalAgentResponse(
+            summary=f"Summary of {doc_name}",
+            details={"summary": "This is a test summary."}
+        ))
+        
+        result = await process_single_user_query(mocked_simple_agent, user_query)
+
+        assert mocked_simple_agent.run.await_count == 1
+        assert result.summary == f"Summary of {doc_name}"

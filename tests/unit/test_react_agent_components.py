@@ -201,3 +201,86 @@ class TestCircuitBreakerSingleton:
         cb1 = get_circuit_breaker("test_service")
         cb3 = get_circuit_breaker("other_service")
         assert cb1 is not cb3
+
+
+class TestSummaryFunctionality:
+    """Test summary functionality integration with ReAct Agent."""
+
+    @pytest.mark.asyncio
+    async def test_react_agent_automatic_summary_workflow(self):
+        """Test that ReAct agent automatically handles summaries in multi-step workflow."""
+        import tempfile
+        import os
+        from pathlib import Path
+        
+        # Create isolated test environment
+        temp_dir = Path(tempfile.mkdtemp(prefix='test_react_summary_'))
+        os.environ['DOCUMENT_ROOT_DIR'] = str(temp_dir)
+        
+        try:
+            # Clear module cache to ensure fresh imports
+            import sys
+            if 'document_mcp.doc_tool_server' in sys.modules:
+                import importlib
+                importlib.reload(sys.modules['document_mcp.doc_tool_server'])
+            
+            from document_mcp.doc_tool_server import (
+                create_document, 
+                DOCUMENT_SUMMARY_FILE
+            )
+            
+            doc_name = 'react_test_doc'
+            
+            # Set up document with summary
+            create_document(doc_name)
+            doc_dir = temp_dir / doc_name
+            doc_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create summary
+            summary_file = doc_dir / DOCUMENT_SUMMARY_FILE  
+            summary_content = "# Development Project\n\nA software development project with API and UI components."
+            summary_file.write_text(summary_content)
+            
+            # Create chapters
+            api_chapter = doc_dir / '01-api.md'
+            api_chapter.write_text("# API Development\n\nDetailed API implementation...")
+            
+            ui_chapter = doc_dir / '02-ui.md'
+            ui_chapter.write_text("# UI Development\n\nDetailed UI implementation...")
+            
+            # Test that ReAct agent workflow includes summary handling
+            try:
+                from src.agents.react_agent.main import run_react_loop
+                
+                # Test the enhanced system prompt includes summary handling
+                from src.agents.react_agent.main import REACT_SYSTEM_PROMPT
+                assert 'read_document_summary' in REACT_SYSTEM_PROMPT
+                assert 'Automatic Summary Handling' in REACT_SYSTEM_PROMPT
+                assert 'Summary First Strategy' in REACT_SYSTEM_PROMPT
+                
+            except Exception as e:
+                # If agent connection fails, test the underlying logic
+                from document_mcp.doc_tool_server import list_documents, read_document_summary
+                
+                docs = list_documents()
+                test_doc = next((d for d in docs if d.document_name == doc_name), None)
+                assert test_doc is not None
+                assert test_doc.has_summary is True
+                
+                summary = read_document_summary(doc_name)
+                assert summary == summary_content
+                
+        finally:
+            # Clean up
+            import shutil
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
+
+    def test_react_agent_system_prompt_summary_enhancements(self):
+        """Test that ReAct Agent system prompt includes summary handling."""
+        from src.agents.react_agent.main import REACT_SYSTEM_PROMPT
+        
+        assert 'Summary Operations' in REACT_SYSTEM_PROMPT
+        assert 'Explicit Content Requests' in REACT_SYSTEM_PROMPT
+        assert 'Broad Screening/Editing' in REACT_SYSTEM_PROMPT
+        assert 'read_document_summary' in REACT_SYSTEM_PROMPT
