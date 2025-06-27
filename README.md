@@ -27,7 +27,8 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # 2. Install the package with development dependencies
 pip install -e ".[dev]"
 
-# 3. Set up environment variables (see configuration below)
+# 3. Set up environment variables
+#    Create a `.env` file with your API key according to `.env.example`, and fill in the required values.
 
 # 4. Verify your setup
 python src/agents/simple_agent.py --check-config
@@ -35,20 +36,7 @@ python src/agents/simple_agent.py --check-config
 
 ### Environment Configuration
 
-Create a `.env` file with your API key (one of the following):
-
-```bash
-# For OpenAI (priority 1):
-OPENAI_API_KEY="sk-your-openai-api-key-here"
-OPENAI_MODEL_NAME="gpt-4.1-mini"  # optional
-
-# For Gemini (priority 2):
-GEMINI_API_KEY="your-google-api-key-here"
-GEMINI_MODEL_NAME="gemini-2.5-flash"  # optional
-
-# Optional settings:
-DOCUMENT_ROOT_DIR=sample_doc/
-```
+Create a `.env` file with your API key according to `.env.example`, and fill in the required values.
 
 ### Running the System
 
@@ -384,7 +372,6 @@ python scripts/run_pytest.py
 # Or run pytest directly
 python -m pytest tests/ -v
 ```
-
 ### Code Quality Management
 
 This project maintains high code quality standards through automated tools and scripts. The quality system is managed through a dedicated script:

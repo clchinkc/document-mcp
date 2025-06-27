@@ -17,6 +17,13 @@ from .logger_config import (  # Import the configured logger and the decorator
     log_mcp_call,
 )
 
+# Import metrics functionality for the metrics endpoint
+try:
+    from .metrics_config import get_metrics_export
+    METRICS_AVAILABLE = True
+except ImportError:
+    METRICS_AVAILABLE = False
+
 # --- Configuration ---
 # Each "document" will be a subdirectory within DOCS_ROOT_DIR.
 # Chapters will be .md files within their respective document subdirectory.
@@ -206,7 +213,9 @@ class StatisticsReport(BaseModel):
 
 def _get_document_path(document_name: str) -> Path:
     """Returns the Path object for a given document directory."""
-    return DOCS_ROOT_PATH / document_name
+    # Ensure DOCS_ROOT_PATH is a Path object (defensive programming for tests)
+    root_path = Path(DOCS_ROOT_PATH) if not isinstance(DOCS_ROOT_PATH, Path) else DOCS_ROOT_PATH
+    return root_path / document_name
 
 
 def _get_chapter_path(document_name: str, chapter_filename: str) -> Path:
@@ -337,10 +346,13 @@ def list_documents() -> List[DocumentInfo]:
     Returns a list of objects, each detailing a document's name, chapter count, word counts, and last modified time.
     """
     docs_info = []
-    if not DOCS_ROOT_PATH.exists() or not DOCS_ROOT_PATH.is_dir():
+    # Ensure DOCS_ROOT_PATH is a Path object (defensive programming for tests)
+    root_path = Path(DOCS_ROOT_PATH) if not isinstance(DOCS_ROOT_PATH, Path) else DOCS_ROOT_PATH
+    
+    if not root_path.exists() or not root_path.is_dir():
         return []
 
-    for doc_dir in DOCS_ROOT_PATH.iterdir():
+    for doc_dir in root_path.iterdir():
         if doc_dir.is_dir():  # Each subdirectory is a potential document
             document_name = doc_dir.name
             ordered_chapter_files = _get_ordered_chapter_files(document_name)
@@ -1258,6 +1270,32 @@ async def health_check(request: Request) -> Response:
     return Response(status_code=200)
 
 
+@mcp_server.custom_route("/metrics", methods=["GET"], name="metrics")
+async def metrics_endpoint(request: Request) -> Response:
+    """Prometheus metrics endpoint for monitoring MCP tool usage."""
+    if not METRICS_AVAILABLE:
+        return Response(
+            content="# Metrics not available - prometheus_client not installed\n",
+            status_code=503,
+            media_type="text/plain"
+        )
+    
+    try:
+        metrics_data, content_type = get_metrics_export()
+        return Response(
+            content=metrics_data,
+            status_code=200,
+            media_type=content_type
+        )
+    except Exception as e:
+        error_msg = f"# Error generating metrics: {e}\n"
+        return Response(
+            content=error_msg,
+            status_code=500,
+            media_type="text/plain"
+        )
+
+
 # --- Main Server Execution ---
 def main():
     """Main entry point for the server with argument parsing."""
@@ -1265,9 +1303,9 @@ def main():
     parser.add_argument(
         "transport",
         choices=["sse", "stdio"],
-        default="sse",
+        default="stdio",
         nargs="?",
-        help="Transport type: 'sse' for HTTP Server-Sent Events or 'stdio' for standard I/O (default: sse)",
+        help="Transport type: 'sse' for HTTP Server-Sent Events or 'stdio' for standard I/O (default: stdio)",
     )
     parser.add_argument(
         "--host",
@@ -1289,19 +1327,33 @@ def main():
     )
     print(f"Document tool server starting. Tools exposed by '{mcp_server.name}':")
     print(f"Serving tools for root directory: {DOCS_ROOT_PATH.resolve()}")
-
-    if args.transport == "sse":
-        print(f"MCP server running with HTTP SSE transport on {args.host}:{args.port}")
-        print(f"SSE endpoint: http://{args.host}:{args.port}/sse")
-        # Update server settings before running
-        mcp_server.settings.host = args.host
-        mcp_server.settings.port = args.port
-        mcp_server.run(transport="sse")
+    
+    # Show metrics status
+    if METRICS_AVAILABLE:
+        try:
+            from .metrics_config import METRICS_ENABLED
+            status = "enabled" if METRICS_ENABLED else "disabled"
+            print(f"Metrics: {status}")
+        except ImportError:
+            print("Metrics: available but not configured")
     else:
+        print("Metrics: not available (install prometheus-client)")
+
+    if args.transport == "stdio":
         print(
             "MCP server running with stdio transport. Waiting for client connection..."
         )
         mcp_server.run(transport="stdio")
+    else:
+        print(f"MCP server running with HTTP SSE transport on {args.host}:{args.port}")
+        print(f"SSE endpoint: http://{args.host}:{args.port}/sse")
+        print(f"Health endpoint: http://{args.host}:{args.port}/health")
+        if METRICS_AVAILABLE:
+            print(f"Metrics endpoint: http://{args.host}:{args.port}/metrics")
+        # Update server settings before running
+        mcp_server.settings.host = args.host
+        mcp_server.settings.port = args.port
+        mcp_server.run(transport="sse")
 
 
 if __name__ == "__main__":

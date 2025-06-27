@@ -847,26 +847,31 @@ class TestListDocumentsTool:
         mock_get_files = mocker.patch("document_mcp.doc_tool_server._get_ordered_chapter_files", return_value=[])
         mock_get_meta = mocker.patch("document_mcp.doc_tool_server._get_chapter_metadata", return_value=None)
         
-        mock_doc_dir = MagicMock(spec=Path)
-        mock_doc_dir.name = "doc_with_summary"
-        mock_doc_dir.is_dir.return_value = True
-
-        mock_summary_file_path_obj = MagicMock(spec=Path)
-        mock_summary_file_path_obj.is_file.return_value = True # Summary exists
-
-        # Configure mock_doc_dir's __truediv__ to return this summary file path object
-        mock_doc_dir.__truediv__.return_value = mock_summary_file_path_obj
-
-        # Mock stat for last_modified time if no chapters
-        mock_stat_result = Mock()
-        mock_stat_result.st_mtime = 1678886400.0 # Example timestamp
-        mock_doc_dir.stat.return_value = mock_stat_result
-
-        # Mock the DOCS_ROOT_PATH
-        mock_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
-        mock_docs_root.exists.return_value = True
-        mock_docs_root.is_dir.return_value = True
-        mock_docs_root.iterdir.return_value = [mock_doc_dir]
+        # Mock the actual Path methods at the module level
+        real_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Create a real Path object for the document directory
+        doc_dir_path = real_docs_root / "doc_with_summary"
+        
+        # Mock file system operations
+        mocker.patch.object(Path, 'exists', return_value=True)
+        mocker.patch.object(Path, 'is_dir', return_value=True)
+        
+        # Mock iterdir to return our document directory
+        mock_iterdir = mocker.patch.object(Path, 'iterdir')
+        mock_iterdir.return_value = [doc_dir_path]
+        
+        # Mock is_file for the summary file check
+        def is_file_side_effect(self):
+            # Return True only for the summary file
+            return str(self).endswith(DOCUMENT_SUMMARY_FILE)
+        
+        mocker.patch.object(Path, 'is_file', side_effect=is_file_side_effect, autospec=True)
+        
+        # Mock stat for last modified time
+        mock_stat = Mock()
+        mock_stat.st_mtime = 1678886400.0
+        mocker.patch.object(Path, 'stat', return_value=mock_stat)
 
         result = list_documents()
         assert len(result) == 1
@@ -874,7 +879,6 @@ class TestListDocumentsTool:
         assert isinstance(doc_info, DocumentInfo)
         assert doc_info.document_name == "doc_with_summary"
         assert doc_info.has_summary is True
-        mock_doc_dir.__truediv__.assert_called_once_with(DOCUMENT_SUMMARY_FILE)
 
     def test_list_documents_without_summary(self, mock_path_operations, mocker):
         """Test list_documents correctly identifies a document without a summary."""
@@ -882,23 +886,27 @@ class TestListDocumentsTool:
         mock_get_files = mocker.patch("document_mcp.doc_tool_server._get_ordered_chapter_files", return_value=[])
         mock_get_meta = mocker.patch("document_mcp.doc_tool_server._get_chapter_metadata", return_value=None)
         
-        mock_doc_dir = MagicMock(spec=Path)
-        mock_doc_dir.name = "doc_no_summary"
-        mock_doc_dir.is_dir.return_value = True
-
-        mock_summary_file_path_obj = MagicMock(spec=Path)
-        mock_summary_file_path_obj.is_file.return_value = False # Summary does NOT exist
-        mock_doc_dir.__truediv__.return_value = mock_summary_file_path_obj
-
-        mock_stat_result = Mock()
-        mock_stat_result.st_mtime = 1678886400.0
-        mock_doc_dir.stat.return_value = mock_stat_result
-
-        # Mock the DOCS_ROOT_PATH
-        mock_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
-        mock_docs_root.exists.return_value = True
-        mock_docs_root.is_dir.return_value = True
-        mock_docs_root.iterdir.return_value = [mock_doc_dir]
+        # Mock the actual Path methods at the module level
+        real_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Create a real Path object for the document directory
+        doc_dir_path = real_docs_root / "doc_no_summary"
+        
+        # Mock file system operations
+        mocker.patch.object(Path, 'exists', return_value=True)
+        mocker.patch.object(Path, 'is_dir', return_value=True)
+        
+        # Mock iterdir to return our document directory
+        mock_iterdir = mocker.patch.object(Path, 'iterdir')
+        mock_iterdir.return_value = [doc_dir_path]
+        
+        # Mock is_file to return False for all files (no summary)
+        mocker.patch.object(Path, 'is_file', return_value=False)
+        
+        # Mock stat for last modified time
+        mock_stat = Mock()
+        mock_stat.st_mtime = 1678886400.0
+        mocker.patch.object(Path, 'stat', return_value=mock_stat)
 
         result = list_documents()
         assert len(result) == 1
@@ -906,22 +914,25 @@ class TestListDocumentsTool:
         assert isinstance(doc_info, DocumentInfo)
         assert doc_info.document_name == "doc_no_summary"
         assert doc_info.has_summary is False
-        mock_doc_dir.__truediv__.assert_called_once_with(DOCUMENT_SUMMARY_FILE)
 
-    def test_list_documents_empty_root(self, mock_path_operations):
+    def test_list_documents_empty_root(self, mock_path_operations, mocker):
         """Test list_documents with an empty root directory."""
-        mock_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
-        mock_docs_root.exists.return_value = True
-        mock_docs_root.is_dir.return_value = True
-        mock_docs_root.iterdir.return_value = [] # No documents
+        real_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Mock file system operations
+        mocker.patch.object(Path, 'exists', return_value=True)
+        mocker.patch.object(Path, 'is_dir', return_value=True)
+        mocker.patch.object(Path, 'iterdir', return_value=[])  # No documents
 
         result = list_documents()
         assert result == []
 
-    def test_list_documents_root_not_exist(self, mock_path_operations):
+    def test_list_documents_root_not_exist(self, mock_path_operations, mocker):
         """Test list_documents when the root directory doesn't exist."""
-        mock_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
-        mock_docs_root.exists.return_value = False
+        real_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Mock the exists check to return False
+        mocker.patch.object(Path, 'exists', return_value=False)
         
         result = list_documents()
         assert result == []

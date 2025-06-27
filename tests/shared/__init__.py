@@ -12,6 +12,7 @@ from .assertions import (
     assert_document_info_valid,
     assert_operation_failure,
     assert_operation_success,
+    assert_no_error_in_response,
 )
 from .environment import (
     check_api_keys_available,
@@ -27,7 +28,6 @@ from .mock_factories import (
     create_mock_llm_config,
     create_mock_mcp_server,
 )
-from .server_manager import MCPServerManager
 from .test_data import (
     SAMPLE_CHAPTER_CONTENT,
     SAMPLE_SEARCH_TEXT,
@@ -47,8 +47,6 @@ __all__ = [
     "create_mock_mcp_server",
     "create_mock_llm_config",
     "create_mock_environment",
-    # Server management
-    "MCPServerManager",
     # Test data
     "create_test_document",
     "generate_unique_name",
