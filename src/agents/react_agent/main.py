@@ -21,9 +21,29 @@ from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-from pydantic_ai.mcp import MCPServerSSE
+from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.models.openai import OpenAIModel
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
+from pathlib import Path
+
+# Remove invalid imports
+# from .react_agent import ReactAgent
+# from .react_prompts import REACT_SYSTEM_PROMPT
+
+# Import from simple agent for consistency
+from src.agents.simple_agent import load_llm_config
+
+# Import from the installed document_mcp package for direct manipulation
+try:
+    from document_mcp import doc_tool_server
+except ImportError:
+    # Fallback for development/testing without installed package
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from document_mcp import doc_tool_server
 
 # Suppress verbose HTTP logging
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -490,7 +510,7 @@ User Query: "Create a document named 'Project Alpha' and add a chapter to it cal
 
 **Step 3:**
 {
-    "thought": "I have successfully created the document 'Project Alpha' and added the 'introduction' chapter with basic markdown content. The task is now complete. I can provide the final answer to the user.",
+    "thought": "I have successfully created the document 'Project Alpha' and added the 'introduction' chapter with basic markdown content. The task is now complete.",
     "action": null
 }
 
@@ -755,188 +775,141 @@ async def get_cached_agent(model_type: str, system_prompt: str, mcp_server) -> A
 
 
 async def run_react_loop(user_query: str, max_steps: int = 10) -> List[Dict[str, Any]]:
-    """
-    Run the ReAct loop for the given user query.
+    """Main execution loop for the ReAct agent."""
+    console = Console()
+    history = []
 
-    Args:
-        user_query: The user's request/question
-        max_steps: Maximum number of reasoning steps to attempt
+    console.print(
+        Panel(
+            f"Starting ReAct loop for query: [bold cyan]{user_query}[/bold cyan]\nMaximum steps: {max_steps}",
+            title="ReAct Agent",
+            expand=False,
+        )
+    )
 
-    Returns:
-        List of dictionaries containing the step history
-    """
-    print(f"Starting ReAct loop for query: {user_query}")
-    print(f"Maximum steps: {max_steps}")
-
-    # Use same server URL as simple agent
-    server_host = os.environ.get("MCP_SERVER_HOST", "localhost")
-    server_port = int(os.environ.get("MCP_SERVER_PORT", "3001"))
-    server_url = f"http://{server_host}:{server_port}/sse"
-    print(f"Connecting to MCP server: {server_url}")
-    print("=" * 60)
-
-    # Load LLM configuration
+    # Connect to MCP server via stdio
+    # Use python3 directly to avoid issues with sys.executable in virtual environments
+    server_command = ["python3", "-m", "document_mcp.doc_tool_server", "stdio"]
+    
     try:
-        model = await load_llm_config()
-        model_type = model.__class__.__name__
-    except ValueError as e:
-        print(f"Configuration error: {e}")
-        raise
+        mcp_server = MCPServerStdio(
+            command="python3",
+            args=["-m", "document_mcp.doc_tool_server", "stdio"],
+        )
+    except Exception as e:
+        console.print(f"[red]Failed to create MCP server: {e}[/red]")
+        return [{"step": 1, "error": f"Failed to create MCP server: {e}"}]
 
-    # Create MCP server instance
-    mcp_server = MCPServerSSE(server_url)
+    # Initialize ReAct Agent using the proper Agent class
+    try:
+        react_agent = await get_cached_agent("react", REACT_SYSTEM_PROMPT, mcp_server)
+    except Exception as e:
+        console.print(f"[red]Failed to initialize agent: {e}[/red]")
+        return [{"step": 1, "error": f"Failed to initialize agent: {e}"}]
 
-    # OPTIMIZED: Use cached agent instance
-    agent = await get_cached_agent(model_type, REACT_SYSTEM_PROMPT, mcp_server)
-
-    # OPTIMIZED: Use efficient history context builder
-    history_builder = HistoryContextBuilder()
-    history: List[Dict[str, Any]] = []
+    # Set the document root directory for the server-side logic
+    # This ensures consistency if the agent is run from a different CWD
+    if "DOCUMENT_ROOT_DIR" in os.environ:
+        doc_tool_server.DOCS_ROOT_PATH = os.environ["DOCUMENT_ROOT_DIR"]
 
     try:
-        # Use the correct MCP context manager pattern
+        # Start the MCP server
         async with mcp_server:
-            for step_num in range(1, max_steps + 1):
-                print(f"\nStep {step_num}:")
-
-                # OPTIMIZED: Construct prompt with efficient context building
-                if history:
-                    history_context = history_builder.get_context()
-                    prompt = f"User Query: {user_query}\n\n{history_context}\n\nWhat is your next step?"
-                else:
-                    prompt = f"User Query: {user_query}\n\nWhat is your first step?"
-
-                # Call the LLM to get the next ReAct step
+            # Initialize context and step counter
+            context_builder = HistoryContextBuilder()
+            step = 0
+            
+            # Create initial context with user query
+            current_context = f"User Query: {user_query}\n\nPlease provide your first thought and action."
+            
+            while step < max_steps:
+                step += 1
+                
+                # Add history context if we have previous steps
+                if step > 1:
+                    current_context = f"User Query: {user_query}\n\n{context_builder.get_context()}\n\nPlease provide your next thought and action."
+                
                 try:
-                    result = await agent.run(prompt)
-                    react_step: ReActStep = result.output
-
-                    # Display the thought and action
-                    print(f"Thought: {react_step.thought}")
-
-                    if react_step.action is None:
-                        # Task is complete
-                        print("Action: None (Task Complete)")
-                        print(f"Final Summary: {react_step.thought}")
-
-                        # Add final step to history
-                        final_step = {
-                            "step": step_num,
-                            "thought": react_step.thought,
-                            "action": None,
-                            "observation": "Task completed successfully",
-                        }
-                        history.append(final_step)
-
-                        print("=" * 60)
-                        print(f"ReAct loop completed successfully in {step_num} steps!")
-                        return history
-
-                    # Execute the action
-                    print(f"Action: {react_step.action}")
-
-                    try:
-                        # Parse the action string to extract tool name and arguments
-                        tool_name, kwargs = parse_action_string(react_step.action)
-                        print(f"Executing tool: {tool_name} with args: {kwargs}")
-
-                        # OPTIMIZED: Execute the tool directly through optimized MCP integration
-                        observation = await execute_mcp_tool_directly(
-                            agent, tool_name, kwargs
-                        )
-
-                        print(f"Observation: {observation}")
-
-                        # Add step to history and history builder
-                        step_data = {
-                            "step": step_num,
-                            "thought": react_step.thought,
-                            "action": react_step.action,
-                            "observation": observation,
-                        }
-                        history.append(step_data)
-                        history_builder.add_step(step_data)
-
-                    except ValueError as parse_error:
-                        # Handle action parsing errors
-                        error_msg = f"Invalid action format: {str(parse_error)}"
-                        print(f"Observation: {error_msg}")
-
-                        # Add error step to history
-                        step_data = {
-                            "step": step_num,
-                            "thought": react_step.thought,
-                            "action": react_step.action,
-                            "observation": error_msg,
-                        }
-                        history.append(step_data)
-                        history_builder.add_step(step_data)
-
-                    except Exception as tool_error:
-                        # Handle tool execution errors
-                        error_msg = f"Tool execution failed: {str(tool_error)}"
-                        print(f"Observation: {error_msg}")
-
-                        # Add error step to history
-                        step_data = {
-                            "step": step_num,
-                            "thought": react_step.thought,
-                            "action": react_step.action,
-                            "observation": error_msg,
-                        }
-                        history.append(step_data)
-                        history_builder.add_step(step_data)
-
-                except Exception as llm_error:
-                    error_msg = f"LLM call failed: {str(llm_error)}"
-                    print(f"Error in step {step_num}: {error_msg}")
-
-                    # Add error step to history
-                    history.append(
-                        {
-                            "step": step_num,
-                            "thought": f"Error occurred: {error_msg}",
-                            "action": None,
-                            "observation": error_msg,
-                        }
-                    )
-                    # Break immediately on LLM errors instead of continuing
-                    print("=" * 60)
-                    print(f"ReAct loop terminated due to LLM error in step {step_num}")
-                    return history
-
-            # If we reach here, we've hit the max steps limit
-            print(f"\nMaximum steps ({max_steps}) reached without completion")
-            print("The task could not be completed within the step limit.")
-
-            # Add final step indicating timeout
-            history.append(
-                {
-                    "step": max_steps + 1,
-                    "thought": f"Maximum steps ({max_steps}) reached without task completion",
-                    "action": None,
-                    "observation": f"Task incomplete after {max_steps} steps",
+                    # Run the agent to get the next step
+                    result = await react_agent.run(current_context)
+                    
+                    # Extract the ReActStep from the result
+                    if hasattr(result, 'output'):
+                        react_step = result.output
+                    else:
+                        react_step = result
+                except Exception as e:
+                    console.print(f"[red]Agent execution error: {e}[/red]")
+                    step_data = {
+                        "step": step,
+                        "thought": f"Error occurred during agent execution: {str(e)}",
+                        "action": None,
+                        "observation": f"Error: {str(e)}"
+                    }
+                    history.append(step_data)
+                    break
+                
+                # Prepare step data
+                step_data = {
+                    "step": step,
+                    "thought": react_step.thought,
+                    "action": react_step.action,
+                    "observation": None
                 }
-            )
-
-            return history
+                
+                # If there's an action, execute it
+                if react_step.action and react_step.action.strip():
+                    try:
+                        # Parse and execute the action
+                        tool_name, kwargs = parse_action_string(react_step.action)
+                        observation = await execute_mcp_tool_directly(react_agent, tool_name, kwargs)
+                        step_data["observation"] = observation
+                    except Exception as e:
+                        step_data["observation"] = f"Error executing action: {str(e)}"
+                else:
+                    # No action means the agent has completed the task
+                    step_data["observation"] = "Task completed."
+                    history.append(step_data)
+                    break
+                
+                # Add step to history and context
+                history.append(step_data)
+                context_builder.add_step(step_data)
+                
+                # Display step results
+                console.print(f"[bold]Step {step}:[/bold]")
+                console.print(Panel(f"[yellow]Thought:[/yellow]\n{step_data['thought']}"))
+                if step_data.get("action"):
+                    console.print(
+                        Panel(
+                            f"[cyan]Action:[/cyan]\n{step_data['action']}",
+                            border_style="cyan",
+                        )
+                    )
+                if step_data.get("observation") is not None:
+                    console.print(
+                        Panel(
+                            f"[magenta]Observation:[/magenta]\n{step_data['observation']}",
+                            border_style="magenta",
+                        )
+                    )
+                console.print("-" * 80)
 
     except Exception as e:
-        error_msg = f"ReAct loop failed: {str(e)}"
-        print(f"Critical error: {error_msg}")
+        console.print(Panel(f"[bold red]Error during ReAct loop:[/bold red]\n{e}"))
+        # Add error details to history for inspection
+        if not history:  # Only add error if no history exists yet
+            history.append({"step": 1, "error": str(e)})
 
-        # Add error to history if it's empty
-        if not history:
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"Critical error occurred: {error_msg}",
-                    "action": None,
-                    "observation": error_msg,
-                }
-            )
-
-        raise Exception(error_msg)
+    final_thought = history[-1].get("thought", "No final thought.") if history else "No steps completed."
+    console.print(
+        Panel(
+            f"ReAct loop finished.\n[bold]Final Thought:[/bold] {final_thought}",
+            title="ReAct Agent Complete",
+            border_style="green",
+        )
+    )
+    return history
 
 
 # --- Main Function and CLI ---

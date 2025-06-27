@@ -55,6 +55,11 @@ pip install document-mcp
 python -m document_mcp.doc_tool_server sse --host localhost --port 3001
 ```
 
+When running, the server exposes several key endpoints:
+- **SSE**: `http://localhost:3001/sse`
+- **Health**: `http://localhost:3001/health`
+- **Metrics**: `http://localhost:3001/metrics`
+
 ## Overview
 
 This MCP server treats "documents" as directories containing multiple "chapter" files (Markdown .md files). Chapters are ordered alphanumerically by their filenames (e.g., `01-introduction.md`, `02-main_content.md`).
@@ -93,6 +98,63 @@ python -m document_mcp.doc_tool_server sse --host 0.0.0.0 --port 8000
 ```bash
 # Run with stdio transport
 python -m document_mcp.doc_tool_server stdio
+```
+
+## Monitoring and Metrics
+
+The server exposes detailed performance and usage metrics via a Prometheus-compatible endpoint. This allows for real-time monitoring of tool calls, execution times, errors, and more.
+
+### Viewing Metrics
+
+- **Endpoint**: `http://localhost:3001/metrics` (when running with default SSE settings)
+- **Installation**: Ensure `prometheus-client` is installed. It is included with the `[dev]` extras:
+  ```bash
+  pip install "document-mcp[dev]"
+  # or manually
+  pip install "prometheus-client>=0.17.0"
+  ```
+- **Usage**: Simply `curl` the endpoint or point your Prometheus scraper to it.
+
+```bash
+curl http://localhost:3001/metrics
+```
+
+### Key Metrics Collected
+
+- `mcp_tool_calls_total`: A counter for how many times each tool is called, labeled by tool name and status (success/error).
+- `mcp_tool_duration_seconds`: A histogram of tool execution times, allowing for calculation of averages and percentiles.
+- `mcp_tool_errors_total`: A counter for errors, labeled by tool name and error type.
+- `mcp_tool_argument_sizes_bytes`: A histogram of the size of arguments passed to tools.
+
+### Configuration
+
+Metrics are enabled by default. To disable them, set the following environment variable:
+
+```bash
+export MCP_METRICS_ENABLED=false
+```
+
+### Integration with Prometheus & Grafana
+
+To scrape these metrics with Prometheus, add the following to your `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: 'document-mcp'
+    static_configs:
+      - targets: ['localhost:3001']
+```
+
+**Useful Grafana Queries:**
+```promql
+# Tool usage rate (per second, over 5m) by tool
+sum(rate(mcp_tool_calls_total[5m])) by (tool_name)
+
+# P95 response time over 5m by tool
+histogram_quantile(0.95, sum(rate(mcp_tool_duration_seconds_bucket[5m])) by (le, tool_name))
+
+# Error rate as a percentage of total calls over 5m
+sum(rate(mcp_tool_errors_total[5m])) / sum(rate(mcp_tool_calls_total[5m]))
 ```
 
 ## MCP Tools Reference

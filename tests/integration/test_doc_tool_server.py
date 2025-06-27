@@ -1380,12 +1380,11 @@ def pytest_sessionfinish(session, exitstatus):
             # The `test_docs_root` fixture in conftest.py should handle restoring its specific changes.
             current_server_path_obj = getattr(doc_tool_server, "DOCS_ROOT_PATH")
             if str(current_server_path_obj) != str(default_path) and not str(current_server_path_obj).startswith(tempfile.gettempdir()):
-                 print(f"Finalizing session: Restoring DOCS_ROOT_PATH to {default_path} from {current_server_path_obj}")
-                 doc_tool_server.DOCS_ROOT_PATH = default_path
+                         doc_tool_server.DOCS_ROOT_PATH = default_path
 
 
-    except Exception as e:
-        print(f"Warning: Could not fully clean up after tests: {e}")
+    except Exception:
+        pass  # Ignore cleanup errors
 
 
 # Will be added incrementally (This comment can be removed if all tests are done for this file)
