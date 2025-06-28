@@ -12,7 +12,7 @@ Tests are designed to be strict and ensure proper termination behavior.
 """
 
 import os
-from unittest.mock import AsyncMock, MagicMock, Mock
+# from unittest.mock import AsyncMock, MagicMock, Mock  # Remove this import
 
 import pytest
 
@@ -47,29 +47,29 @@ class TestTerminationLogicIntegration:
         mock_get_cached_agent = mocker.patch("src.agents.react_agent.main.get_cached_agent")
 
         # Setup mocks - make load_llm_config async
-        mock_model = Mock()
-        mock_load_config = AsyncMock(return_value=mock_model)
+        mock_model = mocker.Mock()
+        mock_load_config = mocker.AsyncMock(return_value=mock_model)
 
         # Mock the MCP server instance with proper async context manager
-        mock_mcp_server_instance = Mock()
-        mock_mcp_server_instance.__aenter__ = AsyncMock(
+        mock_mcp_server_instance = mocker.Mock()
+        mock_mcp_server_instance.__aenter__ = mocker.AsyncMock(
             return_value=mock_mcp_server_instance
         )
-        mock_mcp_server_instance.__aexit__ = AsyncMock(return_value=False)
+        mock_mcp_server_instance.__aexit__ = mocker.AsyncMock(return_value=False)
         mock_mcp_server_class.return_value = mock_mcp_server_instance
 
         # Mock the cached agent
-        mock_agent = AsyncMock()
+        mock_agent = mocker.AsyncMock()
         mock_get_cached_agent.return_value = mock_agent
 
         # Simulate a successful 2-step completion
-        step1_result = MagicMock()
+        step1_result = mocker.MagicMock()
         step1_result.output = ReActStep(
             thought="I need to create a document",
             action='create_document(document_name="Test")',
         )
 
-        step2_result = MagicMock()
+        step2_result = mocker.MagicMock()
         step2_result.output = ReActStep(
             thought="Document created successfully. Task is complete.", action=None
         )
@@ -103,23 +103,23 @@ class TestTerminationLogicIntegration:
         mock_get_cached_agent = mocker.patch("src.agents.react_agent.main.get_cached_agent")
 
         # Setup mocks - make load_llm_config async
-        mock_model = Mock()
-        mock_load_config = AsyncMock(return_value=mock_model)
+        mock_model = mocker.Mock()
+        mock_load_config = mocker.AsyncMock(return_value=mock_model)
 
         # Mock the MCP server instance
-        mock_mcp_server_instance = Mock()
-        mock_mcp_server_instance.__aenter__ = AsyncMock(
+        mock_mcp_server_instance = mocker.Mock()
+        mock_mcp_server_instance.__aenter__ = mocker.AsyncMock(
             return_value=mock_mcp_server_instance
         )
-        mock_mcp_server_instance.__aexit__ = AsyncMock(return_value=False)
+        mock_mcp_server_instance.__aexit__ = mocker.AsyncMock(return_value=False)
         mock_mcp_server_class.return_value = mock_mcp_server_instance
 
         # Mock the cached agent
-        mock_agent = AsyncMock()
+        mock_agent = mocker.AsyncMock()
         mock_get_cached_agent.return_value = mock_agent
 
         # Simulate agent that never terminates (always returns actions)
-        ongoing_step = MagicMock()
+        ongoing_step = mocker.MagicMock()
         ongoing_step.output = ReActStep(
             thought="Still working on the task", action="list_documents()"
         )
@@ -155,19 +155,19 @@ class TestTerminationLogicIntegration:
         mock_get_cached_agent = mocker.patch("src.agents.react_agent.main.get_cached_agent")
 
         # Setup mocks - make load_llm_config async
-        mock_model = Mock()
-        mock_load_config = AsyncMock(return_value=mock_model)
+        mock_model = mocker.Mock()
+        mock_load_config = mocker.AsyncMock(return_value=mock_model)
 
         # Mock the MCP server instance
-        mock_mcp_server_instance = Mock()
-        mock_mcp_server_instance.__aenter__ = AsyncMock(
+        mock_mcp_server_instance = mocker.Mock()
+        mock_mcp_server_instance.__aenter__ = mocker.AsyncMock(
             return_value=mock_mcp_server_instance
         )
-        mock_mcp_server_instance.__aexit__ = AsyncMock(return_value=False)
+        mock_mcp_server_instance.__aexit__ = mocker.AsyncMock(return_value=False)
         mock_mcp_server_class.return_value = mock_mcp_server_instance
 
         # Mock the cached agent
-        mock_agent = AsyncMock()
+        mock_agent = mocker.AsyncMock()
         mock_get_cached_agent.return_value = mock_agent
 
         # Simulate LLM failure
@@ -191,35 +191,35 @@ class TestTerminationLogicIntegration:
         mock_get_cached_agent = mocker.patch("src.agents.react_agent.main.get_cached_agent")
 
         # Setup mocks - make load_llm_config async
-        mock_model = Mock()
-        mock_load_config = AsyncMock(return_value=mock_model)
+        mock_model = mocker.Mock()
+        mock_load_config = mocker.AsyncMock(return_value=mock_model)
 
         # Mock the MCP server instance
-        mock_mcp_server_instance = Mock()
-        mock_mcp_server_instance.__aenter__ = AsyncMock(
+        mock_mcp_server_instance = mocker.Mock()
+        mock_mcp_server_instance.__aenter__ = mocker.AsyncMock(
             return_value=mock_mcp_server_instance
         )
-        mock_mcp_server_instance.__aexit__ = AsyncMock(return_value=False)
+        mock_mcp_server_instance.__aexit__ = mocker.AsyncMock(return_value=False)
         mock_mcp_server_class.return_value = mock_mcp_server_instance
 
         # Mock the cached agent
-        mock_agent = AsyncMock()
+        mock_agent = mocker.AsyncMock()
         mock_get_cached_agent.return_value = mock_agent
 
         # Simulate agent steps: first with tool error, then successful completion
-        step1_result = MagicMock()
+        step1_result = mocker.MagicMock()
         step1_result.output = ReActStep(
             thought="I'll create a document",
             action='create_document(document_name="Test")',
         )
 
-        step2_result = MagicMock()
+        step2_result = mocker.MagicMock()
         step2_result.output = ReActStep(
             thought="Got an error, let me try a different approach",
             action='list_documents()',
         )
 
-        step3_result = MagicMock()
+        step3_result = mocker.MagicMock()
         step3_result.output = ReActStep(
             thought="Successfully listed documents. Task complete.",
             action=None,
@@ -255,29 +255,29 @@ class TestTerminationLogicIntegration:
         mock_get_cached_agent = mocker.patch("src.agents.react_agent.main.get_cached_agent")
 
         # Setup mocks - make load_llm_config async
-        mock_model = Mock()
-        mock_load_config = AsyncMock(return_value=mock_model)
+        mock_model = mocker.Mock()
+        mock_load_config = mocker.AsyncMock(return_value=mock_model)
 
         # Mock the MCP server instance
-        mock_mcp_server_instance = Mock()
-        mock_mcp_server_instance.__aenter__ = AsyncMock(
+        mock_mcp_server_instance = mocker.Mock()
+        mock_mcp_server_instance.__aenter__ = mocker.AsyncMock(
             return_value=mock_mcp_server_instance
         )
-        mock_mcp_server_instance.__aexit__ = AsyncMock(return_value=False)
+        mock_mcp_server_instance.__aexit__ = mocker.AsyncMock(return_value=False)
         mock_mcp_server_class.return_value = mock_mcp_server_instance
 
         # Mock the cached agent
-        mock_agent = AsyncMock()
+        mock_agent = mocker.AsyncMock()
         mock_get_cached_agent.return_value = mock_agent
 
         # Simulate agent steps: first with invalid action, then valid completion
-        step1_result = MagicMock()
+        step1_result = mocker.MagicMock()
         step1_result.output = ReActStep(
             thought="I'll create a document",
             action="invalid_action_format_without_parentheses",
         )
 
-        step2_result = MagicMock()
+        step2_result = mocker.MagicMock()
         step2_result.output = ReActStep(
             thought="Let me use the correct format", action=None
         )

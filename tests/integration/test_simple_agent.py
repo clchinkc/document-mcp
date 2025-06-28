@@ -7,7 +7,6 @@ import shutil
 from pathlib import Path
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 # Import from the simple agent (moved file)
 from src.agents.simple_agent import (
@@ -157,7 +156,7 @@ async def run_conversation_test(queries: list, timeout: float = 70.0):
     return results
 
 
-async def run_conversation_test_with_retry(queries: list[str], max_retries: int = 2, timeout: float = 70.0):
+async def run_conversation_test_with_retry(queries: list[str], max_retries: int = 1, timeout: float = 45.0):
     """
     Run conversation test with retry logic for CI stability.
     
@@ -201,7 +200,7 @@ async def run_conversation_test_with_retry(queries: list[str], max_retries: int 
         raise Exception("Conversation test failed for unknown reason")
 
 
-async def run_conversation_test_with_cleanup_retry(queries: list[str], cleanup_query: str = None, max_retries: int = 2, timeout: float = 70.0):
+async def run_conversation_test_with_cleanup_retry(queries: list[str], cleanup_query: str = None, max_retries: int = 1, timeout: float = 45.0):
     """
     Run conversation test with retry logic and cleanup between retries for tests that create persistent state.
     
@@ -845,9 +844,9 @@ def document_with_summary(test_data_registry: TestDataRegistry):
 def mocked_simple_agent(mocker):
     """Fixture to provide a mocked Simple Agent and its dependencies."""
     mock_init = mocker.patch('src.agents.simple_agent.initialize_agent_and_mcp_server')
-    mock_agent = MagicMock()
-    mock_agent.run = AsyncMock()
-    mock_mcp_server = MagicMock()
+    mock_agent = mocker.MagicMock()
+    mock_agent.run = mocker.AsyncMock()
+    mock_mcp_server = mocker.MagicMock()
     mock_init.return_value = (mock_agent, mock_mcp_server)
     yield mock_agent
 
@@ -855,12 +854,12 @@ class TestSimpleAgentSummaryWorkflows:
     """Tests the two distinct summary workflows for the Simple Agent."""
     
     @pytest.mark.asyncio
-    async def test_explicit_content_request_flow(self, mocked_simple_agent, document_with_summary):
+    async def test_explicit_content_request_flow(self, mocked_simple_agent, document_with_summary, mocker):
         """Verify Simple Agent reads content directly on explicit user request."""
         doc_name = document_with_summary
         user_query = f"Read the content of the document '{doc_name}'."
 
-        mocked_simple_agent.run.return_value = MagicMock(output=FinalAgentResponse(
+        mocked_simple_agent.run.return_value = mocker.MagicMock(output=FinalAgentResponse(
             summary=f"Content of {doc_name}",
             details={"content": "Full document content."}
         ))
@@ -871,12 +870,12 @@ class TestSimpleAgentSummaryWorkflows:
         assert result.summary == f"Content of {doc_name}"
 
     @pytest.mark.asyncio
-    async def test_broad_screening_flow(self, mocked_simple_agent, document_with_summary):
+    async def test_broad_screening_flow(self, mocked_simple_agent, document_with_summary, mocker):
         """Verify Simple Agent reads summary first for broad edit commands."""
         doc_name = document_with_summary
         user_query = f"Please improve the section on workflows in '{doc_name}'."
 
-        mocked_simple_agent.run.return_value = MagicMock(output=FinalAgentResponse(
+        mocked_simple_agent.run.return_value = mocker.MagicMock(output=FinalAgentResponse(
             summary=f"Summary of {doc_name}",
             details={"summary": "This is a test summary."}
         ))

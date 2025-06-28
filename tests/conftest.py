@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
-from unittest.mock import AsyncMock, Mock, MagicMock
 
 # Import shared testing utilities
 from tests.shared import (
@@ -511,7 +510,7 @@ def mock_path_operations(mocker):
             
         def create_mock_file(self, name, content="", is_file=True, is_dir=False):
             """Create a mock file/directory object."""
-            mock_file = Mock()
+            mock_file = self.mocker.Mock()
             mock_file.name = name
             mock_file.is_file.return_value = is_file
             mock_file.is_dir.return_value = is_dir
@@ -547,7 +546,7 @@ def mock_file_operations(mocker):
             
         def mock_stat(self, target, mtime=1640995200.0):
             """Mock file stat method."""
-            mock_stat = Mock()
+            mock_stat = self.mocker.Mock()
             mock_stat.st_mtime = mtime
             return self.mocker.patch.object(target, 'stat', return_value=mock_stat)
             
@@ -572,7 +571,7 @@ def mock_agent_operations(mocker):
         def mock_load_llm_config(self, return_value=None):
             """Mock load_llm_config function."""
             if return_value is None:
-                return_value = Mock()
+                return_value = self.mocker.Mock()
             # Handle both sync and async versions - use regular mocks to avoid unawaited coroutine warnings
             mock_sync = self.mocker.patch("src.agents.simple_agent.load_llm_config", return_value=return_value)
             mock_async = self.mocker.patch("src.agents.react_agent.main.load_llm_config", return_value=return_value)
@@ -581,7 +580,7 @@ def mock_agent_operations(mocker):
             
         def mock_mcp_server(self, host="localhost", port=3001):
             """Mock MCP server class and instance."""
-            mock_server_instance = Mock()
+            mock_server_instance = self.mocker.Mock()
             mock_server_instance.host = host
             mock_server_instance.port = port
             mock_server_instance.server_url = f"http://{host}:{port}"
@@ -740,7 +739,7 @@ def mock_complete_test_environment(
                 mock_chapters.append(mock_chapter)
                 
             # Mock document directory
-            mock_doc_path = Mock()
+            mock_doc_path = self.mocker.Mock()
             mock_doc_path.is_dir.return_value = True
             mock_doc_path.iterdir.return_value = mock_chapters
             

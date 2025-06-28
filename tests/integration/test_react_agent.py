@@ -4,7 +4,7 @@ Tests the React Agent's ability to process queries and interact with the Documen
 """
 
 import uuid
-from unittest.mock import MagicMock, AsyncMock
+# from unittest.mock import MagicMock, AsyncMock  # Remove this import
 
 import pytest
 import shutil
@@ -744,8 +744,8 @@ def mock_llm_for_integration(mocker):
         async def run(self, prompt, **kwargs):
             """Mock agent run method with realistic responses."""
             # This is a simplified mock - in real tests we'd want more sophisticated logic
-            mock_result = MagicMock()
-            mock_output = MagicMock()
+            mock_result = mocker.MagicMock()
+            mock_output = mocker.MagicMock()
 
             # Simple response logic for demonstration
             if "create" in prompt.lower() and "document" in prompt.lower():
@@ -1703,11 +1703,11 @@ def mocked_react_agent_infra(mocker):
     """Fixture to patch and mock the infrastructure for the ReAct Agent."""
     mock_get_agent = mocker.patch('src.agents.react_agent.main.get_cached_agent')
     mock_execute_tool = mocker.patch('src.agents.react_agent.main.execute_mcp_tool_directly')
-    mocker.patch('pydantic_ai.mcp.MCPServerSSE.__aenter__', new_callable=AsyncMock)
-    mocker.patch('pydantic_ai.mcp.MCPServerSSE.__aexit__', new_callable=AsyncMock)
+    mocker.patch('pydantic_ai.mcp.MCPServerSSE.__aenter__', new_callable=mocker.AsyncMock)
+    mocker.patch('pydantic_ai.mcp.MCPServerSSE.__aexit__', new_callable=mocker.AsyncMock)
     
-    mock_agent = MagicMock()
-    mock_agent.run = AsyncMock()
+    mock_agent = mocker.MagicMock()
+    mock_agent.run = mocker.AsyncMock()
     mock_get_agent.return_value = mock_agent
     yield mock_agent, mock_execute_tool
 
@@ -1715,7 +1715,7 @@ class TestReActAgentSummaryWorkflows:
     """Tests the two distinct summary workflows for the ReAct Agent."""
 
     @pytest.mark.asyncio
-    async def test_explicit_content_request_flow(self, mocked_react_agent_infra, document_with_summary):
+    async def test_explicit_content_request_flow(self, mocked_react_agent_infra, document_with_summary, mocker):
         """Verify ReAct Agent reads content directly on explicit user request."""
         mock_agent, mock_execute_tool = mocked_react_agent_infra
         doc_name = document_with_summary
@@ -1728,8 +1728,8 @@ class TestReActAgentSummaryWorkflows:
         final_step = ReActStep(thought="Done.", action=None)
         
         mock_agent.run.side_effect = [
-            MagicMock(output=action_step),
-            MagicMock(output=final_step)
+            mocker.MagicMock(output=action_step),
+            mocker.MagicMock(output=final_step)
         ]
         mock_execute_tool.return_value = '{"status": "success", "content": "Chapter one content."}'
         
@@ -1741,7 +1741,7 @@ class TestReActAgentSummaryWorkflows:
         assert 'read_document_summary' not in first_step['action']
 
     @pytest.mark.asyncio
-    async def test_broad_screening_flow(self, mocked_react_agent_infra, document_with_summary):
+    async def test_broad_screening_flow(self, mocked_react_agent_infra, document_with_summary, mocker):
         """Verify ReAct Agent reads summary first for broad screening commands."""
         mock_agent, mock_execute_tool = mocked_react_agent_infra
         doc_name = document_with_summary
@@ -1754,8 +1754,8 @@ class TestReActAgentSummaryWorkflows:
         final_step = ReActStep(thought="Okay, I have the summary.", action=None)
 
         mock_agent.run.side_effect = [
-            MagicMock(output=summary_step),
-            MagicMock(output=final_step)
+            mocker.MagicMock(output=summary_step),
+            mocker.MagicMock(output=final_step)
         ]
         mock_execute_tool.return_value = '{"status": "success", "summary": "This is the summary content."}'
 

@@ -10,7 +10,7 @@ This module tests individual functions in isolation with focus on:
 
 import datetime
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+# from unittest.mock import Mock, MagicMock  # Remove this import
 
 from document_mcp.doc_tool_server import (
     _count_words,
@@ -175,11 +175,11 @@ class TestFileOrdering:
         result = _get_ordered_chapter_files("nonexistent_doc")
         assert result == []
 
-    def test_get_ordered_chapter_files_empty_document(self, mock_path_operations):
+    def test_get_ordered_chapter_files_empty_document(self, mock_path_operations, mocker):
         """Test getting chapter files for empty document directory."""
         mock_path_operations.mock_docs_root_path("/test/docs")
         
-        mock_doc_path = Mock()
+        mock_doc_path = mocker.Mock()
         mock_doc_path.is_dir.return_value = True
         mock_doc_path.iterdir.return_value = []
         
@@ -188,28 +188,28 @@ class TestFileOrdering:
         result = _get_ordered_chapter_files("empty_doc")
         assert result == []
 
-    def test_get_ordered_chapter_files_with_valid_chapters(self, mock_path_operations):
+    def test_get_ordered_chapter_files_with_valid_chapters(self, mock_path_operations, mocker):
         """Test getting chapter files with valid markdown files."""
         mock_path_operations.mock_docs_root_path("/test/docs")
         
         # Create mock file objects with proper __lt__ method for sorting
-        chapter1 = Mock()
+        chapter1 = mocker.Mock()
         chapter1.name = "01-intro.md"
         chapter1.is_file.return_value = True
         chapter1.__lt__ = lambda self, other: self.name < other.name
 
-        chapter2 = Mock()
+        chapter2 = mocker.Mock()
         chapter2.name = "02-methods.md"
         chapter2.is_file.return_value = True
         chapter2.__lt__ = lambda self, other: self.name < other.name
 
-        chapter3 = Mock()
+        chapter3 = mocker.Mock()
         chapter3.name = "03-results.md"
         chapter3.is_file.return_value = True
         chapter3.__lt__ = lambda self, other: self.name < other.name
 
         # Mock the document path
-        mock_doc_path = Mock()
+        mock_doc_path = mocker.Mock()
         mock_doc_path.is_dir.return_value = True
         mock_doc_path.iterdir.return_value = [
             chapter3,
@@ -227,33 +227,33 @@ class TestFileOrdering:
         assert result[1].name == "02-methods.md"
         assert result[2].name == "03-results.md"
 
-    def test_get_ordered_chapter_files_filters_non_md_files(self, mock_path_operations):
+    def test_get_ordered_chapter_files_filters_non_md_files(self, mock_path_operations, mocker):
         """Test that non-markdown files are filtered out."""
         mock_path_operations.mock_docs_root_path("/test/docs")
         
         # Create mock file objects
-        chapter1 = Mock()
+        chapter1 = mocker.Mock()
         chapter1.name = "01-intro.md"
         chapter1.is_file.return_value = True
 
-        text_file = Mock()
+        text_file = mocker.Mock()
         text_file.name = "notes.txt"
         text_file.is_file.return_value = True
 
-        summary_file = Mock()
+        summary_file = mocker.Mock()
         summary_file.name = "_SUMMARY.md"
         summary_file.is_file.return_value = True
 
-        manifest_file = Mock()
+        manifest_file = mocker.Mock()
         manifest_file.name = "_manifest.json"
         manifest_file.is_file.return_value = True
 
-        directory = Mock()
+        directory = mocker.Mock()
         directory.name = "images"
         directory.is_file.return_value = False
 
         # Mock the document path
-        mock_doc_path = Mock()
+        mock_doc_path = mocker.Mock()
         mock_doc_path.is_dir.return_value = True
         mock_doc_path.iterdir.return_value = [
             chapter1,
@@ -271,19 +271,19 @@ class TestFileOrdering:
         assert len(result) == 1
         assert result[0].name == "01-intro.md"
 
-    def test_get_ordered_chapter_files_filters_summary_file(self, mock_path_operations):
+    def test_get_ordered_chapter_files_filters_summary_file(self, mock_path_operations, mocker):
         """Test that _SUMMARY.md files are filtered out."""
         mock_path_operations.mock_docs_root_path("/test/docs")
         
-        chapter1 = Mock()
+        chapter1 = mocker.Mock()
         chapter1.name = "01-intro.md"
         chapter1.is_file.return_value = True
 
-        summary_file = Mock()
+        summary_file = mocker.Mock()
         summary_file.name = "_SUMMARY.md"
         summary_file.is_file.return_value = True
 
-        mock_doc_path = Mock()
+        mock_doc_path = mocker.Mock()
         mock_doc_path.is_dir.return_value = True
         mock_doc_path.iterdir.return_value = [chapter1, summary_file]
 
@@ -297,23 +297,23 @@ class TestFileOrdering:
 class TestChapterReading:
     """Test suite for chapter content reading functions."""
 
-    def test_read_chapter_content_details_nonexistent_file(self):
+    def test_read_chapter_content_details_nonexistent_file(self, mocker):
         """Test reading content from non-existent file."""
-        mock_path = Mock()
+        mock_path = mocker.Mock()
         mock_path.is_file.return_value = False
 
         result = _read_chapter_content_details("test_doc", mock_path)
         assert result is None
 
-    def test_read_chapter_content_details_valid_file(self):
+    def test_read_chapter_content_details_valid_file(self, mocker):
         """Test reading content from valid file."""
-        mock_path = Mock()
+        mock_path = mocker.Mock()
         mock_path.is_file.return_value = True
         mock_path.name = "01-intro.md"
         mock_path.read_text.return_value = "# Introduction\n\nThis is the first paragraph.\n\nThis is the second paragraph."
 
         # Mock the stat result
-        mock_stat = Mock()
+        mock_stat = mocker.Mock()
         mock_stat.st_mtime = 1640995200.0  # 2022-01-01 00:00:00 UTC
         mock_path.stat.return_value = mock_stat
 
@@ -332,9 +332,9 @@ class TestChapterReading:
         assert result.paragraph_count == 3  # Title + 2 paragraphs
         assert isinstance(result.last_modified, datetime.datetime)
 
-    def test_read_chapter_content_details_file_read_error(self, mock_file_operations):
+    def test_read_chapter_content_details_file_read_error(self, mock_file_operations, mocker):
         """Test handling file read errors."""
-        mock_path = Mock()
+        mock_path = mocker.Mock()
         mock_path.is_file.return_value = True
         mock_path.name = "corrupted.md"
         mock_path.read_text.side_effect = Exception("File read error")
@@ -347,23 +347,23 @@ class TestChapterReading:
         mock_print.assert_called_once()
         assert "Error reading chapter file" in mock_print.call_args[0][0]
 
-    def test_get_chapter_metadata_nonexistent_file(self):
+    def test_get_chapter_metadata_nonexistent_file(self, mocker):
         """Test getting metadata from non-existent file."""
-        mock_path = Mock()
+        mock_path = mocker.Mock()
         mock_path.is_file.return_value = False
 
         result = _get_chapter_metadata("test_doc", mock_path)
         assert result is None
 
-    def test_get_chapter_metadata_valid_file(self):
+    def test_get_chapter_metadata_valid_file(self, mocker):
         """Test getting metadata from valid file."""
-        mock_path = Mock()
+        mock_path = mocker.Mock()
         mock_path.is_file.return_value = True
         mock_path.name = "02-methods.md"
         mock_path.read_text.return_value = "# Methods\n\nFirst paragraph about methods.\n\nSecond paragraph with details.\n\nThird paragraph conclusion."
 
         # Mock the stat result
-        mock_stat = Mock()
+        mock_stat = mocker.Mock()
         mock_stat.st_mtime = 1640995200.0  # 2022-01-01 00:00:00 UTC
         mock_path.stat.return_value = mock_stat
 
@@ -380,15 +380,15 @@ class TestChapterReading:
         assert result.paragraph_count == 4  # Title + 3 paragraphs
         assert isinstance(result.last_modified, datetime.datetime)
 
-    def test_get_chapter_metadata_empty_file(self):
+    def test_get_chapter_metadata_empty_file(self, mocker):
         """Test getting metadata from empty file."""
-        mock_path = Mock()
+        mock_path = mocker.Mock()
         mock_path.is_file.return_value = True
         mock_path.name = "empty.md"
         mock_path.read_text.return_value = ""
 
         # Mock the stat result
-        mock_stat = Mock()
+        mock_stat = mocker.Mock()
         mock_stat.st_mtime = 1640995200.0
         mock_path.stat.return_value = mock_stat
 
@@ -399,9 +399,9 @@ class TestChapterReading:
         assert result.word_count == 0
         assert result.paragraph_count == 0
 
-    def test_get_chapter_metadata_file_read_error(self, mock_file_operations):
+    def test_get_chapter_metadata_file_read_error(self, mock_file_operations, mocker):
         """Test handling file read errors in metadata extraction."""
-        mock_path = Mock()
+        mock_path = mocker.Mock()
         mock_path.is_file.return_value = True
         mock_path.name = "error.md"
         mock_path.read_text.side_effect = Exception("Permission denied")
@@ -754,14 +754,14 @@ class TestMCPToolBoundaryConditions:
 class TestReadDocumentSummaryTool:
     """Test suite for the read_document_summary tool."""
 
-    def test_read_document_summary_success(self, mock_path_operations, mock_file_operations):
+    def test_read_document_summary_success(self, mock_path_operations, mock_file_operations, mocker):
         """Test successful reading of a document summary."""
         # Create mock document directory with MagicMock to support __truediv__
-        mock_doc_path = MagicMock(spec=Path)
+        mock_doc_path = mocker.MagicMock(spec=Path)
         mock_doc_path.is_dir.return_value = True
         
         # Create mock summary file
-        mock_summary_file = MagicMock(spec=Path)
+        mock_summary_file = mocker.MagicMock(spec=Path)
         mock_summary_file.is_file.return_value = True
         mock_summary_file.read_text.return_value = "This is a summary."
         
@@ -776,9 +776,9 @@ class TestReadDocumentSummaryTool:
         assert summary_content == "This is a summary."
         mock_summary_file.read_text.assert_called_once_with(encoding="utf-8")
 
-    def test_read_document_summary_document_not_found(self, mock_path_operations, mock_file_operations):
+    def test_read_document_summary_document_not_found(self, mock_path_operations, mock_file_operations, mocker):
         """Test reading summary when document directory doesn't exist."""
-        mock_doc_path = MagicMock(spec=Path)
+        mock_doc_path = mocker.MagicMock(spec=Path)
         mock_doc_path.is_dir.return_value = False
         mock_doc_path.__str__.return_value = "/mocked/path/to/nonexistent_doc"
         
@@ -792,14 +792,14 @@ class TestReadDocumentSummaryTool:
         assert "Document 'nonexistent_doc' not found" in called_with_arg
         assert str(mock_doc_path) in called_with_arg
 
-    def test_read_document_summary_summary_file_not_found(self, mock_path_operations, mock_file_operations):
+    def test_read_document_summary_summary_file_not_found(self, mock_path_operations, mock_file_operations, mocker):
         """Test reading summary when _SUMMARY.md file doesn't exist."""
-        mock_doc_path = MagicMock(spec=Path)
+        mock_doc_path = mocker.MagicMock(spec=Path)
         mock_doc_path.is_dir.return_value = True
-
-        mock_summary_file = MagicMock(spec=Path)
+        
+        mock_summary_file = mocker.MagicMock(spec=Path)
         mock_summary_file.is_file.return_value = False  # Summary file does not exist
-
+        
         mock_doc_path.__truediv__.return_value = mock_summary_file
         mock_path_operations.mock_document_path("doc_no_summary", mock_doc_path)
         mock_print = mock_file_operations.mock_print()
@@ -809,15 +809,15 @@ class TestReadDocumentSummaryTool:
         assert summary_content is None
         mock_print.assert_any_call("Summary file '_SUMMARY.md' not found in document 'doc_no_summary'.")
 
-    def test_read_document_summary_read_error(self, mock_path_operations, mock_file_operations):
+    def test_read_document_summary_read_error(self, mock_path_operations, mock_file_operations, mocker):
         """Test handling of read errors when accessing summary file."""
-        mock_doc_path = MagicMock(spec=Path)
+        mock_doc_path = mocker.MagicMock(spec=Path)
         mock_doc_path.is_dir.return_value = True
-
-        mock_summary_file = MagicMock(spec=Path)
+        
+        mock_summary_file = mocker.MagicMock(spec=Path)
         mock_summary_file.is_file.return_value = True
         mock_summary_file.read_text.side_effect = Exception("Read permission denied")
-
+        
         mock_doc_path.__truediv__.return_value = mock_summary_file
         mock_path_operations.mock_document_path("doc_read_error", mock_doc_path)
         mock_print = mock_file_operations.mock_print()
@@ -869,7 +869,7 @@ class TestListDocumentsTool:
         mocker.patch.object(Path, 'is_file', side_effect=is_file_side_effect, autospec=True)
         
         # Mock stat for last modified time
-        mock_stat = Mock()
+        mock_stat = mocker.Mock()
         mock_stat.st_mtime = 1678886400.0
         mocker.patch.object(Path, 'stat', return_value=mock_stat)
 
@@ -904,7 +904,7 @@ class TestListDocumentsTool:
         mocker.patch.object(Path, 'is_file', return_value=False)
         
         # Mock stat for last modified time
-        mock_stat = Mock()
+        mock_stat = mocker.Mock()
         mock_stat.st_mtime = 1678886400.0
         mocker.patch.object(Path, 'stat', return_value=mock_stat)
 

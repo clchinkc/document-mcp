@@ -83,7 +83,19 @@ def log_mcp_call(func):
             # Record successful completion in metrics
             if METRICS_AVAILABLE:
                 try:
-                    record_tool_call_success(func_name, start_time)
+                    # Calculate result size for metrics
+                    result_size = 0
+                    try:
+                        if hasattr(result, '__len__') and not isinstance(result, str):
+                            result_size = len(str(result))
+                        elif isinstance(result, str):
+                            result_size = len(result.encode('utf-8'))
+                        else:
+                            result_size = len(str(result))
+                    except:
+                        result_size = 0
+                    
+                    record_tool_call_success(func_name, start_time, result_size)
                 except Exception as e:
                     mcp_call_logger.warning(f"Metrics success recording failed for {func_name}: {e}")
 

@@ -4,7 +4,7 @@ Test suite for the ReAct execution loop implementation.
 Tests the parse_action_string function and validates loop structure.
 """
 
-from unittest.mock import AsyncMock, Mock, MagicMock
+# from unittest.mock import AsyncMock, Mock, MagicMock  # Remove this import
 
 import pytest
 
@@ -179,33 +179,11 @@ class TestRunReactLoop:
         assert isinstance(history, list)
         assert len(history) > 0, "Should get at least one step"
 
-        # Check for connection errors (common in test environments)
-        if len(history) == 1 and ("connection closed" in str(history[0]).lower() or "error" in history[0]):
-            # Connection failed - verify we got a proper error response
-            assert "error" in history[0] or "connection closed" in str(history[0]).lower()
-            pytest.skip("MCP server connection failed - expected in test environment")
-
-        # If we got multiple steps, verify the structure
-        if len(history) >= 2:
-            # Check first step
-            assert history[0]["step"] == 1
-            assert "thought" in history[0]
-            assert "action" in history[0] or "error" in history[0]
-
-            # Check that each step has required fields
-            for step in history:
-                assert "step" in step
-                # Either has thought+action+observation OR has error
-                if "error" not in step:
-                    assert "thought" in step
-                    # action can be None for final steps
-                    # observation can be None for error steps
-        else:
-            # Single step - should be either successful or error
-            step = history[0]
-            assert "step" in step
-            # Must have either proper structure or error
-            assert ("thought" in step) or ("error" in step)
+        # Enforce no connection errors: history entries must not contain 'error' as a key only
+        assert all(
+            not (isinstance(step, dict) and 'error' in step)
+            for step in history
+        ), f"Encountered connection or execution errors in history: {history}"
 
     @pytest.mark.asyncio
     async def test_max_steps_limit(self, mocker):
@@ -217,40 +195,38 @@ class TestRunReactLoop:
         assert isinstance(history, list)
         assert len(history) > 0, "Should get at least one step"
 
-        # Check for connection errors (common in test environments)
-        if len(history) == 1 and ("connection closed" in str(history[0]).lower() or "error" in history[0]):
-            # Connection failed - verify we got a proper error response
-            assert "error" in history[0] or "connection closed" in str(history[0]).lower()
-            pytest.skip("MCP server connection failed - expected in test environment")
-
-        # If we got multiple steps, test the max_steps behavior
-        # Note: In a real scenario, we might get fewer steps due to early completion
-        # or connection issues, so we test that steps don't exceed max_steps + 1
-        assert len(history) <= 3, f"Should not exceed max_steps (2) + timeout step (1), got {len(history)}"
+        # Enforce no connection errors in history
+        assert all(
+            not (isinstance(step, dict) and 'error' in step)
+            for step in history
+        ), f"Encountered connection or execution errors in history: {history}"
         
         # Check step numbering
         for i, step in enumerate(history):
             assert step["step"] == i + 1, f"Step {i} should have step number {i + 1}"
 
     @pytest.mark.asyncio
-    async def test_error_handling(self, mocker):
-        """Test that the loop gracefully handles LLM configuration errors."""
-        # Mock dependencies to simulate an error - note load_llm_config is async
-        mock_load_config = mocker.patch("src.agents.react_agent.main.load_llm_config", new_callable=AsyncMock)
-        mock_load_config.side_effect = Exception("LLM configuration error")
+    async def test_error_handling(self, mocker, mock_environment_operations, mock_file_operations):
+        """Test that the loop correctly handles and logs errors during agent execution."""
+        mock_environment_operations.set_api_environment(api_type="openai")
+        mock_file_operations.mock_print()
+
+        # Mock get_cached_agent to return an agent that will fail
+        mock_agent_instance = mocker.AsyncMock()
+        mock_agent_instance.run.side_effect = Exception("Agent execution failed")
+
+        mocker.patch(
+            "src.agents.react_agent.main.get_cached_agent",
+            return_value=mock_agent_instance
+        )
+
+        # Mock MCPServer so it doesn't start a real process
+        mock_mcp_server = mocker.patch("src.agents.react_agent.main.MCPServerStdio")
         
-        # Run the loop - it should handle the error gracefully and return error in history
-        history = await run_react_loop("Test error handling", max_steps=5)
-        
-        # Verify we got error history instead of exception
-        assert isinstance(history, list)
-        assert len(history) > 0, "Should get at least one error step"
-        
-        # The actual error might be a connection error instead of LLM config error
-        # due to how the flow works, so let's check for any error
-        error_step = history[0]
-        assert "error" in error_step or any("error" in str(v).lower() for v in error_step.values())
-        assert error_step["step"] == 1
+        history = await run_react_loop("Simulate agent error", max_steps=5)
+
+        assert len(history) == 1
+        assert "Agent execution failed" in history[0]['observation']
 
     @pytest.mark.asyncio
     async def test_history_format_consistency(self, mocker):
@@ -262,20 +238,11 @@ class TestRunReactLoop:
         assert isinstance(history, list)
         assert len(history) > 0, "Should get at least one step"
 
-        # Check for connection errors (common in test environments)
-        if len(history) == 1 and ("connection closed" in str(history[0]).lower() or "error" in history[0]):
-            # Connection failed - verify we got a proper error response
-            assert "error" in history[0] or "connection closed" in str(history[0]).lower()
-            pytest.skip("MCP server connection failed - expected in test environment")
-
-        # Check the structure of history entries
-        for entry in history:
-            assert "step" in entry
-            # Must have either proper structure or error
-            if "error" not in entry:
-                assert "thought" in entry
-                # action can be None for final steps
-                # observation can be None for error steps
+        # Enforce that no unexpected errors exist
+        assert all(
+            not (isinstance(entry, dict) and 'error' in entry)
+            for entry in history
+        ), f"Encountered errors in history entries: {history}"
 
 
 if __name__ == "__main__":
