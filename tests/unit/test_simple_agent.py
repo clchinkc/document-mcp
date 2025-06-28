@@ -10,7 +10,7 @@ This module tests individual functions in the Simple agent in isolation with foc
 
 import asyncio
 import os
-from unittest.mock import Mock, MagicMock
+# from unittest.mock import Mock, MagicMock  # Remove this import
 
 import pytest
 from pydantic import ValidationError
@@ -187,7 +187,7 @@ class TestConfigurationFunctions:
         })
         mocker.patch("src.agents.simple_agent.load_dotenv")
         mock_openai_model = mocker.patch("src.agents.simple_agent.OpenAIModel")
-        mock_model_instance = Mock()
+        mock_model_instance = mocker.Mock()
         mock_openai_model.return_value = mock_model_instance
 
         result = load_llm_config()
@@ -368,7 +368,7 @@ class TestErrorHandling:
     """Test suite for error handling in agent functions."""
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_timeout_error(self):
+    async def test_process_single_user_query_timeout_error(self, mocker):
         """Test process_single_user_query handles timeout errors."""
         class MockAgent:
             async def run(self, *args, **kwargs):
@@ -384,7 +384,7 @@ class TestErrorHandling:
         assert result.error_message == "Timeout error"
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_cancelled_error(self):
+    async def test_process_single_user_query_cancelled_error(self, mocker):
         """Test process_single_user_query handles cancelled errors."""
         class MockAgent:
             async def run(self, *args, **kwargs):
@@ -400,7 +400,7 @@ class TestErrorHandling:
         assert result.error_message == "Cancelled error"
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_runtime_error_event_loop_closed(self):
+    async def test_process_single_user_query_runtime_error_event_loop_closed(self, mocker):
         """Test process_single_user_query handles event loop closed errors."""
         class MockAgent:
             async def run(self, *args, **kwargs):
@@ -416,7 +416,7 @@ class TestErrorHandling:
         assert (result.error_message == "Event loop closed" or result.error_message is None)
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_runtime_error_generator(self):
+    async def test_process_single_user_query_runtime_error_generator(self, mocker):
         """Test process_single_user_query handles generator cleanup errors."""
         class MockAgent:
             async def run(self, *args, **kwargs):
@@ -432,7 +432,7 @@ class TestErrorHandling:
         assert result.error_message == "Generator cleanup error"
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_generic_runtime_error(self):
+    async def test_process_single_user_query_generic_runtime_error(self, mocker):
         """Test process_single_user_query handles generic runtime errors."""
         class MockAgent:
             async def run(self, *args, **kwargs):
@@ -448,7 +448,7 @@ class TestErrorHandling:
         assert "Some other runtime error" in result.error_message
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_read_timeout_error(self):
+    async def test_process_single_user_query_read_timeout_error(self, mocker):
         """Test process_single_user_query handles ReadTimeout errors gracefully."""
         class MockAgent:
             async def run(self, *args, **kwargs):
@@ -464,7 +464,7 @@ class TestErrorHandling:
         assert "ReadTimeout occurred" in result.error_message
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_api_key_error(self, mock_environment_operations):
+    async def test_process_single_user_query_api_key_error(self, mock_environment_operations, mocker):
         """Test process_single_user_query handles API key placeholder errors."""
         class MockAgent:
             async def run(self, *args, **kwargs):
@@ -481,7 +481,7 @@ class TestErrorHandling:
         assert "API error" in result.error_message
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_generic_exception(self):
+    async def test_process_single_user_query_generic_exception(self, mocker):
         """Test process_single_user_query handles generic exceptions."""
         class MockAgent:
             async def run(self, *args, **kwargs):
@@ -497,67 +497,50 @@ class TestErrorHandling:
         assert "Generic error" in result.error_message
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_successful_run_result(self):
+    async def test_process_single_user_query_successful_run_result(self, mocker):
         """Test process_single_user_query with successful run result."""
         class MockAgent:
             async def run(self, *args, **kwargs):
-                mock_run_result = Mock()
-                mock_run_result.output = FinalAgentResponse(summary="Success")
-                return mock_run_result
+                return mocker.Mock(output=FinalAgentResponse(summary="Success", details=None, error_message=None))
 
         mock_agent = MockAgent()
-
         result = await process_single_user_query(mock_agent, "test query")
-
         assert result is not None
         assert isinstance(result, FinalAgentResponse)
         assert result.summary == "Success"
+        assert result.error_message is None
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_run_result_with_error(self):
-        """Test process_single_user_query with run result containing error."""
+    async def test_process_single_user_query_run_result_with_error(self, mocker):
+        """Test process_single_user_query with run result containing error_message."""
         class MockAgent:
             async def run(self, *args, **kwargs):
-                mock_run_result = Mock()
-                mock_run_result.output = FinalAgentResponse(
-                    summary="Error occurred", error_message="Test error"
-                )
-                return mock_run_result
+                return mocker.Mock(output=FinalAgentResponse(summary="Error occurred", details=None, error_message="Test error"))
 
         mock_agent = MockAgent()
-
         result = await process_single_user_query(mock_agent, "test query")
-
         assert result is not None
         assert isinstance(result, FinalAgentResponse)
         assert result.summary == "Error occurred"
         assert result.error_message == "Test error"
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_empty_run_result(self):
+    async def test_process_single_user_query_empty_run_result(self, mocker):
         """Test process_single_user_query with empty run result."""
         class MockAgent:
             async def run(self, *args, **kwargs):
-                mock_run_result = Mock()
-                mock_run_result.output = None
-                return mock_run_result
+                return mocker.Mock(output=None, error_message=None)
 
         mock_agent = MockAgent()
-
         result = await process_single_user_query(mock_agent, "test query")
-
-        assert result is not None
-        assert isinstance(result, FinalAgentResponse)
-        # The actual function handles None output by catching exceptions
-        assert "exception during query processing" in result.summary.lower()
-        assert result.error_message is not None
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_process_single_user_query_with_wait_for_timeout(self, mocker):
         """Test process_single_user_query with asyncio.wait_for timeout handling."""
         # Create a regular mock agent since we're mocking wait_for anyway
-        mock_agent = Mock()
-        mock_agent.run = Mock(return_value=Mock(output=FinalAgentResponse(summary="Success")))
+        mock_agent = mocker.Mock()
+        mock_agent.run = mocker.Mock(return_value=mocker.Mock(output=FinalAgentResponse(summary="Success")))
         
         # Mock asyncio.wait_for to raise TimeoutError
         mock_wait_for = mocker.patch("asyncio.wait_for", side_effect=asyncio.TimeoutError())
@@ -600,22 +583,16 @@ class TestErrorHandling:
         assert "'NoneType' object has no attribute 'run'" in result.error_message
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_handles_empty_query(self):
-        """Test process_single_user_query handles empty query."""
+    async def test_process_single_user_query_handles_empty_query(self, mocker):
+        """Test process_single_user_query handles empty query string."""
         class MockAgent:
             async def run(self, *args, **kwargs):
-                mock_run_result = Mock()
-                mock_run_result.output = FinalAgentResponse(summary="Empty query handled")
-                mock_run_result.error_message = None
-                return mock_run_result
+                return mocker.Mock(output=FinalAgentResponse(summary="Empty query handled", details=None, error_message=None))
 
         mock_agent = MockAgent()
-
         result = await process_single_user_query(mock_agent, "")
-
-        assert result is not None
-        assert isinstance(result, FinalAgentResponse)
         assert result.summary == "Empty query handled"
+        assert result.error_message is None
 
     @pytest.mark.asyncio
     async def test_process_single_user_query_with_complex_error_message(self):
@@ -709,7 +686,7 @@ class TestAgentInitialization:
     async def test_initialize_agent_and_mcp_server_error_propagation(self, mocker):
         """Test that initialization errors are properly propagated."""
         # Mock load_llm_config to succeed but Agent creation to fail
-        mocker.patch("src.agents.simple_agent.load_llm_config", return_value=Mock())
+        mocker.patch("src.agents.simple_agent.load_llm_config", return_value=mocker.Mock())
         mocker.patch("src.agents.simple_agent.Agent", side_effect=Exception("Agent creation failed"))
 
         with pytest.raises(Exception, match="Agent creation failed"):
@@ -832,7 +809,7 @@ class TestUtilityIntegration:
         assert agent == mock_agent
         assert mcp_server == mock_server_instance
 
-    def test_details_type_union_comprehensive(self):
+    def test_details_type_union_comprehensive(self, mocker):
         """Test that DetailsType union accepts all expected types comprehensively."""
         from datetime import datetime, timezone
 

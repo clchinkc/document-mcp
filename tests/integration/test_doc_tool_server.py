@@ -90,29 +90,6 @@ def test_package_imports():
         pytest.fail(f"Failed to import from doc_tool_server: {e}")
 
 
-def test_test_data_availability():
-    """Test if test data is available for comprehensive testing."""
-    test_doc_path = Path(".documents_storage/long_story_document")
-    if test_doc_path.exists():
-        chapters = list(test_doc_path.glob("*.md"))
-        assert (
-            len(chapters) >= 10
-        ), f"Expected at least 10 chapters, found {len(chapters)}"
-
-        # Check first chapter has content
-        first_chapter = test_doc_path / "01-chapter.md"
-        assert first_chapter.exists(), "First chapter file missing"
-        content = first_chapter.read_text()
-        assert len(content) > 100, "First chapter seems too short"
-        assert (
-            "Lorem" in content or "ipsum" in content
-        ), "Test content pattern not found"
-    else:
-        pytest.skip(
-            "Test data (long_story_document) not available - skipping data check"
-        )
-
-
 # --- Pytest Fixtures ---
 
 

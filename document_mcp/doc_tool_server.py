@@ -1275,7 +1275,7 @@ async def metrics_endpoint(request: Request) -> Response:
     """Prometheus metrics endpoint for monitoring MCP tool usage."""
     if not METRICS_AVAILABLE:
         return Response(
-            content="# Metrics not available - prometheus_client not installed\n",
+            content="# Metrics not available - OpenTelemetry not installed\n",
             status_code=503,
             media_type="text/plain"
         )
@@ -1293,6 +1293,32 @@ async def metrics_endpoint(request: Request) -> Response:
             content=error_msg,
             status_code=500,
             media_type="text/plain"
+        )
+
+
+@mcp_server.custom_route("/metrics/summary", methods=["GET"], name="metrics_summary")
+async def metrics_summary_endpoint(request: Request) -> Response:
+    """JSON endpoint providing a summary of current metrics configuration and status."""
+    try:
+        from .metrics_config import get_metrics_summary
+        summary = get_metrics_summary()
+        
+        import json
+        return Response(
+            content=json.dumps(summary, indent=2),
+            status_code=200,
+            media_type="application/json"
+        )
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get metrics summary: {e}",
+            "status": "error"
+        }
+        import json
+        return Response(
+            content=json.dumps(error_response),
+            status_code=500,
+            media_type="application/json"
         )
 
 
