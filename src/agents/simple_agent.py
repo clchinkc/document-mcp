@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
-from pydantic_ai.mcp import MCPServerSSE
+from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.models.openai import OpenAIModel
 
@@ -236,7 +236,7 @@ Follow the user's instructions carefully and to the letter without asking for cl
 
 # --- Agent Setup and Processing Logic ---
 async def initialize_agent_and_mcp_server() -> (
-    tuple[Agent[FinalAgentResponse], MCPServerSSE]
+    tuple[Agent[FinalAgentResponse], MCPServerStdio]
 ):
     """Initializes the Pydantic AI agent and its MCP server configuration."""
     try:
@@ -245,19 +245,30 @@ async def initialize_agent_and_mcp_server() -> (
         print(f"Error loading LLM config: {e}", file=sys.stderr)
         raise
 
-    # Configuration for HTTP SSE server
-    server_host = os.environ.get("MCP_SERVER_HOST", "localhost")
-    server_port = int(os.environ.get("MCP_SERVER_PORT", "3001"))
-    server_url = f"http://{server_host}:{server_port}/sse"
+    # Configuration for stdio transport
+    # Use python3 directly to avoid issues with sys.executable in virtual environments
+    server_command = ["python3", "-m", "document_mcp.doc_tool_server", "stdio"]
+    
+    try:
+        mcp_server = MCPServerStdio(
+            command="python3",
+            args=["-m", "document_mcp.doc_tool_server", "stdio"],
+        )
+    except Exception as e:
+        print(f"Error creating MCP server: {e}", file=sys.stderr)
+        raise RuntimeError("Agent creation failed") from e
 
-    mcp_server = MCPServerSSE(server_url)
-
-    agent: Agent[FinalAgentResponse] = Agent(
-        llm,
-        mcp_servers=[mcp_server],
-        system_prompt=SYSTEM_PROMPT,
-        output_type=FinalAgentResponse,
-    )
+    try:
+        agent: Agent[FinalAgentResponse] = Agent(
+            llm,
+            mcp_servers=[mcp_server],
+            system_prompt=SYSTEM_PROMPT,
+            output_type=FinalAgentResponse,
+        )
+    except Exception as e:
+        print(f"Error creating agent: {e}", file=sys.stderr)
+        raise RuntimeError("Agent creation failed") from e
+        
     return agent, mcp_server
 
 
