@@ -13,11 +13,10 @@ import uuid
 from pathlib import Path
 
 import pytest
-from unittest.mock import AsyncMock, Mock, MagicMock
+from dotenv import load_dotenv
 
 # Import shared testing utilities
 from tests.shared import (
-    MCPServerManager,
     create_mock_environment,
     create_test_document,
     generate_unique_name,
@@ -41,6 +40,15 @@ except ImportError:
 # ================================
 # Pytest Hooks for Environment Management
 # ================================
+
+
+def pytest_sessionstart(session):
+    """
+    Called after the Session object has been created and
+    before performing collection and entering the run test loop.
+    Load environment variables from .env file.
+    """
+    load_dotenv()
 
 
 def pytest_runtest_setup(item):
@@ -70,71 +78,36 @@ def pytest_runtest_teardown(item, nextitem):
 # ================================
 
 
-@pytest.fixture(scope="session")
-def session_server_manager():
+@pytest.fixture
+def test_docs_root():
     """
-    Session-scoped server manager to minimize server startup/shutdown overhead.
+    Create a clean subdirectory for each test and set DOCUMENT_ROOT_DIR.
 
-    This fixture creates a single server instance that is shared across
-    all tests in the session, significantly improving test performance.
+    This fixture provides test isolation by creating a unique temporary
+    directory for each test function.
     """
-    # Create a temporary docs root for the entire test session
-    temp_root = Path(tempfile.mkdtemp(prefix="mcp_test_session_"))
+    # Create a temporary docs root for the test
+    temp_root = Path(tempfile.mkdtemp(prefix="mcp_test_"))
 
-    # Create server manager with session-scoped temp directory
-    manager = MCPServerManager(test_docs_root=temp_root)
-    manager.start_server()
+    # Override doc_tool_server path for this test
+    original_server_path = doc_tool_server.DOCS_ROOT_PATH
+    doc_tool_server.DOCS_ROOT_PATH = temp_root
 
-    yield manager
+    # Set environment variables for the test
+    original_root_dir = os.environ.get("DOCUMENT_ROOT_DIR")
+    os.environ["DOCUMENT_ROOT_DIR"] = str(temp_root)
 
-    # Cleanup
-    manager.stop_server()
+    yield temp_root
+
+    # Cleanup test data and environment
     if temp_root.exists():
         shutil.rmtree(temp_root, ignore_errors=True)
 
+    if original_root_dir is None:
+        os.environ.pop("DOCUMENT_ROOT_DIR", None)
+    else:
+        os.environ["DOCUMENT_ROOT_DIR"] = original_root_dir
 
-@pytest.fixture
-def test_docs_root(session_server_manager):
-    """
-    Create a clean subdirectory for each test.
-
-    This fixture provides test isolation while reusing the same server instance.
-    Each test gets its own document directory but shares the server.
-    """
-    test_id = str(uuid.uuid4().hex[:8])
-    test_subdir = session_server_manager.test_docs_root / f"test_{test_id}"
-    test_subdir.mkdir()
-
-    # Override doc_tool_server paths for this test
-    original_server_path = doc_tool_server.DOCS_ROOT_PATH
-    doc_tool_server.DOCS_ROOT_PATH = test_subdir
-
-    # Set environment variables for the test
-    original_env_vars = {}
-    test_env_vars = {
-        "DOCUMENT_ROOT_DIR": str(test_subdir),
-        "MCP_SERVER_PORT": str(session_server_manager.get_port()),
-        "MCP_SERVER_HOST": "localhost",
-    }
-
-    for key, value in test_env_vars.items():
-        original_env_vars[key] = os.environ.get(key)
-        os.environ[key] = value
-
-    yield test_subdir
-
-    # Cleanup test data
-    if test_subdir.exists():
-        shutil.rmtree(test_subdir, ignore_errors=True)
-
-    # Restore original environment
-    for key, original_value in original_env_vars.items():
-        if original_value is None:
-            os.environ.pop(key, None)
-        else:
-            os.environ[key] = original_value
-
-    # Restore original server path
     doc_tool_server.DOCS_ROOT_PATH = original_server_path
 
 
@@ -366,18 +339,6 @@ def unique_name():
     return generate_unique_name()
 
 
-@pytest.fixture
-def server_url(session_server_manager):
-    """Get the server URL for the current test session."""
-    return session_server_manager.get_server_url()
-
-
-@pytest.fixture
-def server_port(session_server_manager):
-    """Get the server port for the current test session."""
-    return session_server_manager.get_port()
-
-
 # ================================
 # Pytest Configuration
 # ================================
@@ -518,24 +479,16 @@ def mock_path_operations(mocker):
             
         def mock_docs_root_path(self, path="/test/docs"):
             """Mock DOCS_ROOT_PATH with specified path."""
-            # Create a mock Path object that can be configured
-            mock_path_obj = MagicMock(spec=Path)
-            mock_path_obj.exists.return_value = True
-            mock_path_obj.is_dir.return_value = True
-            mock_path_obj.iterdir.return_value = []
+            # Create a real Path object
+            real_path = Path(path)
             
-            # Make path division operations return real Path objects
-            base_path = Path(path)
-            mock_path_obj.__truediv__ = lambda self, other: base_path / other
-            
-            # Patch DOCS_ROOT_PATH to use our mock
             self.mocker.patch(
                 "document_mcp.doc_tool_server.DOCS_ROOT_PATH", 
-                mock_path_obj
+                real_path
             )
             
-            # Return the mock object so tests can configure it
-            return mock_path_obj
+            self.docs_root_path = real_path
+            return real_path
             
         def mock_document_path(self, document_name, path=None):
             """Mock _get_document_path function."""
@@ -557,7 +510,7 @@ def mock_path_operations(mocker):
             
         def create_mock_file(self, name, content="", is_file=True, is_dir=False):
             """Create a mock file/directory object."""
-            mock_file = Mock()
+            mock_file = self.mocker.Mock()
             mock_file.name = name
             mock_file.is_file.return_value = is_file
             mock_file.is_dir.return_value = is_dir
@@ -593,7 +546,7 @@ def mock_file_operations(mocker):
             
         def mock_stat(self, target, mtime=1640995200.0):
             """Mock file stat method."""
-            mock_stat = Mock()
+            mock_stat = self.mocker.Mock()
             mock_stat.st_mtime = mtime
             return self.mocker.patch.object(target, 'stat', return_value=mock_stat)
             
@@ -618,23 +571,32 @@ def mock_agent_operations(mocker):
         def mock_load_llm_config(self, return_value=None):
             """Mock load_llm_config function."""
             if return_value is None:
-                return_value = Mock()
-            # Handle both sync and async versions
+                return_value = self.mocker.Mock()
+            # Handle both sync and async versions - use regular mocks to avoid unawaited coroutine warnings
             mock_sync = self.mocker.patch("src.agents.simple_agent.load_llm_config", return_value=return_value)
-            mock_async = self.mocker.patch("src.agents.react_agent.main.load_llm_config", return_value=AsyncMock(return_value=return_value))
+            mock_async = self.mocker.patch("src.agents.react_agent.main.load_llm_config", return_value=return_value)
+            
             return mock_sync, mock_async
             
         def mock_mcp_server(self, host="localhost", port=3001):
             """Mock MCP server class and instance."""
-            mock_server_instance = Mock()
+            mock_server_instance = self.mocker.Mock()
             mock_server_instance.host = host
             mock_server_instance.port = port
             mock_server_instance.server_url = f"http://{host}:{port}"
-            mock_server_instance.__aenter__ = AsyncMock(return_value=mock_server_instance)
-            mock_server_instance.__aexit__ = AsyncMock(return_value=False)
             
-            mock_server_class = self.mocker.patch("src.agents.simple_agent.MCPServerSSE", return_value=mock_server_instance)
-            mock_server_class_react = self.mocker.patch("src.agents.react_agent.main.MCPServerSSE", return_value=mock_server_instance)
+            # Use simple async functions instead of AsyncMock to avoid warnings
+            async def mock_aenter():
+                return mock_server_instance
+            
+            async def mock_aexit(*args):
+                return False
+            
+            mock_server_instance.__aenter__ = mock_aenter
+            mock_server_instance.__aexit__ = mock_aexit
+            
+            mock_server_class = self.mocker.patch("src.agents.simple_agent.MCPServerStdio", return_value=mock_server_instance)
+            mock_server_class_react = self.mocker.patch("src.agents.react_agent.main.MCPServerStdio", return_value=mock_server_instance)
             
             return mock_server_instance, mock_server_class, mock_server_class_react
             
@@ -701,7 +663,12 @@ def mock_environment_operations(mocker, monkeypatch):
             
         def mock_os_environ(self, env_vars):
             """Mock os.environ with specified variables."""
-            return self.mocker.patch.dict("os.environ", env_vars, clear=True)
+            # Clear all existing environment variables
+            for key in list(os.environ.keys()):
+                self.monkeypatch.delenv(key, raising=False)
+            # Set provided environment variables
+            for key, value in env_vars.items():
+                self.monkeypatch.setenv(key, value)
             
     return EnvironmentMocks(mocker, monkeypatch)
 
@@ -772,7 +739,7 @@ def mock_complete_test_environment(
                 mock_chapters.append(mock_chapter)
                 
             # Mock document directory
-            mock_doc_path = Mock()
+            mock_doc_path = self.mocker.Mock()
             mock_doc_path.is_dir.return_value = True
             mock_doc_path.iterdir.return_value = mock_chapters
             

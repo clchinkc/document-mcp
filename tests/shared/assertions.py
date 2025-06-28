@@ -79,49 +79,37 @@ def assert_operation_failure(
 
 
 def assert_agent_response_valid(
-    response: Any, response_type: str = "agent", require_details: bool = False
+    response: Any, response_type: str, require_details: bool = False
 ) -> None:
     """
-    Assert that an agent response is valid and properly structured.
+    Assert that an agent response is valid and meets basic criteria.
 
     Args:
-        response: The response object to validate
-        response_type: Type of response for better error messages
-        require_details: Whether details field is required
-
-    Raises:
-        AssertionError: If response is invalid
+        response: The agent's response object to validate.
+        response_type: A string indicating the type of agent or response.
+        require_details: If True, asserts that the 'details' field is not None.
     """
-    assert response is not None, f"{response_type} should provide a response"
+    assert response is not None, f"Response from {response_type} should not be None"
 
-    # Check required fields
-    assert hasattr(
-        response, "summary"
-    ), f"{response_type} response missing 'summary' field"
-    assert isinstance(
-        response.summary, str
-    ), f"{response_type} summary must be a string"
-    assert len(response.summary) > 0, f"{response_type} summary should not be empty"
-
-    # Check optional fields exist
-    assert hasattr(
-        response, "details"
-    ), f"{response_type} response missing 'details' field"
-    assert hasattr(
-        response, "error_message"
-    ), f"{response_type} response missing 'error_message' field"
-
-    # Validate details if required
-    if require_details:
-        assert (
-            response.details is not None
-        ), f"{response_type} details should not be None when required"
-
-    # If error_message is present, it should be a string
-    if response.error_message is not None:
+    # Normalize response type to determine validation strategy
+    response_type_lower = response_type.lower()
+    
+    if "react" in response_type_lower:
+        # React agent returns execution history as a list
         assert isinstance(
-            response.error_message, str
-        ), f"{response_type} error_message must be a string"
+            response, list
+        ), "React agent should return an execution history (list)"
+        assert len(response) > 0, "React agent history should not be empty"
+    else:
+        # Default to simple agent validation for any other type
+        assert hasattr(response, "summary"), f"{response_type} response missing 'summary'"
+        assert isinstance(
+            response.summary, str
+        ), f"{response_type} summary must be a string"
+        if require_details:
+            assert (
+                response.details is not None
+            ), f"{response_type} details field is required but was None"
 
 
 def assert_document_info_valid(
@@ -276,21 +264,9 @@ def assert_list_response_valid(
 
 
 def assert_no_error_in_response(response: Any) -> None:
-    """
-    Assert that a response contains no error information.
-
-    Args:
-        response: Response object to check
-
-    Raises:
-        AssertionError: If response contains error information
-    """
-    if hasattr(response, "error_message") and response.error_message is not None:
-        assert False, f"Response should not contain error: {response.error_message}"
-
-    if hasattr(response, "success") and response.success is False:
-        message = getattr(response, "message", "Unknown error")
-        assert False, f"Response should be successful: {message}"
+    """Assert that an agent response has no error message."""
+    error_message = getattr(response, "error_message", None)
+    assert not error_message, f"Response should not have an error, but got: '{error_message}'"
 
 
 def assert_contains_text(

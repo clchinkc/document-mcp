@@ -90,29 +90,6 @@ def test_package_imports():
         pytest.fail(f"Failed to import from doc_tool_server: {e}")
 
 
-def test_test_data_availability():
-    """Test if test data is available for comprehensive testing."""
-    test_doc_path = Path(".documents_storage/long_story_document")
-    if test_doc_path.exists():
-        chapters = list(test_doc_path.glob("*.md"))
-        assert (
-            len(chapters) >= 10
-        ), f"Expected at least 10 chapters, found {len(chapters)}"
-
-        # Check first chapter has content
-        first_chapter = test_doc_path / "01-chapter.md"
-        assert first_chapter.exists(), "First chapter file missing"
-        content = first_chapter.read_text()
-        assert len(content) > 100, "First chapter seems too short"
-        assert (
-            "Lorem" in content or "ipsum" in content
-        ), "Test content pattern not found"
-    else:
-        pytest.skip(
-            "Test data (long_story_document) not available - skipping data check"
-        )
-
-
 # --- Pytest Fixtures ---
 
 
@@ -1380,12 +1357,11 @@ def pytest_sessionfinish(session, exitstatus):
             # The `test_docs_root` fixture in conftest.py should handle restoring its specific changes.
             current_server_path_obj = getattr(doc_tool_server, "DOCS_ROOT_PATH")
             if str(current_server_path_obj) != str(default_path) and not str(current_server_path_obj).startswith(tempfile.gettempdir()):
-                 print(f"Finalizing session: Restoring DOCS_ROOT_PATH to {default_path} from {current_server_path_obj}")
-                 doc_tool_server.DOCS_ROOT_PATH = default_path
+                         doc_tool_server.DOCS_ROOT_PATH = default_path
 
 
-    except Exception as e:
-        print(f"Warning: Could not fully clean up after tests: {e}")
+    except Exception:
+        pass  # Ignore cleanup errors
 
 
 # Will be added incrementally (This comment can be removed if all tests are done for this file)

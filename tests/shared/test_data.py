@@ -26,7 +26,8 @@ DEFAULT_DOC_CHAPTERS = [
 
 
 class TestDataType(Enum):
-    """Enumeration of test data types for consistent categorization."""
+    """Enum for different types of test documents."""
+    __test__ = False
     SIMPLE = "simple"
     LARGE = "large"
     SEARCHABLE = "searchable"
@@ -39,6 +40,7 @@ class TestDataType(Enum):
 @dataclass
 class TestDocumentSpec:
     """Specification for creating test documents with validation."""
+    __test__ = False
     name: Optional[str] = None
     doc_type: TestDataType = TestDataType.SIMPLE
     chapter_count: int = 3
@@ -62,6 +64,7 @@ class TestDocumentSpec:
 @dataclass
 class TestDataRegistry:
     """Registry to track created test data for cleanup and validation."""
+    __test__ = False
     created_documents: List[str] = field(default_factory=list)
     created_directories: List[Path] = field(default_factory=list)
     temp_files: List[Path] = field(default_factory=list)

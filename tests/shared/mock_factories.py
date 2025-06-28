@@ -8,14 +8,14 @@ consistent testing behavior.
 
 import os
 from typing import Any, Dict, Optional
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 from src.agents.simple_agent import FinalAgentResponse
 
 
-def create_mock_agent(response_data: Optional[Dict[str, Any]] = None) -> AsyncMock:
+def create_mock_agent(response_data: Optional[Dict[str, Any]] = None) -> Mock:
     """
-    Create a mock agent for testing.
+    Create a mock agent for testing, avoiding AsyncMock for context managers.
 
     Args:
         response_data: Optional data to include in mock response
@@ -23,7 +23,7 @@ def create_mock_agent(response_data: Optional[Dict[str, Any]] = None) -> AsyncMo
     Returns:
         Mock agent with configured run method
     """
-    mock_agent = AsyncMock()
+    mock_agent = Mock()
 
     # Default response if none provided
     if response_data is None:
@@ -38,11 +38,21 @@ def create_mock_agent(response_data: Optional[Dict[str, Any]] = None) -> AsyncMo
     mock_run_result.output = FinalAgentResponse(**response_data)
     mock_run_result.error_message = None
 
-    mock_agent.run.return_value = mock_run_result
-    mock_agent.run_mcp_servers.return_value.__aenter__ = AsyncMock(
-        return_value=mock_agent
-    )
-    mock_agent.run_mcp_servers.return_value.__aexit__ = AsyncMock(return_value=False)
+    # Use simple async function instead of AsyncMock to avoid warnings
+    async def mock_run(*args, **kwargs):
+        return mock_run_result
+    
+    mock_agent.run = mock_run
+    
+    # Use a simple class with async methods to mock the context manager
+    class MockContextManager:
+        async def __aenter__(self):
+            return mock_agent
+        
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            return False
+            
+    mock_agent.run_mcp_servers = Mock(return_value=MockContextManager())
 
     return mock_agent
 
@@ -64,8 +74,14 @@ def create_mock_mcp_server(host: str = "localhost", port: int = 3001) -> Mock:
     mock_server.server_url = f"http://{host}:{port}"
 
     # Context manager support
-    mock_server.__aenter__ = AsyncMock(return_value=mock_server)
-    mock_server.__aexit__ = AsyncMock(return_value=False)
+    async def mock_aenter():
+        return mock_server
+    
+    async def mock_aexit(*args):
+        return False
+    
+    mock_server.__aenter__ = mock_aenter
+    mock_server.__aexit__ = mock_aexit
 
     return mock_server
 
@@ -344,51 +360,3 @@ def create_mock_react_history(steps: int = 3) -> list:
             )
 
     return history
-
-
-class MockEnvironmentContext:
-    """Context manager for mock environment variables."""
-
-    def __init__(self, env_vars: Dict[str, str]):
-        """
-        Initialize mock environment context.
-
-        Args:
-            env_vars: Environment variables to set
-        """
-        self.env_vars = env_vars
-        self.patch = None
-
-    def __enter__(self):
-        """Enter context and apply environment variables."""
-        self.patch = patch.dict(os.environ, self.env_vars, clear=True)
-        return self.patch.__enter__()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Exit context and restore environment."""
-        if self.patch:
-            return self.patch.__exit__(exc_type, exc_val, exc_tb)
-
-
-def mock_environment(
-    api_key_type: str = "openai",
-    include_server_config: bool = True,
-    custom_vars: Optional[Dict[str, str]] = None,
-):
-    """
-    Decorator/context manager for mocking environment variables.
-
-    Args:
-        api_key_type: Type of API key to mock
-        include_server_config: Whether to include server config
-        custom_vars: Additional custom variables
-
-    Returns:
-        Context manager for environment mocking
-    """
-    env_vars = create_mock_environment(
-        api_key_type=api_key_type,
-        include_server_config=include_server_config,
-        custom_vars=custom_vars,
-    )
-    return MockEnvironmentContext(env_vars)
