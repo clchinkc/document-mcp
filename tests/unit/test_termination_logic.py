@@ -12,7 +12,6 @@ Tests are designed to be strict and ensure proper termination behavior.
 """
 
 import os
-# from unittest.mock import AsyncMock, MagicMock, Mock  # Remove this import
 
 import pytest
 
