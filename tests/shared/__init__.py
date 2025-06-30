@@ -25,7 +25,7 @@ from .environment import (
 from .mock_factories import (
     create_mock_agent,
     create_mock_environment,
-    create_mock_llm_config,
+    create_mock_llm_model,
     create_mock_mcp_server,
 )
 from .test_data import (
@@ -45,7 +45,7 @@ __all__ = [
     # Mock factories
     "create_mock_agent",
     "create_mock_mcp_server",
-    "create_mock_llm_config",
+    "create_mock_llm_model",
     "create_mock_environment",
     # Test data
     "create_test_document",

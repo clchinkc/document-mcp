@@ -6,26 +6,17 @@ from typing import Optional, Dict, Any
 from functools import wraps
 
 # OpenTelemetry imports
-try:
-    from opentelemetry import metrics
-    from opentelemetry.sdk.metrics import MeterProvider
-    from opentelemetry.sdk.resources import Resource
-    from opentelemetry.exporter.prometheus import PrometheusMetricReader
-    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.exporter.prometheus import PrometheusMetricReader
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
     
-    # Prometheus client for endpoint
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-    
-    OTEL_AVAILABLE = True
-except ImportError:
-    OTEL_AVAILABLE = False
-    # Create stub classes for type hints when OpenTelemetry is not available
-    class Counter: pass
-    class Histogram: pass  
-    class Gauge: pass
+# Prometheus client for endpoint
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # Configuration from environment variables
 METRICS_ENABLED = os.getenv("MCP_METRICS_ENABLED", "true").lower() == "true"
@@ -65,8 +56,8 @@ def initialize_metrics():
     global tool_argument_sizes_histogram, concurrent_operations_gauge, server_info_counter
     global prometheus_reader
     
-    if not OTEL_AVAILABLE or not METRICS_ENABLED:
-        print("OpenTelemetry metrics disabled or unavailable")
+    if not METRICS_ENABLED:
+        print("OpenTelemetry metrics disabled")
         return
     
     try:
@@ -179,7 +170,7 @@ def initialize_metrics():
 
 def is_metrics_enabled() -> bool:
     """Check if metrics collection is enabled and available."""
-    return OTEL_AVAILABLE and METRICS_ENABLED and meter is not None
+    return METRICS_ENABLED and meter is not None
 
 def calculate_argument_size(args: tuple, kwargs: dict) -> int:
     """Calculate size of arguments in bytes."""

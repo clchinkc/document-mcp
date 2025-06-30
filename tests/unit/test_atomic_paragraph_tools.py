@@ -1,0 +1,333 @@
+"""
+Tests for the new atomic paragraph-level tools.
+
+This module tests the atomic paragraph manipulation tools that were added
+to replace the non-atomic modify_paragraph_content function.
+"""
+import pytest
+from pathlib import Path
+from document_mcp.doc_tool_server import (
+    replace_paragraph,
+    insert_paragraph_before,
+    insert_paragraph_after,
+    delete_paragraph,
+    append_to_chapter_content,
+    move_paragraph_before,
+    move_paragraph_to_end,
+    create_document,
+    create_chapter
+)
+
+
+class TestReplaceParagraph:
+    """Tests for the replace_paragraph atomic tool."""
+    
+    def test_replace_paragraph_success(self, document_factory, test_docs_root: Path):
+        """Test successful paragraph replacement."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        # Create document and chapter with initial content
+        create_document(doc_name)
+        initial_content = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph."
+        create_chapter(doc_name, chapter_name, initial_content)
+        
+        # Replace the second paragraph (index 1)
+        new_content = "This is the new second paragraph."
+        result = replace_paragraph(doc_name, chapter_name, 1, new_content)
+        
+        assert result.success is True
+        assert "successfully replaced" in result.message
+        assert result.details is not None
+        assert result.details["changed"] is True
+    
+    def test_replace_paragraph_out_of_bounds(self, document_factory, test_docs_root: Path):
+        """Test replacing paragraph with invalid index."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        create_chapter(doc_name, chapter_name, "Only one paragraph.")
+        
+        # Try to replace paragraph at index 5 (out of bounds)
+        result = replace_paragraph(doc_name, chapter_name, 5, "New content")
+        
+        assert result.success is False
+        assert "out of bounds" in result.message
+    
+    def test_replace_paragraph_invalid_inputs(self, document_factory, test_docs_root: Path):
+        """Test replace_paragraph with invalid inputs."""
+        # Test invalid document name
+        result = replace_paragraph("", "test.md", 0, "content")
+        assert result.success is False
+        assert "Document name cannot be empty" in result.message
+        
+        # Test invalid chapter name
+        result = replace_paragraph("doc", "invalid", 0, "content")
+        assert result.success is False
+        assert "must end with .md" in result.message
+        
+        # Test negative index
+        result = replace_paragraph("doc", "test.md", -1, "content")
+        assert result.success is False
+        assert "cannot be negative" in result.message
+
+
+class TestInsertParagraphBefore:
+    """Tests for the insert_paragraph_before atomic tool."""
+    
+    def test_insert_paragraph_before_success(self, document_factory, test_docs_root: Path):
+        """Test successful paragraph insertion before existing paragraph."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        initial_content = "First paragraph.\n\nSecond paragraph."
+        create_chapter(doc_name, chapter_name, initial_content)
+        
+        # Insert before the second paragraph (index 1)
+        new_content = "This is inserted before the second paragraph."
+        result = insert_paragraph_before(doc_name, chapter_name, 1, new_content)
+        
+        assert result.success is True
+        assert "inserted before index 1" in result.message
+        assert result.details is not None
+        assert result.details["changed"] is True
+    
+    def test_insert_paragraph_before_at_beginning(self, document_factory, test_docs_root: Path):
+        """Test inserting paragraph at the very beginning (index 0)."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        create_chapter(doc_name, chapter_name, "Original first paragraph.")
+        
+        # Insert at index 0 (beginning)
+        new_content = "This is now the first paragraph."
+        result = insert_paragraph_before(doc_name, chapter_name, 0, new_content)
+        
+        assert result.success is True
+        assert "inserted before index 0" in result.message
+
+
+class TestInsertParagraphAfter:
+    """Tests for the insert_paragraph_after atomic tool."""
+    
+    def test_insert_paragraph_after_success(self, document_factory, test_docs_root: Path):
+        """Test successful paragraph insertion after existing paragraph."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        initial_content = "First paragraph.\n\nSecond paragraph."
+        create_chapter(doc_name, chapter_name, initial_content)
+        
+        # Insert after the first paragraph (index 0)
+        new_content = "This is inserted after the first paragraph."
+        result = insert_paragraph_after(doc_name, chapter_name, 0, new_content)
+        
+        assert result.success is True
+        assert "inserted after index 0" in result.message
+        assert result.details is not None
+        assert result.details["changed"] is True
+    
+    def test_insert_paragraph_after_empty_chapter(self, document_factory, test_docs_root: Path):
+        """Test inserting paragraph in empty chapter."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        create_chapter(doc_name, chapter_name, "")
+        
+        # Insert in empty chapter
+        new_content = "This is the first paragraph in empty chapter."
+        result = insert_paragraph_after(doc_name, chapter_name, 0, new_content)
+        
+        assert result.success is True
+        assert "inserted after index 0" in result.message
+
+
+class TestDeleteParagraph:
+    """Tests for the delete_paragraph atomic tool."""
+    
+    def test_delete_paragraph_success(self, document_factory, test_docs_root: Path):
+        """Test successful paragraph deletion."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        initial_content = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph."
+        create_chapter(doc_name, chapter_name, initial_content)
+        
+        # Delete the second paragraph (index 1)
+        result = delete_paragraph(doc_name, chapter_name, 1)
+        
+        assert result.success is True
+        assert "deleted from" in result.message
+        assert result.details is not None
+        assert result.details["changed"] is True
+    
+    def test_delete_paragraph_out_of_bounds(self, document_factory, test_docs_root: Path):
+        """Test deleting paragraph with invalid index."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        create_chapter(doc_name, chapter_name, "Only one paragraph.")
+        
+        # Try to delete paragraph at index 5 (out of bounds)
+        result = delete_paragraph(doc_name, chapter_name, 5)
+        
+        assert result.success is False
+        assert "out of bounds" in result.message
+    
+    def test_delete_paragraph_from_empty_chapter(self, document_factory, test_docs_root: Path):
+        """Test deleting paragraph from empty chapter."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        create_chapter(doc_name, chapter_name, "")
+        
+        # Try to delete from empty chapter
+        result = delete_paragraph(doc_name, chapter_name, 0)
+        
+        assert result.success is False
+        assert "out of bounds" in result.message
+
+
+class TestAppendToChapterContent:
+    """Tests for the append_to_chapter_content atomic tool."""
+    
+    def test_append_to_chapter_content_success(self, document_factory, test_docs_root: Path):
+        """Test successful content appending."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        initial_content = "Initial content."
+        create_chapter(doc_name, chapter_name, initial_content)
+        
+        # Append raw content
+        additional_content = "\n\nThis is appended content."
+        result = append_to_chapter_content(doc_name, chapter_name, additional_content)
+        
+        assert result.success is True
+        assert "appended to chapter" in result.message
+        assert result.details is not None
+        assert result.details["changed"] is True
+    
+    def test_append_to_chapter_content_empty_chapter(self, document_factory, test_docs_root: Path):
+        """Test appending to empty chapter."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        create_chapter(doc_name, chapter_name, "")
+        
+        # Append to empty chapter
+        content = "This is the first content."
+        result = append_to_chapter_content(doc_name, chapter_name, content)
+        
+        assert result.success is True
+        assert "appended to chapter" in result.message
+
+
+class TestMoveParagraphBefore:
+    """Tests for the move_paragraph_before atomic tool."""
+    
+    def test_move_paragraph_before_success(self, document_factory, test_docs_root: Path):
+        """Test successful paragraph movement."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        initial_content = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.\n\nFourth paragraph."
+        create_chapter(doc_name, chapter_name, initial_content)
+        
+        # Move paragraph 3 (index 2) before paragraph 1 (index 0)
+        result = move_paragraph_before(doc_name, chapter_name, 2, 0)
+        
+        assert result.success is True
+        assert "moved before paragraph" in result.message
+        assert result.details is not None
+        assert result.details["changed"] is True
+    
+    def test_move_paragraph_before_same_index(self, document_factory, test_docs_root: Path):
+        """Test moving paragraph before itself (should fail)."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        create_chapter(doc_name, chapter_name, "First paragraph.\n\nSecond paragraph.")
+        
+        # Try to move paragraph before itself
+        result = move_paragraph_before(doc_name, chapter_name, 1, 1)
+        
+        assert result.success is False
+        assert "before itself" in result.message
+    
+    def test_move_paragraph_before_out_of_bounds(self, document_factory, test_docs_root: Path):
+        """Test moving paragraph with invalid indices."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        create_chapter(doc_name, chapter_name, "First paragraph.\n\nSecond paragraph.")
+        
+        # Try to move non-existent paragraph
+        result = move_paragraph_before(doc_name, chapter_name, 5, 0)
+        
+        assert result.success is False
+        assert "out of bounds" in result.message
+
+
+class TestMoveParagraphToEnd:
+    """Tests for the move_paragraph_to_end atomic tool."""
+    
+    def test_move_paragraph_to_end_success(self, document_factory, test_docs_root: Path):
+        """Test successful paragraph movement to end."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        initial_content = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph."
+        create_chapter(doc_name, chapter_name, initial_content)
+        
+        # Move first paragraph (index 0) to end
+        result = move_paragraph_to_end(doc_name, chapter_name, 0)
+        
+        assert result.success is True
+        assert "moved to end" in result.message
+        assert result.details is not None
+        assert result.details["changed"] is True
+    
+    def test_move_paragraph_to_end_already_at_end(self, document_factory, test_docs_root: Path):
+        """Test moving paragraph that's already at the end."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        initial_content = "First paragraph.\n\nSecond paragraph."
+        create_chapter(doc_name, chapter_name, initial_content)
+        
+        # Move last paragraph (index 1) to end (should be no-op)
+        result = move_paragraph_to_end(doc_name, chapter_name, 1)
+        
+        assert result.success is True
+        assert "already at the end" in result.message
+        assert result.details["changed"] is False
+    
+    def test_move_paragraph_to_end_out_of_bounds(self, document_factory, test_docs_root: Path):
+        """Test moving non-existent paragraph to end."""
+        doc_name = "test_doc"
+        chapter_name = "test_chapter.md"
+        
+        create_document(doc_name)
+        create_chapter(doc_name, chapter_name, "Only one paragraph.")
+        
+        # Try to move non-existent paragraph
+        result = move_paragraph_to_end(doc_name, chapter_name, 5)
+        
+        assert result.success is False
+        assert "out of bounds" in result.message 

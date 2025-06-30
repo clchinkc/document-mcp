@@ -10,7 +10,6 @@ This module tests individual functions in the Simple agent in isolation with foc
 
 import asyncio
 import os
-# from unittest.mock import Mock, MagicMock  # Remove this import
 
 import pytest
 from pydantic import ValidationError
@@ -780,11 +779,11 @@ class TestUtilityIntegration:
         assert_agent_response_valid(response_with_details, "simple_agent")
 
     @pytest.mark.asyncio
-    async def test_process_single_user_query_with_conftest_mock(self):
+    async def test_process_single_user_query_with_conftest_mock(self, mocker):
         """Test process_single_user_query using conftest mock utilities."""
         # Create custom response data
         response_data = {"summary": "Mock response", "details": None, "error_message": None}
-        mock_agent = create_mock_agent(response_data)
+        mock_agent = create_mock_agent(response_data, mocker=mocker)
 
         result = await process_single_user_query(mock_agent, "test query")
 

@@ -10,8 +10,9 @@ authors = [
 ]
 description = "A MCP server for managing structured Markdown documents"
 readme = "document_mcp/README.md"
-requires-python = ">=3.8"
-license = {text = "MIT License"}
+requires-python = "3.13"
+keywords = ["mcp", "document", "management"]
+license = {text = "MIT"}
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -45,6 +46,7 @@ dev = [
     "flake8",
     "isort",
     "mypy",
+    "pydocstyle",
 ]
 
 [project.urls]

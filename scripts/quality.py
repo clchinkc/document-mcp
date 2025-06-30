@@ -53,7 +53,7 @@ class CodeQualityManager:
 
     def _install_missing_tools(self):
         """Install missing quality tools."""
-        tools = ["black", "flake8", "isort", "mypy", "autoflake"]
+        tools = ["black", "flake8", "isort", "mypy", "autoflake", "pydocstyle"]
         print(f"📦 Installing missing tools: {', '.join(tools)}")
         subprocess.run([sys.executable, "-m", "pip", "install"] + tools)
 
@@ -122,8 +122,17 @@ class CodeQualityManager:
 
         return self._run_command(["mypy"] + self.target_dirs, "MyPy type checking")
 
+    def validate_docstrings(self) -> bool:
+        """Run pydocstyle docstring validation."""
+        print("📚 Running pydocstyle docstring validation...")
+
+        return self._run_command(
+            ["pydocstyle"] + self.target_dirs + ["--count"],
+            "Pydocstyle docstring validation",
+        )
+
     def check_all(self) -> bool:
-        """Run all code quality checks (linting and type checking only)."""
+        """Run all code quality checks (linting, type checking, and docstring validation)."""
         print("🚀 Running code quality checks...")
 
         results = []
@@ -133,6 +142,9 @@ class CodeQualityManager:
 
         # Type checking
         results.append(self.type_check())
+
+        # Docstring validation
+        results.append(self.validate_docstrings())
 
         success = all(results)
 
@@ -174,7 +186,7 @@ def main():
     parser = argparse.ArgumentParser(description="Document MCP Code Quality Manager")
     parser.add_argument(
         "command",
-        choices=["check", "fix", "format", "lint", "typecheck", "full"],
+        choices=["check", "fix", "format", "lint", "typecheck", "docstring", "full"],
         help="Quality command to run",
     )
     parser.add_argument(
@@ -192,6 +204,7 @@ def main():
         "format": manager.format_code,
         "lint": manager.lint_code,
         "typecheck": manager.type_check,
+        "docstring": manager.validate_docstrings,
         "full": manager.full_quality_pass,
     }
 
