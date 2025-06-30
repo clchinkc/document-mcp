@@ -605,7 +605,7 @@ def mock_agent_operations(mocker):
             if response_data is None:
                 response_data = {"summary": "Mock response", "details": None, "error_message": None}
                 
-            mock_agent = create_mock_agent(response_data)
+            mock_agent = create_mock_agent(response_data, mocker=self.mocker)
             mock_agent_class = self.mocker.patch("src.agents.simple_agent.Agent", return_value=mock_agent)
             mock_agent_class_react = self.mocker.patch("src.agents.react_agent.main.get_cached_agent", return_value=mock_agent)
             

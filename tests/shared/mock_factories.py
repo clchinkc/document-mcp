@@ -8,22 +8,25 @@ consistent testing behavior.
 
 import os
 from typing import Any, Dict, Optional
-from unittest.mock import AsyncMock, Mock
 
 from src.agents.simple_agent import FinalAgentResponse
 
 
-def create_mock_agent(response_data: Optional[Dict[str, Any]] = None) -> Mock:
+def create_mock_agent(response_data: Optional[Dict[str, Any]] = None, mocker=None):
     """
     Create a mock agent for testing, avoiding AsyncMock for context managers.
 
     Args:
         response_data: Optional data to include in mock response
+        mocker: pytest-mock mocker fixture (required for mocking)
 
     Returns:
         Mock agent with configured run method
     """
-    mock_agent = Mock()
+    if mocker is None:
+        raise ValueError("mocker fixture is required for create_mock_agent")
+        
+    mock_agent = mocker.Mock()
 
     # Default response if none provided
     if response_data is None:
@@ -34,7 +37,7 @@ def create_mock_agent(response_data: Optional[Dict[str, Any]] = None) -> Mock:
         }
 
     # Create mock run result
-    mock_run_result = Mock()
+    mock_run_result = mocker.Mock()
     mock_run_result.output = FinalAgentResponse(**response_data)
     mock_run_result.error_message = None
 
@@ -44,62 +47,72 @@ def create_mock_agent(response_data: Optional[Dict[str, Any]] = None) -> Mock:
     
     mock_agent.run = mock_run
     
-    # Use a simple class with async methods to mock the context manager
-    class MockContextManager:
-        async def __aenter__(self):
-            return mock_agent
-        
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
-            return False
-            
-    mock_agent.run_mcp_servers = Mock(return_value=MockContextManager())
-
     return mock_agent
 
 
-def create_mock_mcp_server(host: str = "localhost", port: int = 3001) -> Mock:
+def create_mock_mcp_server(
+    host: str = "localhost",
+    port: int = 3001,
+    tools: Optional[list] = None,
+    mocker=None,
+):
     """
     Create a mock MCP server for testing.
 
     Args:
-        host: Server host
-        port: Server port
+        host: Mock server host
+        port: Mock server port  
+        tools: List of available tools
+        mocker: pytest-mock mocker fixture (required for mocking)
 
     Returns:
         Mock MCP server
     """
-    mock_server = Mock()
+    if mocker is None:
+        raise ValueError("mocker fixture is required for create_mock_mcp_server")
+        
+    if tools is None:
+        tools = [
+            {"name": "list_tools", "description": "List available tools"},
+            {"name": "list_resources", "description": "List available resources"},
+        ]
+
+    mock_server = mocker.Mock()
     mock_server.host = host
     mock_server.port = port
-    mock_server.server_url = f"http://{host}:{port}"
+    mock_server.tools = tools
 
-    # Context manager support
+    # Mock the client context manager behavior
+    mock_client = mocker.Mock()
+    
     async def mock_aenter():
-        return mock_server
+        return mock_client
     
     async def mock_aexit(*args):
-        return False
+        pass
     
     mock_server.__aenter__ = mock_aenter
     mock_server.__aexit__ = mock_aexit
-
+    
     return mock_server
 
 
-def create_mock_llm_config(
-    model_type: str = "openai", model_name: str = "gpt-4o"
-) -> Mock:
+def create_mock_llm_model(model_type: str = "openai", model_name: str = "gpt-4", mocker=None):
     """
-    Create a mock LLM configuration.
+    Create a mock LLM model for testing.
 
     Args:
         model_type: Type of model (openai, gemini)
         model_name: Name of the model
+        mocker: pytest-mock mocker fixture (required for mocking)
 
     Returns:
         Mock LLM model
     """
-    mock_model = Mock()
+    if mocker is None:
+        raise ValueError("mocker fixture is required for create_mock_llm_model")
+        
+    mock_model = mocker.Mock()
     mock_model.model_type = model_type
     mock_model.model_name = model_name
 
@@ -162,7 +175,7 @@ def create_mock_environment(
             }
         )
 
-    # Custom variables
+    # Add custom variables if provided
     if custom_vars:
         env_vars.update(custom_vars)
 

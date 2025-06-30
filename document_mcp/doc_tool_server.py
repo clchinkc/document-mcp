@@ -1,5 +1,13 @@
+"""
+MCP Server for Document Management.
+
+This module provides a FastAPI-based MCP server for managing structured Markdown documents.
+It exposes tools for creating, reading, updating, and deleting documents and chapters,
+as well as for analyzing their content.
+"""
 import argparse
 import datetime
+import difflib  # Added for generating unified diffs
 import os
 import re  # Added for robust paragraph splitting
 from pathlib import Path
@@ -15,6 +23,9 @@ from starlette.responses import Response
 # import functools # No longer needed here
 from .logger_config import (  # Import the configured logger and the decorator
     log_mcp_call,
+    log_structured_error,
+    ErrorCategory,
+    safe_operation,
 )
 
 # Import metrics functionality for the metrics endpoint
@@ -63,10 +74,8 @@ mcp_server = FastMCP("DocumentManagementTools")
 
 def _validate_document_name(document_name: str) -> tuple[bool, str]:
     """Validate document name input."""
-    if not document_name:
+    if not document_name or not isinstance(document_name, str) or not document_name.strip():
         return False, "Document name cannot be empty"
-    if not isinstance(document_name, str):
-        return False, "Document name must be a string"
     if len(document_name) > MAX_DOCUMENT_NAME_LENGTH:
         return (
             False,
@@ -81,21 +90,19 @@ def _validate_document_name(document_name: str) -> tuple[bool, str]:
 
 def _validate_chapter_name(chapter_name: str) -> tuple[bool, str]:
     """Validate chapter name input."""
-    if not chapter_name:
+    if not chapter_name or not isinstance(chapter_name, str) or not chapter_name.strip():
         return False, "Chapter name cannot be empty"
-    if not isinstance(chapter_name, str):
-        return False, "Chapter name must be a string"
     if len(chapter_name) > MAX_CHAPTER_NAME_LENGTH:
         return (
             False,
             f"Chapter name too long (max {MAX_CHAPTER_NAME_LENGTH} characters)",
         )
+    if chapter_name == CHAPTER_MANIFEST_FILE:
+        return False, f"Chapter name cannot be reserved name '{CHAPTER_MANIFEST_FILE}'"
     if not chapter_name.lower().endswith(".md"):
         return False, "Chapter name must end with .md"
     if "/" in chapter_name or "\\" in chapter_name:
         return False, "Chapter name cannot contain path separators"
-    if chapter_name == CHAPTER_MANIFEST_FILE:
-        return False, f"Chapter name cannot be reserved name '{CHAPTER_MANIFEST_FILE}'"
     return True, ""
 
 
@@ -128,6 +135,49 @@ def _validate_search_query(query: str) -> tuple[bool, str]:
     if not query.strip():
         return False, "Search query cannot be empty or whitespace only"
     return True, ""
+
+
+# --- Diff Generation Helper ---
+
+
+def _generate_content_diff(original_content: str, new_content: str, filename: str = "chapter") -> Dict[str, Any]:
+    """
+    Generate a unified diff between original and new content.
+    
+    Compares two strings and produces a diff report including a summary,
+    lines added/removed, and the full unified diff text.
+    """
+    if original_content == new_content:
+        return {
+            "changed": False,
+            "diff": None,
+            "summary": "No changes made to content"
+        }
+    
+    # Split content into lines for difflib
+    original_lines = original_content.splitlines(keepends=True)
+    new_lines = new_content.splitlines(keepends=True)
+    
+    # Generate unified diff
+    diff_lines = list(difflib.unified_diff(
+        original_lines,
+        new_lines,
+        fromfile=f"{filename} (before)",
+        tofile=f"{filename} (after)",
+        lineterm=""
+    ))
+    
+    # Count changes
+    added_lines = sum(1 for line in diff_lines if line.startswith('+') and not line.startswith('+++'))
+    removed_lines = sum(1 for line in diff_lines if line.startswith('-') and not line.startswith('---'))
+    
+    return {
+        "changed": True,
+        "diff": "\n".join(diff_lines),
+        "summary": f"Modified content: +{added_lines} lines, -{removed_lines} lines",
+        "lines_added": added_lines,
+        "lines_removed": removed_lines
+    }
 
 
 # --- Pydantic Models for Tool I/O ---
@@ -212,21 +262,23 @@ class StatisticsReport(BaseModel):
 
 
 def _get_document_path(document_name: str) -> Path:
-    """Returns the Path object for a given document directory."""
+    """Return the full path for a given document name."""
     # Ensure DOCS_ROOT_PATH is a Path object (defensive programming for tests)
     root_path = Path(DOCS_ROOT_PATH) if not isinstance(DOCS_ROOT_PATH, Path) else DOCS_ROOT_PATH
     return root_path / document_name
 
 
 def _get_chapter_path(document_name: str, chapter_filename: str) -> Path:
-    """Returns the Path object for a given chapter file."""
+    """Return the full path for a given chapter file."""
     doc_path = _get_document_path(document_name)
     return doc_path / chapter_filename
 
 def _is_valid_chapter_filename(filename: str) -> bool:
     """
-    Checks if a filename is a valid Markdown file for a chapter.
-    Excludes manifest and summary files.
+    Check if a filename is a valid, non-reserved chapter file.
+    
+    Verifies that the filename ends with '.md' and is not a reserved name
+    like the manifest or summary file.
     """
     if not filename.lower().endswith(".md"):
         return False
@@ -238,8 +290,11 @@ def _is_valid_chapter_filename(filename: str) -> bool:
 
 
 def _split_into_paragraphs(text: str) -> List[str]:
-    """Splits text into paragraphs. Handles multiple blank lines.
-    A paragraph is a block of text separated by one or more completely blank lines.
+    """
+    Split text into a list of paragraphs.
+    
+    Paragraphs are separated by one or more blank lines. Leading/trailing
+    whitespace is stripped from each paragraph.
     """
     if not text:
         return []
@@ -254,14 +309,16 @@ def _split_into_paragraphs(text: str) -> List[str]:
 
 
 def _count_words(text: str) -> int:
-    """Counts words in a given text string."""
+    """Count the number of words in a given text string."""
     return len(text.split())
 
 
 def _get_ordered_chapter_files(document_name: str) -> List[Path]:
     """
-    Retrieves chapter files for a document, ordered by filename.
-    Excludes any manifest file.
+    Retrieve a sorted list of all valid chapter files in a document.
+    
+    The files are sorted alphanumerically by filename. Non-chapter files
+    (like summaries or manifests) are excluded.
     """
     doc_path = _get_document_path(document_name)
     if not doc_path.is_dir():
@@ -282,7 +339,7 @@ def _get_ordered_chapter_files(document_name: str) -> List[Path]:
 def _read_chapter_content_details(
     document_name: str, chapter_file_path: Path
 ) -> Optional[ChapterContent]:
-    """Reads a chapter file and returns its content and metadata."""
+    """Read the content and metadata of a chapter from its file path."""
     if not chapter_file_path.is_file():
         return None
     try:
@@ -301,8 +358,16 @@ def _read_chapter_content_details(
             ),
         )
     except Exception as e:
-        print(
-            f"Error reading chapter file {chapter_file_path.name} in document {document_name}: {e}"
+        log_structured_error(
+            category=ErrorCategory.ERROR,
+            message=f"Failed to read chapter file: {chapter_file_path.name}",
+            exception=e,
+            context={
+                "document_name": document_name,
+                "chapter_file_path": str(chapter_file_path),
+                "file_exists": chapter_file_path.exists()
+            },
+            operation="read_chapter_content"
         )
         return None
 
@@ -310,7 +375,12 @@ def _read_chapter_content_details(
 def _get_chapter_metadata(
     document_name: str, chapter_file_path: Path
 ) -> Optional[ChapterMetadata]:
-    """Helper to get metadata for a single chapter."""
+    """
+    Generate metadata for a chapter from its file path.
+    
+    This helper reads chapter content to calculate word and paragraph counts
+    for the metadata object.
+    """
     if not chapter_file_path.is_file():
         return None
     try:
@@ -330,20 +400,79 @@ def _get_chapter_metadata(
             # title can be added later if we parse H1 from content
         )
     except Exception as e:
-        print(
-            f"Error getting metadata for chapter {chapter_file_path.name} in {document_name}: {e}"
+        log_structured_error(
+            category=ErrorCategory.ERROR,
+            message=f"Failed to get metadata for chapter: {chapter_file_path.name}",
+            exception=e,
+            context={
+                "document_name": document_name,
+                "chapter_file_path": str(chapter_file_path),
+                "file_exists": chapter_file_path.exists()
+            },
+            operation="get_chapter_metadata"
         )
         return None
 
 
-# --- Example of a refactored tool (list_documents) ---
+# ============================================================================
+# DOCUMENT MANAGEMENT TOOLS
+# ============================================================================
+# Tools for managing document collections (directories containing chapters)
+
 @mcp_server.tool()
 @log_mcp_call
 def list_documents() -> List[DocumentInfo]:
     """
-    Lists all available documents.
-    A document is a directory containing chapter files (.md).
-    Returns a list of objects, each detailing a document's name, chapter count, word counts, and last modified time.
+    List all available document collections in the document management system.
+    
+    This tool retrieves metadata for all document directories, where each document
+    is a collection of ordered Markdown chapter files (.md). Provides comprehensive
+    information including chapter counts, word counts, and modification timestamps.
+    
+    Parameters:
+        None
+    
+    Returns:
+        List[DocumentInfo]: A list of document metadata objects. Each DocumentInfo contains:
+            - document_name (str): Directory name of the document
+            - total_chapters (int): Number of chapter files in the document
+            - total_word_count (int): Sum of words across all chapters
+            - total_paragraph_count (int): Sum of paragraphs across all chapters  
+            - last_modified (datetime): Most recent modification time across all chapters
+            - chapters (List[ChapterMetadata]): Ordered list of chapter metadata
+            - has_summary (bool): Whether a _SUMMARY.md file exists
+        
+        Returns empty list [] if no documents exist or documents directory is not found.
+    
+    Example Usage:
+        ```json
+        {
+            "name": "list_documents",
+            "arguments": {}
+        }
+        ```
+    
+    Example Response:
+        ```json
+        [
+            {
+                "document_name": "user_guide",
+                "total_chapters": 3,
+                "total_word_count": 1250,
+                "total_paragraph_count": 45,
+                "last_modified": "2024-01-15T10:30:00Z",
+                "chapters": [
+                    {
+                        "chapter_name": "01-introduction.md",
+                        "word_count": 300,
+                        "paragraph_count": 12,
+                        "last_modified": "2024-01-15T10:30:00Z"
+                    }
+                ],
+                "has_summary": true
+            }
+        ]
+        ```
     """
     docs_info = []
     # Ensure DOCS_ROOT_PATH is a Path object (defensive programming for tests)
@@ -411,16 +540,70 @@ def list_documents() -> List[DocumentInfo]:
     return docs_info
 
 
-# --- Implement Read Tools ---
-
+# ============================================================================
+# CHAPTER MANAGEMENT TOOLS  
+# ============================================================================
+# Tools for managing individual chapter files within documents
 
 @mcp_server.tool()
 @log_mcp_call
 def list_chapters(document_name: str) -> Optional[List[ChapterMetadata]]:
     """
-    Lists all chapters for a given document, ordered by filename.
-    Requires `document_name`.
-    Returns a list of chapter metadata objects or None if the document doesn't exist.
+    List all chapter files within a specified document, ordered by filename.
+    
+    This tool retrieves metadata for all chapter files (.md) within a document directory.
+    Chapters are automatically ordered alphanumerically by filename, which typically
+    corresponds to their intended sequence (e.g., 01-intro.md, 02-setup.md).
+    
+    Parameters:
+        document_name (str): Name of the document directory to list chapters from
+    
+    Returns:
+        Optional[List[ChapterMetadata]]: List of chapter metadata objects if document exists,
+        None if document not found. Each ChapterMetadata contains:
+            - chapter_name (str): Filename of the chapter (e.g., "01-introduction.md")
+            - title (Optional[str]): Chapter title (currently None, reserved for future use)
+            - word_count (int): Total number of words in the chapter
+            - paragraph_count (int): Total number of paragraphs in the chapter
+            - last_modified (datetime): Timestamp of last file modification
+        
+        Returns empty list [] if document exists but contains no valid chapter files.
+        Returns None if the document directory does not exist.
+    
+    Example Usage:
+        ```json
+        {
+            "name": "list_chapters",
+            "arguments": {
+                "document_name": "user_guide"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        [
+            {
+                "chapter_name": "01-introduction.md",
+                "title": null,
+                "word_count": 342,
+                "paragraph_count": 8,
+                "last_modified": "2024-01-15T10:30:00Z"
+            },
+            {
+                "chapter_name": "02-getting-started.md", 
+                "title": null,
+                "word_count": 567,
+                "paragraph_count": 15,
+                "last_modified": "2024-01-15T11:45:00Z"
+            }
+        ]
+        ```
+    
+    Example Not Found Response:
+        ```json
+        null
+        ```
     """
     doc_path = _get_document_path(document_name)
     if not doc_path.is_dir():
@@ -447,10 +630,60 @@ def list_chapters(document_name: str) -> Optional[List[ChapterMetadata]]:
 def read_chapter_content(
     document_name: str, chapter_name: str
 ) -> Optional[ChapterContent]:
-    """
-    Reads the content of a specific chapter within a document.
-    Requires `document_name` and `chapter_name` (e.g., "01-intro.md").
-    Returns an object containing the chapter's content and metadata, or None if not found.
+    r"""
+    Retrieve the complete content and metadata of a specific chapter within a document.
+    
+    This tool reads a chapter file (.md) from a document directory and returns both
+    the raw content and associated metadata including word counts, paragraph counts,
+    and modification timestamps. Returns None if the chapter or document is not found.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to read. Must be:
+            - Valid .md filename (e.g., "01-introduction.md")
+            - Existing file within the specified document directory
+            - Not a reserved filename like "_manifest.json"
+    
+    Returns:
+        Optional[ChapterContent]: Chapter content object if found, None if not found. 
+        ChapterContent contains:
+            - document_name (str): Name of the parent document
+            - chapter_name (str): Filename of the chapter
+            - content (str): Full raw text content of the chapter file
+            - word_count (int): Total number of words in the chapter
+            - paragraph_count (int): Total number of paragraphs in the chapter
+            - last_modified (datetime): Timestamp of last file modification
+        
+        Returns None if document doesn't exist, chapter doesn't exist, or chapter
+        filename is invalid.
+    
+    Example Usage:
+        ```json
+        {
+            "name": "read_chapter_content",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-introduction.md"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "document_name": "user_guide",
+            "chapter_name": "01-introduction.md",
+            "content": "# Introduction\n\nWelcome to our user guide...",
+            "word_count": 342,
+            "paragraph_count": 8,
+            "last_modified": "2024-01-15T10:30:00Z"
+        }
+        ```
+    
+    Example Not Found Response:
+        ```json
+        null
+        ```
     """
     chapter_file_path = _get_chapter_path(document_name, chapter_name)
     if not chapter_file_path.is_file() or not _is_valid_chapter_filename(chapter_name):
@@ -464,33 +697,102 @@ def read_chapter_content(
 @mcp_server.tool()
 @log_mcp_call
 def read_document_summary(document_name: str) -> Optional[str]:
-    """
-    Reads the content of the _SUMMARY.md file for a given document.
-    Requires `document_name`.
-    Returns the summary content as a string, or None if the summary file doesn't exist or cannot be read.
+    r"""
+    Retrieve the content of a document's summary file (_SUMMARY.md).
+    
+    This tool reads the special _SUMMARY.md file that can be used to provide
+    an overview or table of contents for a document collection. The summary
+    file is optional and may not exist for all documents.
+    
+    Parameters:
+        document_name (str): Name of the document directory to read summary from
+    
+    Returns:
+        Optional[str]: Raw text content of the _SUMMARY.md file if it exists,
+        None if the summary file doesn't exist or cannot be read.
+        
+        Returns None if:
+        - Document directory doesn't exist
+        - _SUMMARY.md file doesn't exist in the document
+    
+    Example Usage:
+        ```json
+        {
+            "name": "read_document_summary",
+            "arguments": {
+                "document_name": "user_guide"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "content": "# Document Summary\n\n- Chapter 1\n- Chapter 2"
+        }
+        ```
+    
+    Example Not Found Response:
+        ```json
+        null
+        ```
     """
     # Validate document name (optional, but good practice if it can be invalid)
     is_valid_doc, doc_error = _validate_document_name(document_name)
     if not is_valid_doc:
-        print(f"Invalid document name provided: {doc_error}")
+        log_structured_error(
+            category=ErrorCategory.WARNING,
+            message="Invalid document name provided",
+            context={
+                "document_name": document_name,
+                "validation_error": doc_error
+            },
+            operation="read_document_summary"
+        )
         # Depending on desired strictness, could return None or raise error
         return None # For now, let's be lenient if the path check below handles it
 
     doc_path = _get_document_path(document_name)
     if not doc_path.is_dir():
-        print(f"Document '{document_name}' not found at {doc_path}")
+        log_structured_error(
+            category=ErrorCategory.INFO,
+            message="Document not found",
+            context={
+                "document_name": document_name,
+                "attempted_path": str(doc_path)
+            },
+            operation="read_document_summary"
+        )
         return None
 
     summary_file_path = doc_path / DOCUMENT_SUMMARY_FILE
     if not summary_file_path.is_file():
-        print(f"Summary file '{DOCUMENT_SUMMARY_FILE}' not found in document '{document_name}'.")
+        log_structured_error(
+            category=ErrorCategory.INFO,
+            message="Summary file not found in document",
+            context={
+                "document_name": document_name,
+                "summary_file_name": DOCUMENT_SUMMARY_FILE,
+                "summary_file_path": str(summary_file_path)
+            },
+            operation="read_document_summary"
+        )
         return None
 
     try:
         summary_content = summary_file_path.read_text(encoding="utf-8")
         return summary_content
     except Exception as e:
-        print(f"Error reading summary file for document '{document_name}': {e}")
+        log_structured_error(
+            category=ErrorCategory.ERROR,
+            message="Failed to read summary file",
+            exception=e,
+            context={
+                "document_name": document_name,
+                "summary_file_path": str(summary_file_path)
+            },
+            operation="read_document_summary"
+        )
         return None
 
 
@@ -500,9 +802,60 @@ def read_paragraph_content(
     document_name: str, chapter_name: str, paragraph_index_in_chapter: int
 ) -> Optional[ParagraphDetail]:
     """
-    Reads a specific paragraph from a chapter in a document.
-    Requires `document_name`, `chapter_name`, and a 0-indexed `paragraph_index_in_chapter`.
-    Returns an object with paragraph details or None if not found or index is out of bounds.
+    Retrieve the content and metadata of a specific paragraph within a chapter.
+    
+    This tool extracts a single paragraph from a chapter file using zero-indexed
+    positioning. Paragraphs are defined as text blocks separated by blank lines.
+    Useful for targeted content retrieval and editing operations.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter containing the paragraph
+        paragraph_index_in_chapter (int): Zero-indexed position of the paragraph. Must be:
+            - Non-negative integer (≥0)
+            - Within the valid range of existing paragraphs in the chapter
+    
+    Returns:
+        Optional[ParagraphDetail]: Paragraph content object if found, None if not found.
+        ParagraphDetail contains:
+            - document_name (str): Name of the parent document
+            - chapter_name (str): Name of the chapter file
+            - paragraph_index_in_chapter (int): Zero-indexed position within the chapter
+            - content (str): Full text content of the paragraph
+            - word_count (int): Number of words in the paragraph
+        
+        Returns None if:
+        - Document doesn't exist
+        - Chapter doesn't exist or is invalid
+        - Paragraph index is out of bounds (negative or exceeds paragraph count)
+    
+    Example Usage:
+        ```json
+        {
+            "name": "read_paragraph_content",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-introduction.md",
+                "paragraph_index_in_chapter": 2
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "document_name": "user_guide",
+            "chapter_name": "01-introduction.md", 
+            "paragraph_index_in_chapter": 2,
+            "content": "This comprehensive guide will walk you through all the essential features and help you become productive quickly.",
+            "word_count": 18
+        }
+        ```
+    
+    Example Not Found Response:
+        ```json
+        null
+        ```
     """
     chapter_content_obj = read_chapter_content(document_name, chapter_name)
     if not chapter_content_obj:
@@ -512,8 +865,17 @@ def read_paragraph_content(
     total_paragraphs = len(paragraphs)
 
     if not (0 <= paragraph_index_in_chapter < total_paragraphs):
-        print(
-            f"Error: Paragraph index {paragraph_index_in_chapter} is out of bounds (0-{total_paragraphs-1}) for chapter '{chapter_name}' in document '{document_name}'."
+        log_structured_error(
+            category=ErrorCategory.WARNING,
+            message="Paragraph index out of bounds",
+            context={
+                "document_name": document_name,
+                "chapter_name": chapter_name,
+                "paragraph_index": paragraph_index_in_chapter,
+                "total_paragraphs": total_paragraphs,
+                "valid_range": f"0-{total_paragraphs-1}"
+            },
+            operation="read_paragraph_content"
         )
         return None
 
@@ -530,14 +892,88 @@ def read_paragraph_content(
 @mcp_server.tool()
 @log_mcp_call
 def read_full_document(document_name: str) -> Optional[FullDocumentContent]:
-    """
-    Reads the entire content of a document, including all its chapters in order.
-    Requires `document_name`.
-    Returns an object containing the document name and a list of all chapter contents, or None if the document is not found.
+    r"""
+    Retrieve the complete content of an entire document including all chapters in order.
+    
+    This tool reads all chapter files within a document directory and returns them
+    as a single structured object. Chapters are ordered alphanumerically by filename,
+    providing the complete document content for comprehensive operations.
+    
+    Parameters:
+        document_name (str): Name of the document directory to read completely
+    
+    Returns:
+        Optional[FullDocumentContent]: Complete document content object if found, None if not found.
+        FullDocumentContent contains:
+            - document_name (str): Name of the document
+            - chapters (List[ChapterContent]): Ordered list of all chapter contents
+            - total_word_count (int): Sum of words across all chapters
+            - total_paragraph_count (int): Sum of paragraphs across all chapters
+        
+        Each ChapterContent within chapters contains:
+            - document_name (str): Name of the parent document
+            - chapter_name (str): Filename of the chapter
+            - content (str): Full raw text content of the chapter
+            - word_count (int): Number of words in the chapter
+            - paragraph_count (int): Number of paragraphs in the chapter
+            - last_modified (datetime): Timestamp of last file modification
+        
+        Returns None if document directory doesn't exist.
+        Returns empty chapters list if document exists but has no chapter files.
+    
+    Example Usage:
+        ```json
+        {
+            "name": "read_full_document",
+            "arguments": {
+                "document_name": "user_guide"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "document_name": "user_guide",
+            "chapters": [
+                {
+                    "document_name": "user_guide",
+                    "chapter_name": "01-introduction.md",
+                    "content": "# Introduction\n\nWelcome to our guide...",
+                    "word_count": 342,
+                    "paragraph_count": 8,
+                    "last_modified": "2024-01-15T10:30:00Z"
+                },
+                {
+                    "document_name": "user_guide", 
+                    "chapter_name": "02-setup.md",
+                    "content": "# Setup\n\nFollow these steps...",
+                    "word_count": 567,
+                    "paragraph_count": 15,
+                    "last_modified": "2024-01-15T11:45:00Z"
+                }
+            ],
+            "total_word_count": 909,
+            "total_paragraph_count": 23
+        }
+        ```
+    
+    Example Not Found Response:
+        ```json
+        null
+        ```
     """
     doc_path = _get_document_path(document_name)
     if not doc_path.is_dir():
-        print(f"Document '{document_name}' not found at {doc_path}")
+        log_structured_error(
+            category=ErrorCategory.INFO,
+            message="Document not found for full read",
+            context={
+                "document_name": document_name,
+                "attempted_path": str(doc_path)
+            },
+            operation="read_full_document"
+        )
         return None
 
     ordered_chapter_files = _get_ordered_chapter_files(document_name)
@@ -565,8 +1001,15 @@ def read_full_document(document_name: str) -> Optional[FullDocumentContent]:
         else:
             # If a chapter file is listed but can't be read, this indicates an issue.
             # For now, we'll skip it, but this could also be an error condition.
-            print(
-                f"Warning: Could not read chapter '{chapter_file_path.name}' in document '{document_name}'. Skipping."
+            log_structured_error(
+                category=ErrorCategory.WARNING,
+                message="Could not read chapter file, skipping",
+                context={
+                    "document_name": document_name,
+                    "chapter_file_name": chapter_file_path.name,
+                    "chapter_file_path": str(chapter_file_path)
+                },
+                operation="read_full_document"
             )
 
     return FullDocumentContent(
@@ -577,16 +1020,61 @@ def read_full_document(document_name: str) -> Optional[FullDocumentContent]:
     )
 
 
-# --- Implement Write Tools ---
-
-
 @mcp_server.tool()
 @log_mcp_call
 def create_document(document_name: str) -> OperationStatus:
-    """
-    Creates a new document (as a directory).
-    Requires `document_name`.
-    The document name should be suitable for a directory name.
+    r"""
+    Create a new document collection as a directory in the document management system.
+    
+    This tool initializes a new document by creating a directory that will contain
+    chapter files (.md). The document name must be valid for filesystem usage and
+    will serve as the directory name for organizing chapters.
+    
+    Parameters:
+        document_name (str): Name for the new document directory. Must be:
+            - Non-empty string
+            - ≤100 characters
+            - Valid filesystem directory name
+            - Cannot contain path separators (/ or \)
+            - Cannot start with a dot (.)
+            - Cannot conflict with existing document names
+    
+    Returns:
+        OperationStatus: Structured result object containing:
+            - success (bool): True if document was created successfully, False otherwise
+            - message (str): Human-readable description of the operation result
+            - details (Dict[str, Any], optional): Additional context including:
+                - document_name (str): Name of the created document (on success)
+    
+    Example Usage:
+        ```json
+        {
+            "name": "create_document",
+            "arguments": {
+                "document_name": "user_manual"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "success": true,
+            "message": "Document 'user_manual' created successfully.",
+            "details": {
+                "document_name": "user_manual"
+            }
+        }
+        ```
+    
+    Example Error Response:
+        ```json
+        {
+            "success": false,
+            "message": "Document 'user_manual' already exists.",
+            "details": null
+        }
+        ```
     """
     # Validate input
     is_valid, error_msg = _validate_document_name(document_name)
@@ -615,9 +1103,48 @@ def create_document(document_name: str) -> OperationStatus:
 @log_mcp_call
 def delete_document(document_name: str) -> OperationStatus:
     """
-    Deletes a document and all its chapters.
-    Requires `document_name`.
-    This operation is irreversible.
+    Permanently deletes a document directory and all its chapter files.
+    
+    This tool removes an entire document collection including all chapter files
+    and any associated metadata. This operation is irreversible and should be
+    used with caution. All content within the document directory will be lost.
+    
+    Parameters:
+        document_name (str): Name of the document directory to delete
+    
+    Returns:
+        OperationStatus: Structured result object containing:
+            - success (bool): True if document was deleted successfully, False otherwise
+            - message (str): Human-readable description of the operation result
+            - details (Dict[str, Any], optional): Additional context (currently None)
+    
+    Example Usage:
+        ```json
+        {
+            "name": "delete_document",
+            "arguments": {
+                "document_name": "old_manual"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "success": true,
+            "message": "Document 'old_manual' and its contents deleted successfully.",
+            "details": null
+        }
+        ```
+    
+    Example Error Response:
+        ```json
+        {
+            "success": false,
+            "message": "Document 'old_manual' not found.",
+            "details": null
+        }
+        ```
     """
     doc_path = _get_document_path(document_name)
     if not doc_path.is_dir():
@@ -634,8 +1161,15 @@ def delete_document(document_name: str) -> OperationStatus:
             ):  # Should not happen based on current structure, but good practice
                 # Recursively delete subdirectories if any (e.g. import shutil; shutil.rmtree(item))
                 # For now, assume no subdirs other than files.
-                print(
-                    f"Warning: Subdirectory {item} found in document {document_name}. Manual cleanup might be needed if it wasn't deleted."
+                log_structured_error(
+                    category=ErrorCategory.WARNING,
+                    message="Subdirectory found in document during deletion",
+                    context={
+                        "document_name": document_name,
+                        "subdirectory_path": str(item),
+                        "cleanup_note": "Manual cleanup might be needed if it wasn't deleted"
+                    },
+                    operation="delete_document"
                 )
         doc_path.rmdir()  # Remove the now-empty directory
         return OperationStatus(
@@ -653,12 +1187,70 @@ def delete_document(document_name: str) -> OperationStatus:
 def create_chapter(
     document_name: str, chapter_name: str, initial_content: str = ""
 ) -> OperationStatus:
-    """
-    Creates a new chapter file within a document.
-    Requires `document_name` and `chapter_name` (e.g., "02-next-steps.md").
-    `chapter_name` must end with .md and be a valid filename.
-    Optionally accepts `initial_content` for the chapter.
-    Chapter order is determined by alphanumeric sorting of chapter filenames.
+    r"""
+    Create a new chapter file within an existing document directory.
+
+    .. note::
+       While this tool supports creating a chapter with initial content, for clarity it is recommended to create an empty chapter and then use a dedicated write/update tool to add content. This helps separate creation from modification operations.
+    
+    This tool adds a new Markdown chapter file to a document collection. The chapter
+    will be ordered based on its filename when listed with other chapters. Supports
+    optional initial content to bootstrap the chapter with starter text.
+    
+    Parameters:
+        document_name (str): Name of the existing document directory to add chapter to
+        chapter_name (str): Filename for the new chapter. Must be:
+            - Valid .md filename (e.g., "03-advanced-features.md")
+            - ≤100 characters
+            - Valid filesystem filename
+            - Cannot contain path separators (/ or \)
+            - Cannot be reserved name like "_manifest.json" or "_SUMMARY.md"
+            - Must not already exist in the document
+        initial_content (str, optional): Starting content for the new chapter. Can be:
+            - Empty string (default): Creates empty chapter file
+            - Any valid UTF-8 text content
+            - Must be ≤1MB in size
+    
+    Returns:
+        OperationStatus: Structured result object containing:
+            - success (bool): True if chapter was created successfully, False otherwise
+            - message (str): Human-readable description of the operation result
+            - details (Dict[str, Any], optional): Additional context including:
+                - document_name (str): Name of the parent document (on success)
+                - chapter_name (str): Name of the created chapter (on success)
+    
+    Example Usage:
+        ```json
+        {
+            "name": "create_chapter",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "03-advanced-features.md",
+                "initial_content": "# Advanced Features\n\nThis chapter covers advanced functionality."
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "success": true,
+            "message": "Chapter '03-advanced-features.md' created successfully in document 'user_guide'.",
+            "details": {
+                "document_name": "user_guide",
+                "chapter_name": "03-advanced-features.md"
+            }
+        }
+        ```
+    
+    Example Error Response:
+        ```json
+        {
+            "success": false,
+            "message": "Chapter '03-advanced-features.md' already exists in document 'user_guide'.",
+            "details": null
+        }
+        ```
     """
     # Validate inputs
     is_valid_doc, doc_error = _validate_document_name(document_name)
@@ -710,8 +1302,53 @@ def create_chapter(
 @log_mcp_call
 def delete_chapter(document_name: str, chapter_name: str) -> OperationStatus:
     """
-    Deletes a chapter file from a document.
-    Requires `document_name` and `chapter_name`.
+    Delete a chapter file from a document directory.
+    
+    This tool permanently removes a chapter file from a document collection.
+    The operation is irreversible and will delete the file from the filesystem.
+    Use with caution as the chapter content will be lost.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to delete. Must be:
+            - Valid .md filename (e.g., "02-old-chapter.md")
+            - Existing file within the specified document directory
+            - Not a reserved filename like "_manifest.json"
+    
+    Returns:
+        OperationStatus: Structured result object containing:
+            - success (bool): True if chapter was deleted successfully, False otherwise
+            - message (str): Human-readable description of the operation result
+            - details (Dict[str, Any], optional): Additional context (currently None)
+    
+    Example Usage:
+        ```json
+        {
+            "name": "delete_chapter",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "02-outdated-section.md"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "success": true,
+            "message": "Chapter '02-outdated-section.md' deleted successfully from document 'user_guide'.",
+            "details": null
+        }
+        ```
+    
+    Example Error Response:
+        ```json
+        {
+            "success": false,
+            "message": "Chapter '02-outdated-section.md' not found in document 'user_guide'.",
+            "details": null
+        }
+        ```
     """
     if not _is_valid_chapter_filename(
         chapter_name
@@ -746,10 +1383,65 @@ def delete_chapter(document_name: str, chapter_name: str) -> OperationStatus:
 def write_chapter_content(
     document_name: str, chapter_name: str, new_content: str
 ) -> OperationStatus:
-    """
-    Overwrites the entire content of a specific chapter.
-    Requires `document_name`, `chapter_name`, and the `new_content` for the chapter.
-    If the chapter doesn't exist, it will be created.
+    r"""
+    Overwrite the entire content of a chapter file with new content.
+
+    .. deprecated:: 0.18.0
+       This tool's behavior of creating a chapter if it doesn't exist is deprecated and will be removed in a future version.
+       In the future, this tool will only write to existing chapters. Please use `create_chapter` for new chapters.
+    
+    This tool completely replaces the content of an existing chapter file or creates
+    a new chapter if it doesn't exist. The operation provides diff information showing
+    exactly what changed between the original and new content.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to write. Must be:
+            - Valid .md filename (e.g., "01-introduction.md")  
+            - Valid filesystem filename
+            - Not a reserved filename like "_manifest.json"
+        new_content (str): Complete new content for the chapter file. Can be:
+            - Any valid UTF-8 text content
+            - Empty string (creates empty chapter)
+            - Must be ≤1MB in size
+    
+    Returns:
+        OperationStatus: Structured result object containing:
+            - success (bool): True if content was written successfully, False otherwise
+            - message (str): Human-readable description of the operation result  
+            - details (Dict[str, Any], optional): Includes diff information:
+                - changed (bool): Whether content was actually modified
+                - diff (str): Unified diff showing changes made
+                - summary (str): Brief description of changes
+                - lines_added (int): Number of lines added
+                - lines_removed (int): Number of lines removed
+    
+    Example Usage:
+        ```json
+        {
+            "name": "write_chapter_content",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-introduction.md",
+                "new_content": "# Introduction\n\nWelcome to our comprehensive user guide.\n\nThis guide will help you get started."
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "success": true,
+            "message": "Content of chapter '01-introduction.md' in document 'user_guide' updated successfully.",
+            "details": {
+                "changed": true,
+                "diff": "--- 01-introduction.md (before)\n+++ 01-introduction.md (after)\n@@ -1,3 +1,4 @@\n # Introduction\n \n-Welcome to our guide.\n+Welcome to our comprehensive user guide.\n+\n+This guide will help you get started.",
+                "summary": "Modified content: +3 lines, -1 lines",
+                "lines_added": 3,
+                "lines_removed": 1
+            }
+        }
+        ```
     """
     doc_path = _get_document_path(document_name)
     if not doc_path.is_dir():
@@ -764,20 +1456,22 @@ def write_chapter_content(
         )
 
     chapter_path = _get_chapter_path(document_name, chapter_name)
-    # No need to read original content for OperationStatus in this case, as we overwrite.
     try:
+        # Read original content before overwriting
+        original_content = ""
+        if chapter_path.exists():
+            original_content = chapter_path.read_text(encoding="utf-8")
+        
+        # Write new content
         chapter_path.write_text(new_content, encoding="utf-8")
-        updated_content_details = _read_chapter_content_details(
-            document_name, chapter_path
-        )
+        
+        # Generate diff for details
+        diff_info = _generate_content_diff(original_content, new_content, chapter_name)
+        
         return OperationStatus(
             success=True,
             message=f"Content of chapter '{chapter_name}' in document '{document_name}' updated successfully.",
-            details=(
-                updated_content_details.model_dump()
-                if updated_content_details
-                else None
-            ),
+            details=diff_info,
         )
     except Exception as e:
         return OperationStatus(
@@ -786,18 +1480,44 @@ def write_chapter_content(
         )
 
 
+# ============================================================================
+# PARAGRAPH MANAGEMENT TOOLS (ATOMIC)
+# ============================================================================
+# Atomic tools for precise paragraph-level operations within chapters
+
 @mcp_server.tool()
 @log_mcp_call
-def modify_paragraph_content(
-    document_name: str,
-    chapter_name: str,
-    paragraph_index: int,
-    new_paragraph_content: str,
-    mode: str,
+def replace_paragraph(
+    document_name: str, chapter_name: str, paragraph_index: int, new_content: str
 ) -> OperationStatus:
     """
-    Modifies a paragraph in a chapter. Modes: "replace", "insert_before", "insert_after", "delete".
-    Requires `document_name`, `chapter_name`, `paragraph_index` (0-indexed), `new_paragraph_content` (ignored for "delete"), and `mode`.
+    Replace the content of a specific paragraph within a chapter.
+    
+    This atomic tool replaces an existing paragraph at the specified index with
+    new content. The paragraph index is zero-based, and the operation will fail
+    if the index is out of bounds.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to modify (must end with .md)
+        paragraph_index (int): Zero-indexed position of the paragraph to replace (≥0)
+        new_content (str): New content to replace the existing paragraph with
+    
+    Returns:
+        OperationStatus: Result object with success status, message, and diff details
+    
+    Example Usage:
+        ```json
+        {
+            "name": "replace_paragraph",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-intro.md",
+                "paragraph_index": 2,
+                "new_content": "This is the updated paragraph content."
+            }
+        }
+        ```
     """
     # Validate inputs
     is_valid_doc, doc_error = _validate_document_name(document_name)
@@ -812,17 +1532,9 @@ def modify_paragraph_content(
     if not is_valid_index:
         return OperationStatus(success=False, message=index_error)
 
-    if mode != "delete":  # Content validation not needed for delete mode
-        is_valid_content, content_error = _validate_content(new_paragraph_content)
-        if not is_valid_content:
-            return OperationStatus(success=False, message=content_error)
-
-    allowed_modes = ["replace", "insert_before", "insert_after", "delete"]
-    if mode not in allowed_modes:
-        return OperationStatus(
-            success=False,
-            message=f"Invalid mode '{mode}'. Allowed modes: {allowed_modes}",
-        )
+    is_valid_content, content_error = _validate_content(new_content)
+    if not is_valid_content:
+        return OperationStatus(success=False, message=content_error)
 
     chapter_path = _get_chapter_path(document_name, chapter_name)
     if not chapter_path.is_file() or not _is_valid_chapter_filename(chapter_name):
@@ -836,76 +1548,297 @@ def modify_paragraph_content(
         paragraphs = _split_into_paragraphs(original_full_content)
         total_paragraphs = len(paragraphs)
 
-        if mode == "replace":
-            if not (0 <= paragraph_index < total_paragraphs):
-                return OperationStatus(
-                    success=False,
-                    message=f"Paragraph index {paragraph_index} for replacement is out of bounds (0-{total_paragraphs-1}).",
-                )
-            paragraphs[paragraph_index] = new_paragraph_content
-        elif mode == "insert_before":
-            if not (
-                0 <= paragraph_index <= total_paragraphs
-            ):  # Can insert at the very beginning (idx=0) or before any existing para up to total_paragraphs
-                return OperationStatus(
-                    success=False,
-                    message=f"Paragraph index {paragraph_index} for insert_before is out of bounds (0-{total_paragraphs}).",
-                )
-            paragraphs.insert(paragraph_index, new_paragraph_content)
-        elif mode == "insert_after":
-            if not (0 <= paragraph_index < total_paragraphs) and not (
-                total_paragraphs == 0 and paragraph_index == 0
-            ):
-                return OperationStatus(
-                    success=False,
-                    message=f"Paragraph index {paragraph_index} for insert_after is out of bounds (0-{total_paragraphs-1}).",
-                )
-            if total_paragraphs == 0 and paragraph_index == 0:  # Insert into empty doc
-                paragraphs.append(new_paragraph_content)
-            else:
-                paragraphs.insert(paragraph_index + 1, new_paragraph_content)
-        elif mode == "delete":
-            if not (0 <= paragraph_index < total_paragraphs):
-                return OperationStatus(
-                    success=False,
-                    message=f"Paragraph index {paragraph_index} for deletion is out of bounds (0-{total_paragraphs-1}).",
-                )
-            if not paragraphs:  # Should be caught by above, but defensive
-                return OperationStatus(
-                    success=False,
-                    message="Cannot delete paragraph from an empty chapter.",
-                )
-            del paragraphs[paragraph_index]
+        if not (0 <= paragraph_index < total_paragraphs):
+            return OperationStatus(
+                success=False,
+                message=f"Paragraph index {paragraph_index} is out of bounds (0-{total_paragraphs-1}).",
+            )
 
-        final_content = "\n\n".join(
-            paragraphs
-        )  # Ensure consistent paragraph separation
+        paragraphs[paragraph_index] = new_content
+        final_content = "\n\n".join(paragraphs)
         chapter_path.write_text(final_content, encoding="utf-8")
 
-        updated_content_details = _read_chapter_content_details(
-            document_name, chapter_path
-        )
+        # Generate diff for details
+        diff_info = _generate_content_diff(original_full_content, final_content, chapter_name)
+        
         return OperationStatus(
             success=True,
-            message=f"Paragraph {paragraph_index} in '{chapter_name}' ({document_name}) successfully modified with mode '{mode}'.",
-            details=(
-                updated_content_details.model_dump()
-                if updated_content_details
-                else None
-            ),
+            message=f"Paragraph {paragraph_index} in '{chapter_name}' ({document_name}) successfully replaced.",
+            details=diff_info,
         )
     except Exception as e:
-        # Attempt to return original content if read, otherwise none
-        error_details = None
-        if "original_full_content" in locals():
-            error_details = {
-                "content_before_error": original_full_content
-            }  # Could be large
         return OperationStatus(
             success=False,
-            message=f"Error modifying paragraph in '{chapter_name}' ({document_name}): {str(e)}",
-            details=error_details,
+            message=f"Error replacing paragraph in '{chapter_name}' ({document_name}): {str(e)}",
         )
+
+
+@mcp_server.tool()
+@log_mcp_call
+def insert_paragraph_before(
+    document_name: str, chapter_name: str, paragraph_index: int, new_content: str
+) -> OperationStatus:
+    """
+    Insert a new paragraph before the specified index within a chapter.
+    
+    This atomic tool inserts new content as a paragraph before the existing
+    paragraph at the specified index. All subsequent paragraphs are shifted down.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to modify (must end with .md)
+        paragraph_index (int): Zero-indexed position to insert before (≥0)
+        new_content (str): Content for the new paragraph to insert
+    
+    Returns:
+        OperationStatus: Result object with success status, message, and diff details
+    
+    Example Usage:
+        ```json
+        {
+            "name": "insert_paragraph_before",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-intro.md",
+                "paragraph_index": 1,
+                "new_content": "This paragraph will be inserted before paragraph 1."
+            }
+        }
+        ```
+    """
+    # Validate inputs
+    is_valid_doc, doc_error = _validate_document_name(document_name)
+    if not is_valid_doc:
+        return OperationStatus(success=False, message=doc_error)
+
+    is_valid_chapter, chapter_error = _validate_chapter_name(chapter_name)
+    if not is_valid_chapter:
+        return OperationStatus(success=False, message=chapter_error)
+
+    is_valid_index, index_error = _validate_paragraph_index(paragraph_index)
+    if not is_valid_index:
+        return OperationStatus(success=False, message=index_error)
+
+    is_valid_content, content_error = _validate_content(new_content)
+    if not is_valid_content:
+        return OperationStatus(success=False, message=content_error)
+
+    chapter_path = _get_chapter_path(document_name, chapter_name)
+    if not chapter_path.is_file() or not _is_valid_chapter_filename(chapter_name):
+        return OperationStatus(
+            success=False,
+            message=f"Chapter '{chapter_name}' not found in document '{document_name}'.",
+        )
+
+    try:
+        original_full_content = chapter_path.read_text(encoding="utf-8")
+        paragraphs = _split_into_paragraphs(original_full_content)
+        total_paragraphs = len(paragraphs)
+
+        if not (0 <= paragraph_index <= total_paragraphs):
+            return OperationStatus(
+                success=False,
+                message=f"Paragraph index {paragraph_index} is out of bounds (0-{total_paragraphs}).",
+            )
+
+        paragraphs.insert(paragraph_index, new_content)
+        final_content = "\n\n".join(paragraphs)
+        chapter_path.write_text(final_content, encoding="utf-8")
+
+        # Generate diff for details
+        diff_info = _generate_content_diff(original_full_content, final_content, chapter_name)
+        
+        return OperationStatus(
+            success=True,
+            message=f"Paragraph inserted before index {paragraph_index} in '{chapter_name}' ({document_name}).",
+            details=diff_info,
+        )
+    except Exception as e:
+        return OperationStatus(
+            success=False,
+            message=f"Error inserting paragraph in '{chapter_name}' ({document_name}): {str(e)}",
+        )
+
+
+@mcp_server.tool()
+@log_mcp_call
+def insert_paragraph_after(
+    document_name: str, chapter_name: str, paragraph_index: int, new_content: str
+) -> OperationStatus:
+    """
+    Insert a new paragraph after the specified index within a chapter.
+    
+    This atomic tool inserts new content as a paragraph after the existing
+    paragraph at the specified index. All subsequent paragraphs are shifted down.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to modify (must end with .md)
+        paragraph_index (int): Zero-indexed position to insert after (≥0)
+        new_content (str): Content for the new paragraph to insert
+    
+    Returns:
+        OperationStatus: Result object with success status, message, and diff details
+    
+    Example Usage:
+        ```json
+        {
+            "name": "insert_paragraph_after",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-intro.md",
+                "paragraph_index": 1,
+                "new_content": "This paragraph will be inserted after paragraph 1."
+            }
+        }
+        ```
+    """
+    # Validate inputs
+    is_valid_doc, doc_error = _validate_document_name(document_name)
+    if not is_valid_doc:
+        return OperationStatus(success=False, message=doc_error)
+
+    is_valid_chapter, chapter_error = _validate_chapter_name(chapter_name)
+    if not is_valid_chapter:
+        return OperationStatus(success=False, message=chapter_error)
+
+    is_valid_index, index_error = _validate_paragraph_index(paragraph_index)
+    if not is_valid_index:
+        return OperationStatus(success=False, message=index_error)
+
+    is_valid_content, content_error = _validate_content(new_content)
+    if not is_valid_content:
+        return OperationStatus(success=False, message=content_error)
+
+    chapter_path = _get_chapter_path(document_name, chapter_name)
+    if not chapter_path.is_file() or not _is_valid_chapter_filename(chapter_name):
+        return OperationStatus(
+            success=False,
+            message=f"Chapter '{chapter_name}' not found in document '{document_name}'.",
+        )
+
+    try:
+        original_full_content = chapter_path.read_text(encoding="utf-8")
+        paragraphs = _split_into_paragraphs(original_full_content)
+        total_paragraphs = len(paragraphs)
+
+        if not (0 <= paragraph_index < total_paragraphs) and not (
+            total_paragraphs == 0 and paragraph_index == 0
+        ):
+            return OperationStatus(
+                success=False,
+                message=f"Paragraph index {paragraph_index} is out of bounds (0-{total_paragraphs-1}).",
+            )
+
+        if total_paragraphs == 0 and paragraph_index == 0:  # Insert into empty doc
+            paragraphs.append(new_content)
+        else:
+            paragraphs.insert(paragraph_index + 1, new_content)
+        
+        final_content = "\n\n".join(paragraphs)
+        chapter_path.write_text(final_content, encoding="utf-8")
+
+        # Generate diff for details
+        diff_info = _generate_content_diff(original_full_content, final_content, chapter_name)
+        
+        return OperationStatus(
+            success=True,
+            message=f"Paragraph inserted after index {paragraph_index} in '{chapter_name}' ({document_name}).",
+            details=diff_info,
+        )
+    except Exception as e:
+        return OperationStatus(
+            success=False,
+            message=f"Error inserting paragraph in '{chapter_name}' ({document_name}): {str(e)}",
+        )
+
+
+@mcp_server.tool()
+@log_mcp_call
+def delete_paragraph(
+    document_name: str, chapter_name: str, paragraph_index: int
+) -> OperationStatus:
+    """
+    Delete a specific paragraph from a chapter.
+    
+    This atomic tool removes the paragraph at the specified index from the chapter.
+    All subsequent paragraphs are shifted up to fill the gap.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to modify (must end with .md)
+        paragraph_index (int): Zero-indexed position of the paragraph to delete (≥0)
+    
+    Returns:
+        OperationStatus: Result object with success status, message, and diff details
+    
+    Example Usage:
+        ```json
+        {
+            "name": "delete_paragraph",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-intro.md",
+                "paragraph_index": 2
+            }
+        }
+        ```
+    """
+    # Validate inputs
+    is_valid_doc, doc_error = _validate_document_name(document_name)
+    if not is_valid_doc:
+        return OperationStatus(success=False, message=doc_error)
+
+    is_valid_chapter, chapter_error = _validate_chapter_name(chapter_name)
+    if not is_valid_chapter:
+        return OperationStatus(success=False, message=chapter_error)
+
+    is_valid_index, index_error = _validate_paragraph_index(paragraph_index)
+    if not is_valid_index:
+        return OperationStatus(success=False, message=index_error)
+
+    chapter_path = _get_chapter_path(document_name, chapter_name)
+    if not chapter_path.is_file() or not _is_valid_chapter_filename(chapter_name):
+        return OperationStatus(
+            success=False,
+            message=f"Chapter '{chapter_name}' not found in document '{document_name}'.",
+        )
+
+    try:
+        original_full_content = chapter_path.read_text(encoding="utf-8")
+        paragraphs = _split_into_paragraphs(original_full_content)
+        total_paragraphs = len(paragraphs)
+
+        if not (0 <= paragraph_index < total_paragraphs):
+            return OperationStatus(
+                success=False,
+                message=f"Paragraph index {paragraph_index} is out of bounds (0-{total_paragraphs-1}).",
+            )
+
+        if not paragraphs:
+            return OperationStatus(
+                success=False,
+                message="Cannot delete paragraph from an empty chapter.",
+            )
+
+        del paragraphs[paragraph_index]
+        final_content = "\n\n".join(paragraphs)
+        chapter_path.write_text(final_content, encoding="utf-8")
+
+        # Generate diff for details
+        diff_info = _generate_content_diff(original_full_content, final_content, chapter_name)
+        
+        return OperationStatus(
+            success=True,
+            message=f"Paragraph {paragraph_index} deleted from '{chapter_name}' ({document_name}).",
+            details=diff_info,
+        )
+    except Exception as e:
+        return OperationStatus(
+            success=False,
+            message=f"Error deleting paragraph from '{chapter_name}' ({document_name}): {str(e)}",
+        )
+
 
 
 @mcp_server.tool()
@@ -913,9 +1846,61 @@ def modify_paragraph_content(
 def append_paragraph_to_chapter(
     document_name: str, chapter_name: str, paragraph_content: str
 ) -> OperationStatus:
-    """
-    Appends a new paragraph to the end of a specific chapter.
-    Requires `document_name`, `chapter_name`, and `paragraph_content`.
+    r"""
+    Append a new paragraph to the end of a specific chapter.
+    
+    This tool adds new content as a paragraph at the end of an existing chapter file.
+    The new paragraph will be separated from existing content by proper paragraph
+    spacing (blank lines). Provides diff information showing the changes made.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to append to. Must be:
+            - Valid .md filename (e.g., "01-introduction.md")
+            - Existing file within the specified document directory
+            - Not a reserved filename like "_manifest.json"
+        paragraph_content (str): Content to append as a new paragraph. Must be:
+            - Non-empty string
+            - Valid UTF-8 text content
+            - Must be ≤1MB in size
+    
+    Returns:
+        OperationStatus: Structured result object containing:
+            - success (bool): True if paragraph was appended successfully, False otherwise
+            - message (str): Human-readable description of the operation result
+            - details (Dict[str, Any], optional): Includes diff information:
+                - changed (bool): Whether content was actually modified
+                - diff (str): Unified diff showing changes made
+                - summary (str): Brief description of changes
+                - lines_added (int): Number of lines added
+                - lines_removed (int): Number of lines removed
+    
+    Example Usage:
+        ```json
+        {
+            "name": "append_paragraph_to_chapter",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-introduction.md",
+                "paragraph_content": "This additional paragraph provides more context about the features covered in this guide."
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "success": true,
+            "message": "Paragraph appended to chapter '01-introduction.md' in document 'user_guide'.",
+            "details": {
+                "changed": true,
+                "diff": "--- 01-introduction.md (before)\n+++ 01-introduction.md (after)\n@@ -10,0 +10,2 @@\n+\n+This additional paragraph provides more context about the features covered in this guide.",
+                "summary": "Modified content: +2 lines, -0 lines", 
+                "lines_added": 2,
+                "lines_removed": 0
+            }
+        }
+        ```
     """
     chapter_path = _get_chapter_path(document_name, chapter_name)
     if not chapter_path.is_file() or not _is_valid_chapter_filename(chapter_name):
@@ -940,17 +1925,14 @@ def append_paragraph_to_chapter(
         ):
             final_content = paragraph_content
         chapter_path.write_text(final_content, encoding="utf-8")
-        updated_content_details = _read_chapter_content_details(
-            document_name, chapter_path
-        )
+        
+        # Generate diff for details
+        diff_info = _generate_content_diff(original_full_content, final_content, chapter_name)
+        
         return OperationStatus(
             success=True,
             message=f"Paragraph appended to chapter '{chapter_name}' in document '{document_name}'.",
-            details=(
-                updated_content_details.model_dump()
-                if updated_content_details
-                else None
-            ),
+            details=diff_info,
         )
     except Exception as e:
         return OperationStatus(
@@ -959,15 +1941,88 @@ def append_paragraph_to_chapter(
         )
 
 
+# ============================================================================
+# SEARCH AND REPLACE TOOLS
+# ============================================================================
+# Tools for finding and replacing text content within documents and chapters
+
 @mcp_server.tool()
 @log_mcp_call
 def replace_text_in_chapter(
     document_name: str, chapter_name: str, text_to_find: str, replacement_text: str
 ) -> OperationStatus:
-    """
-    Replaces all occurrences of a string with another string in a specific chapter.
-    Requires `document_name`, `chapter_name`, `text_to_find`, and `replacement_text`.
-    This is case-sensitive.
+    r"""
+    Replace all occurrences of a text string with another string in a specific chapter.
+    
+    This tool performs case-sensitive text replacement throughout a chapter file.
+    All instances of the search text will be replaced with the replacement text.
+    Provides detailed information about the number of replacements made and diff output.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to modify. Must be:
+            - Valid .md filename (e.g., "01-introduction.md")
+            - Existing file within the specified document directory
+            - Not a reserved filename like "_manifest.json"
+        text_to_find (str): Text string to search for and replace. Must be:
+            - Non-empty string
+            - Exact text match (case-sensitive)
+        replacement_text (str): Text to replace found occurrences with. Can be:
+            - Any valid UTF-8 text content
+            - Empty string (effectively deletes the found text)
+            - Must be ≤1MB in size
+    
+    Returns:
+        OperationStatus: Structured result object containing:
+            - success (bool): True if operation completed successfully, False otherwise
+            - message (str): Human-readable description of the operation result
+            - details (Dict[str, Any], optional): Includes replacement information:
+                - changed (bool): Whether content was actually modified
+                - diff (str): Unified diff showing changes made (if any)
+                - summary (str): Brief description of changes
+                - lines_added (int): Number of lines added
+                - lines_removed (int): Number of lines removed
+                - occurrences_replaced (int): Number of text occurrences replaced
+    
+    Example Usage:
+        ```json
+        {
+            "name": "replace_text_in_chapter",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-introduction.md",
+                "text_to_find": "old version",
+                "replacement_text": "new version"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "success": true,
+            "message": "All 2 occurrences of 'old version' replaced with 'new version' in chapter '01-introduction.md'.",
+            "details": {
+                "changed": true,
+                "diff": "--- 01-introduction.md (before)\n+++ 01-introduction.md (after)\n@@ -5,1 +5,1 @@\n-This old version is deprecated.\n+This new version is current.",
+                "summary": "Modified content: +1 lines, -1 lines",
+                "lines_added": 1,
+                "lines_removed": 1,
+                "occurrences_replaced": 2
+            }
+        }
+        ```
+    
+    Example No Matches Response:
+        ```json
+        {
+            "success": true,
+            "message": "Text 'nonexistent' not found in chapter '01-introduction.md'. No changes made.",
+            "details": {
+                "occurrences_found": 0
+            }
+        }
+        ```
     """
     # Validate inputs
     is_valid_doc, doc_error = _validate_document_name(document_name)
@@ -1004,17 +2059,15 @@ def replace_text_in_chapter(
         modified_content = original_content.replace(text_to_find, replacement_text)
         occurrences = original_content.count(text_to_find)
         chapter_path.write_text(modified_content, encoding="utf-8")
-        updated_content_details = _read_chapter_content_details(
-            document_name, chapter_path
-        )
+        
+        # Generate diff for details
+        diff_info = _generate_content_diff(original_content, modified_content, chapter_name)
+        diff_info["occurrences_replaced"] = occurrences
+        
         return OperationStatus(
             success=True,
             message=f"All {occurrences} occurrences of '{text_to_find}' replaced with '{replacement_text}' in chapter '{chapter_name}'.",
-            details=(
-                updated_content_details.model_dump()
-                if updated_content_details
-                else None
-            ),  # Consider adding occurrences_found to details
+            details=diff_info,
         )
     except Exception as e:
         return OperationStatus(
@@ -1028,10 +2081,82 @@ def replace_text_in_document(
     document_name: str, text_to_find: str, replacement_text: str
 ) -> OperationStatus:
     """
-    Replaces all occurrences of a string with another string throughout all chapters of a document.
-    Requires `document_name`, `text_to_find`, and `replacement_text`.
-    This is case-sensitive. Reports on chapters modified.
-    """
+    Replace all occurrences of a text string with another string throughout all chapters of a document.
+    
+    This tool performs case-sensitive text replacement across all chapter files within
+    a document directory. It processes each chapter sequentially and provides comprehensive
+    reporting on which chapters were modified and how many replacements were made.
+    
+    Parameters:
+        document_name (str): Name of the document directory to process
+        text_to_find (str): Text string to search for and replace. Must be:
+            - Non-empty string
+            - Exact text match (case-sensitive)
+        replacement_text (str): Text to replace found occurrences with. Can be:
+            - Any valid UTF-8 text content
+            - Empty string (effectively deletes the found text)
+            - Must be ≤1MB in size
+    
+    Returns:
+        OperationStatus: Structured result object containing:
+            - success (bool): True if operation completed successfully, False otherwise
+            - message (str): Human-readable description of the operation result
+            - details (Dict[str, Any], optional): Includes comprehensive replacement information:
+                - chapters_modified_count (int): Number of chapters that had replacements
+                - total_occurrences_replaced (int): Total number of text occurrences replaced
+                - modified_chapters (List[Dict]): Details for each modified chapter including:
+                    - chapter_name (str): Name of the modified chapter file
+                    - occurrences_replaced (int): Number of replacements in this chapter
+    
+    Example Usage:
+        ```json
+        {
+            "name": "replace_text_in_document",
+            "arguments": {
+                "document_name": "user_guide",
+                "text_to_find": "version 1.0",
+                "replacement_text": "version 2.0"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "success": true,
+            "message": "Text replacement completed in document 'user_guide'. 5 occurrences replaced across 3 chapter(s).",
+            "details": {
+                "chapters_modified_count": 3,
+                "total_occurrences_replaced": 5,
+                "modified_chapters": [
+                    {
+                        "chapter_name": "01-introduction.md",
+                        "occurrences_replaced": 2
+                    },
+                    {
+                        "chapter_name": "02-setup.md", 
+                        "occurrences_replaced": 1
+                    },
+                    {
+                        "chapter_name": "03-features.md",
+                        "occurrences_replaced": 2
+                    }
+                ]
+            }
+        }
+        ```
+    
+    Example No Matches Response:
+        ```json
+        {
+            "success": true,
+            "message": "Text 'nonexistent' not found in any chapters of document 'user_guide'. No changes made.",
+            "details": {
+                "chapters_modified_count": 0,
+                "total_occurrences_replaced": 0
+            }
+        }
+            """
     doc_path = _get_document_path(document_name)
     if not doc_path.is_dir():
         return OperationStatus(
@@ -1093,8 +2218,10 @@ def replace_text_in_document(
     )
 
 
-# --- Implement Analyze Tools ---
-
+# ============================================================================
+# STATISTICS AND ANALYTICS TOOLS
+# ============================================================================
+# Tools for analyzing document and chapter metrics, word counts, etc.
 
 @mcp_server.tool()
 @log_mcp_call
@@ -1102,8 +2229,54 @@ def get_chapter_statistics(
     document_name: str, chapter_name: str
 ) -> Optional[StatisticsReport]:
     """
-    Retrieves statistics for a specific chapter (word count, paragraph count).
-    Requires `document_name` and `chapter_name`.
+    Retrieve statistical information for a specific chapter.
+    
+    This tool analyzes a chapter file and returns comprehensive statistics including
+    word count and paragraph count. Useful for content analysis, progress tracking,
+    and document planning.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to analyze. Must be:
+            - Valid .md filename (e.g., "01-introduction.md")
+            - Existing file within the specified document directory
+            - Not a reserved filename like "_manifest.json"
+    
+    Returns:
+        Optional[StatisticsReport]: Statistics object if chapter found, None if not found.
+        StatisticsReport contains:
+            - scope (str): Description of what was analyzed (e.g., "chapter: user_guide/01-intro.md")
+            - word_count (int): Total number of words in the chapter
+            - paragraph_count (int): Total number of paragraphs in the chapter
+            - chapter_count (None): Not applicable for chapter-level statistics
+        
+        Returns None if document doesn't exist or chapter doesn't exist.
+    
+    Example Usage:
+        ```json
+        {
+            "name": "get_chapter_statistics",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-introduction.md"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "scope": "chapter: user_guide/01-introduction.md",
+            "word_count": 342,
+            "paragraph_count": 8,
+            "chapter_count": null
+        }
+        ```
+    
+    Example Not Found Response:
+        ```json
+        null
+        ```
     """
     chapter_details = read_chapter_content(
         document_name, chapter_name
@@ -1125,8 +2298,50 @@ def get_chapter_statistics(
 @log_mcp_call
 def get_document_statistics(document_name: str) -> Optional[StatisticsReport]:
     """
-    Retrieves aggregated statistics for an entire document (total word/paragraph/chapter count).
-    Requires `document_name`.
+    Retrieve aggregated statistical information for an entire document.
+    
+    This tool analyzes all chapters within a document directory and returns
+    comprehensive statistics including total word count, paragraph count, and
+    chapter count. Useful for document-level analysis and progress tracking.
+    
+    Parameters:
+        document_name (str): Name of the document directory to analyze
+    
+    Returns:
+        Optional[StatisticsReport]: Statistics object if document found, None if not found.
+        StatisticsReport contains:
+            - scope (str): Description of what was analyzed (e.g., "document: user_guide")
+            - word_count (int): Total number of words across all chapters
+            - paragraph_count (int): Total number of paragraphs across all chapters
+            - chapter_count (int): Total number of chapter files in the document
+        
+        Returns None if document directory doesn't exist.
+        Returns zero counts if document exists but has no chapter files.
+    
+    Example Usage:
+        ```json
+        {
+            "name": "get_document_statistics",
+            "arguments": {
+                "document_name": "user_guide"
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        {
+            "scope": "document: user_guide",
+            "word_count": 2847,
+            "paragraph_count": 156,
+            "chapter_count": 8
+        }
+        ```
+    
+    Example Not Found Response:
+        ```json
+        null
+        ```
     """
     # Option 1: Re-use list_documents and find the specific document.
     # This is good for consistency if list_documents is already computed/cached by agent.
@@ -1178,19 +2393,77 @@ def get_document_statistics(document_name: str) -> Optional[StatisticsReport]:
     )
 
 
-# --- Implement Retrieval Tools (Exact Text Match) ---
-
-
 @mcp_server.tool()
 @log_mcp_call
 def find_text_in_chapter(
     document_name: str, chapter_name: str, query: str, case_sensitive: bool = False
 ) -> List[ParagraphDetail]:
     """
-    Finds paragraphs containing the exact query string within a specific chapter.
-    Requires `document_name`, `chapter_name`, and `query` string.
-    `case_sensitive` defaults to False (case-insensitive search).
-    Returns a list of ParagraphDetail objects for matching paragraphs.
+    Search for paragraphs containing a specific text string within a single chapter.
+    
+    This tool performs exact text matching within paragraph content, returning all
+    paragraphs that contain the search query. Supports both case-sensitive and
+    case-insensitive searching. Useful for locating specific content for review or editing.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to search (must end with .md)
+        query (str): Text string to search for. Must be:
+            - Non-empty string
+            - Not only whitespace
+            - Exact text match (not regex or wildcard)
+        case_sensitive (bool, optional): Whether to perform case-sensitive matching.
+            - False (default): Case-insensitive search
+            - True: Exact case matching required
+    
+    Returns:
+        List[ParagraphDetail]: List of paragraph objects containing the search query.
+        Each ParagraphDetail contains:
+            - document_name (str): Name of the parent document
+            - chapter_name (str): Name of the chapter file  
+            - paragraph_index_in_chapter (int): Zero-indexed position within the chapter
+            - content (str): Full text content of the matching paragraph
+            - word_count (int): Number of words in the paragraph
+        
+        Returns empty list [] if no matches found or if chapter/document doesn't exist.
+    
+    Example Usage:
+        ```json
+        {
+            "name": "find_text_in_chapter",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-introduction.md", 
+                "query": "installation",
+                "case_sensitive": false
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        [
+            {
+                "document_name": "user_guide",
+                "chapter_name": "01-introduction.md",
+                "paragraph_index_in_chapter": 3,
+                "content": "The installation process is straightforward and should take only a few minutes.",
+                "word_count": 13
+            },
+            {
+                "document_name": "user_guide", 
+                "chapter_name": "01-introduction.md",
+                "paragraph_index_in_chapter": 7,
+                "content": "For advanced installation options, see the next chapter.",
+                "word_count": 9
+            }
+        ]
+        ```
+    
+    Example No Matches Response:
+        ```json
+        []
+        ```
     """
     # Validate inputs
     is_valid_doc, doc_error = _validate_document_name(document_name)
@@ -1238,10 +2511,69 @@ def find_text_in_document(
     document_name: str, query: str, case_sensitive: bool = False
 ) -> List[ParagraphDetail]:
     """
-    Finds paragraphs containing the exact query string across all chapters of a document.
-    Requires `document_name` and `query` string.
-    `case_sensitive` defaults to False (case-insensitive search).
-    Returns a list of ParagraphDetail objects for matching paragraphs from any chapter.
+    Search for paragraphs containing a specific text string across all chapters in a document.
+    
+    This tool performs text matching across all chapter files within a document directory,
+    returning all paragraphs that contain the search query. Supports both case-sensitive
+    and case-insensitive searching. Useful for document-wide content discovery and analysis.
+    
+    Parameters:
+        document_name (str): Name of the document directory to search in
+        query (str): Text string to search for within paragraph content. Must be:
+            - Non-empty string
+            - Can include spaces and special characters
+            - Matched as exact substring (not regex)
+        case_sensitive (bool, optional): Whether to perform case-sensitive matching.
+            - True: Exact case matching (e.g., "API" ≠ "api")
+            - False (default): Case-insensitive matching (e.g., "API" = "api")
+    
+    Returns:
+        List[ParagraphDetail]: List of matching paragraph objects. Each ParagraphDetail contains:
+            - document_name (str): Name of the document containing the paragraph
+            - chapter_name (str): Name of the chapter file containing the paragraph
+            - paragraph_index_in_chapter (int): Zero-indexed position within the chapter
+            - content (str): Full text content of the matching paragraph
+            - word_count (int): Number of words in the paragraph
+        
+        Returns empty list if no matches found or if document doesn't exist.
+        Results are ordered by chapter filename, then by paragraph position within chapter.
+    
+    Example Usage:
+        ```json
+        {
+            "name": "find_text_in_document",
+            "arguments": {
+                "document_name": "user_guide",
+                "query": "authentication",
+                "case_sensitive": false
+            }
+        }
+        ```
+    
+    Example Success Response:
+        ```json
+        [
+            {
+                "document_name": "user_guide",
+                "chapter_name": "02-setup.md",
+                "paragraph_index_in_chapter": 3,
+                "content": "Configure authentication settings in your application to ensure secure access.",
+                "word_count": 12
+            },
+            {
+                "document_name": "user_guide", 
+                "chapter_name": "05-security.md",
+                "paragraph_index_in_chapter": 1,
+                "content": "Authentication is a critical component of any secure application.",
+                "word_count": 10
+            }
+        ]
+        ```
+    
+    Example No Matches Response:
+        ```json
+        []
+        ```
     """
     all_results = []
     doc_path = _get_document_path(document_name)
@@ -1262,6 +2594,277 @@ def find_text_in_document(
         all_results.extend(chapter_results)
 
     return all_results
+
+
+@mcp_server.tool()
+@log_mcp_call
+def append_to_chapter_content(
+    document_name: str, chapter_name: str, content_to_append: str
+) -> OperationStatus:
+    """
+    Append content to the end of a chapter without treating it as a separate paragraph.
+    
+    This atomic tool adds content directly to the end of the existing chapter content,
+    maintaining the current paragraph structure. Unlike append_paragraph, this does not
+    create a new paragraph but extends the existing content.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to append to (must end with .md)
+        content_to_append (str): Content to append to the end of the chapter
+    
+    Returns:
+        OperationStatus: Result object with success status, message, and diff details
+    
+    Example Usage:
+        ```json
+        {
+            "name": "append_to_chapter_content",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-intro.md",
+                "content_to_append": "\n\nAdditional note: This content is appended directly."
+            }
+        }
+        ```
+    """
+    # Validate inputs
+    is_valid_doc, doc_error = _validate_document_name(document_name)
+    if not is_valid_doc:
+        return OperationStatus(success=False, message=doc_error)
+
+    is_valid_chapter, chapter_error = _validate_chapter_name(chapter_name)
+    if not is_valid_chapter:
+        return OperationStatus(success=False, message=chapter_error)
+
+    is_valid_content, content_error = _validate_content(content_to_append)
+    if not is_valid_content:
+        return OperationStatus(success=False, message=content_error)
+
+    chapter_path = _get_chapter_path(document_name, chapter_name)
+    if not chapter_path.is_file() or not _is_valid_chapter_filename(chapter_name):
+        return OperationStatus(
+            success=False,
+            message=f"Chapter '{chapter_name}' not found in document '{document_name}'.",
+        )
+
+    try:
+        original_content = chapter_path.read_text(encoding="utf-8")
+        new_content = original_content + content_to_append
+        chapter_path.write_text(new_content, encoding="utf-8")
+
+        # Generate diff for details
+        diff_info = _generate_content_diff(original_content, new_content, chapter_name)
+        
+        return OperationStatus(
+            success=True,
+            message=f"Content appended to chapter '{chapter_name}' in document '{document_name}'.",
+            details=diff_info,
+        )
+    except Exception as e:
+        return OperationStatus(
+            success=False,
+            message=f"Error appending content to '{chapter_name}': {str(e)}",
+        )
+
+
+@mcp_server.tool()
+@log_mcp_call
+def move_paragraph_before(
+    document_name: str, chapter_name: str, paragraph_to_move_index: int, target_paragraph_index: int
+) -> OperationStatus:
+    """
+    Move a paragraph to appear before another paragraph within the same chapter.
+    
+    This atomic tool reorders paragraphs within a chapter by moving the paragraph
+    at the source index to appear before the paragraph at the target index.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to modify (must end with .md)
+        paragraph_to_move_index (int): Zero-indexed position of the paragraph to move (≥0)
+        target_paragraph_index (int): Zero-indexed position to move before (≥0)
+    
+    Returns:
+        OperationStatus: Result object with success status, message, and diff details
+    
+    Example Usage:
+        ```json
+        {
+            "name": "move_paragraph_before",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-intro.md",
+                "paragraph_to_move_index": 3,
+                "target_paragraph_index": 1
+            }
+        }
+        ```
+    """
+    # Validate inputs
+    is_valid_doc, doc_error = _validate_document_name(document_name)
+    if not is_valid_doc:
+        return OperationStatus(success=False, message=doc_error)
+
+    is_valid_chapter, chapter_error = _validate_chapter_name(chapter_name)
+    if not is_valid_chapter:
+        return OperationStatus(success=False, message=chapter_error)
+
+    is_valid_move_index, move_index_error = _validate_paragraph_index(paragraph_to_move_index)
+    if not is_valid_move_index:
+        return OperationStatus(success=False, message=f"Move index: {move_index_error}")
+
+    is_valid_target_index, target_index_error = _validate_paragraph_index(target_paragraph_index)
+    if not is_valid_target_index:
+        return OperationStatus(success=False, message=f"Target index: {target_index_error}")
+
+    if paragraph_to_move_index == target_paragraph_index:
+        return OperationStatus(
+            success=False,
+            message="Cannot move a paragraph before itself.",
+        )
+
+    chapter_path = _get_chapter_path(document_name, chapter_name)
+    if not chapter_path.is_file() or not _is_valid_chapter_filename(chapter_name):
+        return OperationStatus(
+            success=False,
+            message=f"Chapter '{chapter_name}' not found in document '{document_name}'.",
+        )
+
+    try:
+        original_full_content = chapter_path.read_text(encoding="utf-8")
+        paragraphs = _split_into_paragraphs(original_full_content)
+        total_paragraphs = len(paragraphs)
+
+        if not (0 <= paragraph_to_move_index < total_paragraphs):
+            return OperationStatus(
+                success=False,
+                message=f"Paragraph to move index {paragraph_to_move_index} is out of bounds (0-{total_paragraphs-1}).",
+            )
+
+        if not (0 <= target_paragraph_index < total_paragraphs):
+            return OperationStatus(
+                success=False,
+                message=f"Target paragraph index {target_paragraph_index} is out of bounds (0-{total_paragraphs-1}).",
+            )
+
+        # Move the paragraph
+        paragraph_to_move = paragraphs.pop(paragraph_to_move_index)
+        
+        # Adjust target index if necessary (if we moved from before the target)
+        if paragraph_to_move_index < target_paragraph_index:
+            target_paragraph_index -= 1
+            
+        paragraphs.insert(target_paragraph_index, paragraph_to_move)
+        
+        final_content = "\n\n".join(paragraphs)
+        chapter_path.write_text(final_content, encoding="utf-8")
+
+        # Generate diff for details
+        diff_info = _generate_content_diff(original_full_content, final_content, chapter_name)
+        
+        return OperationStatus(
+            success=True,
+            message=f"Paragraph {paragraph_to_move_index} moved before paragraph {target_paragraph_index} in '{chapter_name}' ({document_name}).",
+            details=diff_info,
+        )
+    except Exception as e:
+        return OperationStatus(
+            success=False,
+            message=f"Error moving paragraph in '{chapter_name}' ({document_name}): {str(e)}",
+        )
+
+
+@mcp_server.tool()
+@log_mcp_call
+def move_paragraph_to_end(
+    document_name: str, chapter_name: str, paragraph_to_move_index: int
+) -> OperationStatus:
+    """
+    Move a paragraph to the end of a chapter.
+    
+    This atomic tool moves the paragraph at the specified index to the end of the
+    chapter, after all other paragraphs.
+    
+    Parameters:
+        document_name (str): Name of the document directory containing the chapter
+        chapter_name (str): Filename of the chapter to modify (must end with .md)
+        paragraph_to_move_index (int): Zero-indexed position of the paragraph to move (≥0)
+    
+    Returns:
+        OperationStatus: Result object with success status, message, and diff details
+    
+    Example Usage:
+        ```json
+        {
+            "name": "move_paragraph_to_end",
+            "arguments": {
+                "document_name": "user_guide",
+                "chapter_name": "01-intro.md",
+                "paragraph_to_move_index": 1
+            }
+        }
+        ```
+    """
+    # Validate inputs
+    is_valid_doc, doc_error = _validate_document_name(document_name)
+    if not is_valid_doc:
+        return OperationStatus(success=False, message=doc_error)
+
+    is_valid_chapter, chapter_error = _validate_chapter_name(chapter_name)
+    if not is_valid_chapter:
+        return OperationStatus(success=False, message=chapter_error)
+
+    is_valid_index, index_error = _validate_paragraph_index(paragraph_to_move_index)
+    if not is_valid_index:
+        return OperationStatus(success=False, message=index_error)
+
+    chapter_path = _get_chapter_path(document_name, chapter_name)
+    if not chapter_path.is_file() or not _is_valid_chapter_filename(chapter_name):
+        return OperationStatus(
+            success=False,
+            message=f"Chapter '{chapter_name}' not found in document '{document_name}'.",
+        )
+
+    try:
+        original_full_content = chapter_path.read_text(encoding="utf-8")
+        paragraphs = _split_into_paragraphs(original_full_content)
+        total_paragraphs = len(paragraphs)
+
+        if not (0 <= paragraph_to_move_index < total_paragraphs):
+            return OperationStatus(
+                success=False,
+                message=f"Paragraph index {paragraph_to_move_index} is out of bounds (0-{total_paragraphs-1}).",
+            )
+
+        # If already at the end, no need to move
+        if paragraph_to_move_index == total_paragraphs - 1:
+            return OperationStatus(
+                success=True,
+                message=f"Paragraph {paragraph_to_move_index} is already at the end of '{chapter_name}' ({document_name}).",
+                details={"changed": False, "summary": "No changes made - paragraph already at end"}
+            )
+
+        # Move the paragraph to the end
+        paragraph_to_move = paragraphs.pop(paragraph_to_move_index)
+        paragraphs.append(paragraph_to_move)
+        
+        final_content = "\n\n".join(paragraphs)
+        chapter_path.write_text(final_content, encoding="utf-8")
+
+        # Generate diff for details
+        diff_info = _generate_content_diff(original_full_content, final_content, chapter_name)
+        
+        return OperationStatus(
+            success=True,
+            message=f"Paragraph {paragraph_to_move_index} moved to end of '{chapter_name}' ({document_name}).",
+            details=diff_info,
+        )
+    except Exception as e:
+        return OperationStatus(
+            success=False,
+            message=f"Error moving paragraph to end in '{chapter_name}' ({document_name}): {str(e)}",
+        )
 
 
 @mcp_server.custom_route("/health", methods=["GET"], name="health")
@@ -1324,7 +2927,7 @@ async def metrics_summary_endpoint(request: Request) -> Response:
 
 # --- Main Server Execution ---
 def main():
-    """Main entry point for the server with argument parsing."""
+    """Run the main entry point for the server with argument parsing."""
     parser = argparse.ArgumentParser(description="Document MCP Server")
     parser.add_argument(
         "transport",

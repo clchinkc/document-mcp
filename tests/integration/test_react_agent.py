@@ -1,6 +1,10 @@
 """
-Integration tests for the React Agent.
-Tests the React Agent's ability to process queries and interact with the Document MCP server.
+Integration tests for ReAct Agent components.
+
+This module tests integration between:
+- ReAct Agent and MCP Tools
+- Document operations with ReAct reasoning
+- Tool execution and response formatting
 """
 
 import uuid
@@ -11,14 +15,6 @@ import shutil
 import os
 
 from src.agents.react_agent.main import ReActStep
-from tests.shared import (
-    assert_agent_response_valid,
-    create_mock_environment,
-    create_mock_llm_config,
-    create_mock_mcp_server,
-    create_test_document,
-    generate_unique_name,
-)
 from tests.shared.environment import TEST_DOCUMENT_ROOT
 from tests.shared.test_data import TestDataRegistry, TestDocumentSpec, create_test_document_from_spec
 from src.agents.react_agent.main import run_react_loop

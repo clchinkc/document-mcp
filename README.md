@@ -9,13 +9,6 @@ A Model Context Protocol (MCP) server and agent implementations for managing str
 
 ## 🚀 Quick Start
 
-### Prerequisites Check
-
-Before getting started, ensure you have the following:
-
-1. **Python 3.8+** installed
-2. **API Key** from either OpenAI or Google (for Gemini)
-3. **Virtual Environment** set up
 
 ### Step-by-Step Setup
 
@@ -393,9 +386,6 @@ python scripts/quality.py full       # fix + format + check
 
 # Get detailed output for debugging
 python scripts/quality.py check --verbose
-
-# For running tests, use the dedicated pytest runner
-python scripts/run_pytest.py
 ```
 
 #### Quality Tools Configured
@@ -413,7 +403,7 @@ python scripts/run_pytest.py
 - **Import Style**: Black-compatible with isort
 - **Type Hints**: Encouraged for public APIs
 - **Complexity**: Maximum cyclomatic complexity of 10
-- **Test Coverage**: Comprehensive unit and integration tests (267+ tests)
+- **Test Coverage**: Comprehensive unit and integration tests (445+ tests)
 
 #### Recommended Workflow
 
@@ -433,7 +423,7 @@ The quality management system provides comprehensive automation for maintaining 
 
 #### Test Coverage
 
-The system provides enterprise-grade reliability with **277+ comprehensive tests** covering:
+The system provides enterprise-grade reliability with **445+ comprehensive tests** covering:
 
 **Core Testing Areas:**
 - **Document Operations**: Full CRUD operations and management

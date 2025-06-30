@@ -10,7 +10,7 @@ This module tests individual functions in isolation with focus on:
 
 import datetime
 from pathlib import Path
-# from unittest.mock import Mock, MagicMock  # Remove this import
+import pytest
 
 from document_mcp.doc_tool_server import (
     _count_words,
@@ -23,10 +23,302 @@ from document_mcp.doc_tool_server import (
     _split_into_paragraphs,
     read_document_summary,
     list_documents,
+    get_chapter_statistics,
+    get_document_statistics,
+    read_full_document,
+    find_text_in_chapter,
+    find_text_in_document,
     DocumentInfo,
+    StatisticsReport,
+    FullDocumentContent,
+    ParagraphDetail,
     DOCUMENT_SUMMARY_FILE,
     CHAPTER_MANIFEST_FILE,
 )
+from document_mcp.logger_config import ErrorCategory
+
+
+class TestStructuredErrorLogging:
+    """Test suite for structured error logging functionality."""
+
+    def test_read_chapter_content_details_logs_error_on_file_read_failure(self, mocker):
+        """Logs error when file read fails in chapter content details."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_path = mocker.Mock()
+        mock_path.is_file.return_value = True
+        mock_path.name = "test.md"
+        mock_path.exists.return_value = True
+        mock_path.read_text.side_effect = PermissionError("Permission denied")
+
+        result = _read_chapter_content_details("test_doc", mock_path)
+
+        assert result is None
+        mock_log_error.assert_called_once()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.ERROR
+        assert call_args[1]['message'] == "Failed to read chapter file: test.md"
+        assert call_args[1]['operation'] == "read_chapter_content"
+        assert call_args[1]['context']['document_name'] == "test_doc"
+        assert call_args[1]['context']['chapter_file_path'] == str(mock_path)
+        assert call_args[1]['context']['file_exists'] == True
+        assert isinstance(call_args[1]['exception'], PermissionError)
+
+    def test_get_chapter_metadata_logs_error_on_file_read_failure(self, mocker):
+        """Logs error when file read fails in chapter metadata."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_path = mocker.Mock()
+        mock_path.is_file.return_value = True
+        mock_path.name = "metadata.md"
+        mock_path.exists.return_value = True
+        mock_path.read_text.side_effect = OSError("Disk I/O error")
+
+        result = _get_chapter_metadata("test_doc", mock_path)
+
+        assert result is None
+        mock_log_error.assert_called_once()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.ERROR
+        assert call_args[1]['message'] == "Failed to get metadata for chapter: metadata.md"
+        assert call_args[1]['operation'] == "get_chapter_metadata"
+        assert call_args[1]['context']['document_name'] == "test_doc"
+        assert call_args[1]['context']['chapter_file_path'] == str(mock_path)
+        assert call_args[1]['context']['file_exists'] == True
+        assert isinstance(call_args[1]['exception'], OSError)
+
+    def test_read_document_summary_logs_warning_on_invalid_document_name(self, mocker):
+        """Logs warning for invalid document name."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_validate = mocker.patch('document_mcp.doc_tool_server._validate_document_name')
+        mock_validate.return_value = (False, "Invalid document name")
+        result = read_document_summary("invalid/doc")
+        assert result is None
+        mock_log_error.assert_called_once()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.WARNING
+        assert call_args[1]['message'] == "Invalid document name provided"
+        assert call_args[1]['operation'] == "read_document_summary"
+        assert call_args[1]['context']['document_name'] == "invalid/doc"
+        assert call_args[1]['context']['validation_error'] == "Invalid document name"
+
+    def test_read_document_summary_logs_info_on_document_not_found(self, mocker):
+        """Logs info when document is not found."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_validate = mocker.patch('document_mcp.doc_tool_server._validate_document_name')
+        mock_get_path = mocker.patch('document_mcp.doc_tool_server._get_document_path')
+        mock_validate.return_value = (True, "")
+        mock_doc_path = mocker.Mock()
+        mock_doc_path.is_dir.return_value = False
+        mock_get_path.return_value = mock_doc_path
+        result = read_document_summary("nonexistent_doc")
+        assert result is None
+        mock_log_error.assert_called_once()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.INFO
+        assert call_args[1]['message'] == "Document not found"
+        assert call_args[1]['operation'] == "read_document_summary"
+        assert call_args[1]['context']['document_name'] == "nonexistent_doc"
+        assert call_args[1]['context']['attempted_path'] == str(mock_doc_path)
+
+    def test_read_document_summary_logs_info_on_summary_file_not_found(self, mock_path_operations, mocker):
+        """Logs info when summary file is missing."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_doc_path = mocker.MagicMock(spec=Path)
+        mock_doc_path.is_dir.return_value = True
+        mock_summary_file = mocker.MagicMock(spec=Path)
+        mock_summary_file.is_file.return_value = False
+        mock_doc_path.__truediv__.return_value = mock_summary_file
+        mock_path_operations.mock_document_path("doc_no_summary", mock_doc_path)
+        summary_content = read_document_summary("doc_no_summary")
+        assert summary_content is None
+        mock_log_error.assert_called()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.INFO
+        assert call_args[1]['message'] == "Summary file not found in document"
+        assert call_args[1]['operation'] == "read_document_summary"
+
+    def test_read_document_summary_logs_error_on_file_read_failure(self, mocker):
+        """Logs error when summary file read fails."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_validate = mocker.patch('document_mcp.doc_tool_server._validate_document_name')
+        mock_get_path = mocker.patch('document_mcp.doc_tool_server._get_document_path')
+        mock_validate.return_value = (True, "")
+        mock_doc_path = mocker.Mock()
+        mock_doc_path.is_dir.return_value = True
+        mock_summary_path = mocker.Mock()
+        mock_summary_path.is_file.return_value = True
+        mock_summary_path.read_text.side_effect = UnicodeDecodeError("utf-8", b"", 0, 1, "invalid start byte")
+        mock_doc_path.__truediv__ = mocker.Mock(return_value=mock_summary_path)
+        mock_get_path.return_value = mock_doc_path
+        result = read_document_summary("doc_with_corrupt_summary")
+        assert result is None
+        mock_log_error.assert_called_once()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.ERROR
+        assert call_args[1]['message'] == "Failed to read summary file"
+        assert call_args[1]['operation'] == "read_document_summary"
+        assert call_args[1]['context']['document_name'] == "doc_with_corrupt_summary"
+        assert call_args[1]['context']['summary_file_path'] == str(mock_summary_path)
+        assert isinstance(call_args[1]['exception'], UnicodeDecodeError)
+
+    def test_read_paragraph_content_logs_warning_on_index_out_of_bounds(self, mocker):
+        """Logs warning when paragraph index is out of bounds."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_read_chapter = mocker.patch('document_mcp.doc_tool_server.read_chapter_content')
+        mock_chapter = mocker.Mock()
+        mock_chapter.content = "First paragraph.\n\nSecond paragraph."
+        mock_read_chapter.return_value = mock_chapter
+        from document_mcp.doc_tool_server import read_paragraph_content
+        result = read_paragraph_content("test_doc", "chapter.md", 5)
+        assert result is None
+        mock_log_error.assert_called_once()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.WARNING
+        assert call_args[1]['message'] == "Paragraph index out of bounds"
+        assert call_args[1]['operation'] == "read_paragraph_content"
+        assert call_args[1]['context']['document_name'] == "test_doc"
+        assert call_args[1]['context']['chapter_name'] == "chapter.md"
+        assert call_args[1]['context']['paragraph_index'] == 5
+        assert call_args[1]['context']['total_paragraphs'] == 2
+        assert call_args[1]['context']['valid_range'] == "0-1"
+
+    def test_read_full_document_logs_info_on_document_not_found(self, mocker):
+        """Logs info when full document is not found."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_get_path = mocker.patch('document_mcp.doc_tool_server._get_document_path')
+        mock_doc_path = mocker.Mock()
+        mock_doc_path.is_dir.return_value = False
+        mock_get_path.return_value = mock_doc_path
+        result = read_full_document("missing_doc")
+        assert result is None
+        mock_log_error.assert_called_once()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.INFO
+        assert call_args[1]['message'] == "Document not found for full read"
+        assert call_args[1]['operation'] == "read_full_document"
+        assert call_args[1]['context']['document_name'] == "missing_doc"
+        assert call_args[1]['context']['attempted_path'] == str(mock_doc_path)
+
+    def test_read_full_document_logs_warning_on_unreadable_chapter(self, mocker):
+        """Logs warning when a chapter cannot be read during full document read."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_get_path = mocker.patch('document_mcp.doc_tool_server._get_document_path')
+        mock_get_files = mocker.patch('document_mcp.doc_tool_server._get_ordered_chapter_files')
+        mock_read_details = mocker.patch('document_mcp.doc_tool_server._read_chapter_content_details')
+        mock_doc_path = mocker.Mock()
+        mock_doc_path.is_dir.return_value = True
+        mock_get_path.return_value = mock_doc_path
+        mock_chapter_path = mocker.Mock()
+        mock_chapter_path.name = "corrupted.md"
+        mock_get_files.return_value = [mock_chapter_path]
+        mock_read_details.return_value = None
+        result = read_full_document("doc_with_corrupted_chapter")
+        assert result is not None
+        assert len(result.chapters) == 0
+        mock_log_error.assert_called_once()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.WARNING
+        assert call_args[1]['message'] == "Could not read chapter file, skipping"
+        assert call_args[1]['operation'] == "read_full_document"
+        assert call_args[1]['context']['document_name'] == "doc_with_corrupted_chapter"
+        assert call_args[1]['context']['chapter_file_name'] == "corrupted.md"
+        assert call_args[1]['context']['chapter_file_path'] == str(mock_chapter_path)
+
+
+class TestMCPLoggerDecorator:
+    """Test suite for MCP logger decorator error handling."""
+
+    def test_log_mcp_call_decorator_logs_function_errors(self, mocker):
+        """Test that the log_mcp_call decorator catches and logs function errors."""
+        mock_log_error = mocker.patch('document_mcp.logger_config.log_structured_error')
+        from document_mcp.logger_config import log_mcp_call
+        
+        @log_mcp_call
+        def failing_function(arg1, **kwargs):
+            raise ValueError("Test error message")
+        
+        with pytest.raises(ValueError):
+            failing_function("test_arg", kwarg1="test_kwarg")
+        
+        # Verify structured error logging was called
+        mock_log_error.assert_called()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.ERROR
+        assert call_args[1]['message'] == "Tool execution failed: failing_function"
+        assert call_args[1]['operation'] == "tool_execution"
+        assert call_args[1]['function'] == "failing_function"
+        assert isinstance(call_args[1]['exception'], ValueError)
+
+    def test_log_mcp_call_decorator_logs_argument_serialization_errors(self, mocker):
+        """Test that argument serialization errors are logged appropriately."""
+        mock_log_error = mocker.patch('document_mcp.logger_config.log_structured_error')
+        from document_mcp.logger_config import log_mcp_call
+        
+        # Create an object that will cause serialization issues
+        class UnserializableObject:
+            def __repr__(self):
+                raise RuntimeError("Cannot serialize this object")
+        
+        @log_mcp_call
+        def function_with_bad_args(bad_arg):
+            return "success"
+        
+        result = function_with_bad_args(UnserializableObject())
+        
+        assert result == "success"  # Function should still execute
+        
+        # Check that argument serialization error was logged
+        mock_log_error.assert_called()
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.WARNING
+        assert call_args[1]['message'] == "Failed to serialize function arguments for logging"
+        assert call_args[1]['operation'] == "argument_serialization"
+        assert call_args[1]['function'] == "function_with_bad_args"
+
+
+class TestErrorCategorization:
+    """Test suite for proper error categorization."""
+
+    def test_file_not_found_categorized_as_info(self, mocker):
+        """Test that file not found errors are categorized as INFO."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_validate = mocker.patch('document_mcp.doc_tool_server._validate_document_name')
+        mock_get_path = mocker.patch('document_mcp.doc_tool_server._get_document_path')
+        
+        mock_validate.return_value = (True, "")
+        mock_doc_path = mocker.Mock()
+        mock_doc_path.is_dir.return_value = False
+        mock_get_path.return_value = mock_doc_path
+        
+        read_document_summary("nonexistent")
+        
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.INFO
+
+    def test_validation_errors_categorized_as_warning(self, mocker):
+        """Test that validation errors are categorized as WARNING."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_validate = mocker.patch('document_mcp.doc_tool_server._validate_document_name')
+        
+        mock_validate.return_value = (False, "Invalid name")
+        
+        read_document_summary("invalid/name")
+        
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.WARNING
+
+    def test_io_errors_categorized_as_error(self, mocker):
+        """Test that I/O errors are categorized as ERROR."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
+        mock_path = mocker.Mock()
+        mock_path.is_file.return_value = True
+        mock_path.name = "test.md"
+        mock_path.exists.return_value = True
+        mock_path.read_text.side_effect = IOError("Disk failure")
+        
+        _read_chapter_content_details("test_doc", mock_path)
+        
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.ERROR
 
 
 class TestHelperFunctions:
@@ -332,20 +624,25 @@ class TestChapterReading:
         assert result.paragraph_count == 3  # Title + 2 paragraphs
         assert isinstance(result.last_modified, datetime.datetime)
 
-    def test_read_chapter_content_details_file_read_error(self, mock_file_operations, mocker):
+    def test_read_chapter_content_details_file_read_error(self, mocker):
         """Test handling file read errors."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_path = mocker.Mock()
         mock_path.is_file.return_value = True
         mock_path.name = "corrupted.md"
+        mock_path.exists.return_value = True
         mock_path.read_text.side_effect = Exception("File read error")
-
-        mock_print = mock_file_operations.mock_print()
         
         result = _read_chapter_content_details("test_doc", mock_path)
 
         assert result is None
-        mock_print.assert_called_once()
-        assert "Error reading chapter file" in mock_print.call_args[0][0]
+        mock_log_error.assert_called_once()
+        
+        # Verify the structured error call
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.ERROR
+        assert call_args[1]['message'] == "Failed to read chapter file: corrupted.md"
+        assert call_args[1]['operation'] == "read_chapter_content"
 
     def test_get_chapter_metadata_nonexistent_file(self, mocker):
         """Test getting metadata from non-existent file."""
@@ -399,288 +696,138 @@ class TestChapterReading:
         assert result.word_count == 0
         assert result.paragraph_count == 0
 
-    def test_get_chapter_metadata_file_read_error(self, mock_file_operations, mocker):
+    def test_get_chapter_metadata_file_read_error(self, mocker):
         """Test handling file read errors in metadata extraction."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_path = mocker.Mock()
         mock_path.is_file.return_value = True
         mock_path.name = "error.md"
+        mock_path.exists.return_value = True
         mock_path.read_text.side_effect = Exception("Permission denied")
-
-        mock_print = mock_file_operations.mock_print()
         
         result = _get_chapter_metadata("test_doc", mock_path)
 
         assert result is None
-        mock_print.assert_called_once()
-        assert "Error getting metadata for chapter" in mock_print.call_args[0][0]
+        mock_log_error.assert_called_once()
+        
+        # Verify the structured error call
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.ERROR
+        assert call_args[1]['message'] == "Failed to get metadata for chapter: error.md"
+        assert call_args[1]['operation'] == "get_chapter_metadata"
 
 
 class TestInputValidationHelpers:
     """Test suite for input validation helper functions."""
 
-    def test_validate_document_name_valid(self):
-        """Test document name validation with valid inputs."""
+    @pytest.mark.parametrize("name, expected_valid, expected_error_msg", [
+        ("doc_name", True, ""),
+        ("doc-name-123", True, ""),
+        ("doc_with_underscores", True, ""),
+        (None, False, "Document name cannot be empty"),
+        ("", False, "Document name cannot be empty"),
+        ("   ", False, "Document name cannot be empty"),
+        ("a" * 101, False, "Document name too long (max 100 characters)"),
+        ("invalid/name", False, "Document name cannot contain path separators"),
+        ("invalid\\name", False, "Document name cannot contain path separators"),
+        (".invalid", False, "Document name cannot start with a dot"),
+    ])
+    def test_validate_document_name(self, name, expected_valid, expected_error_msg):
         from document_mcp.doc_tool_server import _validate_document_name
+        is_valid, error = _validate_document_name(name)
+        assert is_valid is expected_valid
+        if not expected_valid:
+            assert expected_error_msg == error
 
-        valid_names = ["test_doc", "my-document", "Document123", "project_v2"]
-        for name in valid_names:
-            is_valid, error = _validate_document_name(name)
-            assert is_valid is True, f"'{name}' should be valid"
-            assert error == "", f"No error expected for '{name}'"
-
-    def test_validate_document_name_invalid(self):
-        """Test document name validation with invalid inputs."""
-        from document_mcp.doc_tool_server import _validate_document_name
-
-        # Empty name
-        is_valid, error = _validate_document_name("")
-        assert is_valid is False
-        assert "cannot be empty" in error
-
-        # Path separators
-        is_valid, error = _validate_document_name("doc/name")
-        assert is_valid is False
-        assert "path separators" in error
-
-        is_valid, error = _validate_document_name("doc\\name")
-        assert is_valid is False
-        assert "path separators" in error
-
-        # Starts with dot
-        is_valid, error = _validate_document_name(".hidden")
-        assert is_valid is False
-        assert "cannot start with a dot" in error
-
-        # Too long
-        long_name = "a" * 101
-        is_valid, error = _validate_document_name(long_name)
-        assert is_valid is False
-        assert "too long" in error
-
-    def test_validate_chapter_name_valid(self):
-        """Test chapter name validation with valid inputs."""
+    @pytest.mark.parametrize("name, expected_valid, expected_error_msg", [
+        ("chapter1.md", True, ""),
+        ("01-intro.md", True, ""),
+        ("File_With_Underscores.MD", True, ""),
+        (None, False, "Chapter name cannot be empty"),
+        ("", False, "Chapter name cannot be empty"),
+        ("a" * 98 + ".md", False, "Chapter name too long (max 100 characters)"),
+        ("invalid/chapter.md", False, "Chapter name cannot contain path separators"),
+        ("no_extension", False, "Chapter name must end with .md"),
+        ("wrong.txt", False, "Chapter name must end with .md"),
+        ("_manifest.json", False, "Chapter name cannot be reserved name '_manifest.json'"),
+    ])
+    def test_validate_chapter_name(self, name, expected_valid, expected_error_msg):
         from document_mcp.doc_tool_server import _validate_chapter_name
+        is_valid, error = _validate_chapter_name(name)
+        assert is_valid is expected_valid
+        if not expected_valid:
+            assert expected_error_msg == error
 
-        valid_names = [
-            "chapter1.md",
-            "01-intro.md",
-            "Chapter_Title.md",
-            "test-chapter.md",
-        ]
-        for name in valid_names:
-            is_valid, error = _validate_chapter_name(name)
-            assert is_valid is True, f"'{name}' should be valid"
-            assert error == "", f"No error expected for '{name}'"
-
-    def test_validate_chapter_name_invalid(self):
-        """Test chapter name validation with invalid inputs."""
-        from document_mcp.doc_tool_server import _validate_chapter_name
-
-        # Empty name
-        is_valid, error = _validate_chapter_name("")
-        assert is_valid is False
-        assert "cannot be empty" in error
-
-        # Wrong extension
-        is_valid, error = _validate_chapter_name("chapter.txt")
-        assert is_valid is False
-        assert "must end with .md" in error
-
-        # Path separators
-        is_valid, error = _validate_chapter_name("dir/chapter.md")
-        assert is_valid is False
-        assert "path separators" in error
-
-        # Reserved name (but this needs to be a .md file first)
-        # Since _manifest.json is not .md, it fails on extension first
-        # Let's test the reserved name check by modifying the validation order
-        # For now, just verify that _manifest.json fails (for wrong extension)
-        is_valid, error = _validate_chapter_name("_manifest.json")
-        assert is_valid is False
-        assert "must end with .md" in error
-
-        # Too long
-        long_name = "a" * 95 + ".md"  # 95 + 3 = 98 chars, within limit
-        is_valid, error = _validate_chapter_name(long_name)
-        assert is_valid is True
-
-        very_long_name = "a" * 98 + ".md"  # 98 + 3 = 101 chars, exceeds limit
-        is_valid, error = _validate_chapter_name(very_long_name)
-        assert is_valid is False
-        assert "too long" in error
-
-    def test_validate_content_valid(self):
-        """Test content validation with valid inputs."""
+    @pytest.mark.parametrize("content, expected_valid, expected_error_msg", [
+        ("Some valid content.", True, ""),
+        ("", True, ""),
+        ("a" * 1_000_000, True, ""),
+        (None, False, "Content cannot be None"),
+        (12345, False, "Content must be a string"),
+        ("a" * 1_000_001, False, "Content too long (max 1000000 characters)"),
+    ])
+    def test_validate_content(self, content, expected_valid, expected_error_msg):
         from document_mcp.doc_tool_server import _validate_content
+        is_valid, error = _validate_content(content)
+        assert is_valid is expected_valid
+        if not expected_valid:
+            assert expected_error_msg == error
 
-        valid_contents = ["", "Hello world", "# Title\n\nContent here", "A" * 1000]
-        for content in valid_contents:
-            is_valid, error = _validate_content(content)
-            assert is_valid is True, f"Content should be valid"
-            assert error == "", f"No error expected for valid content"
-
-    def test_validate_content_invalid(self):
-        """Test content validation with invalid inputs."""
-        from document_mcp.doc_tool_server import _validate_content
-
-        # None content
-        is_valid, error = _validate_content(None)
-        assert is_valid is False
-        assert "cannot be None" in error
-
-        # Too long content
-        long_content = "a" * 1_000_001  # Exceeds 1MB limit
-        is_valid, error = _validate_content(long_content)
-        assert is_valid is False
-        assert "too long" in error
-
-    def test_validate_paragraph_index_valid(self):
-        """Test paragraph index validation with valid inputs."""
+    @pytest.mark.parametrize("index, expected_valid, expected_error_msg", [
+        (0, True, ""),
+        (100, True, ""),
+        (-1, False, "Paragraph index cannot be negative"),
+        (None, False, "Paragraph index must be an integer"),
+        ("5", False, "Paragraph index must be an integer"),
+    ])
+    def test_validate_paragraph_index(self, index, expected_valid, expected_error_msg):
         from document_mcp.doc_tool_server import _validate_paragraph_index
+        is_valid, error = _validate_paragraph_index(index)
+        assert is_valid is expected_valid
+        if not expected_valid:
+            assert expected_error_msg == error
 
-        valid_indices = [0, 1, 5, 100]
-        for index in valid_indices:
-            is_valid, error = _validate_paragraph_index(index)
-            assert is_valid is True, f"Index {index} should be valid"
-            assert error == "", f"No error expected for index {index}"
-
-    def test_validate_paragraph_index_invalid(self):
-        """Test paragraph index validation with invalid inputs."""
-        from document_mcp.doc_tool_server import _validate_paragraph_index
-
-        # Negative index
-        is_valid, error = _validate_paragraph_index(-1)
-        assert is_valid is False
-        assert "cannot be negative" in error
-
-        # Non-integer
-        is_valid, error = _validate_paragraph_index("5")
-        assert is_valid is False
-        assert "must be an integer" in error
-
-    def test_validate_search_query_valid(self):
-        """Test search query validation with valid inputs."""
+    @pytest.mark.parametrize("query, expected_valid, expected_error_msg", [
+        ("hello", True, ""),
+        ("search term", True, ""),
+        (None, False, "Search query cannot be None"),
+        ("", False, "Search query cannot be empty or whitespace only"),
+        ("   ", False, "Search query cannot be empty or whitespace only"),
+    ])
+    def test_validate_search_query(self, query, expected_valid, expected_error_msg):
         from document_mcp.doc_tool_server import _validate_search_query
-
-        valid_queries = ["hello", "search term", "123", "special!@#chars"]
-        for query in valid_queries:
-            is_valid, error = _validate_search_query(query)
-            assert is_valid is True, f"Query '{query}' should be valid"
-            assert error == "", f"No error expected for query '{query}'"
-
-    def test_validate_search_query_invalid(self):
-        """Test search query validation with invalid inputs."""
-        from document_mcp.doc_tool_server import _validate_search_query
-
-        # None query
-        is_valid, error = _validate_search_query(None)
-        assert is_valid is False
-        assert "cannot be None" in error
-
-        # Empty query
-        is_valid, error = _validate_search_query("")
-        assert is_valid is False
-        assert "cannot be empty" in error
-
-        # Whitespace only
-        is_valid, error = _validate_search_query("   ")
-        assert is_valid is False
-        assert "cannot be empty" in error
+        is_valid, error = _validate_search_query(query)
+        assert is_valid is expected_valid
+        if not expected_valid:
+            assert expected_error_msg == error
 
 
 class TestMCPToolInputValidation:
     """Test suite for MCP tool function input validation and error handling."""
 
-    def test_create_document_empty_name(self):
-        """Test create_document with empty document name."""
+    @pytest.mark.parametrize("doc_name, expected_error_msg", [
+        ("", "Document name cannot be empty"),
+        ("invalid/name", "Document name cannot contain path separators"),
+    ])
+    def test_create_document_validation(self, doc_name, expected_error_msg):
+        """Tests create_document with various invalid names."""
         from document_mcp.doc_tool_server import create_document
-
-        result = create_document("")
+        result = create_document(doc_name)
         assert result.success is False
-        assert "Document name cannot be empty" in result.message
+        assert expected_error_msg in result.message
 
-    def test_create_document_invalid_name_with_path_separator(self):
-        """Test create_document with invalid document name containing path separators."""
-        from document_mcp.doc_tool_server import create_document
-
-        result = create_document("invalid/name")
-        assert result.success is False
-        assert "Document name cannot contain path separators" in result.message
-
-    def test_create_chapter_empty_document_name(self):
-        """Test create_chapter with empty document name."""
+    @pytest.mark.parametrize("doc_name, chap_name, content, expected_error_msg", [
+        ("", "chapter1.md", "content", "Document name cannot be empty"),
+        ("test_doc", "", "content", "Chapter name cannot be empty"),
+        ("test_doc", "invalid.txt", "content", "Chapter name must end with .md"),
+        ("test_doc", "chapter/invalid.md", "content", "Chapter name cannot contain path separators"),
+    ])
+    def test_create_chapter_validation(self, doc_name, chap_name, content, expected_error_msg):
+        """Tests create_chapter with various invalid inputs."""
         from document_mcp.doc_tool_server import create_chapter
-
-        result = create_chapter("", "chapter1.md", "content")
+        result = create_chapter(doc_name, chap_name, content)
         assert result.success is False
-        assert "Document name cannot be empty" in result.message
-
-    def test_create_chapter_empty_chapter_name(self):
-        """Test create_chapter with empty chapter name."""
-        from document_mcp.doc_tool_server import create_chapter
-
-        result = create_chapter("test_doc", "", "content")
-        assert result.success is False
-        assert "Chapter name cannot be empty" in result.message
-
-    def test_create_chapter_invalid_chapter_name(self):
-        """Test create_chapter with invalid chapter name."""
-        from document_mcp.doc_tool_server import create_chapter
-
-        result = create_chapter("test_doc", "invalid.txt", "content")
-        assert result.success is False
-        assert "Chapter name must end with .md" in result.message
-
-    def test_modify_paragraph_content_negative_index(self):
-        """Test modify_paragraph_content with negative paragraph index."""
-        from document_mcp.doc_tool_server import modify_paragraph_content
-
-        result = modify_paragraph_content(
-            "test_doc", "chapter1.md", -1, "new content", "replace"
-        )
-        assert result.success is False
-        assert "Paragraph index cannot be negative" in result.message
-
-    def test_replace_text_empty_search_text(self):
-        """Test replace_text_in_chapter with empty search text."""
-        from document_mcp.doc_tool_server import replace_text_in_chapter
-
-        result = replace_text_in_chapter("test_doc", "chapter1.md", "", "replacement")
-        assert result.success is False
-        assert "Text to find cannot be empty" in result.message
-
-    def test_modify_paragraph_content_invalid_mode(self):
-        """Test modify_paragraph_content with invalid mode."""
-        from document_mcp.doc_tool_server import modify_paragraph_content
-
-        result = modify_paragraph_content(
-            "test_doc", "chapter1.md", 0, "new content", "invalid_mode"
-        )
-        assert result.success is False
-        assert "Invalid mode" in result.message
-        assert "invalid_mode" in result.message
-
-    def test_modify_paragraph_content_valid_modes(self):
-        """Test modify_paragraph_content accepts valid modes."""
-        from document_mcp.doc_tool_server import modify_paragraph_content
-
-        valid_modes = ["replace", "insert_before", "insert_after", "delete"]
-        for mode in valid_modes:
-            result = modify_paragraph_content(
-                "test_doc", "chapter1.md", 0, "new content", mode
-            )
-            # Should fail for other reasons (document not found), but not for invalid mode or input validation
-            assert "Invalid mode" not in result.message
-            assert "cannot be empty" not in result.message
-            assert "cannot be negative" not in result.message
-
-    def test_create_chapter_invalid_extension(self):
-        """Test create_chapter rejects non-markdown files."""
-        from document_mcp.doc_tool_server import create_chapter
-
-        result = create_chapter("test_doc", "invalid.txt", "content")
-        assert result.success is False
-        assert "Chapter name must end with .md" in result.message
+        assert expected_error_msg in result.message
 
     def test_delete_chapter_invalid_extension(self):
         """Test delete_chapter rejects non-markdown files."""
@@ -741,11 +888,11 @@ class TestMCPToolBoundaryConditions:
 
     def test_paragraph_index_boundary_conditions(self):
         """Test paragraph operations with boundary conditions."""
-        from document_mcp.doc_tool_server import modify_paragraph_content
+        from document_mcp.doc_tool_server import replace_paragraph
 
         # Test with very large index (should fail with out of bounds)
-        result = modify_paragraph_content(
-            "test_doc", "chapter1.md", 9999, "content", "replace"
+        result = replace_paragraph(
+            "test_doc", "chapter1.md", 9999, "content"
         )
         assert result.success is False
         # Should fail with chapter not found first, but if chapter existed, would fail with out of bounds
@@ -776,24 +923,29 @@ class TestReadDocumentSummaryTool:
         assert summary_content == "This is a summary."
         mock_summary_file.read_text.assert_called_once_with(encoding="utf-8")
 
-    def test_read_document_summary_document_not_found(self, mock_path_operations, mock_file_operations, mocker):
+    def test_read_document_summary_document_not_found(self, mock_path_operations, mocker):
         """Test reading summary when document directory doesn't exist."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_doc_path = mocker.MagicMock(spec=Path)
         mock_doc_path.is_dir.return_value = False
         mock_doc_path.__str__.return_value = "/mocked/path/to/nonexistent_doc"
         
         mock_path_operations.mock_document_path("nonexistent_doc", mock_doc_path)
-        mock_print = mock_file_operations.mock_print()
 
         summary_content = read_document_summary("nonexistent_doc")
         
         assert summary_content is None
-        called_with_arg = mock_print.call_args[0][0]
-        assert "Document 'nonexistent_doc' not found" in called_with_arg
-        assert str(mock_doc_path) in called_with_arg
+        mock_log_error.assert_called()
+        
+        # Verify the structured error call
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.INFO
+        assert call_args[1]['message'] == "Document not found"
+        assert call_args[1]['operation'] == "read_document_summary"
 
-    def test_read_document_summary_summary_file_not_found(self, mock_path_operations, mock_file_operations, mocker):
+    def test_read_document_summary_summary_file_not_found(self, mock_path_operations, mocker):
         """Test reading summary when _SUMMARY.md file doesn't exist."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_doc_path = mocker.MagicMock(spec=Path)
         mock_doc_path.is_dir.return_value = True
         
@@ -802,15 +954,21 @@ class TestReadDocumentSummaryTool:
         
         mock_doc_path.__truediv__.return_value = mock_summary_file
         mock_path_operations.mock_document_path("doc_no_summary", mock_doc_path)
-        mock_print = mock_file_operations.mock_print()
 
         summary_content = read_document_summary("doc_no_summary")
         
         assert summary_content is None
-        mock_print.assert_any_call("Summary file '_SUMMARY.md' not found in document 'doc_no_summary'.")
+        mock_log_error.assert_called()
+        
+        # Verify the structured error call
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.INFO
+        assert call_args[1]['message'] == "Summary file not found in document"
+        assert call_args[1]['operation'] == "read_document_summary"
 
-    def test_read_document_summary_read_error(self, mock_path_operations, mock_file_operations, mocker):
+    def test_read_document_summary_read_error(self, mock_path_operations, mocker):
         """Test handling of read errors when accessing summary file."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_doc_path = mocker.MagicMock(spec=Path)
         mock_doc_path.is_dir.return_value = True
         
@@ -820,22 +978,33 @@ class TestReadDocumentSummaryTool:
         
         mock_doc_path.__truediv__.return_value = mock_summary_file
         mock_path_operations.mock_document_path("doc_read_error", mock_doc_path)
-        mock_print = mock_file_operations.mock_print()
 
         summary_content = read_document_summary("doc_read_error")
         
         assert summary_content is None
-        mock_print.assert_any_call("Error reading summary file for document 'doc_read_error': Read permission denied")
+        mock_log_error.assert_called()
+        
+        # Verify the structured error call
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.ERROR
+        assert call_args[1]['message'] == "Failed to read summary file"
+        assert call_args[1]['operation'] == "read_document_summary"
 
-    def test_read_document_summary_invalid_doc_name(self, mock_validation_operations, mock_file_operations):
+    def test_read_document_summary_invalid_doc_name(self, mock_validation_operations, mocker):
         """Test read_document_summary with an invalid document name."""
+        mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_validation_operations.mock_validate_document_name(False, "Invalid name")
-        mock_print = mock_file_operations.mock_print()
         
         summary_content = read_document_summary("invalid/docname")
         
         assert summary_content is None
-        mock_print.assert_any_call("Invalid document name provided: Invalid name")
+        mock_log_error.assert_called()
+        
+        # Verify the structured error call
+        call_args = mock_log_error.call_args
+        assert call_args[1]['category'] == ErrorCategory.WARNING
+        assert call_args[1]['message'] == "Invalid document name provided"
+        assert call_args[1]['operation'] == "read_document_summary"
 
 
 class TestListDocumentsTool:
@@ -936,3 +1105,115 @@ class TestListDocumentsTool:
         
         result = list_documents()
         assert result == []
+
+
+class TestAdvancedDocumentTools:
+    """Test suite for advanced document-level tools."""
+
+    def test_get_chapter_statistics_success(self, document_factory):
+        """Test get_chapter_statistics with a valid chapter."""
+        doc_spec = {
+            "name": "stat_doc",
+            "chapters": [("01-intro.md", "# Intro\n\nPara one.\n\nPara two has 3 words.")]
+        }
+        doc_name = document_factory(chapters=[("01-intro.md", "# Intro\n\nPara one.\n\nPara two has 3 words.")])
+
+        stats = get_chapter_statistics(doc_name, "01-intro.md")
+        assert stats is not None
+        assert isinstance(stats, StatisticsReport)
+        assert stats.word_count == 9  # '# Intro', 'Para', 'one.', 'Para', 'two', 'has', '3', 'words.'
+        assert stats.paragraph_count == 3  # Title, Para one, Para two...
+
+    def test_get_chapter_statistics_not_found(self):
+        """Test get_chapter_statistics with a non-existent chapter."""
+        stats = get_chapter_statistics("non_existent_doc", "non_existent_chapter.md")
+        assert stats is None
+
+    def test_get_document_statistics_success(self, document_factory):
+        """Test get_document_statistics for a valid document."""
+        doc_name = document_factory(chapters=[
+            ("01.md", "Chapter one has four words."),
+            ("02.md", "Chapter two has another four words.")
+        ])
+        
+        stats = get_document_statistics(doc_name)
+        assert stats is not None
+        assert isinstance(stats, StatisticsReport)
+        assert stats.word_count == 11
+        assert stats.paragraph_count == 2
+        assert stats.chapter_count == 2
+
+    def test_get_document_statistics_not_found(self):
+        """Test get_document_statistics for a non-existent document."""
+        stats = get_document_statistics("non_existent_doc")
+        assert stats is None
+
+    def test_read_full_document_success(self, document_factory):
+        """Test read_full_document for a valid document."""
+        doc_name = document_factory(chapters=[
+            ("01-first.md", "Content one."),
+            ("02-second.md", "Content two.")
+        ])
+
+        full_doc = read_full_document(doc_name)
+        assert full_doc is not None
+        assert isinstance(full_doc, FullDocumentContent)
+        assert full_doc.document_name == doc_name
+        assert len(full_doc.chapters) == 2
+        assert full_doc.chapters[0].chapter_name == "01-first.md"
+        assert full_doc.chapters[0].content == "Content one."
+        assert full_doc.total_word_count == 4
+        assert full_doc.total_paragraph_count == 2
+
+    def test_read_full_document_not_found(self):
+        """Test read_full_document for a non-existent document."""
+        doc = read_full_document("non_existent_doc")
+        assert doc is None
+
+    def test_find_text_in_chapter_found(self, searchable_document):
+        """Test find_text_in_chapter when text is found."""
+        doc_name, search_terms = searchable_document
+        chapter_name = "01-intro.md"
+        query = search_terms[0] # Should be 'apple'
+
+        results = find_text_in_chapter(doc_name, chapter_name, query)
+        assert results is not None
+        assert len(results) > 0
+        assert isinstance(results[0], ParagraphDetail)
+        assert query.lower() in results[0].content.lower()
+
+    def test_find_text_in_chapter_not_found(self, searchable_document):
+        """Test find_text_in_chapter when text is not found."""
+        doc_name, _ = searchable_document
+        results = find_text_in_chapter(doc_name, "01-intro.md", "nonexistentqueryword")
+        assert results == []
+
+    def test_find_text_in_chapter_case_sensitive(self, document_factory):
+        """Test find_text_in_chapter with case sensitivity."""
+        doc_name = document_factory(chapters=[("case_test.md", "Here is a Test sentence.\n\nAnother test sentence.")])
+        
+        # Case-sensitive search
+        results_sensitive = find_text_in_chapter(doc_name, "case_test.md", "Test", case_sensitive=True)
+        assert len(results_sensitive) == 1
+        assert "Test" in results_sensitive[0].content
+
+        # Case-insensitive search
+        results_insensitive = find_text_in_chapter(doc_name, "case_test.md", "test", case_sensitive=False)
+        assert len(results_insensitive) == 2
+
+    def test_find_text_in_document_found(self, searchable_document):
+        """Test find_text_in_document when text is found across chapters."""
+        doc_name, search_terms = searchable_document
+        query = search_terms[0] # 'apple'
+
+        results = find_text_in_document(doc_name, query)
+        assert results is not None
+        assert len(results) > 1  # Should be in multiple chapters
+        assert query.lower() in results[0].content.lower()
+        assert results[0].chapter_name != results[1].chapter_name
+
+    def test_find_text_in_document_not_found(self, searchable_document):
+        """Test find_text_in_document when text is not found."""
+        doc_name, _ = searchable_document
+        results = find_text_in_document(doc_name, "nonexistentqueryword")
+        assert results == []
