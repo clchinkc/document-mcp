@@ -19,8 +19,8 @@ from src.agents.react_agent.main import (
 class TestErrorClassifier:
     """Test the error classification functionality."""
 
-    def test_network_error_classification(self):
-        """Test network error classification."""
+    def test_error_classifier_network_error(self):
+        """Classifies network errors correctly."""
         classifier = ErrorClassifier()
         network_error = Exception("Connection timeout occurred")
         error_info = classifier.classify(network_error)

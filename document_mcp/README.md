@@ -185,7 +185,12 @@ The server exposes the following tools via the Model Context Protocol:
 | `read_paragraph_content` | `document_name: str`, `chapter_name: str`, `paragraph_index_in_chapter: int` | Reads a specific paragraph from a chapter |
 | `read_full_document` | `document_name: str` | Reads the entire document, concatenating all chapters |
 | `write_chapter_content` | `document_name: str`, `chapter_name: str`, `new_content: str` | Overwrites the entire content of a chapter |
-| `modify_paragraph_content` | `document_name: str`, `chapter_name: str`, `paragraph_index: int`, `new_paragraph_content: str`, `mode: str` | Modifies a paragraph (`replace`, `insert_before`, `insert_after`, `delete`) |
+| `replace_paragraph` | `document_name: str`, `chapter_name: str`, `paragraph_index: int`, `new_content: str` | Replaces a specific paragraph with new content. |
+| `insert_paragraph_before` | `document_name: str`, `chapter_name: str`, `paragraph_index: int`, `new_content: str` | Inserts a new paragraph before the specified index. |
+| `insert_paragraph_after` | `document_name: str`, `chapter_name: str`, `paragraph_index: int`, `new_content: str` | Inserts a new paragraph after the specified index. |
+| `delete_paragraph` | `document_name: str`, `chapter_name: str`, `paragraph_index: int` | Deletes a specific paragraph by index. |
+| `move_paragraph_before` | `document_name: str`, `chapter_name: str`, `paragraph_to_move_index: int`, `target_paragraph_index: int` | Moves a paragraph to appear before another paragraph. |
+| `move_paragraph_to_end` | `document_name: str`, `chapter_name: str`, `paragraph_to_move_index: int` | Moves a paragraph to the end of the chapter. |
 | `append_paragraph_to_chapter` | `document_name: str`, `chapter_name: str`, `paragraph_content: str` | Appends a new paragraph to the end of a chapter |
 
 ### Text Operations
@@ -252,4 +257,178 @@ MIT License
 ## Links
 
 - **GitHub Repository**: [https://github.com/document-mcp/document-mcp](https://github.com/document-mcp)
-- **Bug Reports**: [GitHub Issues](https://github.com/document-mcp/issues) 
+- **Bug Reports**: [GitHub Issues](https://github.com/document-mcp/issues)
+
+## Enhanced Error Handling and Logging
+
+The Document MCP Server features advanced error handling and structured logging for operational insights and debugging:
+
+### Logging Architecture
+
+The server uses a dual-logging approach:
+
+1. **MCP Call Logs** (`mcp_calls.log`): Traditional format logs for MCP tool calls and operations
+2. **Structured Error Logs** (`errors.log`): JSON-formatted logs for detailed error analysis
+
+### Error Categories
+
+All errors are categorized for proper prioritization:
+
+- **CRITICAL**: System-breaking errors requiring immediate attention
+- **ERROR**: Functional errors that prevent operation completion  
+- **WARNING**: Non-blocking issues that should be monitored
+- **INFO**: Informational messages for debugging and expected conditions
+
+### Structured Error Context
+
+Each error log includes comprehensive context:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "level": "ERROR",
+  "logger": "error_logger",
+  "message": "Failed to read chapter file: 01-intro.md",
+  "error_category": "ERROR",
+  "operation": "read_chapter_content",
+  "document_name": "user_guide",
+  "chapter_file_path": "/path/to/user_guide/01-intro.md",
+  "file_exists": false,
+  "exception": {
+    "type": "FileNotFoundError",
+    "message": "No such file or directory",
+    "traceback": ["...", "..."]
+  }
+}
+```
+
+### Integration with Log Analysis Tools
+
+#### ELK Stack (Elasticsearch, Logstash, Kibana)
+
+1. **Logstash Configuration** (`logstash.conf`):
+```ruby
+input {
+  file {
+    path => "/path/to/document_mcp/errors.log"
+    start_position => "beginning"
+    codec => "json"
+  }
+}
+
+filter {
+  date {
+    match => [ "timestamp", "ISO8601" ]
+  }
+  
+  if [error_category] == "CRITICAL" {
+    mutate {
+      add_tag => ["alert"]
+    }
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["localhost:9200"]
+    index => "document-mcp-errors-%{+YYYY.MM.dd}"
+  }
+}
+```
+
+2. **Kibana Dashboards**: Create visualizations for:
+   - Error trends by category
+   - Top failing operations
+   - Document/chapter error hotspots
+   - Exception type distribution
+
+#### Splunk Integration
+
+1. **Input Configuration** (`inputs.conf`):
+```ini
+[monitor:///path/to/document_mcp/errors.log]
+disabled = false
+index = document_mcp
+sourcetype = json_auto
+```
+
+2. **Search Queries**:
+```splunk
+# Critical errors in last 24h
+index=document_mcp error_category=CRITICAL earliest=-24h
+
+# Most common error operations
+index=document_mcp | stats count by operation | sort -count
+
+# File I/O errors by document
+index=document_mcp operation="read_*" level=ERROR | stats count by document_name
+```
+
+#### Prometheus/Grafana Integration
+
+Create custom metrics collector to parse JSON logs:
+
+```python
+from prometheus_client import Counter, Histogram, start_http_server
+import json
+import time
+
+error_counter = Counter('document_mcp_errors_total', 
+                       'Total errors', ['category', 'operation'])
+
+def parse_log_line(line):
+    try:
+        log_entry = json.loads(line)
+        if log_entry.get('error_category'):
+            error_counter.labels(
+                category=log_entry['error_category'],
+                operation=log_entry.get('operation', 'unknown')
+            ).inc()
+    except json.JSONDecodeError:
+        pass
+```
+
+#### Custom Log Analysis
+
+For custom analysis tools, the JSON structure enables easy querying:
+
+```python
+import json
+import pandas as pd
+
+# Load and analyze error patterns
+with open('errors.log', 'r') as f:
+    logs = [json.loads(line) for line in f if line.strip()]
+
+df = pd.DataFrame(logs)
+
+# Analyze error trends
+error_trends = df.groupby(['error_category', 'operation']).size()
+print(error_trends)
+
+# Find problematic documents
+doc_errors = df[df['document_name'].notna()].groupby('document_name').size()
+print(doc_errors.sort_values(ascending=False))
+```
+
+### Monitoring and Alerting
+
+Set up alerts based on error patterns:
+
+1. **Critical Error Alerts**: Immediate notification for CRITICAL category errors
+2. **Error Rate Alerts**: Alert when error rate exceeds threshold (e.g., >10 errors/minute)
+3. **Operation-Specific Alerts**: Monitor specific operations like file I/O for frequent failures
+4. **Document Health**: Alert when specific documents show high error rates
+
+### Log Retention and Rotation
+
+Both log files use rotating file handlers:
+- Maximum file size: 10MB
+- Backup count: 5 files
+- Total storage: ~50MB per log type
+
+Configure your log analysis tools to handle log rotation appropriately.
+
+## Features
+
+- **Document Management**: Create, delete, and list document collections 

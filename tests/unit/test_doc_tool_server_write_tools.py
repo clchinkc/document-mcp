@@ -2,7 +2,7 @@ import pytest
 from document_mcp.doc_tool_server import (
     create_document, delete_document,
     create_chapter, delete_chapter, write_chapter_content,
-    modify_paragraph_content, append_paragraph_to_chapter,
+    append_paragraph_to_chapter,
     replace_text_in_chapter, replace_text_in_document
 )
 

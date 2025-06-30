@@ -478,7 +478,12 @@ You have access to these document management tools:
 
 **Content Modification:**
 - `append_paragraph_to_chapter(document_name="My Book", chapter_name="01-intro.md", paragraph_content="New paragraph.")` - Adds content to end of chapter
-- `modify_paragraph_content(document_name="My Book", chapter_name="01-intro.md", paragraph_index=0, new_paragraph_content="Updated text.", mode="replace")` - Modifies specific paragraphs (modes: "replace", "insert_before", "insert_after", "delete")
+- `replace_paragraph(document_name="My Book", chapter_name="01-intro.md", paragraph_index=0, new_content="Updated text.")` - Replaces a specific paragraph
+- `insert_paragraph_before(document_name="My Book", chapter_name="01-intro.md", paragraph_index=1, new_content="New paragraph.")` - Inserts paragraph before specified index
+- `insert_paragraph_after(document_name="My Book", chapter_name="01-intro.md", paragraph_index=0, new_content="New paragraph.")` - Inserts paragraph after specified index
+- `delete_paragraph(document_name="My Book", chapter_name="01-intro.md", paragraph_index=2)` - Deletes a specific paragraph
+- `move_paragraph_before(document_name="My Book", chapter_name="01-intro.md", paragraph_to_move_index=3, target_paragraph_index=1)` - Moves paragraph to new position
+- `move_paragraph_to_end(document_name="My Book", chapter_name="01-intro.md", paragraph_to_move_index=0)` - Moves paragraph to end
 - `replace_text_in_chapter(document_name="My Book", chapter_name="01-intro.md", text_to_find="old", replacement_text="new")` - Find and replace in chapter
 - `replace_text_in_document(document_name="My Book", text_to_find="old_term", replacement_text="new_term")` - Find and replace across document
 
