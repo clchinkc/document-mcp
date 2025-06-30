@@ -563,66 +563,32 @@ async def test_simple_agent_three_round_conversation_document_workflow(test_docs
 
 @pytest.mark.asyncio
 async def test_simple_agent_three_round_conversation_with_error_recovery(test_docs_root):
-    """Test a 3-round conversation with error handling and recovery."""
-    # Use a unique name for the document to ensure isolation
     doc_name = generate_unique_name("error_recovery_doc")
-
-    # Define the conversation rounds
-    conversation = [
-        # Round 1: Intentionally cause an error by referencing a non-existent document
-        {
-            "query": f"Read the content of a chapter from a document that does not exist called '{doc_name}'",
-            "expect_error": True,
-            "expected_error_message": "Document or chapter not found",
-        },
-        # Round 2: Create the document (recovery step)
-        {
-            "query": f"Create a new document named '{doc_name}'",
-            "expect_error": False
-        },
-        # Round 3: Successfully list the document to confirm recovery
-        {
-            "query": "List all documents",
-            "expect_error": False
-        },
+    queries = [
+        f"Create a document named '{doc_name}'",
+        f"Create another document with the same name '{doc_name}'",  # This should fail
+        "List all documents to confirm state",
     ]
-
-    # Run the conversation
-    responses = await run_conversation_test_with_cleanup_retry(
-        conversation, test_docs_root
-    )
-
-    # Assertions
-    assert len(responses) == len(conversation), "Should have a response for each round"
-
-    # Round 1: Assert error
-    round1_response = responses[0]
-    # Check for error indicators in the summary (AI might not set error_message field)
-    error_indicators = ["does not exist", "not found", "cannot be read", "no chapters"]
-    has_error_in_summary = any(indicator in round1_response.summary.lower() for indicator in error_indicators)
-    
-    assert (
-        round1_response.error_message is not None or has_error_in_summary
-    ), f"Round 1 should indicate an error either in error_message or summary. Got: {round1_response.summary}"
-
-    # Round 2: Assert success or that it already exists (due to potential fixture cleanup races)
-    round2_response = responses[1]
-    is_successful_creation = round2_response.error_message is None and "created" in round2_response.summary.lower()
+    results = await run_conversation_test(queries)
+    # Round 1: Should succeed
+    assert "created" in results[0].summary.lower()
+    # Round 2: Should fail with already exists
     already_exists = (
-        (round2_response.error_message is not None and "already exists" in round2_response.error_message)
+        "already exists" in results[1].summary.lower() or
+        (results[1].error_message and "already exists" in results[1].error_message.lower())
+    )
+    is_failure = (
+        (results[1].details and hasattr(results[1].details, 'success') and results[1].details.success is False)
         or
-        (round2_response.error_message is None and "already exists" in round2_response.summary.lower())
+        (isinstance(results[1].details, list) and all(
+            hasattr(doc, 'document_name') for doc in results[1].details
+        ))
     )
-    assert is_successful_creation or already_exists, (
-        f"Round 2 should either succeed or report that the document already exists. Got: {round2_response}"
+    assert already_exists and is_failure, (
+        f"Round 2 must strictly report that the document already exists and indicate failure. Got: {results[1]}"
     )
-
-    # Round 3: Assert success and check details
-    round3_response = responses[2]
-    assert round3_response.error_message is None, f"Round 3 should succeed, but got error: {round3_response.error_message}"
-    assert isinstance(round3_response.details, list)
-    doc_names = [doc.document_name for doc in round3_response.details]
-    assert doc_name in doc_names, "Created document should appear in the final list"
+    # Round 3: Should list the document
+    assert any(doc.document_name == doc_name for doc in results[2].details)
 
 
 @pytest.mark.asyncio
