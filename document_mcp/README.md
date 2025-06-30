@@ -184,6 +184,7 @@ The server exposes the following tools via the Model Context Protocol:
 | `read_chapter_content` | `document_name: str`, `chapter_name: str` | Reads the content and metadata of a specific chapter |
 | `read_paragraph_content` | `document_name: str`, `chapter_name: str`, `paragraph_index_in_chapter: int` | Reads a specific paragraph from a chapter |
 | `read_full_document` | `document_name: str` | Reads the entire document, concatenating all chapters |
+| `read_document_summary` | `document_name: str` | Retrieve the content of a document's summary file (_SUMMARY.md). |
 | `write_chapter_content` | `document_name: str`, `chapter_name: str`, `new_content: str` | Overwrites the entire content of a chapter |
 | `replace_paragraph` | `document_name: str`, `chapter_name: str`, `paragraph_index: int`, `new_content: str` | Replaces a specific paragraph with new content. |
 | `insert_paragraph_before` | `document_name: str`, `chapter_name: str`, `paragraph_index: int`, `new_content: str` | Inserts a new paragraph before the specified index. |
@@ -192,6 +193,7 @@ The server exposes the following tools via the Model Context Protocol:
 | `move_paragraph_before` | `document_name: str`, `chapter_name: str`, `paragraph_to_move_index: int`, `target_paragraph_index: int` | Moves a paragraph to appear before another paragraph. |
 | `move_paragraph_to_end` | `document_name: str`, `chapter_name: str`, `paragraph_to_move_index: int` | Moves a paragraph to the end of the chapter. |
 | `append_paragraph_to_chapter` | `document_name: str`, `chapter_name: str`, `paragraph_content: str` | Appends a new paragraph to the end of a chapter |
+| `append_to_chapter_content` | `document_name: str`, `chapter_name: str`, `content_to_append: str` | Append content to an existing chapter file without replacing it. |
 
 ### Text Operations
 
