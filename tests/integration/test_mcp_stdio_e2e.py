@@ -97,7 +97,6 @@ async def test_complete_document_workflow(mcp_client):
 @pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_performance_characteristics(mcp_client):
-    """Test performance characteristics of MCP operations."""
     doc_name = "perf_test_doc"
     await mcp_client.call_tool("create_document", {"document_name": doc_name})
     
@@ -160,7 +159,6 @@ async def test_high_load_scenario(mcp_client):
 @pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_error_handling_and_recovery(mcp_client, mcp_client_with_error_injection):
-    """Test error handling and recovery scenarios."""
     # Test invalid tool calls with standard client
     with pytest.raises(MCPError):
         await mcp_client.call_tool("non_existent_tool", {})
@@ -190,7 +188,6 @@ async def test_error_handling_and_recovery(mcp_client, mcp_client_with_error_inj
 @pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_mcp_protocol_compliance(mcp_client):
-    """Test MCP protocol compliance and message format."""
     tools = await mcp_client.list_tools()
     for tool in tools:
         assert all(k in tool for k in ["name", "description", "inputSchema"])

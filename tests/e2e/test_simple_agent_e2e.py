@@ -21,15 +21,12 @@ from src.agents.simple_agent import (
     process_single_user_query,
 )
 
+# Import shared testing utilities
+from tests.shared.environment import has_real_api_key
+from tests.conftest import skip_if_no_real_api_key
 
-def has_real_api_key():
-    """Check if a real API key is available (not test/placeholder keys)."""
-    api_keys = ["OPENAI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY"]
-    for key in api_keys:
-        value = os.environ.get(key, "").strip()
-        if value and value != "test_key" and not value.startswith("sk-test"):
-            return True
-    return False
+
+
 
 
 async def run_simple_agent(query: str) -> FinalAgentResponse:
@@ -51,23 +48,11 @@ async def run_simple_agent(query: str) -> FinalAgentResponse:
         )
 
 
-@pytest.fixture(autouse=True)
-def clean_global_docs():
-    """Ensures the global .documents_storage directory is clean for E2E tests."""
-    global_docs_path = Path(".documents_storage")
-    if global_docs_path.exists():
-        shutil.rmtree(global_docs_path)
-    global_docs_path.mkdir(exist_ok=True)
-    yield
-    if global_docs_path.exists():
-        shutil.rmtree(global_docs_path)
+
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    not has_real_api_key(),
-    reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
-)
+@skip_if_no_real_api_key
 async def test_simple_agent_e2e_mcp_connection():
     """E2E test: Verify agent can run and list documents."""
     query = "List all documents"
@@ -88,10 +73,7 @@ async def test_simple_agent_e2e_mcp_connection():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    not has_real_api_key(),
-    reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
-)
+@skip_if_no_real_api_key
 async def test_simple_agent_e2e_document_creation():
     """E2E test: Simple agent creates a document using real AI."""
     # Use a unique document name to avoid conflicts
@@ -120,10 +102,7 @@ async def test_simple_agent_e2e_document_creation():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    not has_real_api_key(),
-    reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
-)
+@skip_if_no_real_api_key
 async def test_simple_agent_e2e_multi_step_workflow():
     """E2E test: Simple agent handles multi-step workflow with real AI."""
     # Use a unique document name to avoid conflicts
@@ -169,10 +148,7 @@ async def test_simple_agent_e2e_multi_step_workflow():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    not has_real_api_key(),
-    reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
-)
+@skip_if_no_real_api_key
 async def test_simple_agent_e2e_error_handling():
     """E2E test: Simple agent handles errors gracefully with real AI."""
     # Try to add chapter to non-existent document
@@ -192,10 +168,7 @@ async def test_simple_agent_e2e_error_handling():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    not has_real_api_key(),
-    reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
-)
+@skip_if_no_real_api_key
 async def test_simple_agent_e2e_content_operations():
     """E2E test: Simple agent performs content operations with real AI."""
     # Use a unique document name to avoid conflicts
@@ -226,3 +199,94 @@ async def test_simple_agent_e2e_content_operations():
         )
     else:
         assert content_found
+
+
+@pytest.mark.asyncio
+@skip_if_no_real_api_key
+async def test_simple_agent_e2e_read_write_flow(e2e_sample_documents):
+    """E2E test: Simple Agent reads and writes documents using real AI reasoning."""
+    # Use the fixture data
+    doc_name = e2e_sample_documents["doc_name"]
+    doc_path = e2e_sample_documents["doc_path"]
+    storage = e2e_sample_documents["storage_path"]
+    summary_text = e2e_sample_documents["summary_text"]
+    first_paragraph = e2e_sample_documents["first_paragraph"]
+    
+    # Step 3: List chapters
+    resp = await run_simple_agent(f"List chapters in document '{doc_name}'")
+    
+    # Check for common errors
+    if resp.error_message and ("Cancelled error" in resp.error_message or "request_limit" in resp.error_message.lower()):
+        pytest.skip("Agent query was cancelled or hit API limits - common in CI environments")
+    
+    assert resp is not None
+    assert isinstance(resp, FinalAgentResponse)
+    assert len(resp.summary) > 0
+    
+    # Verify the AI attempted to understand the task
+    chapter_reasoning = any(
+        word in resp.summary.lower() 
+        for word in ["chapter", "document", "list", doc_name.lower()]
+    )
+    assert chapter_reasoning, f"AI should reason about listing chapters. Got: {resp.summary}"
+    
+    # If we successfully got chapter details, proceed with more operations
+    if resp.details and isinstance(resp.details, list) and any(
+        hasattr(c, "chapter_name") and c.chapter_name == "01-chapter1.md" for c in resp.details
+    ):
+        # Step 4: Read summary (only if chapter listing succeeded)
+        resp = await run_simple_agent(f"Read the document summary for '{doc_name}'")
+        if resp.error_message and "Cancelled error" in resp.error_message:
+            pytest.skip("Summary reading was cancelled")
+            
+        # Verify summary reading was attempted
+        summary_reasoning = any(
+            word in resp.summary.lower()
+            for word in ["summary", "document", "read"]
+        )
+        assert summary_reasoning, "AI should reason about reading summary"
+        
+        # If summary reading was successful, test paragraph operations
+        if resp.details and isinstance(resp.details, str) and summary_text in resp.details:
+            # Step 5: Read paragraph 0
+            resp = await run_simple_agent(
+                f"Read paragraph 0 from chapter '01-chapter1.md' of '{doc_name}'"
+            )
+            if resp.error_message and "Cancelled error" in resp.error_message:
+                pytest.skip("Paragraph reading was cancelled")
+                
+            # Verify paragraph reading was attempted
+            para_reasoning = any(
+                word in resp.summary.lower()
+                for word in ["paragraph", "chapter", "read", "01-chapter1"]
+            )
+            assert para_reasoning, "AI should reason about reading paragraph"
+            
+            # If paragraph reading was successful, test writing
+            if (resp.details and hasattr(resp.details, "paragraph_index_in_chapter") 
+                and hasattr(resp.details, "content") and first_paragraph in resp.details.content):
+                
+                # Step 6: Replace paragraph 0
+                resp = await run_simple_agent(
+                    f"Replace paragraph 0 in chapter '01-chapter1.md' of '{doc_name}' with 'Edited first paragraph.'"
+                )
+                if resp.error_message and "Cancelled error" in resp.error_message:
+                    pytest.skip("Paragraph replacement was cancelled")
+                
+                # Verify replacement was attempted
+                replace_reasoning = any(
+                    word in resp.summary.lower()
+                    for word in ["replace", "edit", "paragraph", "chapter"]
+                )
+                assert replace_reasoning, "AI should reason about replacing paragraph"
+                
+                # Check if replacement was successful on disk
+                content = (doc_path / "01-chapter1.md").read_text()
+                if "Edited first paragraph." in content:
+                    # Step 7: Re-read paragraph 0 to confirm edit
+                    resp = await run_simple_agent(
+                        f"Read paragraph 0 from chapter '01-chapter1.md' of '{doc_name}'"
+                    )
+                    # Verify we can read back the edited content
+                    if resp.details and hasattr(resp.details, "content"):
+                        assert "Edited first paragraph." in resp.details.content, "Should read back the edited content"

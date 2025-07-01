@@ -303,7 +303,6 @@ class TestTerminationEdgeCases:
         assert step.action is None or step.action.strip() == ""
 
     def test_empty_string_action_termination(self):
-        """Test that empty string action is treated as termination."""
         step = ReActStep(thought="Task complete", action="")
         # A step is terminal when action is None or empty string
         assert step.action is None or step.action == ""

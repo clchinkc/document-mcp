@@ -24,7 +24,7 @@ def check_api_keys_available(required_keys: Optional[List[str]] = None) -> bool:
         True if at least one API key is available
     """
     if required_keys is None:
-        required_keys = ["OPENAI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY"]
+        required_keys = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
 
     return any(os.environ.get(key) for key in required_keys)
 
@@ -36,7 +36,7 @@ def validate_agent_environment() -> None:
     Raises:
         AssertionError: If environment is not properly configured
     """
-    api_keys = ["OPENAI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY"]
+    api_keys = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
     has_api_key = check_api_keys_available(api_keys)
     assert has_api_key, f"No API key found. Expected one of: {api_keys}"
 
@@ -120,7 +120,7 @@ def has_real_api_key() -> bool:
     Returns:
         True if a real API key is detected
     """
-    api_keys = ["OPENAI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY"]
+    api_keys = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
     for key in api_keys:
         value = os.environ.get(key, "").strip()
         if value and value != "test_key" and not value.startswith("sk-test"):

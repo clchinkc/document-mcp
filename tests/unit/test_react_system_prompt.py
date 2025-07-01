@@ -85,7 +85,6 @@ class TestReActSystemPrompt:
             ), f"Missing error handling concept: {concept}"
 
     def test_prompt_emphasizes_sequential_processing(self):
-        """Test that the prompt emphasizes step-by-step processing."""
         sequential_concepts = ["sequence", "steps", "one tool", "One Action Per Step"]
 
         for concept in sequential_concepts:

@@ -353,7 +353,7 @@ class IntegrationTestBase(AgentTestBase):
     async def test_agent_environment_setup(self) -> None:
         """Test that agent environment is properly configured."""
         # Check for any of the supported API keys
-        api_keys = ["OPENAI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY"]
+        api_keys = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
         has_api_key = any(os.environ.get(key) for key in api_keys)
         assert has_api_key, f"No API key found. Expected one of: {api_keys}"
 
@@ -416,7 +416,7 @@ class E2ETestBase(AgentTestBase):
         Returns:
             True if real API key is available
         """
-        api_keys = ["OPENAI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY"]
+        api_keys = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
         for key in api_keys:
             value = os.environ.get(key, "").strip()
             if value and value != "test_key" and not value.startswith("sk-test"):
@@ -428,7 +428,7 @@ class E2ETestBase(AgentTestBase):
         if not self.check_real_api_key_available():
             pytest.skip(
                 "E2E tests require a real API key "
-                "(OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)"
+                "(OPENAI_API_KEY or GEMINI_API_KEY)"
             )
 
 

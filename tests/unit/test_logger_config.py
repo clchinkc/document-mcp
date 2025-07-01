@@ -39,7 +39,6 @@ class TestStructuredLogFormatter:
     """Test suite for StructuredLogFormatter."""
 
     def test_formatter_basic_log_entry(self):
-        """Test basic log entry formatting to JSON."""
         formatter = StructuredLogFormatter()
         
         # Create a basic log record
@@ -94,7 +93,6 @@ class TestStructuredLogFormatter:
             assert isinstance(log_data["exception"]["traceback"], list)
 
     def test_formatter_with_extra_fields(self):
-        """Test log formatting with extra context fields."""
         formatter = StructuredLogFormatter()
         
         record = logging.LogRecord(
@@ -124,7 +122,6 @@ class TestLogStructuredError:
     """Test suite for log_structured_error function."""
 
     def test_log_structured_error_basic(self, mocker):
-        """Logs a basic structured error."""
         mock_logger = mocker.patch('document_mcp.logger_config.error_logger')
         log_structured_error(
             category=ErrorCategory.ERROR,
@@ -140,7 +137,6 @@ class TestLogStructuredError:
         assert extra['operation'] == "test_operation"
 
     def test_log_structured_error_with_exception(self, mocker):
-        """Logs structured error with exception."""
         mock_logger = mocker.patch('document_mcp.logger_config.error_logger')
         test_exception = ValueError("Test exception")
         log_structured_error(
@@ -155,7 +151,6 @@ class TestLogStructuredError:
         assert call_args[1]['exc_info'] is True
 
     def test_log_structured_error_with_context(self, mocker):
-        """Logs structured error with context dictionary."""
         mock_logger = mocker.patch('document_mcp.logger_config.error_logger')
         context = {
             "document_name": "test_doc",

@@ -182,7 +182,6 @@ class TestDeleteParagraph:
         assert "out of bounds" in result.message
     
     def test_delete_paragraph_from_empty_chapter(self, document_factory, test_docs_root: Path):
-        """Test deleting paragraph from empty chapter."""
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
         
@@ -218,7 +217,6 @@ class TestAppendToChapterContent:
         assert result.details["changed"] is True
     
     def test_append_to_chapter_content_empty_chapter(self, document_factory, test_docs_root: Path):
-        """Test appending to empty chapter."""
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
         

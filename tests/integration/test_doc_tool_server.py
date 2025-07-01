@@ -466,7 +466,6 @@ def test_create_document_success(test_docs_root: Path):
 
 
 def test_create_document_duplicate(test_docs_root: Path):
-    """Fails to create a duplicate document."""
     doc_name = "my_duplicate_doc"
     create_document(document_name=doc_name)
     status = create_document(document_name=doc_name)
@@ -474,7 +473,6 @@ def test_create_document_duplicate(test_docs_root: Path):
 
 
 def test_list_documents_empty(test_docs_root: Path):
-    """Returns an empty list when no documents exist."""
     docs_list = list_documents()
     assert isinstance(docs_list, list)
     assert len(docs_list) == 0
@@ -570,7 +568,6 @@ def test_create_chapter_success(document_factory, test_docs_root: Path):
 
 
 def test_create_chapter_invalid_name(document_factory, test_docs_root: Path):
-    """Fails to create a chapter with an invalid name."""
     doc_name = document_factory(doc_type="simple", name="doc_invalid_chapter_name", chapter_count=0)
     
     status = create_chapter(
@@ -593,7 +590,6 @@ def test_create_chapter_in_non_existent_document(test_docs_root: Path):
 
 
 def test_create_chapter_duplicate(document_factory, test_docs_root: Path):
-    """Fails to create a duplicate chapter."""
     doc_name = document_factory(doc_type="simple", name="doc_for_duplicate_chapter", chapter_count=0)
     chapter_name = "01-dupe.md"
     
@@ -677,7 +673,6 @@ def test_delete_chapter_non_existent(document_factory, test_docs_root: Path):
 
 
 def test_delete_chapter_invalid_name(document_factory, test_docs_root: Path):
-    """Fails to delete a chapter with an invalid name."""
     doc_name = document_factory(doc_type="simple", name="doc_delete_invalid_chapter", chapter_count=0)
     
     status = delete_chapter(document_name=doc_name, chapter_name="not_a_md_file.txt")
@@ -843,7 +838,6 @@ def test_append_paragraph_to_chapter_success(document_factory, test_docs_root: P
 
 
 def test_append_paragraph_to_empty_chapter(document_factory, test_docs_root: Path, validate_test_data):
-    """Appends a paragraph to an empty chapter."""
     appended_para = "Only line."
     chapters = [("chap_append_empty.md", "")]  # Empty chapter
     
@@ -1261,7 +1255,6 @@ def test_read_document_summary_non_existent_document(test_docs_root: Path):
     assert result is None
 
 def test_read_document_summary_empty_summary_file(document_factory, test_docs_root: Path, validate_test_data):
-    """Reads an empty document summary file."""
     doc_name = document_factory(doc_type="simple", name="doc_empty_summary", chapter_count=0)
     summary_file = test_docs_root / doc_name / DOCUMENT_SUMMARY_FILE
     summary_file.write_text("", encoding="utf-8") # Empty summary

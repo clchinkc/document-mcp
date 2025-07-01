@@ -110,7 +110,6 @@ class TestSummaryFunctionality:
         assert read_summary == summary_content
     
     def test_multiple_documents_with_different_summary_states(self):
-        """Test multiple documents with different summary states."""
         # Document with summary
         doc1 = 'doc_with_summary'
         self.create_document(doc1)
