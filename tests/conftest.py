@@ -11,6 +11,7 @@ import sys
 import tempfile
 import uuid
 from pathlib import Path
+from typing import Any, Dict
 
 import pytest
 from dotenv import load_dotenv
@@ -109,6 +110,90 @@ def test_docs_root():
         os.environ["DOCUMENT_ROOT_DIR"] = original_root_dir
 
     doc_tool_server.DOCS_ROOT_PATH = original_server_path
+
+
+# ================================
+# MCP Client Fixtures
+# ================================
+
+
+@pytest.fixture
+async def mcp_client(test_docs_root):
+    """
+    Create an MCP client connected to a real server over stdio.
+    
+    This fixture starts an MCP server subprocess and connects to it
+    using the stdio transport for true end-to-end testing.
+    """
+    from tests.integration.mcp_client import create_mcp_client
+    
+    # Server command to start the MCP server
+    server_command = [sys.executable, "-m", "document_mcp.doc_tool_server", "stdio"]
+    
+    # Environment for the server (including test docs root)
+    env = {
+        "DOCUMENT_ROOT_DIR": str(test_docs_root),
+        "PYTEST_CURRENT_TEST": os.environ.get("PYTEST_CURRENT_TEST", ""),
+    }
+    
+    async with create_mcp_client(server_command, env) as client:
+        yield client
+
+
+@pytest.fixture
+async def mcp_client_with_error_injection(test_docs_root):
+    """
+    Create an MCP client with network error injection capabilities.
+    
+    This fixture provides a client that can simulate network failures
+    for testing error handling and recovery scenarios.
+    """
+    from tests.integration.mcp_client import MCPStdioClient, MCPConnectionError
+    
+    class ErrorInjectingMCPClient(MCPStdioClient):
+        """MCP client with error injection capabilities."""
+        
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._simulate_network_failure = False
+            self._failure_count = 0
+            self._max_failures = 1
+            
+        async def simulate_network_failure(self, failure_count=1):
+            """Simulate network failure for the next N requests."""
+            self._simulate_network_failure = True
+            self._failure_count = 0
+            self._max_failures = failure_count
+            
+        async def _send_request(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
+            """Send request with potential error injection."""
+            if self._simulate_network_failure and self._failure_count < self._max_failures:
+                self._failure_count += 1
+                if self._failure_count >= self._max_failures:
+                    self._simulate_network_failure = False
+                raise MCPConnectionError("Simulated network failure")
+                
+            return await super()._send_request(method, params)
+    
+    # Server command and environment
+    server_command = [sys.executable, "-m", "document_mcp.doc_tool_server", "stdio"]
+    env = {
+        "DOCUMENT_ROOT_DIR": str(test_docs_root),
+        "PYTEST_CURRENT_TEST": os.environ.get("PYTEST_CURRENT_TEST", ""),
+    }
+    
+    client = ErrorInjectingMCPClient(server_command, env)
+    try:
+        await client.connect()
+        yield client
+    finally:
+        await client.disconnect()
+
+
+@pytest.fixture(scope="session")
+def mcp_server_command():
+    """Get the command to start the MCP server."""
+    return [sys.executable, "-m", "document_mcp.doc_tool_server", "stdio"]
 
 
 # ================================
@@ -352,6 +437,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "integration: marks tests as integration tests")
     config.addinivalue_line("markers", "unit: marks tests as unit tests")
     config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests")
+    config.addinivalue_line("markers", "stress: marks tests as stress tests")
 
 
 def pytest_collection_modifyitems(config, items):
