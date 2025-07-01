@@ -51,36 +51,6 @@ async def run_simple_agent(query: str) -> FinalAgentResponse:
         )
 
 
-@pytest.fixture
-def test_docs_root():
-    temp_dir = tempfile.mkdtemp(prefix="simple_e2e_test_docs_")
-    path = Path(temp_dir)
-    
-    # Set environment variable for the test
-    original_root = os.environ.get("DOCUMENT_ROOT_DIR")
-    os.environ["DOCUMENT_ROOT_DIR"] = str(path)
-    
-    try:
-        yield path
-    finally:
-        # Restore environment variable
-        if original_root is None:
-            if "DOCUMENT_ROOT_DIR" in os.environ:
-                del os.environ["DOCUMENT_ROOT_DIR"]
-        else:
-            os.environ["DOCUMENT_ROOT_DIR"] = original_root
-        # Clean up temporary directory
-        shutil.rmtree(path, ignore_errors=True)
-
-
-def skip_if_no_api_key():
-    """Decorator to skip individual tests if no API key is available."""
-    return pytest.mark.skipif(
-        not has_real_api_key(),
-        reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
-    )
-
-
 @pytest.fixture(autouse=True)
 def clean_global_docs():
     """Ensures the global .documents_storage directory is clean for E2E tests."""
@@ -94,8 +64,11 @@ def clean_global_docs():
 
 
 @pytest.mark.asyncio
-@skip_if_no_api_key()
-async def test_simple_agent_e2e_mcp_connection(test_docs_root):
+@pytest.mark.skipif(
+    not has_real_api_key(),
+    reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
+)
+async def test_simple_agent_e2e_mcp_connection():
     """E2E test: Verify agent can run and list documents."""
     query = "List all documents"
 
@@ -115,8 +88,11 @@ async def test_simple_agent_e2e_mcp_connection(test_docs_root):
 
 
 @pytest.mark.asyncio
-@skip_if_no_api_key()
-async def test_simple_agent_e2e_document_creation(test_docs_root):
+@pytest.mark.skipif(
+    not has_real_api_key(),
+    reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
+)
+async def test_simple_agent_e2e_document_creation():
     """E2E test: Simple agent creates a document using real AI."""
     # Use a unique document name to avoid conflicts
     doc_name = f"TestDoc_{uuid.uuid4().hex[:8]}"
@@ -144,8 +120,11 @@ async def test_simple_agent_e2e_document_creation(test_docs_root):
 
 
 @pytest.mark.asyncio
-@skip_if_no_api_key()
-async def test_simple_agent_e2e_multi_step_workflow(test_docs_root):
+@pytest.mark.skipif(
+    not has_real_api_key(),
+    reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
+)
+async def test_simple_agent_e2e_multi_step_workflow():
     """E2E test: Simple agent handles multi-step workflow with real AI."""
     # Use a unique document name to avoid conflicts
     doc_name = f"MultiStepDoc_{uuid.uuid4().hex[:8]}"
@@ -190,8 +169,11 @@ async def test_simple_agent_e2e_multi_step_workflow(test_docs_root):
 
 
 @pytest.mark.asyncio
-@skip_if_no_api_key()
-async def test_simple_agent_e2e_error_handling(test_docs_root):
+@pytest.mark.skipif(
+    not has_real_api_key(),
+    reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
+)
+async def test_simple_agent_e2e_error_handling():
     """E2E test: Simple agent handles errors gracefully with real AI."""
     # Try to add chapter to non-existent document
     response = await run_simple_agent(
@@ -210,8 +192,11 @@ async def test_simple_agent_e2e_error_handling(test_docs_root):
 
 
 @pytest.mark.asyncio
-@skip_if_no_api_key()
-async def test_simple_agent_e2e_content_operations(test_docs_root):
+@pytest.mark.skipif(
+    not has_real_api_key(),
+    reason="E2E test requires a real API key (OPENAI_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY)",
+)
+async def test_simple_agent_e2e_content_operations():
     """E2E test: Simple agent performs content operations with real AI."""
     # Use a unique document name to avoid conflicts
     doc_name = f"ContentTest_{uuid.uuid4().hex[:8]}"

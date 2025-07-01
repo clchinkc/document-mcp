@@ -45,14 +45,6 @@ from document_mcp.doc_tool_server import (
 # --- Environment Testing Functions ---
 
 
-def test_environment_setup():
-    """Test environment setup and configuration."""
-
-    assert os.environ.get("OPENAI_API_KEY") or os.environ.get(
-        "GEMINI_API_KEY"
-    ), "API key not found in .env"
-
-
 def test_package_imports():
     """Test if all required packages can be imported."""
     try:
