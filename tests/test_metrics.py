@@ -6,7 +6,6 @@ from document_mcp.logger_config import log_mcp_call
 
 
 def test_metrics_decorator():
-    """Test that the metrics decorator works without errors."""
     
     @log_mcp_call
     def sample_function(text: str) -> str:
@@ -33,7 +32,6 @@ def test_metrics_decorator_with_error():
 
 
 def test_metrics_import():
-    """Test that metrics modules import correctly."""
     from document_mcp.metrics_config import (
         is_metrics_enabled,
         get_metrics_export

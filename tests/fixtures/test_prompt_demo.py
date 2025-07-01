@@ -8,7 +8,6 @@ def simulate_react_step(thought: str, action: str = None) -> dict:
 
 
 def test_react_sequence():
-    """Test a complete ReAct sequence for document creation."""
     steps = [
         {
             "step_num": 1,
@@ -60,7 +59,6 @@ def test_react_sequence():
 
 
 def test_error_handling():
-    """Test how the system prompt guides error handling."""
     error_steps = [
         {
             "step_num": 1,
@@ -201,7 +199,6 @@ def test_complex_multi_document_workflow():
 
 
 def test_system_prompt_structure():
-    """Test the structure and content of the system prompt."""
     assert "ReAct Process Overview" in REACT_SYSTEM_PROMPT
     assert "Available Tools" in REACT_SYSTEM_PROMPT
     assert "Example ReAct Sequence" in REACT_SYSTEM_PROMPT
@@ -321,7 +318,6 @@ def test_edge_case_state_management():
 
 
 def test_performance_bulk_operations():
-    """Test performance optimization for bulk operations."""
     perf_case_1 = [
         {
             "step_num": 1,

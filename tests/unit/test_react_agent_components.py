@@ -30,7 +30,6 @@ class TestErrorClassifier:
         assert error_info.max_retries > 0
 
     def test_authentication_error_classification(self):
-        """Test authentication error classification."""
         classifier = ErrorClassifier()
         auth_error = Exception("Invalid API key provided")
         error_info = classifier.classify(auth_error)
@@ -40,7 +39,6 @@ class TestErrorClassifier:
         assert error_info.max_retries == 0
 
     def test_rate_limit_error_classification(self):
-        """Test rate limit error classification."""
         classifier = ErrorClassifier()
         rate_error = Exception("Rate limit exceeded, too many requests")
         error_info = classifier.classify(rate_error)
@@ -50,7 +48,6 @@ class TestErrorClassifier:
         assert error_info.max_retries > 0
 
     def test_validation_error_classification(self):
-        """Test validation error classification."""
         classifier = ErrorClassifier()
         validation_error = Exception("Invalid input format provided")
         error_info = classifier.classify(validation_error)
@@ -59,7 +56,6 @@ class TestErrorClassifier:
         assert error_info.is_retryable is False
 
     def test_unknown_error_classification(self):
-        """Test unknown error classification."""
         classifier = ErrorClassifier()
         unknown_error = Exception("Something unexpected happened")
         error_info = classifier.classify(unknown_error)
@@ -73,7 +69,6 @@ class TestServiceCircuitBreaker:
 
     @pytest.mark.asyncio
     async def test_successful_calls(self):
-        """Test circuit breaker with successful calls."""
         circuit_breaker = ServiceCircuitBreaker("test_service", failure_threshold=3)
 
         async def successful_func():
@@ -103,7 +98,6 @@ class TestServiceCircuitBreaker:
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_blocks_when_open(self):
-        """Test that circuit breaker blocks calls when OPEN."""
         circuit_breaker = ServiceCircuitBreaker("test_service", failure_threshold=3)
 
         async def failing_func():

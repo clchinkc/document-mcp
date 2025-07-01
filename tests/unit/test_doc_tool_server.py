@@ -86,7 +86,6 @@ class TestStructuredErrorLogging:
         assert isinstance(call_args[1]['exception'], OSError)
 
     def test_read_document_summary_logs_warning_on_invalid_document_name(self, mocker):
-        """Logs warning for invalid document name."""
         mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_validate = mocker.patch('document_mcp.doc_tool_server._validate_document_name')
         mock_validate.return_value = (False, "Invalid document name")
@@ -101,7 +100,6 @@ class TestStructuredErrorLogging:
         assert call_args[1]['context']['validation_error'] == "Invalid document name"
 
     def test_read_document_summary_logs_info_on_document_not_found(self, mocker):
-        """Logs info when document is not found."""
         mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_validate = mocker.patch('document_mcp.doc_tool_server._validate_document_name')
         mock_get_path = mocker.patch('document_mcp.doc_tool_server._get_document_path')
@@ -137,7 +135,6 @@ class TestStructuredErrorLogging:
         assert call_args[1]['operation'] == "read_document_summary"
 
     def test_read_document_summary_logs_error_on_file_read_failure(self, mocker):
-        """Logs error when summary file read fails."""
         mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_validate = mocker.patch('document_mcp.doc_tool_server._validate_document_name')
         mock_get_path = mocker.patch('document_mcp.doc_tool_server._get_document_path')
@@ -182,7 +179,6 @@ class TestStructuredErrorLogging:
         assert call_args[1]['context']['valid_range'] == "0-1"
 
     def test_read_full_document_logs_info_on_document_not_found(self, mocker):
-        """Logs info when full document is not found."""
         mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_get_path = mocker.patch('document_mcp.doc_tool_server._get_document_path')
         mock_doc_path = mocker.Mock()
@@ -279,7 +275,6 @@ class TestErrorCategorization:
     """Test suite for proper error categorization."""
 
     def test_file_not_found_categorized_as_info(self, mocker):
-        """Test that file not found errors are categorized as INFO."""
         mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_validate = mocker.patch('document_mcp.doc_tool_server._validate_document_name')
         mock_get_path = mocker.patch('document_mcp.doc_tool_server._get_document_path')
@@ -295,7 +290,6 @@ class TestErrorCategorization:
         assert call_args[1]['category'] == ErrorCategory.INFO
 
     def test_validation_errors_categorized_as_warning(self, mocker):
-        """Test that validation errors are categorized as WARNING."""
         mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_validate = mocker.patch('document_mcp.doc_tool_server._validate_document_name')
         
@@ -307,7 +301,6 @@ class TestErrorCategorization:
         assert call_args[1]['category'] == ErrorCategory.WARNING
 
     def test_io_errors_categorized_as_error(self, mocker):
-        """Test that I/O errors are categorized as ERROR."""
         mock_log_error = mocker.patch('document_mcp.doc_tool_server.log_structured_error')
         mock_path = mocker.Mock()
         mock_path.is_file.return_value = True

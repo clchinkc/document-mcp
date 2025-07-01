@@ -48,7 +48,6 @@ class TestConfigurationFunctions:
     """Test suite for configuration-related functions."""
 
     def test_load_llm_config_with_openai_key(self, mock_environment_operations, mocker):
-        """Test loading LLM config with OpenAI API key."""
         mock_environment_operations.mock_os_environ({
             "OPENAI_API_KEY": "test_openai_key", 
             "OPENAI_MODEL_NAME": "gpt-4o"
@@ -61,7 +60,6 @@ class TestConfigurationFunctions:
         # but we're testing the function logic, not the model instantiation
 
     def test_load_llm_config_with_gemini_key(self, mock_environment_operations, mocker):
-        """Test loading LLM config with Gemini API key."""
         mock_environment_operations.mock_os_environ({
             "GEMINI_API_KEY": "test_gemini_key",
             "GEMINI_MODEL_NAME": "gemini-2.5-flash",
@@ -107,7 +105,6 @@ class TestConfigurationFunctions:
         assert "No valid API key found" in str(exc_info.value)
 
     def test_check_api_keys_config_no_keys(self, mock_environment_operations, mocker):
-        """Test checking API keys config with no keys configured."""
         mock_environment_operations.mock_os_environ({})
         mocker.patch("src.agents.simple_agent.load_dotenv")
         
@@ -554,7 +551,6 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_process_single_user_query_prints_errors_to_stderr(self, mock_file_operations):
-        """Test process_single_user_query prints errors to stderr."""
         class MockAgent:
             async def run(self, *args, **kwargs):
                 raise Exception("Test error")
@@ -641,7 +637,6 @@ class TestAgentInitialization:
 
     @pytest.mark.asyncio
     async def test_initialize_agent_and_mcp_server_custom_host_port(self, mock_agent_operations, mock_environment_operations):
-        """Test agent initialization with custom host and port."""
         # Set up environment variables for custom host/port
         mock_environment_operations.mock_os_environ({
             "OPENAI_API_KEY": "test_key",
@@ -696,7 +691,6 @@ class TestSystemPrompt:
     """Test suite for system prompt validation and content."""
 
     def test_system_prompt_contains_key_elements(self):
-        """Test that the system prompt contains essential elements."""
         # Check for key sections that should be in the system prompt
         assert "MCP tools" in SYSTEM_PROMPT
         assert "document" in SYSTEM_PROMPT.lower()
@@ -717,7 +711,6 @@ class TestSystemPrompt:
         assert "find_text_in_document" in SYSTEM_PROMPT
 
     def test_system_prompt_error_handling_section(self):
-        """Test that system prompt contains error handling guidance."""
         assert "ERROR HANDLING" in SYSTEM_PROMPT
         assert "error_message" in SYSTEM_PROMPT
         assert "OperationStatus" in SYSTEM_PROMPT
@@ -736,7 +729,6 @@ class TestSystemPrompt:
         assert "get_chapter_statistics" in SYSTEM_PROMPT
 
     def test_system_prompt_constraint_mention(self):
-        """Test that system prompt mentions the core constraint."""
         assert "CORE CONSTRAINT" in SYSTEM_PROMPT
         assert "at most one MCP tool per user query" in SYSTEM_PROMPT
 
@@ -748,7 +740,6 @@ class TestSystemPrompt:
         ), f"System prompt length: {len(SYSTEM_PROMPT)}"
 
     def test_system_prompt_contains_examples(self):
-        """Test that system prompt contains practical examples."""
         assert "KEY TOOLS EXAMPLES" in SYSTEM_PROMPT
         assert "document_name=" in SYSTEM_PROMPT  # Parameter examples
         assert "chapter_name=" in SYSTEM_PROMPT

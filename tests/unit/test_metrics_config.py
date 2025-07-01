@@ -75,14 +75,12 @@ def mock_otel(monkeypatch, mocker):
 # --- Tests for Disabled State ---
 
 def test_calculate_argument_size_json():
-    """Calculates the size of a JSON argument."""
     args = ("a", 1, {"key": "value"})
     kwargs = {"x": True, "y": None}
     size = metrics_config.calculate_argument_size(args, kwargs)
     assert isinstance(size, int) and size > 0
 
 def test_calculate_argument_size_fallback(monkeypatch, mocker):
-    """Calculates the size of a fallback argument."""
     class BadJSON:
         def __repr__(self): return "bad"
     monkeypatch.setattr(metrics_config, 'json', type('J', (), {'dumps': staticmethod(lambda *a, **k: exec("raise TypeError"))}))
@@ -94,13 +92,11 @@ def test_is_metrics_enabled_initially_false(disabled_metrics):
     assert not metrics_config.is_metrics_enabled()
 
 def test_get_metrics_export_disabled(disabled_metrics):
-    """Gets metrics export when metrics are disabled."""
     data, content_type = metrics_config.get_metrics_export()
     assert "not available" in data
     assert content_type == "text/plain"
 
 def test_get_metrics_summary_disabled(disabled_metrics):
-    """Gets metrics summary when metrics are disabled."""
     summary = metrics_config.get_metrics_summary()
     assert summary["status"] == "disabled"
 
@@ -167,7 +163,6 @@ def test_record_tool_calls(mock_otel, mocker):
     metrics_config.tool_errors_counter.add.assert_called_with(1, {"tool_name": "tool2", "error_type": "ValueError", "environment": "development"})
 
 def test_concurrent_gauge(mock_otel):
-    """Tests concurrent gauge."""
     start1 = metrics_config.record_tool_call_start("task1", (), {})
     metrics_config.concurrent_operations_gauge.add.assert_called_with(1, {"tool_name": "task1"})
     start2 = metrics_config.record_tool_call_start("task2", (), {})
@@ -178,13 +173,11 @@ def test_concurrent_gauge(mock_otel):
     metrics_config.concurrent_operations_gauge.add.assert_called_with(-1, {"tool_name": "task2"})
 
 def test_get_metrics_export_enabled(mock_otel):
-    """Gets metrics export when metrics are enabled."""
     data, content_type = metrics_config.get_metrics_export()
     metrics_config.generate_latest.assert_called_once()
     assert data == "prometheus_data"
     assert content_type == "text/prometheus"
 
 def test_get_metrics_summary_enabled(mock_otel):
-    """Gets metrics summary when metrics are enabled."""
     summary = metrics_config.get_metrics_summary()
     assert summary["status"] == "enabled" 

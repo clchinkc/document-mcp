@@ -40,7 +40,6 @@ except ImportError:
 
 
 def test_agent_environment_setup():
-    """Test agent environment setup and configuration."""
     validate_agent_environment()
 
 
@@ -179,12 +178,12 @@ async def run_conversation_test_with_retry(queries: list[str], max_retries: int 
             )
             
             if not has_timeout_or_loop_error:
-                return results  # Success, return results
+                return results
             else:
                 if attempt < max_retries:
                     continue
                 else:
-                    return results  # Return the last attempt results
+                    return results
                     
         except Exception as e:
             last_exception = e
@@ -230,12 +229,12 @@ async def run_conversation_test_with_cleanup_retry(queries: list[str], cleanup_q
             )
             
             if not has_timeout_or_loop_error:
-                return results  # Success, return results
+                return results
             else:
                 if attempt < max_retries:
                     continue
                 else:
-                    return results  # Return the last attempt results
+                    return results
                     
         except Exception as e:
             last_exception = e
@@ -392,7 +391,6 @@ def clean_documents_directory():
 
 @pytest.mark.asyncio
 async def test_openai_gpt_model_integration(test_docs_root):
-    """Test that OpenAI GPT model works correctly with the agent."""
     # Skip test if OpenAI API key is not available
     if not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("OPENAI_API_KEY not found in environment - skipping OpenAI test")

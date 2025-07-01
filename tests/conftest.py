@@ -16,11 +16,16 @@ from typing import Any, Dict
 import pytest
 from dotenv import load_dotenv
 
+# Load environment variables immediately when conftest is imported
+# This ensures API keys are available for skip decorators
+load_dotenv()
+
 # Import shared testing utilities
 from tests.shared import (
     create_mock_environment,
     create_test_document,
     generate_unique_name,
+    has_real_api_key,
 )
 from tests.shared.test_data import (
     TestDataRegistry,
@@ -41,15 +46,6 @@ except ImportError:
 # ================================
 # Pytest Hooks for Environment Management
 # ================================
-
-
-def pytest_sessionstart(session):
-    """
-    Called after the Session object has been created and
-    before performing collection and entering the run test loop.
-    Load environment variables from .env file.
-    """
-    load_dotenv()
 
 
 def pytest_runtest_setup(item):
@@ -855,3 +851,116 @@ def mock_complete_test_environment(
             }
             
     return CompleteMockEnvironment()
+
+
+# ================================
+# E2E Testing Fixtures
+# ================================
+
+
+@pytest.fixture
+def skip_if_no_api_key():
+    """
+    Decorator fixture to skip tests if no real API key is available.
+    
+    This uses the shared has_real_api_key function from environment module.
+    """
+    from tests.shared.environment import has_real_api_key
+    
+    def decorator():
+        return pytest.mark.skipif(
+            not has_real_api_key(),
+            reason="E2E test requires a real API key (OPENAI_API_KEY, or GEMINI_API_KEY)",
+        )
+    
+    return decorator()
+
+
+@pytest.fixture
+def sample_documents_fixture(test_docs_root):
+    """
+    Fixture that sets up sample documents for e2e testing.
+    
+    Returns:
+        dict: Contains paths and constants for sample documents
+    """
+    from pathlib import Path
+    import shutil
+    
+    # Copy sample documents
+    sample_src = Path(__file__).parents[1] / "sample_doc" / "sample_document"
+    sample_dest = test_docs_root / "sample_document"
+    shutil.copytree(sample_src, sample_dest)
+    
+    # Create summary file
+    summary_text = "# Document Summary\n\n- Chapter 1\n- Chapter 2\n- Chapter 3"
+    (sample_dest / "_SUMMARY.md").write_text(summary_text, encoding="utf-8")
+    
+    return {
+        "doc_name": "sample_document",
+        "doc_path": sample_dest,
+        "summary_text": summary_text,
+        "chapters": ["01-chapter1.md", "02-chapter2.md", "03-chapter3.md"],
+        "first_paragraph": "This is the first chapter.",
+    }
+
+
+@pytest.fixture
+def e2e_test_documents_storage():
+    """
+    Fixture for Simple Agent e2e tests that use .documents_storage directory.
+    
+    Automatically cleans up before and after test.
+    """
+    from pathlib import Path
+    import shutil
+    
+    storage_path = Path(".documents_storage")
+    
+    # Clean before test
+    if storage_path.exists():
+        shutil.rmtree(storage_path)
+    storage_path.mkdir(exist_ok=True)
+    
+    yield storage_path
+    
+    # Clean after test
+    if storage_path.exists():
+        shutil.rmtree(storage_path)
+
+
+@pytest.fixture
+def e2e_sample_documents(e2e_test_documents_storage):
+    """
+    Sets up sample documents in .documents_storage for Simple Agent e2e tests.
+    
+    Returns:
+        dict: Contains paths and constants for sample documents
+    """
+    from pathlib import Path
+    import shutil
+    
+    # Copy sample documents
+    sample_src = Path(__file__).parents[1] / "sample_doc" / "sample_document"
+    sample_dest = e2e_test_documents_storage / "sample_document"
+    shutil.copytree(sample_src, sample_dest)
+    
+    # Create summary file
+    summary_text = "# Document Summary\n\n- Chapter 1\n- Chapter 2\n- Chapter 3"
+    (sample_dest / "_SUMMARY.md").write_text(summary_text, encoding="utf-8")
+    
+    return {
+        "doc_name": "sample_document",
+        "doc_path": sample_dest,
+        "storage_path": e2e_test_documents_storage,
+        "summary_text": summary_text,
+        "chapters": ["01-chapter1.md", "02-chapter2.md", "03-chapter3.md"],
+        "first_paragraph": "This is the first chapter.",
+    }
+
+
+# Mark for E2E tests
+skip_if_no_real_api_key = pytest.mark.skipif(
+    not has_real_api_key(),
+    reason="E2E test requires a real API key (OPENAI_API_KEY, or GEMINI_API_KEY)"
+)

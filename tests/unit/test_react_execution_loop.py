@@ -19,7 +19,6 @@ class TestParseActionString:
         assert kwargs == {}
 
     def test_single_string_argument(self):
-        """Test parsing function with single string argument."""
         tool_name, kwargs = parse_action_string(
             'create_document(document_name="My Book")'
         )
@@ -39,7 +38,6 @@ class TestParseActionString:
         }
 
     def test_boolean_arguments(self):
-        """Test parsing function with boolean arguments."""
         tool_name, kwargs = parse_action_string(
             'find_text_in_document(document_name="My Book", query="test", case_sensitive=true)'
         )
@@ -51,7 +49,6 @@ class TestParseActionString:
         }
 
     def test_integer_arguments(self):
-        """Test parsing function with integer arguments."""
         tool_name, kwargs = parse_action_string(
             'read_paragraph_content(document_name="My Book", chapter_name="01-intro.md", paragraph_index_in_chapter=0)'
         )
@@ -63,7 +60,6 @@ class TestParseActionString:
         }
 
     def test_none_arguments(self):
-        """Test parsing function with None arguments."""
         tool_name, kwargs = parse_action_string(
             'test_function(param1="value", param2=none)'
         )
@@ -71,7 +67,6 @@ class TestParseActionString:
         assert kwargs == {"param1": "value", "param2": None}
 
     def test_single_quotes(self):
-        """Test parsing function with single quotes."""
         tool_name, kwargs = parse_action_string(
             "create_document(document_name='My Book')"
         )
@@ -103,17 +98,14 @@ class TestParseActionString:
         }
 
     def test_invalid_format(self):
-        """Test parsing invalid action format."""
         with pytest.raises(ValueError, match="Invalid action format"):
             parse_action_string("invalid_format")
 
     def test_empty_string(self):
-        """Test parsing empty string."""
         with pytest.raises(ValueError, match="Invalid action format"):
             parse_action_string("")
 
     def test_malformed_function(self):
-        """Test parsing malformed function call."""
         with pytest.raises(ValueError, match="Invalid action format"):
             parse_action_string("create_document(")
 
