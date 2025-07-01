@@ -889,7 +889,9 @@ def sample_documents_fixture(test_docs_root):
     
     # Copy sample documents
     sample_src = Path(__file__).parents[1] / "sample_doc" / "sample_document"
-    sample_dest = test_docs_root / "sample_document"
+    sample_dest = Path(".documents_storage") / "sample_document"
+    if sample_dest.exists():
+        shutil.rmtree(sample_dest)
     shutil.copytree(sample_src, sample_dest)
     
     # Create summary file
@@ -943,6 +945,8 @@ def e2e_sample_documents(e2e_test_documents_storage):
     # Copy sample documents
     sample_src = Path(__file__).parents[1] / "sample_doc" / "sample_document"
     sample_dest = e2e_test_documents_storage / "sample_document"
+    if sample_dest.exists():
+        shutil.rmtree(sample_dest)
     shutil.copytree(sample_src, sample_dest)
     
     # Create summary file
