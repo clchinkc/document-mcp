@@ -10,11 +10,14 @@ import datetime
 import difflib  # Added for generating unified diffs
 import os
 import re  # Added for robust paragraph splitting
+import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from mcp.server import FastMCP
+from mcp.types import Resource, TextResourceContents, ErrorData
+from mcp import McpError
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import Response
@@ -67,7 +70,10 @@ MIN_PARAGRAPH_INDEX = 0
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 3001
 
-mcp_server = FastMCP("DocumentManagementTools")
+mcp_server = FastMCP(
+    name="DocumentManagementTools",
+    capabilities=["tools", "resources"]
+)
 
 # --- Input Validation Helpers ---
 
@@ -2865,6 +2871,164 @@ def move_paragraph_to_end(
             success=False,
             message=f"Error moving paragraph to end in '{chapter_name}' ({document_name}): {str(e)}",
         )
+
+
+# ============================================================================
+# MCP RESOURCE HANDLERS
+# ============================================================================
+# Handlers for exposing document and chapter data as standardized resources
+
+def _create_resource_error(message: str, code: int = -1) -> McpError:
+    """Helper function to create properly formatted McpError for resource operations."""
+    return McpError(ErrorData(code=code, message=message))
+
+async def _list_resources_handler():
+    """
+    List all available document chapters as MCP resources.
+    
+    Scans the DOCS_ROOT_PATH for all document directories and their .md chapter files,
+    generating a TextResource for each chapter that can be accessed by LLM clients.
+    
+    Returns:
+        List[Resource]: List of available chapter resources. Each Resource contains:
+            - uri (str): Unique resource identifier (e.g., "file://document_name/chapter_name")
+            - name (str): Human-readable name (e.g., "document_name/chapter_name")
+            - mimeType (str): Set to "text/markdown" for all chapters
+    """
+    resources = []
+    
+    # Ensure DOCS_ROOT_PATH is a Path object (defensive programming)
+    root_path = Path(DOCS_ROOT_PATH) if not isinstance(DOCS_ROOT_PATH, Path) else DOCS_ROOT_PATH
+    
+    if not root_path.exists() or not root_path.is_dir():
+        return resources
+
+    # Scan all document directories
+    for doc_dir in root_path.iterdir():
+        if doc_dir.is_dir():
+            document_name = doc_dir.name
+            chapter_files = _get_ordered_chapter_files(document_name)
+            
+            # Create a resource for each chapter file
+            for chapter_file_path in chapter_files:
+                chapter_name = chapter_file_path.name
+                uri = f"file://{document_name}/{chapter_name}"
+                name = f"{document_name}/{chapter_name}"
+                
+                resources.append(Resource(
+                    uri=uri,
+                    name=name,
+                    mimeType="text/markdown"
+                ))
+    
+    return resources
+
+
+async def _read_resource_handler(uri: str):
+    """
+    Read the content of a specific document chapter resource.
+    
+    Parses the provided URI to extract document and chapter names, then securely
+    reads the corresponding chapter file content. Validates that the requested
+    file is within the DOCS_ROOT_PATH to prevent directory traversal attacks.
+    
+    Parameters:
+        uri (str): Resource URI in format "file://document_name/chapter_name"
+    
+    Returns:
+        TextResourceContents: Resource content object containing:
+            - uri (str): Original resource URI
+            - mime_type (str): Set to "text/markdown"
+            - text (str): Full content of the chapter file
+    
+    Raises:
+        McpError: If URI is invalid, file doesn't exist, or security violation
+    """
+    # Parse and validate the URI
+    try:
+        parsed_uri = urllib.parse.urlparse(uri)
+        if parsed_uri.scheme != "file":
+            raise _create_resource_error(f"Invalid URI scheme: {parsed_uri.scheme}. Expected 'file'")
+        
+        # Extract document_name and chapter_name from netloc and path
+        if parsed_uri.netloc:
+            # Format: file://document_name/chapter_name
+            document_name = parsed_uri.netloc
+            chapter_name = parsed_uri.path.strip('/')
+            if not chapter_name:
+                raise _create_resource_error(f"Invalid URI: missing chapter name. Expected 'file://document_name/chapter_name'")
+        else:
+            # Format: file:///document_name/chapter_name
+            path_parts = parsed_uri.path.strip('/').split('/')
+            if len(path_parts) != 2:
+                raise _create_resource_error(f"Invalid URI path format: {parsed_uri.path}. Expected '/document_name/chapter_name'")
+            document_name, chapter_name = path_parts
+        
+        # Validate the names using existing validation functions
+        is_valid_doc, doc_error = _validate_document_name(document_name)
+        if not is_valid_doc:
+            raise _create_resource_error(f"Invalid document name: {doc_error}")
+        
+        is_valid_chapter, chapter_error = _validate_chapter_name(chapter_name)
+        if not is_valid_chapter:
+            raise _create_resource_error(f"Invalid chapter name: {chapter_error}")
+        
+    except ValueError as e:
+        raise _create_resource_error(f"Failed to parse URI: {e}")
+    
+    # Securely resolve the file path and verify it's within DOCS_ROOT_PATH
+    try:
+        chapter_path = _get_chapter_path(document_name, chapter_name)
+        
+        # Ensure the resolved path is within DOCS_ROOT_PATH (prevent directory traversal)
+        root_path = Path(DOCS_ROOT_PATH) if not isinstance(DOCS_ROOT_PATH, Path) else DOCS_ROOT_PATH
+        resolved_chapter_path = chapter_path.resolve()
+        resolved_root_path = root_path.resolve()
+        
+        if not str(resolved_chapter_path).startswith(str(resolved_root_path)):
+            raise _create_resource_error(f"Access denied: Path outside document root")
+        
+        # Verify the file exists and is a valid chapter file
+        if not resolved_chapter_path.is_file():
+            raise _create_resource_error(f"Chapter file not found: {document_name}/{chapter_name}")
+        
+        if not _is_valid_chapter_filename(chapter_name):
+            raise _create_resource_error(f"Invalid chapter file: {chapter_name}")
+        
+        # Read and return the content
+        content = resolved_chapter_path.read_text(encoding="utf-8")
+        
+        return [TextResourceContents(
+            uri=uri,
+            mimeType="text/markdown",
+            text=content
+        )]
+        
+    except FileNotFoundError:
+        raise _create_resource_error(f"Chapter file not found: {document_name}/{chapter_name}")
+    except PermissionError:
+        raise _create_resource_error(f"Permission denied accessing: {document_name}/{chapter_name}")
+    except UnicodeDecodeError as e:
+        raise _create_resource_error(f"Failed to decode file content: {e}")
+    except Exception as e:
+        raise _create_resource_error(f"Error reading resource: {e}")
+
+# Override the FastMCP resource methods
+mcp_server.list_resources = _list_resources_handler
+mcp_server.read_resource = _read_resource_handler
+
+# Expose sync wrappers for testing
+@log_mcp_call
+def list_resources():
+    """Sync wrapper for list_resources for testing purposes."""
+    import asyncio
+    return asyncio.run(_list_resources_handler())
+
+@log_mcp_call
+def read_resource(uri: str):
+    """Sync wrapper for read_resource for testing purposes."""
+    import asyncio
+    return asyncio.run(_read_resource_handler(uri))
 
 
 @mcp_server.custom_route("/health", methods=["GET"], name="health")

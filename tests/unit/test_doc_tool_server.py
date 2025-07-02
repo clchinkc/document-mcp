@@ -28,6 +28,8 @@ from document_mcp.doc_tool_server import (
     read_full_document,
     find_text_in_chapter,
     find_text_in_document,
+    list_resources,
+    read_resource,
     DocumentInfo,
     StatisticsReport,
     FullDocumentContent,
@@ -1210,3 +1212,262 @@ class TestAdvancedDocumentTools:
         doc_name, _ = searchable_document
         results = find_text_in_document(doc_name, "nonexistentqueryword")
         assert results == []
+
+
+class TestResourceHandlers:
+    """Test suite for MCP Resource handlers (list_resources and read_resource)."""
+
+    def test_list_resources_empty_root(self, mock_path_operations, mocker):
+        """Test list_resources returns empty list when no documents exist."""
+        from document_mcp.doc_tool_server import list_resources
+        
+        real_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Mock file system operations
+        mocker.patch.object(Path, 'exists', return_value=True)
+        mocker.patch.object(Path, 'is_dir', return_value=True)
+        mocker.patch.object(Path, 'iterdir', return_value=[])  # No documents
+
+        result = list_resources()
+        assert result == []
+
+    def test_list_resources_root_not_exist(self, mock_path_operations, mocker):
+        """Test list_resources returns empty list when root directory doesn't exist."""
+        from document_mcp.doc_tool_server import list_resources
+        
+        real_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Mock the exists check to return False
+        mocker.patch.object(Path, 'exists', return_value=False)
+        
+        result = list_resources()
+        assert result == []
+
+    def test_list_resources_with_chapters(self, mock_path_operations, mocker):
+        """Test list_resources correctly lists all available chapters as Resource objects."""
+        from document_mcp.doc_tool_server import list_resources
+        from mcp.types import Resource
+        
+        # Mock the dependencies
+        mock_get_files = mocker.patch("document_mcp.doc_tool_server._get_ordered_chapter_files")
+        
+        # Create mock chapter files
+        chapter1_path = mocker.Mock()
+        chapter1_path.name = "01-intro.md"
+        chapter2_path = mocker.Mock()
+        chapter2_path.name = "02-methods.md"
+        
+        # Mock _get_ordered_chapter_files to return chapter files for each document
+        def get_files_side_effect(doc_name):
+            if doc_name == "doc1":
+                return [chapter1_path, chapter2_path]
+            elif doc_name == "doc2":
+                return [chapter1_path]
+            return []
+        
+        mock_get_files.side_effect = get_files_side_effect
+        
+        # Mock the actual Path methods at the module level
+        real_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Create real Path objects for the document directories
+        doc1_path = real_docs_root / "doc1"
+        doc2_path = real_docs_root / "doc2"
+        
+        # Mock file system operations
+        mocker.patch.object(Path, 'exists', return_value=True)
+        mocker.patch.object(Path, 'is_dir', return_value=True)
+        
+        # Mock iterdir to return our document directories
+        mock_iterdir = mocker.patch.object(Path, 'iterdir')
+        mock_iterdir.return_value = [doc1_path, doc2_path]
+
+        result = list_resources()
+        
+        # Should have 3 resources total (2 from doc1, 1 from doc2)
+        assert len(result) == 3
+        
+        # Check that all returned items are Resource objects
+        for resource in result:
+            assert isinstance(resource, Resource)
+            assert resource.mimeType == "text/markdown"
+        
+        # Check specific resources
+        uris = [str(resource.uri) for resource in result]
+        names = [resource.name for resource in result]
+        
+        assert "file://doc1/01-intro.md" in uris
+        assert "file://doc1/02-methods.md" in uris
+        assert "file://doc2/01-intro.md" in uris
+        
+        assert "doc1/01-intro.md" in names
+        assert "doc1/02-methods.md" in names
+        assert "doc2/01-intro.md" in names
+
+    def test_read_resource_valid_uri(self, mock_path_operations, mocker):
+        """Test read_resource returns correct TextResourceContents for valid URIs."""
+        from document_mcp.doc_tool_server import read_resource
+        from mcp.types import TextResourceContents
+        
+        # Mock the path operations
+        mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Mock the chapter path and file reading
+        mock_chapter_path = mocker.Mock()
+        mock_resolved_path = mocker.Mock()
+        mock_resolved_path.is_file.return_value = True
+        mock_resolved_path.read_text.return_value = "# Chapter 1\n\nThis is test content."
+        mock_resolved_path.__str__ = mocker.Mock(return_value="/test/docs/test_doc/chapter1.md")
+        mock_chapter_path.resolve.return_value = mock_resolved_path
+        
+        # Mock _get_chapter_path to return our mocked path
+        mocker.patch("document_mcp.doc_tool_server._get_chapter_path", return_value=mock_chapter_path)
+        
+        # Mock DOCS_ROOT_PATH resolution properly to match the expected path structure
+        mock_docs_root = Path("/test/docs")
+        mocker.patch("document_mcp.doc_tool_server.DOCS_ROOT_PATH", mock_docs_root)
+        
+        # Mock the validation functions
+        mocker.patch("document_mcp.doc_tool_server._validate_document_name", return_value=(True, ""))
+        mocker.patch("document_mcp.doc_tool_server._validate_chapter_name", return_value=(True, ""))
+        mocker.patch("document_mcp.doc_tool_server._is_valid_chapter_filename", return_value=True)
+
+        uri = "file://test_doc/chapter1.md"
+        result = read_resource(uri)
+        
+        assert isinstance(result, list)
+        assert len(result) == 1
+        content = result[0]
+        assert isinstance(content, TextResourceContents)
+        assert str(content.uri) == uri
+        assert content.mimeType == "text/markdown"
+        assert content.text == "# Chapter 1\n\nThis is test content."
+
+    def test_read_resource_invalid_scheme(self):
+        """Test read_resource raises McpError for invalid URI schemes."""
+        from document_mcp.doc_tool_server import read_resource
+        from mcp import McpError
+        
+        with pytest.raises(McpError, match="Invalid URI scheme: http. Expected 'file'"):
+            read_resource("http://test_doc/chapter1.md")
+
+    def test_read_resource_invalid_path_format(self):
+        """Test read_resource raises McpError for invalid URI path formats."""
+        from document_mcp.doc_tool_server import read_resource
+        from mcp import McpError
+        
+        # Test with too few path components
+        with pytest.raises(McpError, match="Invalid URI: missing chapter name"):
+            read_resource("file://just_one_component")
+        
+        # Test with too many path components
+        with pytest.raises(McpError, match="Invalid chapter name"):
+            read_resource("file://doc/chapter/extra/path.md")
+
+    def test_read_resource_invalid_document_name(self, mocker):
+        """Test read_resource raises McpError for invalid document names."""
+        from document_mcp.doc_tool_server import read_resource
+        from mcp import McpError
+        
+        # Mock validation to return invalid document name
+        mocker.patch("document_mcp.doc_tool_server._validate_document_name", 
+                    return_value=(False, "Document name cannot contain path separators"))
+        
+        with pytest.raises(McpError, match="Invalid document name: Document name cannot contain path separators"):
+            read_resource("file://invalid/doc/chapter1.md")
+
+    def test_read_resource_invalid_chapter_name(self, mocker):
+        """Test read_resource raises McpError for invalid chapter names."""
+        from document_mcp.doc_tool_server import read_resource
+        from mcp import McpError
+        
+        # Mock document validation to pass, chapter validation to fail
+        mocker.patch("document_mcp.doc_tool_server._validate_document_name", return_value=(True, ""))
+        mocker.patch("document_mcp.doc_tool_server._validate_chapter_name", 
+                    return_value=(False, "Chapter name must end with .md"))
+        
+        with pytest.raises(McpError, match="Invalid chapter name: Chapter name must end with .md"):
+            read_resource("file://test_doc/invalid.txt")
+
+    def test_read_resource_file_not_found(self, mock_path_operations, mocker):
+        """Test read_resource raises McpError for non-existent files."""
+        from document_mcp.doc_tool_server import read_resource
+        from mcp import McpError
+        
+        # Mock the path operations
+        mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Mock the chapter path but make it not exist
+        mock_chapter_path = mocker.Mock()
+        mock_chapter_path.resolve.return_value = Path("/test/docs/test_doc/nonexistent.md")
+        mock_chapter_path.is_file.return_value = False
+        
+        # Mock _get_chapter_path to return our mocked path
+        mocker.patch("document_mcp.doc_tool_server._get_chapter_path", return_value=mock_chapter_path)
+        
+        # Mock Path.resolve for the root path
+        mocker.patch.object(Path, 'resolve', return_value=Path("/test/docs"))
+        
+        # Mock the validation functions
+        mocker.patch("document_mcp.doc_tool_server._validate_document_name", return_value=(True, ""))
+        mocker.patch("document_mcp.doc_tool_server._validate_chapter_name", return_value=(True, ""))
+
+        with pytest.raises(McpError, match="Chapter file not found: test_doc/nonexistent.md"):
+            read_resource("file://test_doc/nonexistent.md")
+
+    def test_read_resource_directory_traversal_protection(self, mock_path_operations, mocker):
+        """Test read_resource raises McpError on directory traversal attempts."""
+        from document_mcp.doc_tool_server import read_resource
+        from mcp import McpError
+        
+        # Mock the path operations
+        mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Mock the chapter path to resolve outside the root
+        mock_chapter_path = mocker.Mock()
+        mock_chapter_path.resolve.return_value = Path("/etc/passwd")  # Outside the document root
+        
+        # Mock _get_chapter_path to return our mocked path
+        mocker.patch("document_mcp.doc_tool_server._get_chapter_path", return_value=mock_chapter_path)
+        
+        # Mock Path.resolve for the root path
+        mocker.patch.object(Path, 'resolve', return_value=Path("/test/docs"))
+        
+        # Mock the validation functions
+        mocker.patch("document_mcp.doc_tool_server._validate_document_name", return_value=(True, ""))
+        mocker.patch("document_mcp.doc_tool_server._validate_chapter_name", return_value=(True, ""))
+
+        with pytest.raises(McpError, match="Access denied: Path outside document root"):
+            read_resource("file://../../../etc/passwd.md")
+
+    def test_read_resource_invalid_chapter_file(self, mock_path_operations, mocker):
+        """Test read_resource raises McpError for invalid chapter files."""
+        from document_mcp.doc_tool_server import read_resource
+        from mcp import McpError
+        
+        # Mock the path operations
+        mock_path_operations.mock_docs_root_path("/test/docs")
+        
+        # Mock the chapter path to exist and pass directory traversal check
+        mock_chapter_path = mocker.Mock()
+        mock_resolved_path = mocker.Mock()
+        mock_resolved_path.is_file.return_value = True
+        mock_resolved_path.__str__ = mocker.Mock(return_value="/test/docs/test_doc/invalid.txt")
+        mock_chapter_path.resolve.return_value = mock_resolved_path
+        
+        # Mock _get_chapter_path to return our mocked path
+        mocker.patch("document_mcp.doc_tool_server._get_chapter_path", return_value=mock_chapter_path)
+        
+        # Mock DOCS_ROOT_PATH resolution properly to pass directory traversal check
+        mock_docs_root = Path("/test/docs")
+        mocker.patch("document_mcp.doc_tool_server.DOCS_ROOT_PATH", mock_docs_root)
+        
+        # Mock the validation functions to pass so we reach the file validation
+        mocker.patch("document_mcp.doc_tool_server._validate_document_name", return_value=(True, ""))
+        mocker.patch("document_mcp.doc_tool_server._validate_chapter_name", return_value=(True, ""))
+        
+        # Mock _is_valid_chapter_filename to return False for invalid extension
+        mocker.patch("document_mcp.doc_tool_server._is_valid_chapter_filename", return_value=False)
+
+        with pytest.raises(McpError, match="Invalid chapter file: invalid.txt"):
+            read_resource("file://test_doc/invalid.txt")
