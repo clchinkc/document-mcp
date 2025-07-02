@@ -1,121 +1,116 @@
 # Testing Guidelines for Document MCP
 
-## Overview
+## 1. Overview
 
-This document outlines the testing strategy, structure, and best practices for the Document MCP project. Our test suite is organized into three main categories: unit tests, integration tests, and end-to-end (e2e) tests.
+This document outlines the testing strategy, structure, and best practices for the Document MCP project. A robust testing culture is crucial for maintaining code quality, preventing regressions, and enabling confident refactoring. Our test suite is organized into three main categories—Unit, Integration, and End-to-End (E2E)—each serving a distinct purpose.
 
-## Test Structure
+## 2. Test Structure
+
+The testing framework is organized by test type, ensuring a clear separation of concerns.
 
 ```
 tests/
-├── unit/                  # Isolated function/class tests
-├── integration/           # Component interaction tests  
-├── e2e/                   # Full system tests with real APIs
-├── shared/                # Shared test utilities
-├── fixtures/              # Test data and fixtures
-└── conftest.py           # Pytest configuration and fixtures
+├── unit/         # Isolated function/class tests (no I/O)
+├── integration/  # Component interaction tests (mocked LLM, real MCP)
+├── e2e/          # Full system tests (real LLM, real MCP)
+├── shared/       # Shared utilities, base classes, and helpers
+├── fixtures/     # Complex test data setup and fixtures
+└── conftest.py   # Global pytest configuration and fixtures
 ```
 
-## Test Categories
+## 3. Test Categories
 
-### Unit Tests (`tests/unit/`)
-- **Purpose**: Test individual functions and classes in isolation
+### 3.1. Unit Tests (`tests/unit/`)
+- **Purpose**: To test individual functions, classes, and components in complete isolation from external systems.
 - **Characteristics**:
-  - Heavy use of mocks and stubs
-  - No external dependencies (filesystem, network, APIs)
-  - Fast execution (< 100ms per test)
-  - Use `tmp_path` fixture for file operations
-- **Example**: Testing `_count_words()` function with various inputs
+  - **No external dependencies**: Strictly no filesystem, network, or API calls. All external interactions must be mocked.
+  - **Speed**: Must be extremely fast (typically <50ms per test).
+  - **Fixtures**: Use `mocker` for patching and `tmp_path` for any required in-memory filesystem operations.
+- **Example**: Testing a validation function like `validate_document_name()` with various string inputs.
 
-### Integration Tests (`tests/integration/`)
-- **Purpose**: Test component interactions and MCP server integration
+### 3.2. Integration Tests (`tests/integration/`)
+- **Purpose**: To test the interaction between different components of the system, particularly the agent's communication with the MCP server.
 - **Characteristics**:
-  - May use real MCP server via stdio
-  - Controlled environment with mocked LLMs
-  - Test agent-server communication
-  - Use `test_docs_root` fixture for isolated filesystem
-- **Example**: Testing React Agent's ability to execute MCP tools
+  - **Real MCP Server**: Uses a live `MCPServerStdio` instance to test the full communication protocol.
+  - **Mocked LLMs**: LLM calls are mocked to ensure tests are fast, deterministic, and do not incur API costs.
+  - **Stateful Patterns**: Tests are class-based and use fixtures to set up and tear down the agent and server, maintaining state across test methods. This is crucial for avoiding event loop errors.
+  - **Filesystem**: Use the `test_docs_root` fixture for an isolated temporary directory.
+- **Example**: Verifying that the React Agent correctly calls the `create_document` tool on the MCP server.
 
-### End-to-End Tests (`tests/e2e/`)
-- **Purpose**: Test complete workflows with real AI models
+### 3.3. End-to-End (E2E) Tests (`tests/e2e/`)
+- **Purpose**: To test the entire application workflow with real AI models, verifying that the agent's reasoning and tool usage are correct.
 - **Characteristics**:
-  - Require real API keys (OpenAI, Google, etc.)
-  - Skip automatically when no API keys available
-  - Test real AI reasoning and decision making
-  - Use `@skip_if_no_real_api_key` decorator
-- **Example**: Testing document creation and editing workflow
+  - **Real API Keys**: Require real API keys (e.g., `OPENAI_API_KEY`) to be set in the environment.
+  - **Stateful and Asynchronous**: Follows the same stateful, class-based, and asynchronous patterns as integration tests.
+  - **Conditional Execution**: Tests are automatically skipped via `@skip_if_no_real_api_key` if API keys are not available. This prevents failures in CI environments without secrets.
+- **Example**: Testing a full user query like "Create a document, add a chapter, and then summarize it."
 
-## Key Fixtures
+## 4. Key Architectural Patterns
 
-### Environment Fixtures
-- `test_docs_root`: Creates isolated temp directory for each test
-- `mock_environment`: Sets up mock API keys and environment
-- `skip_if_no_real_api_key`: Decorator for e2e tests requiring real APIs
+### 4.1. Stateful, Class-Based Tests
+For **Integration** and **E2E** tests, we use a stateful, class-based approach to manage the lifecycle of the agent and MCP server. This prevents `asyncio` event loop errors and ensures a clean state for each test class.
 
-### Document Fixtures
-- `sample_documents_fixture`: Sets up sample documents for React Agent tests
-- `e2e_sample_documents`: Sets up documents in `.documents_storage` for Simple Agent
-- `document_factory`: Factory for creating various test document types
+**Key Components**:
+- **`agent_base.py`**: Contains base classes (`IntegrationTestBase`, `E2ETestBase`) and mixins (`SimpleAgentTestMixin`, `ReactAgentTestMixin`).
+- **Class-level Fixture**: Each test class uses a `pytest.fixture` with `scope="class"` and `autouse=True` to initialize the agent and server once for all tests in that class.
+- **Stateful Helpers**: The mixins provide stateful helper methods like `initialize_..._agent_and_mcp_server()` and `run_..._query_on_agent()`, which are called via `self`.
 
-### Mock Fixtures
-- `mock_path_operations`: Mock filesystem path operations
-- `mock_file_operations`: Mock file read/write operations
-- `mock_agent_operations`: Mock LLM and agent operations
+```python
+# Example from tests/integration/test_react_agent.py
+@pytest.mark.integration
+class TestReactAgentIntegration(IntegrationTestBase, ReactAgentTestMixin):
+    @pytest.fixture(scope="class", autouse=True)
+    async def react_agent_setup(self, request):
+        agent, mcp_server = await self.initialize_react_agent_and_mcp_server()
+        request.cls.agent = agent
+        request.cls.mcp_server = mcp_server
+        yield
+        await agent.close()
+        await mcp_server.close()
 
-## Best Practices
+    @pytest.mark.asyncio
+    async def test_react_agent_some_workflow(self):
+        # The agent is already initialized and available via self.agent
+        query = "Do something cool."
+        await self.run_react_query_on_agent(self.agent, query)
+```
 
-### 1. Test Naming
-- Use descriptive test names that explain what is being tested
-- Format: `test_<component>_<scenario>_<expected_outcome>`
-- Example: `test_read_document_summary_file_not_found_returns_none`
+### 4.2. Shared Helpers and Fixtures
+- **`tests/shared/`**: This directory is critical for reducing code duplication. It contains shared assertion helpers, environment setup functions, and the base classes mentioned above.
+- **`conftest.py`**: Defines project-wide fixtures, such as `test_docs_root` (which provides a clean temporary directory) and `skip_if_no_real_api_key`.
 
-### 2. Test Isolation
-- Each test should be independent and idempotent
-- Use fixtures for setup/teardown
-- Never rely on test execution order
-- Clean up resources in teardown
+## 5. Best Practices
 
-### 3. Mocking Strategy
-- Mock at the boundary of your system
-- Use `mocker` fixture from pytest-mock
-- Prefer dependency injection over patching
-- Mock external services, not internal logic
+### 5.1. Naming and Documentation
+- **Test Names**: Should be descriptive and follow the `test_<area>_<scenario>` pattern (e.g., `test_e2e_react_agent_document_and_chapter_workflow`).
+- **Docstrings**: Should be used to explain the *purpose* of the test, not just repeat the test name. Keep them concise.
+- **Comments**: Use comments only to explain *why* something is done in a particular way, not *what* is being done.
 
-### 4. Assertions
-- Use specific assertions with clear error messages
-- Test both positive and negative cases
-- Verify error handling and edge cases
-- Use shared assertion helpers from `tests.shared.assertions`
+### 5.2. Test Isolation and State
+- **Unit Tests**: Must be fully isolated with no side effects.
+- **Integration/E2E Tests**: State is managed at the class level. Tests within a class may build on each other, but each test file should be runnable independently.
+- **Fixtures**: Use fixtures (`test_docs_root`, `sample_documents_fixture`) for all setup and teardown logic to ensure a clean environment.
 
-### 5. Skip Conditions
-- Use `@pytest.mark.skipif` for conditional test execution
-- Always provide clear skip reasons
-- For e2e tests, use `@skip_if_no_real_api_key`
+### 5.3. Mocking
+- **Strategy**: Mock at the boundaries of the system. For integration tests, this means mocking the LLM but not the MCP server. For unit tests, mock any I/O.
+- **Tool**: Use the `mocker` fixture from `pytest-mock`.
 
-### 6. Test Data
-- Use fixtures for test data setup
-- Keep test data minimal but realistic
-- Use `tests.shared.test_data` for common data
-- Avoid hardcoding values in tests
+### 5.4. Assertions
+- Be specific. Instead of `assert response is not None`, check for the specific content or structure you expect.
+- Test both positive outcomes and expected error conditions.
 
-### 7. Documentation
-- Keep test docstrings only when they add value
-- Don't repeat the test name in docstrings
-- Document complex test scenarios
-- Use comments sparingly and meaningfully
-
-## Running Tests
+## 6. Running Tests
 
 ### Run All Tests
 ```bash
 pytest
 ```
 
-### Run Specific Category
+### Run a Specific Category
 ```bash
-pytest tests/unit/          # Unit tests only
-pytest tests/integration/   # Integration tests only
-pytest tests/e2e/          # E2E tests only
+pytest tests/unit/
+pytest tests/integration/
+pytest tests/e2e/
 ```
 
 ### Run with Coverage
@@ -123,38 +118,23 @@ pytest tests/e2e/          # E2E tests only
 pytest --cov=document_mcp --cov-report=html
 ```
 
-### Skip Slow Tests
+### Run E2E Tests
+To run the E2E tests, you must first export your API key:
 ```bash
-pytest -m "not slow"
-```
-
-### Run E2E Tests (requires API keys)
-```bash
-export OPENAI_API_KEY="your-key"
+export OPENAI_API_KEY="your-key-here"
 pytest tests/e2e/
 ```
 
-## Adding New Tests
+## 7. Adding New Tests
 
-### 1. Determine Test Type
-- Is it testing a single function? → Unit test
-- Is it testing component interaction? → Integration test
-- Is it testing real AI behavior? → E2E test
-
-### 2. Use Appropriate Fixtures
-- Check `conftest.py` for available fixtures
-- Prefer existing fixtures over creating new ones
-- Create reusable fixtures in `conftest.py`
-
-### 3. Follow Patterns
-- Look at existing tests in the same category
-- Use consistent mocking strategies
-- Follow the established directory structure
-
-### 4. Error Handling Tests
-- Test validation errors → WARNING level logs
-- Test file not found → INFO level logs
-- Test I/O errors → ERROR level logs
+1.  **Determine the Type**:
+    - **Unit**: A single, isolated function?
+    - **Integration**: Interaction between agent and MCP?
+    - **E2E**: A full user workflow that depends on AI reasoning?
+2.  **Choose the Right Base Class**: Inherit from `UnitTestBase`, `IntegrationTestBase`, or `E2ETestBase`.
+3.  **Add the Right Mixin**: Add `SimpleAgentTestMixin` or `ReactAgentTestMixin` for agent-specific helpers.
+4.  **Follow the Pattern**: Mimic the structure of existing tests in the same category. Use the class-based, stateful fixture pattern for integration and E2E tests.
+5.  **Write Clear Assertions**: Verify the specific outcomes of your test. For E2E tests, this might involve checking the filesystem for created documents or verifying specific content was written.
 
 ## Continuous Integration
 
