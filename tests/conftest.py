@@ -884,25 +884,30 @@ def sample_documents_fixture(test_docs_root):
     Returns:
         dict: Contains paths and constants for sample documents
     """
-    from pathlib import Path
-    import shutil
+    doc_name = "sample_document"
+    chapters = [
+        ("01-chapter1.md", "# Chapter 1\n\nThis is the first chapter."),
+        ("02-chapter2.md", "# Chapter 2\n\nThis is the second chapter."),
+        ("03-chapter3.md", "# Chapter 3\n\nThis is the third chapter."),
+    ]
     
-    # Copy sample documents
-    sample_src = Path(__file__).parents[1] / "sample_doc" / "sample_document"
-    sample_dest = Path(".documents_storage") / "sample_document"
-    if sample_dest.exists():
-        shutil.rmtree(sample_dest)
-    shutil.copytree(sample_src, sample_dest)
+    create_test_document(
+        docs_root=test_docs_root,
+        doc_name=doc_name,
+        chapters=chapters,
+    )
+    
+    doc_path = test_docs_root / doc_name
     
     # Create summary file
     summary_text = "# Document Summary\n\n- Chapter 1\n- Chapter 2\n- Chapter 3"
-    (sample_dest / "_SUMMARY.md").write_text(summary_text, encoding="utf-8")
+    (doc_path / "_SUMMARY.md").write_text(summary_text, encoding="utf-8")
     
     return {
-        "doc_name": "sample_document",
-        "doc_path": sample_dest,
+        "doc_name": doc_name,
+        "doc_path": doc_path,
         "summary_text": summary_text,
-        "chapters": ["01-chapter1.md", "02-chapter2.md", "03-chapter3.md"],
+        "chapters": [c[0] for c in chapters],
         "first_paragraph": "This is the first chapter.",
     }
 
@@ -939,26 +944,31 @@ def e2e_sample_documents(e2e_test_documents_storage):
     Returns:
         dict: Contains paths and constants for sample documents
     """
-    from pathlib import Path
-    import shutil
-    
-    # Copy sample documents
-    sample_src = Path(__file__).parents[1] / "sample_doc" / "sample_document"
-    sample_dest = e2e_test_documents_storage / "sample_document"
-    if sample_dest.exists():
-        shutil.rmtree(sample_dest)
-    shutil.copytree(sample_src, sample_dest)
-    
+    doc_name = "sample_document"
+    chapters = [
+        ("01-chapter1.md", "# Chapter 1\n\nThis is the first chapter."),
+        ("02-chapter2.md", "# Chapter 2\n\nThis is the second chapter."),
+        ("03-chapter3.md", "# Chapter 3\n\nThis is the third chapter."),
+    ]
+
+    create_test_document(
+        docs_root=e2e_test_documents_storage,
+        doc_name=doc_name,
+        chapters=chapters,
+    )
+
+    doc_path = e2e_test_documents_storage / doc_name
+
     # Create summary file
     summary_text = "# Document Summary\n\n- Chapter 1\n- Chapter 2\n- Chapter 3"
-    (sample_dest / "_SUMMARY.md").write_text(summary_text, encoding="utf-8")
+    (doc_path / "_SUMMARY.md").write_text(summary_text, encoding="utf-8")
     
     return {
         "doc_name": "sample_document",
-        "doc_path": sample_dest,
+        "doc_path": doc_path,
         "storage_path": e2e_test_documents_storage,
         "summary_text": summary_text,
-        "chapters": ["01-chapter1.md", "02-chapter2.md", "03-chapter3.md"],
+        "chapters": [c[0] for c in chapters],
         "first_paragraph": "This is the first chapter.",
     }
 

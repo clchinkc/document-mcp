@@ -105,44 +105,57 @@ async def test_simple_agent_e2e_document_creation():
 @skip_if_no_real_api_key
 async def test_simple_agent_e2e_multi_step_workflow():
     """E2E test: Simple agent handles multi-step workflow with real AI."""
-    # Use a unique document name to avoid conflicts
     doc_name = f"MultiStepDoc_{uuid.uuid4().hex[:8]}"
+
+    # Initialize agent and server once for the entire workflow
+    agent, _ = await initialize_agent_and_mcp_server()
     
-    # Create document
-    response1 = await run_simple_agent(f"Create a document called '{doc_name}'")
-    assert (
-        "created" in response1.summary.lower() or "success" in response1.summary.lower()
-    )
+    try:
+        async with agent.run_mcp_servers():
+            # Step 1: Create document
+            response1 = await asyncio.wait_for(
+                process_single_user_query(agent, f"Create a document called '{doc_name}'"),
+                timeout=60.0
+            )
+            assert response1 is not None, "Agent should respond to document creation"
+            assert "created" in response1.summary.lower() or "success" in response1.summary.lower(), \
+                f"Failed to create document. Summary: {response1.summary}"
 
-    # Add chapter
-    response2 = await run_simple_agent(
-        f"Add a chapter called 'Introduction' to the document '{doc_name}'"
-    )
-    assert (
-        "added" in response2.summary.lower() or "created" in response2.summary.lower()
-    )
+            # Step 2: Add chapter
+            response2 = await asyncio.wait_for(
+                process_single_user_query(agent, f"Add a chapter called 'Introduction' to the document '{doc_name}'"),
+                timeout=60.0
+            )
+            assert response2 is not None, "Agent should respond to chapter addition"
+            assert "added" in response2.summary.lower() or "created" in response2.summary.lower(), \
+                f"Failed to add chapter. Summary: {response2.summary}"
 
-    # List documents to verify
-    response3 = await run_simple_agent("List all documents")
-    # Check if document appears in the details (list of documents)
-    doc_names = []
-    if response3.details and isinstance(response3.details, list):
-        doc_names = [
-            doc.document_name
-            for doc in response3.details
-            if hasattr(doc, "document_name")
-        ]
-    assert doc_name in doc_names, f"The created document '{doc_name}' should be in the list."
+            # Step 3: List documents to verify
+            response3 = await asyncio.wait_for(
+                process_single_user_query(agent, "List all documents"),
+                timeout=60.0
+            )
+            assert response3 is not None, "Agent should respond to document listing"
+            
+            # Check if document appears in the details (list of documents)
+            doc_names = []
+            if response3.details and isinstance(response3.details, list):
+                doc_names = [
+                    doc.document_name
+                    for doc in response3.details
+                    if hasattr(doc, "document_name")
+                ]
+            assert doc_name in doc_names, f"The created document '{doc_name}' should be in the list."
 
-    # Verify in file system
+    except Exception as e:
+        pytest.fail(f"Multi-step workflow failed with an exception: {e}")
+
+    # Verify in file system after the agent context has been exited
     global_docs_path = Path(".documents_storage")
-    multi_step_dirs = [d for d in global_docs_path.iterdir() if doc_name.lower() in d.name.lower()]
-    assert (
-        len(multi_step_dirs) > 0
-    ), f"{doc_name} should exist. Found dirs: {[d.name for d in global_docs_path.iterdir()]}"
+    multi_step_dirs = [d for d in global_docs_path.iterdir() if doc_name in d.name]
+    assert len(multi_step_dirs) > 0, f"{doc_name} should exist. Found dirs: {[d.name for d in global_docs_path.iterdir()]}"
 
-    # Check for chapters in the multi-step document
-    doc_path = multi_step_dirs[0]  # Use the first matching directory
+    doc_path = multi_step_dirs[0]
     chapters = list(doc_path.glob("*.md"))
     assert len(chapters) > 0, "At least one chapter should exist"
 
