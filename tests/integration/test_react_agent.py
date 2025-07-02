@@ -30,9 +30,178 @@ def test_docs_root(tmp_path):
 @pytest.fixture
 async def mock_react_environment(test_docs_root):
     """Mock environment for React agent testing."""
-    # No longer using MCPServerManager since it was deleted
-    # Just return a simple mock environment
+    # This fixture provides the root directory for test documents.
+    # In a real scenario, this might set up more complex environment state.
     yield test_docs_root
+
+
+def _create_mock_history(steps):
+    """Helper to create a mock history list from a list of (thought, action, observation) tuples."""
+    history = []
+    for i, (thought, action, observation) in enumerate(steps):
+        history.append({
+            "step": i + 1,
+            "thought": thought,
+            "action": action,
+            "observation": observation,
+        })
+    return history
+
+
+def _get_mock_steps(query_lower: str):
+    """Returns a list of mock steps based on the query."""
+    # This function centralizes the logic for generating mock step histories,
+    # making it easier to manage and extend test cases.
+    
+    # Multi-Round Conversation Test Patterns
+    if "react_multiround_doc_" in query_lower:
+        doc_name = [word for word in query_lower.split() if "react_multiround_doc_" in word][0].strip("'\"")
+        if "create a new document" in query_lower:
+            return [
+                (f"I need to create a document called '{doc_name}' as requested.", f'create_document(document_name="{doc_name}")', f"Document '{doc_name}' created successfully."),
+                (f"The document '{doc_name}' has been created successfully. The task is complete.", None, "Task completed successfully"),
+            ]
+        elif "create a chapter" in query_lower:
+            return [
+                (f"I need to create a chapter named '01-intro.md' in document '{doc_name}'.", f'create_chapter(document_name="{doc_name}", chapter_name="01-intro.md", initial_content="# Introduction")', f"Chapter '01-intro.md' created successfully in document '{doc_name}'."),
+                ("The chapter has been created successfully. The task is complete.", None, "Task completed successfully"),
+            ]
+        elif "read chapter" in query_lower:
+            return [
+                (f"I need to read chapter '01-intro.md' from document '{doc_name}'.", f'read_chapter(document_name="{doc_name}", chapter_name="01-intro.md")', "Chapter content: # Introduction\\n\\nThis is a ReAct multi-round test."),
+                ("I have successfully read the chapter content. The task is complete.", None, "Task completed successfully"),
+            ]
+    elif "react_error_recovery_doc_" in query_lower:
+        doc_name = [word for word in query_lower.split() if "react_error_recovery_doc_" in word][0].strip("'\"")
+        if "read chapter" in query_lower:
+            return [
+                (f"I'll try to read chapter 'nonexistent.md' from document '{doc_name}'.", f'read_chapter(document_name="{doc_name}", chapter_name="nonexistent.md")', f"Error: Document '{doc_name}' does not exist."),
+                ("The document doesn't exist. I cannot read the chapter.", None, "Task failed - document not found"),
+            ]
+        elif "create a new document" in query_lower:
+            return [
+                (f"I need to create a document called '{doc_name}' as requested.", f'create_document(document_name="{doc_name}")', f"Document '{doc_name}' created successfully."),
+                (f"The document '{doc_name}' has been created successfully. The task is complete.", None, "Task completed successfully"),
+            ]
+        elif "create a chapter" in query_lower:
+            return [
+                (f"I need to create a chapter named '01-recovery.md' in document '{doc_name}'.", f'create_chapter(document_name="{doc_name}", chapter_name="01-recovery.md", initial_content="# Recovery Chapter")', f"Chapter '01-recovery.md' created successfully in document '{doc_name}'."),
+                ("The recovery chapter has been created successfully. The task is complete.", None, "Task completed successfully"),
+            ]
+    elif "react_isolation_test_" in query_lower and "create a new document" in query_lower:
+        doc_name = [word for word in query_lower.split() if "react_isolation_test_" in word][0].strip("'\"")
+        return [
+            (f"I need to create a document called '{doc_name}' as requested.", f'create_document(document_name="{doc_name}")', f"Document '{doc_name}' created successfully."),
+            (f"The document '{doc_name}' has been created successfully. The task is complete.", None, "Task completed successfully"),
+        ]
+    elif "show me all available documents" in query_lower:
+        return [
+            ("I'll list all available documents in the system.", "list_documents()", "Documents: ['react_isolation_test_doc_1', 'react_isolation_test_doc_2']"),
+            ("I've listed all documents. The task is complete.", None, "Task completed successfully"),
+        ]
+    elif "react_cleanup_test_" in query_lower:
+        doc_name = [word for word in query_lower.split() if "react_cleanup_test_" in word][0].strip("'\"")
+        if "create a new document" in query_lower:
+            return [
+                (f"I need to create a document called '{doc_name}' as requested.", f'create_document(document_name="{doc_name}")', f"Document '{doc_name}' created successfully."),
+                (f"The document '{doc_name}' has been created successfully. The task is complete.", None, "Task completed successfully"),
+            ]
+        elif "create a chapter" in query_lower:
+            return [
+                (f"I need to create a chapter named '01-test.md' in document '{doc_name}'.", f'create_chapter(document_name="{doc_name}", chapter_name="01-test.md", initial_content="# Test Content")', f"Chapter '01-test.md' created successfully in document '{doc_name}'."),
+                ("The chapter has been created successfully. The task is complete.", None, "Task completed successfully"),
+            ]
+        elif "get statistics" in query_lower:
+            return [
+                (f"I need to get statistics for document '{doc_name}'.", f'get_document_statistics(document_name="{doc_name}")', f"Statistics for '{doc_name}': 1 chapter, 15 words, 3 lines."),
+                ("I have successfully retrieved the document statistics. The task is complete.", None, "Task completed successfully"),
+            ]
+    elif "react_complex_workflow_" in query_lower:
+        doc_name = [word for word in query_lower.split() if "react_complex_workflow_" in word][0].strip("'\"")
+        if "create a new document" in query_lower:
+            return [
+                (f"I need to create a document called '{doc_name}' as requested.", f'create_document(document_name="{doc_name}")', f"Document '{doc_name}' created successfully."),
+                (f"The document '{doc_name}' has been created successfully. The task is complete.", None, "Task completed successfully"),
+            ]
+        elif "create a chapter" in query_lower:
+            return [
+                (f"I need to create a chapter named '01-intro.md' in document '{doc_name}'.", f'create_chapter(document_name="{doc_name}", chapter_name="01-intro.md", initial_content="# Introduction\\n\\nThis document contains searchable ReAct content for testing.")', f"Chapter '01-intro.md' created successfully in document '{doc_name}'."),
+                ("The chapter has been created successfully. The task is complete.", None, "Task completed successfully"),
+            ]
+        elif "find the text" in query_lower:
+            return [
+                (f"I need to search for the text 'searchable' in document '{doc_name}'.", f'find_text_in_document(document_name="{doc_name}", search_text="searchable")', f"Found 'searchable' in document '{doc_name}' at chapter '01-intro.md', line 3."),
+                ("I have successfully found the text in the document. The task is complete.", None, "Task completed successfully"),
+            ]
+        elif "get statistics" in query_lower:
+            return [
+                (f"I need to get comprehensive statistics for document '{doc_name}'.", f'get_document_statistics(document_name="{doc_name}")', f"Statistics for '{doc_name}': 1 chapter, 12 words, 4 lines, last modified today."),
+                ("I have successfully retrieved the comprehensive statistics. The task is complete.", None, "Task completed successfully"),
+            ]
+    
+    # Existing Test Patterns
+    if "test document" in query_lower:
+        return [
+            ("I need to create a document called 'Test Document' as requested.", 'create_document(document_name="Test Document")', "Document 'Test Document' created successfully."),
+            ("The document 'Test Document' has been created successfully. The task is complete.", None, "Task completed successfully"),
+        ]
+    elif "project guide" in query_lower and "chapter" in query_lower:
+        return [
+            ("First, I need to create the document 'Project Guide'.", 'create_document(document_name="Project Guide")', "Document 'Project Guide' created successfully."),
+            ("Now I'll add the 'Introduction' chapter to the Project Guide.", 'create_chapter(document_name="Project Guide", chapter_name="01-introduction.md", initial_content="# Introduction")', "Chapter '01-introduction.md' created successfully."),
+            ("I have successfully created the document and added the introduction chapter. The task is complete.", None, "Task completed successfully"),
+        ]
+    elif "list" in query_lower and "documents" in query_lower:
+        return [
+            ("I'll list all available documents in the system.", "list_documents()", "Documents: ['Test Document', 'Project Guide']"),
+            ("I've listed all documents. The task is complete.", None, "Task completed successfully"),
+        ]
+    elif "simple document creation" in query_lower:
+        return [
+            ("Creating a simple document as requested.", 'create_document(document_name="Simple Document")', "Document 'Simple Document' created successfully."),
+            ("The document has been created. Task complete.", None, "Task completed successfully"),
+        ]
+    elif "mcp test document" in query_lower or "document named" in query_lower:
+        return [
+            ("Creating a document named 'MCP Test Document'.", 'create_document(document_name="MCP Test Document")', "Document 'MCP Test Document' created successfully."),
+            ("The document has been created. Task complete.", None, "Task completed successfully"),
+        ]
+    elif "multi-op doc" in query_lower:
+        return [
+            ("Creating document 'Multi-Op Doc'.", 'create_document(document_name="Multi-Op Doc")', "Document created successfully."),
+            ("Adding chapter to the document.", 'create_chapter(document_name="Multi-Op Doc", chapter_name="Chapter 1")', "Chapter created successfully."),
+            ("Listing all documents.", "list_documents()", "Documents: ['Multi-Op Doc']"),
+            ("All operations completed successfully.", None, "Task completed successfully"),
+        ]
+    elif "context test" in query_lower:
+        return [
+            ("Creating document 'Context Test'.", 'create_document(document_name="Context Test")', "Document created."),
+            ("Adding first chapter.", 'create_chapter(document_name="Context Test", chapter_name="Chapter 1")', "Chapter 1 created."),
+            ("Adding another chapter that references the first.", 'create_chapter(document_name="Context Test", chapter_name="Chapter 2")', "Chapter 2 created."),
+            ("Successfully created document with multiple chapters.", None, "Task completed successfully"),
+        ]
+    elif "comprehensive test document" in query_lower:
+        return [
+            ("Creating 'Comprehensive Test Document'.", 'create_document(document_name="Comprehensive Test Document")', "Document created."),
+            ("Adding introduction chapter.", 'create_chapter(document_name="Comprehensive Test Document", chapter_name="01-intro.md", initial_content="# Introduction\\nTesting content")', "Introduction chapter created."),
+            ("Adding methods chapter.", 'create_chapter(document_name="Comprehensive Test Document", chapter_name="02-methods.md")', "Methods chapter created."),
+            ("Listing all documents to confirm.", "list_documents()", "Documents: ['Comprehensive Test Document']"),
+            ("All tasks completed successfully.", None, "Task completed successfully"),
+        ]
+    elif "concurrent test" in query_lower:
+        doc_name = "Concurrent Test A" if "concurrent test a" in query_lower else "Concurrent Test B"
+        return [
+            (f"Creating document '{doc_name}'.", f'create_document(document_name="{doc_name}")', f"Document '{doc_name}' created successfully."),
+            ("Task completed.", None, "Task completed successfully"),
+        ]
+    elif "invalid" in query_lower or "special characters" in query_lower:
+        return [
+            ("I'll try to create a document with the requested name.", 'create_document(document_name="Test/Doc|Invalid")', "Error: Document name contains invalid characters"),
+            ("The document name contains invalid characters. I'll create a document with a valid name instead.", 'create_document(document_name="Test Doc Valid")', "Document 'Test Doc Valid' created successfully."),
+            ("I've created the document with a valid name. The task is complete.", None, "Task completed successfully"),
+        ]
+    
+    return [("Processing the request.", None, "Task completed")]
 
 
 @pytest.fixture
@@ -41,664 +210,11 @@ def mock_run_react_loop():
     Mock the run_react_loop function to return predictable results for testing.
     This allows us to test React agent integration without actual LLM calls.
     """
-
     async def run_react_loop(user_query: str, max_steps: int = 10, **kwargs):
         """Mock implementation that returns different step histories based on query patterns."""
-        history = []
-
         query_lower = user_query.lower()
-
-        # ===== Multi-Round Conversation Test Patterns =====
-        # (Must come first to avoid conflicts with general patterns)
-
-        # Document Workflow Test Patterns
-        if (
-            "react_multiround_doc_" in query_lower
-            and "create a new document" in query_lower
-        ):
-            doc_name = [
-                word for word in user_query.split() if "react_multiround_doc_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to create a document called '{doc_name}' as requested.",
-                    "action": f'create_document(document_name="{doc_name}")',
-                    "observation": f"Document '{doc_name}' created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": f"The document '{doc_name}' has been created successfully. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif (
-            "react_multiround_doc_" in query_lower and "create a chapter" in query_lower
-        ):
-            doc_name = [
-                word for word in user_query.split() if "react_multiround_doc_" in word
-            ][0].strip("'\"")
-            chapter_name = "01-intro.md"
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to create a chapter named '{chapter_name}' in document '{doc_name}'.",
-                    "action": f'create_chapter(document_name="{doc_name}", chapter_name="{chapter_name}", initial_content="# Introduction")',
-                    "observation": f"Chapter '{chapter_name}' created successfully in document '{doc_name}'.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "The chapter has been created successfully. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "react_multiround_doc_" in query_lower and "read chapter" in query_lower:
-            doc_name = [
-                word for word in user_query.split() if "react_multiround_doc_" in word
-            ][0].strip("'\"")
-            chapter_name = "01-intro.md"
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to read chapter '{chapter_name}' from document '{doc_name}'.",
-                    "action": f'read_chapter(document_name="{doc_name}", chapter_name="{chapter_name}")',
-                    "observation": "Chapter content: # Introduction\\n\\nThis is a ReAct multi-round test.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "I have successfully read the chapter content. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        # Error Recovery Test Patterns
-        elif (
-            "react_error_recovery_doc_" in query_lower and "read chapter" in query_lower
-        ):
-            doc_name = [
-                word
-                for word in user_query.split()
-                if "react_error_recovery_doc_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I'll try to read chapter 'nonexistent.md' from document '{doc_name}'.",
-                    "action": f'read_chapter(document_name="{doc_name}", chapter_name="nonexistent.md")',
-                    "observation": f"Error: Document '{doc_name}' does not exist.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "The document doesn't exist. I cannot read the chapter.",
-                    "action": None,
-                    "observation": "Task failed - document not found",
-                }
-            )
-
-        elif (
-            "react_error_recovery_doc_" in query_lower
-            and "create a new document" in query_lower
-        ):
-            doc_name = [
-                word
-                for word in user_query.split()
-                if "react_error_recovery_doc_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to create a document called '{doc_name}' as requested.",
-                    "action": f'create_document(document_name="{doc_name}")',
-                    "observation": f"Document '{doc_name}' created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": f"The document '{doc_name}' has been created successfully. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif (
-            "react_error_recovery_doc_" in query_lower
-            and "create a chapter" in query_lower
-        ):
-            doc_name = [
-                word
-                for word in user_query.split()
-                if "react_error_recovery_doc_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to create a chapter named '01-recovery.md' in document '{doc_name}'.",
-                    "action": f'create_chapter(document_name="{doc_name}", chapter_name="01-recovery.md", initial_content="# Recovery Chapter")',
-                    "observation": f"Chapter '01-recovery.md' created successfully in document '{doc_name}'.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "The recovery chapter has been created successfully. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        # State Isolation Test Patterns
-        elif (
-            "react_isolation_test_" in query_lower
-            and "create a new document" in query_lower
-        ):
-            # Extract document name with robust parsing
-            words = user_query.split()
-            doc_name = None
-            for word in words:
-                if "react_isolation_test_" in word:
-                    doc_name = word.strip("'\"")
-                    break
-            if not doc_name:
-                import re
-
-                match = re.search(r"'([^']*react_isolation_test_[^']*)'", user_query)
-                if match:
-                    doc_name = match.group(1)
-                else:
-                    doc_name = "react_isolation_test_doc_unknown"
-
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to create a document called '{doc_name}' as requested.",
-                    "action": f'create_document(document_name="{doc_name}")',
-                    "observation": f"Document '{doc_name}' created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": f"The document '{doc_name}' has been created successfully. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "show me all available documents" in query_lower:
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "I'll list all available documents in the system.",
-                    "action": "list_documents()",
-                    "observation": "Documents: ['react_isolation_test_doc_1', 'react_isolation_test_doc_2']",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "I've listed all documents. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        # Resource Cleanup Test Patterns
-        elif (
-            "react_cleanup_test_" in query_lower
-            and "create a new document" in query_lower
-        ):
-            doc_name = [
-                word for word in user_query.split() if "react_cleanup_test_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to create a document called '{doc_name}' as requested.",
-                    "action": f'create_document(document_name="{doc_name}")',
-                    "observation": f"Document '{doc_name}' created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": f"The document '{doc_name}' has been created successfully. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "react_cleanup_test_" in query_lower and "create a chapter" in query_lower:
-            doc_name = [
-                word for word in user_query.split() if "react_cleanup_test_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to create a chapter named '01-test.md' in document '{doc_name}'.",
-                    "action": f'create_chapter(document_name="{doc_name}", chapter_name="01-test.md", initial_content="# Test Content")',
-                    "observation": f"Chapter '01-test.md' created successfully in document '{doc_name}'.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "The chapter has been created successfully. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "react_cleanup_test_" in query_lower and "get statistics" in query_lower:
-            doc_name = [
-                word for word in user_query.split() if "react_cleanup_test_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to get statistics for document '{doc_name}'.",
-                    "action": f'get_document_statistics(document_name="{doc_name}")',
-                    "observation": f"Statistics for '{doc_name}': 1 chapter, 15 words, 3 lines.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "I have successfully retrieved the document statistics. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        # Complex Workflow Test Patterns
-        elif (
-            "react_complex_workflow_" in query_lower
-            and "create a new document" in query_lower
-        ):
-            doc_name = [
-                word for word in user_query.split() if "react_complex_workflow_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to create a document called '{doc_name}' as requested.",
-                    "action": f'create_document(document_name="{doc_name}")',
-                    "observation": f"Document '{doc_name}' created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": f"The document '{doc_name}' has been created successfully. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif (
-            "react_complex_workflow_" in query_lower
-            and "create a chapter" in query_lower
-        ):
-            doc_name = [
-                word for word in user_query.split() if "react_complex_workflow_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to create a chapter named '01-intro.md' in document '{doc_name}'.",
-                    "action": f'create_chapter(document_name="{doc_name}", chapter_name="01-intro.md", initial_content="# Introduction\\n\\nThis document contains searchable ReAct content for testing.")',
-                    "observation": f"Chapter '01-intro.md' created successfully in document '{doc_name}'.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "The chapter has been created successfully. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif (
-            "react_complex_workflow_" in query_lower and "find the text" in query_lower
-        ):
-            doc_name = [
-                word for word in user_query.split() if "react_complex_workflow_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to search for the text 'searchable' in document '{doc_name}'.",
-                    "action": f'find_text_in_document(document_name="{doc_name}", search_text="searchable")',
-                    "observation": f"Found 'searchable' in document '{doc_name}' at chapter '01-intro.md', line 3.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "I have successfully found the text in the document. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif (
-            "react_complex_workflow_" in query_lower and "get statistics" in query_lower
-        ):
-            doc_name = [
-                word for word in user_query.split() if "react_complex_workflow_" in word
-            ][0].strip("'\"")
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"I need to get comprehensive statistics for document '{doc_name}'.",
-                    "action": f'get_document_statistics(document_name="{doc_name}")',
-                    "observation": f"Statistics for '{doc_name}': 1 chapter, 12 words, 4 lines, last modified today.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "I have successfully retrieved the comprehensive statistics. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        # ===== Existing Test Patterns =====
-        # (Moved after multi-round patterns to avoid conflicts)
-
-        elif "test document" in query_lower:
-            # Step 1: Create document
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "I need to create a document called 'Test Document' as requested.",
-                    "action": 'create_document(document_name="Test Document")',
-                    "observation": "Document 'Test Document' created successfully.",
-                }
-            )
-            # Step 2: Complete
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "The document 'Test Document' has been created successfully. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "project guide" in query_lower and "chapter" in query_lower:
-            # Step 1: Create document
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "First, I need to create the document 'Project Guide'.",
-                    "action": 'create_document(document_name="Project Guide")',
-                    "observation": "Document 'Project Guide' created successfully.",
-                }
-            )
-            # Step 2: Add chapter
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "Now I'll add the 'Introduction' chapter to the Project Guide.",
-                    "action": 'create_chapter(document_name="Project Guide", chapter_name="01-introduction.md", initial_content="# Introduction")',
-                    "observation": "Chapter '01-introduction.md' created successfully.",
-                }
-            )
-            # Step 3: Complete
-            history.append(
-                {
-                    "step": 3,
-                    "thought": "I have successfully created the document and added the introduction chapter. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "list" in query_lower and "documents" in query_lower:
-            # Single step
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "I'll list all available documents in the system.",
-                    "action": "list_documents()",
-                    "observation": "Documents: ['Test Document', 'Project Guide']",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "I've listed all documents. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "simple document creation" in query_lower:
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "Creating a simple document as requested.",
-                    "action": 'create_document(document_name="Simple Document")',
-                    "observation": "Document 'Simple Document' created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "The document has been created. Task complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "mcp test document" in query_lower or "document named" in query_lower:
-            # For MCP tool execution test
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "Creating a document named 'MCP Test Document'.",
-                    "action": 'create_document(document_name="MCP Test Document")',
-                    "observation": "Document 'MCP Test Document' created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "The document has been created. Task complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "multi-op doc" in query_lower:
-            # For multiple operations test
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "Creating document 'Multi-Op Doc'.",
-                    "action": 'create_document(document_name="Multi-Op Doc")',
-                    "observation": "Document created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "Adding chapter to the document.",
-                    "action": 'create_chapter(document_name="Multi-Op Doc", chapter_name="Chapter 1")',
-                    "observation": "Chapter created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 3,
-                    "thought": "Listing all documents.",
-                    "action": "list_documents()",
-                    "observation": "Documents: ['Multi-Op Doc']",
-                }
-            )
-            history.append(
-                {
-                    "step": 4,
-                    "thought": "All operations completed successfully.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "context test" in query_lower:
-            # For context management test
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "Creating document 'Context Test'.",
-                    "action": 'create_document(document_name="Context Test")',
-                    "observation": "Document created.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "Adding first chapter.",
-                    "action": 'create_chapter(document_name="Context Test", chapter_name="Chapter 1")',
-                    "observation": "Chapter 1 created.",
-                }
-            )
-            history.append(
-                {
-                    "step": 3,
-                    "thought": "Adding another chapter that references the first.",
-                    "action": 'create_chapter(document_name="Context Test", chapter_name="Chapter 2")',
-                    "observation": "Chapter 2 created.",
-                }
-            )
-            history.append(
-                {
-                    "step": 4,
-                    "thought": "Successfully created document with multiple chapters.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "comprehensive test document" in query_lower:
-            # For comprehensive workflow test
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "Creating 'Comprehensive Test Document'.",
-                    "action": 'create_document(document_name="Comprehensive Test Document")',
-                    "observation": "Document created.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "Adding introduction chapter.",
-                    "action": 'create_chapter(document_name="Comprehensive Test Document", chapter_name="01-intro.md", initial_content="# Introduction\\nTesting content")',
-                    "observation": "Introduction chapter created.",
-                }
-            )
-            history.append(
-                {
-                    "step": 3,
-                    "thought": "Adding methods chapter.",
-                    "action": 'create_chapter(document_name="Comprehensive Test Document", chapter_name="02-methods.md")',
-                    "observation": "Methods chapter created.",
-                }
-            )
-            history.append(
-                {
-                    "step": 4,
-                    "thought": "Listing all documents to confirm.",
-                    "action": "list_documents()",
-                    "observation": "Documents: ['Comprehensive Test Document']",
-                }
-            )
-            history.append(
-                {
-                    "step": 5,
-                    "thought": "All tasks completed successfully.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "concurrent test" in query_lower:
-            # For concurrent execution test
-            if "concurrent test a" in query_lower:
-                doc_name = "Concurrent Test A"
-            else:
-                doc_name = "Concurrent Test B"
-            history.append(
-                {
-                    "step": 1,
-                    "thought": f"Creating document '{doc_name}'.",
-                    "action": f'create_document(document_name="{doc_name}")',
-                    "observation": f"Document '{doc_name}' created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "Task completed.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        elif "invalid" in query_lower or "special characters" in query_lower:
-            # Error recovery scenario
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "I'll try to create a document with the requested name.",
-                    "action": 'create_document(document_name="Test/Doc|Invalid")',
-                    "observation": "Error: Document name contains invalid characters",
-                }
-            )
-            history.append(
-                {
-                    "step": 2,
-                    "thought": "The document name contains invalid characters. I'll create a document with a valid name instead.",
-                    "action": 'create_document(document_name="Test Doc Valid")',
-                    "observation": "Document 'Test Doc Valid' created successfully.",
-                }
-            )
-            history.append(
-                {
-                    "step": 3,
-                    "thought": "I've created the document with a valid name. The task is complete.",
-                    "action": None,
-                    "observation": "Task completed successfully",
-                }
-            )
-
-        else:
-            # Default case
-            history.append(
-                {
-                    "step": 1,
-                    "thought": "Processing the request.",
-                    "action": None,
-                    "observation": "Task completed",
-                }
-            )
+        steps = _get_mock_steps(query_lower)
+        history = _create_mock_history(steps)
 
         # Simulate max steps limit if needed
         if len(history) > max_steps:
@@ -711,10 +227,7 @@ def mock_run_react_loop():
                     "observation": f"Task incomplete after {max_steps} steps",
                 }
             )
-
         return history
-
-    # Return the mock function directly
     yield run_react_loop
 
 
@@ -1682,7 +1195,7 @@ def document_with_summary(test_data_registry: TestDataRegistry):
     doc_path = TEST_DOCUMENT_ROOT / doc_name
     if doc_path.exists():
         shutil.rmtree(doc_path)
-    TEST_DOCUMENT_ROOT.mkdir(exist_ok=True)
+    TEST_DOCUMENT_ROOT.mkdir(parents=True, exist_ok=True)
 
     create_test_document_from_spec(TEST_DOCUMENT_ROOT, spec, test_data_registry)
     

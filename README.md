@@ -288,51 +288,45 @@ If you're still having issues:
 
 ## 🧪 Testing
 
-Run the comprehensive test suite to verify everything is working correctly:
+The project is tested using a three-tier strategy: unit, integration, and end-to-end (E2E) tests. We use `pytest` for test execution and `pytest-mock` for mocking dependencies.
 
+### Running Tests
+
+To run all tests, use the following command:
 ```bash
-# Run all tests with the pytest runner
-source .venv/bin/activate && python scripts/run_pytest.py
-
-# Run specific test categories
-source .venv/bin/activate && python -m pytest tests/unit/ -v       # Unit tests
-source .venv/bin/activate && python -m pytest tests/integration/ -v # Integration tests
-source .venv/bin/activate && python -m pytest tests/fixtures/ -v    # Fixture tests
-
-# Run with coverage
-source .venv/bin/activate && python -m pytest --cov=document_mcp --cov=src
+pytest
 ```
 
-The test suite uses a three-tier testing strategy:
+To run specific test categories:
+```bash
+pytest tests/unit/          # Unit tests only
+pytest tests/integration/   # Integration tests only
+pytest tests/e2e/           # E2E tests only (requires API keys)
+```
 
-**1. Unit Tests** (Mock everything - fast, reliable)
-- 188 tests across 7 files with comprehensive component testing
-- Individual component testing with all dependencies mocked
-- Uses shared testing infrastructure for consistency
+To run tests with coverage:
+```bash
+pytest --cov=document_mcp --cov-report=html
+```
 
-**2. Integration Tests** (Real MCP server + Mocked AI)  
-- 81+ tests across 3 files with real MCP server communication
-- Tests MCP tool execution and server communication
-- **Multi-round conversation tests** for both Simple and React agents validating:
-  - State management across conversation rounds
-  - Error recovery and handling between rounds
-  - Resource cleanup and isolation
-  - Complex multi-step workflows
-  - Conversation context preservation
-- Deterministic tests without AI API dependencies
+To skip slow tests:
+```bash
+pytest -m "not slow"
+```
 
-**3. E2E Tests** (Real MCP server + Real AI)
-- 8 tests across 2 files for complete system validation
-- Complete system validation with real AI models
-- Runs in CI/CD with configured API keys
+### Test Structure
 
-### Agent Features
+- **Unit Tests (`tests/unit/`)**: Test individual functions and classes in isolation. These tests use heavy mocking and do not have external dependencies.
+- **Integration Tests (`tests/integration/`)**: Test component interactions and MCP server integration. These tests may use a real MCP server via stdio transport but use mocked LLMs.
+- **E2E Tests (`tests/e2e/`)**: Test complete workflows with real AI models. These tests require real API keys and are skipped if they are not available.
 
-#### Natural Language Processing
-The agents understand various ways to express document operations:
-- "Create a document" / "Make a new book" / "Start a project called..."
-- "Add a chapter" / "Create a new section" / "Write a chapter named..."
-- "Read the document" / "Show me the content" / "What's in my book?"
+### Key Fixtures
+- **`test_docs_root`**: Creates an isolated temporary directory for each test, ensuring test isolation.
+- **`mock_environment`**: Sets up mock API keys and environment variables.
+- **`document_factory`**: A factory for creating various types of test documents.
+- **`mocker`**: The standard `pytest-mock` fixture for mocking objects and functions.
+
+For more details on the testing strategy, see the [Testing Guidelines](tests/testing_guidelines.md).
 
 ## 🛠️ Development Setup
 
