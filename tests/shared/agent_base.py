@@ -1,9 +1,8 @@
 """
-Base classes for agent testing.
+Base classes and mixins for agent testing.
 
-This module provides common base classes and utilities for testing
-both Simple and React agents, reducing code duplication and ensuring
-consistent testing patterns.
+This module provides a structured framework for unit, integration, and e2e
+tests for both Simple and React agents, promoting code reuse and consistency.
 """
 
 import asyncio
@@ -12,6 +11,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
 import pytest
+from pydantic_ai import Agent
+from pydantic_ai.mcp import MCPServerStdio
 
 from tests.shared import (
     assert_agent_response_valid,
@@ -21,204 +22,81 @@ from tests.shared import (
 )
 
 
+# --- Abstract Base Classes ---
+
+
 class AgentTestBase(ABC):
     """
-    Abstract base class for agent testing.
-
-    This class provides common functionality for testing both
-    Simple and React agents, including environment setup,
-    common test patterns, and assertion helpers.
+    Abstract base class defining the core interface for agent tests.
+    It establishes a contract for running queries and identifying agent types.
     """
 
     @abstractmethod
     async def run_agent_query(self, query: str, **kwargs) -> Any:
-        """
-        Run a query against the agent being tested.
-
-        Args:
-            query: Query string to send to the agent
-            **kwargs: Additional arguments for the agent
-
-        Returns:
-            Agent response object
-        """
+        """Run a query against the agent being tested."""
 
     @abstractmethod
     def get_agent_type(self) -> str:
-        """
-        Get the type of agent being tested.
+        """Get the string identifier for the agent type."""
 
-        Returns:
-            String identifier for the agent type
-        """
 
-    def assert_valid_response(
-        self, response: Any, require_details: bool = False
-    ) -> None:
-        """
-        Assert that an agent response is valid.
+# --- Test Category Base Classes ---
 
-        Args:
-            response: Response to validate
-            require_details: Whether details field is required
-        """
-        assert_agent_response_valid(
-            response,
-            response_type=self.get_agent_type(),
-            require_details=require_details,
-        )
 
-    def assert_successful_response(self, response: Any) -> None:
-        """
-        Assert that a response indicates success.
+class UnitTestBase(AgentTestBase):
+    """Base class for unit tests, focusing on isolated component testing."""
 
-        Args:
-            response: Response to check
-        """
-        self.assert_valid_response(response)
-        assert_no_error_in_response(response)
+    # Unit test-specific helpers can be added here.
 
-    async def test_document_creation(self, test_docs_root) -> str:
-        """
-        Test basic document creation functionality.
 
-        Args:
-            test_docs_root: Test document root directory
+class IntegrationTestBase(AgentTestBase):
+    """
+    Base class for integration tests.
+    Ensures that the agent environment is properly configured for integration tests.
+    """
 
-        Returns:
-            Name of created document
-        """
-        doc_name = generate_unique_name("test_doc")
+    @pytest.mark.asyncio
+    async def test_agent_environment_setup(self) -> None:
+        """Test that agent environment is properly configured."""
+        api_keys = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
+        has_api_key = any(os.environ.get(key) for key in api_keys)
+        assert has_api_key, f"No API key found. Expected one of: {api_keys}"
 
-        response = await self.run_agent_query(
-            f"Create a new document named '{doc_name}'"
-        )
 
-        self.assert_successful_response(response)
-        return doc_name
+class E2ETestBase(AgentTestBase):
+    """Base class for end-to-end tests, which use real AI services."""
 
-    async def test_document_listing(self, test_docs_root) -> List[Any]:
-        """
-        Test document listing functionality.
+    # E2E test-specific helpers can be added here.
 
-        Args:
-            test_docs_root: Test document root directory
 
-        Returns:
-            List of documents from response
-        """
-        response = await self.run_agent_query("List all available documents")
-
-        self.assert_valid_response(response)
-        assert isinstance(response.details, list), "Document list should be a list"
-
-        return response.details
-
-    async def test_chapter_operations(self, test_docs_root, doc_name: str) -> None:
-        """
-        Test chapter creation and reading operations.
-
-        Args:
-            test_docs_root: Test document root directory
-            doc_name: Name of document to work with
-        """
-        chapter_name = "01-test.md"
-        chapter_content = "# Test Chapter\n\nThis is test content."
-
-        # Create chapter
-        create_response = await self.run_agent_query(
-            f"Create a chapter named '{chapter_name}' in document '{doc_name}' "
-            f"with content: {chapter_content}"
-        )
-        self.assert_successful_response(create_response)
-
-        # Read chapter
-        read_response = await self.run_agent_query(
-            f"Read chapter '{chapter_name}' from document '{doc_name}'"
-        )
-        self.assert_valid_response(read_response)
-
-    async def test_document_statistics(self, test_docs_root, doc_name: str) -> None:
-        """
-        Test document statistics functionality.
-
-        Args:
-            test_docs_root: Test document root directory
-            doc_name: Name of document to get statistics for
-        """
-        response = await self.run_agent_query(
-            f"Get statistics for document '{doc_name}'"
-        )
-
-        self.assert_valid_response(response)
-
-    async def test_search_functionality(self, test_docs_root, doc_name: str) -> None:
-        """
-        Test text search functionality.
-
-        Args:
-            test_docs_root: Test document root directory
-            doc_name: Name of document to search in
-        """
-        search_term = "test"
-
-        response = await self.run_agent_query(
-            f"Find the text '{search_term}' in document '{doc_name}'"
-        )
-
-        self.assert_valid_response(response)
+# --- Agent-Specific Mixins ---
 
 
 class SimpleAgentTestMixin:
     """
-    Mixin class for Simple Agent specific testing functionality.
-
-    This mixin provides functionality specific to testing the Simple Agent,
-    including response format validation and single-step operation patterns.
+    Provides testing functionalities specific to the Simple Agent.
+    Includes stateful helpers for initializing the agent and running queries.
     """
 
-    def assert_simple_agent_response(self, response) -> None:
-        """
-        Assert that a response matches Simple Agent format.
+    async def initialize_simple_agent_and_mcp_server(self):
+        """Initialize the Simple Agent and its MCP server for stateful testing."""
+        from src.agents.simple_agent import initialize_agent_and_mcp_server
 
-        Args:
-            response: Response to validate
-        """
-        # Simple agent responses should have specific structure
-        assert hasattr(response, "summary"), "Simple agent response missing summary"
-        assert hasattr(response, "details"), "Simple agent response missing details"
-        assert hasattr(
-            response, "error_message"
-        ), "Simple agent response missing error_message"
+        return await initialize_agent_and_mcp_server()
 
-        # Summary should be a non-empty string
-        assert isinstance(response.summary, str), "Summary must be a string"
-        assert len(response.summary) > 0, "Summary should not be empty"
-
-    async def run_simple_agent_test(self, query: str, timeout: float = 30.0):
-        """
-        Run a test query against the Simple Agent.
-
-        Args:
-            query: Query to send to the agent
-            timeout: Timeout for the operation
-
-        Returns:
-            Agent response
-        """
+    async def run_simple_query_on_agent(
+        self, agent, query: str, timeout: float = 60.0
+    ):
+        """Run a single query on a pre-initialized Simple Agent."""
         from src.agents.simple_agent import (
             FinalAgentResponse,
-            initialize_agent_and_mcp_server,
             process_single_user_query,
         )
 
         try:
-            agent, _ = await initialize_agent_and_mcp_server()
-            async with agent.run_mcp_servers():
-                result = await asyncio.wait_for(
-                    process_single_user_query(agent, query), timeout=timeout
-                )
-                return result
+            return await asyncio.wait_for(
+                process_single_user_query(agent, query), timeout=timeout
+            )
         except Exception as e:
             return FinalAgentResponse(
                 summary=f"Error during processing: {str(e)}",
@@ -226,105 +104,98 @@ class SimpleAgentTestMixin:
                 error_message=str(e),
             )
 
-    async def test_model_integration(
-        self, test_docs_root, model_type: str = "openai"
-    ) -> None:
-        """
-        Test model-specific integration patterns.
-
-        Args:
-            test_docs_root: Test document root directory
-            model_type: Type of model to test (openai, gemini)
-        """
-        doc_name = generate_unique_name(f"{model_type}_test_doc")
-
-        # Test document creation with specific model
-        create_response = await self.run_simple_agent_test(
-            f"Create a new document named '{doc_name}'"
-        )
-
-        self.assert_simple_agent_response(create_response)
-        assert (
-            create_response.error_message is None
-        ), f"{model_type} model should not produce error messages for valid requests"
-
-        # Test listing to verify creation
-        list_response = await self.run_simple_agent_test(
-            "Show me all available documents"
-        )
-        self.assert_simple_agent_response(list_response)
-        assert isinstance(
-            list_response.details, list
-        ), f"{model_type} model should return list of documents"
-
 
 class ReactAgentTestMixin:
     """
-    Mixin class for React Agent specific testing functionality.
-
-    This mixin provides functionality specific to testing the React Agent,
-    including multi-step workflow validation and reasoning pattern checks.
+    Provides testing functionalities specific to the React Agent.
+    Includes helpers for multi-step workflow validation and stateful execution.
     """
-
-    def assert_react_agent_response(self, history: List[Dict[str, Any]]) -> None:
-        """
-        Assert that a response matches React Agent format.
-
-        Args:
-            history: React agent execution history
-        """
-        assert isinstance(history, list), "React agent should return execution history"
-        assert len(history) > 0, "React agent history should not be empty"
-
-        # Check final step
-        final_step = history[-1]
-        assert "thought" in final_step, "Final step should have thought"
-        assert final_step.get("action") is None, "Final step should have no action"
 
     def assert_multi_step_workflow(
         self, history: List[Dict[str, Any]], min_steps: int = 2
     ) -> None:
-        """
-        Assert that a React agent executed a multi-step workflow.
-
-        Args:
-            history: Execution history
-            min_steps: Minimum number of steps expected
-        """
+        """Assert that a React agent executed a multi-step workflow."""
         assert (
             len(history) >= min_steps
         ), f"Expected at least {min_steps} steps, got {len(history)}"
-
-        # Check that there are intermediate steps with actions
-        action_steps = [step for step in history[:-1] if step.get("action") is not None]
+        action_steps = [
+            step for step in history[:-1] if step.get("action") is not None
+        ]
         assert len(action_steps) > 0, "Should have at least one step with an action"
 
-    async def run_react_agent_test(self, query: str, max_steps: int = 10):
-        """
-        Run a test query against the React Agent.
+    async def initialize_react_agent_and_mcp_server(self):
+        """Initialize the React Agent and its MCP server for stateful testing."""
+        from src.agents.react_agent.main import (
+            REACT_SYSTEM_PROMPT,
+            ReActStep,
+            load_llm_config,
+        )
 
-        Args:
-            query: Query to send to the agent
-            max_steps: Maximum number of steps to allow
+        mcp_server = MCPServerStdio(
+            command="python3", args=["-m", "document_mcp.doc_tool_server", "stdio"]
+        )
+        model = await load_llm_config()
+        agent = Agent(
+            model=model,
+            mcp_servers=[mcp_server],
+            system_prompt=REACT_SYSTEM_PROMPT,
+            output_type=ReActStep,
+        )
+        return agent, mcp_server
 
-        Returns:
-            Agent execution history
-        """
-        from src.agents.react_agent.main import run_react_loop
+    async def run_react_query_on_agent(
+        self, agent, user_query: str, max_steps: int = 10
+    ) -> List[Dict[str, Any]]:
+        """Run a single query on a pre-initialized React agent."""
+        from src.agents.react_agent.main import (
+            HistoryContextBuilder,
+            execute_mcp_tool_directly,
+            parse_action_string,
+        )
 
-        try:
-            history = await run_react_loop(query, max_steps=max_steps)
-            return history
-        except Exception as e:
-            # Return error in history format
-            return [
-                {
-                    "step": 1,
-                    "thought": f"Error occurred: {str(e)}",
-                    "action": None,
-                    "observation": f"Error: {str(e)}",
-                }
-            ]
+        history = []
+        context_builder = HistoryContextBuilder()
+        step = 0
+
+        while step < max_steps:
+            step += 1
+            if step == 1:
+                current_context = f"User Query: {user_query}\n\nPlease provide your first thought and action."
+            else:
+                current_context = f"User Query: {user_query}\n\n{context_builder.get_context()}\n\nPlease provide your next thought and action."
+
+            try:
+                result = await agent.run(current_context)
+                react_step = result.output
+            except Exception as e:
+                history.append(
+                    {"step": step, "thought": f"Error: {e}", "action": None, "observation": str(e)}
+                )
+                break
+
+            step_data = {
+                "step": step,
+                "thought": react_step.thought,
+                "action": react_step.action,
+                "observation": None,
+            }
+
+            if react_step.action and react_step.action.strip():
+                try:
+                    tool_name, kwargs = parse_action_string(react_step.action)
+                    observation = await execute_mcp_tool_directly(agent, tool_name, kwargs)
+                    step_data["observation"] = observation
+                except Exception as e:
+                    step_data["observation"] = f"Error executing action: {e}"
+            else:
+                step_data["observation"] = "Task completed."
+                history.append(step_data)
+                break
+
+            history.append(step_data)
+            context_builder.add_step(step_data)
+
+        return history
 
 
 class IntegrationTestBase(AgentTestBase):
@@ -349,13 +220,6 @@ class IntegrationTestBase(AgentTestBase):
             api_key_type=api_key_type,
             include_server_config=True,
         )
-
-    async def test_agent_environment_setup(self) -> None:
-        """Test that agent environment is properly configured."""
-        # Check for any of the supported API keys
-        api_keys = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
-        has_api_key = any(os.environ.get(key) for key in api_keys)
-        assert has_api_key, f"No API key found. Expected one of: {api_keys}"
 
     async def test_agent_package_imports(self) -> None:
         """Test that all required packages can be imported."""
