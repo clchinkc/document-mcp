@@ -21,6 +21,7 @@ from document_mcp.doc_tool_server import (
     _is_valid_chapter_filename,
     _read_chapter_content_details,
     _split_into_paragraphs,
+    _validate_content,
     read_document_summary,
     list_documents,
     get_chapter_statistics,
@@ -749,24 +750,43 @@ class TestInputValidationHelpers:
     def test_validate_chapter_name(self, name, expected_valid, expected_error_msg):
         from document_mcp.doc_tool_server import _validate_chapter_name
         is_valid, error = _validate_chapter_name(name)
-        assert is_valid is expected_valid
-        if not expected_valid:
-            assert expected_error_msg == error
+        assert is_valid == expected_valid
+        assert error == expected_error_msg
 
     @pytest.mark.parametrize("content, expected_valid, expected_error_msg", [
         ("Some valid content.", True, ""),
         ("", True, ""),
-        ("a" * 1_000_000, True, ""),
         (None, False, "Content cannot be None"),
         (12345, False, "Content must be a string"),
-        ("a" * 1_000_001, False, "Content too long (max 1000000 characters)"),
     ])
-    def test_validate_content(self, content, expected_valid, expected_error_msg):
-        from document_mcp.doc_tool_server import _validate_content
+    def test_validate_content_general_cases(self, content, expected_valid, expected_error_msg):
+        """Test content validation for general cases (None, type, and short strings)."""
         is_valid, error = _validate_content(content)
-        assert is_valid is expected_valid
+        assert is_valid == expected_valid
+        assert error == expected_error_msg
+
+    @pytest.mark.parametrize("content_length_offset, expected_valid", [
+        (0, True),   # Exactly at max length
+        (-10, True), # Well below max length
+        (1, False),  # Just over max length
+    ])
+    def test_validate_content_length(self, mocker, content_length_offset, expected_valid):
+        """Test content length validation with a mocked MAX_CONTENT_LENGTH."""
+        mock_max_len = 1000
+        mocker.patch('document_mcp.doc_tool_server.MAX_CONTENT_LENGTH', mock_max_len)
+        
+        # Create content with a length relative to the mocked max length
+        content = "a" * (mock_max_len + content_length_offset)
+        
+        # Expected error message if invalid
+        expected_error_msg = ""
         if not expected_valid:
-            assert expected_error_msg == error
+            expected_error_msg = f"Content too long (max {mock_max_len} characters)"
+
+        is_valid, error = _validate_content(content)
+        
+        assert is_valid == expected_valid
+        assert error == expected_error_msg
 
     @pytest.mark.parametrize("index, expected_valid, expected_error_msg", [
         (0, True, ""),
