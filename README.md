@@ -310,23 +310,6 @@ To run tests with coverage:
 pytest --cov=document_mcp --cov-report=html
 ```
 
-To skip slow tests:
-```bash
-pytest -m "not slow"
-```
-
-### Test Structure
-
-- **Unit Tests (`tests/unit/`)**: Test individual functions and classes in isolation. These tests use heavy mocking and do not have external dependencies.
-- **Integration Tests (`tests/integration/`)**: Test component interactions and MCP server integration. These tests may use a real MCP server via stdio transport but use mocked LLMs.
-- **E2E Tests (`tests/e2e/`)**: Test complete workflows with real AI models. These tests require real API keys and are skipped if they are not available.
-
-### Key Fixtures
-- **`test_docs_root`**: Creates an isolated temporary directory for each test, ensuring test isolation.
-- **`mock_environment`**: Sets up mock API keys and environment variables.
-- **`document_factory`**: A factory for creating various types of test documents.
-- **`mocker`**: The standard `pytest-mock` fixture for mocking objects and functions.
-
 For more details on the testing strategy, see the [Testing Guidelines](tests/testing_guidelines.md).
 
 ## 🛠️ Development Setup

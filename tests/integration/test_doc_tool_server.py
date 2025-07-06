@@ -9,7 +9,6 @@ from document_mcp import (  # Import the module itself to modify its global
     doc_tool_server,
 )
 
-# Make sure to import the necessary functions and models from doc_tool_server
 from document_mcp.doc_tool_server import (
     read_full_document,
 )
@@ -42,7 +41,6 @@ from document_mcp.doc_tool_server import (
     DOCUMENT_SUMMARY_FILE
 )
 
-# --- Environment Testing Functions ---
 
 
 def test_package_imports():

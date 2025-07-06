@@ -63,7 +63,7 @@ class TestStructuredErrorLogging:
         assert call_args[1]['operation'] == "read_chapter_content"
         assert call_args[1]['context']['document_name'] == "test_doc"
         assert call_args[1]['context']['chapter_file_path'] == str(mock_path)
-        assert call_args[1]['context']['file_exists'] == True
+        assert call_args[1]['context']['file_exists'] is True
         assert isinstance(call_args[1]['exception'], PermissionError)
 
     def test_get_chapter_metadata_logs_error_on_file_read_failure(self, mocker):
@@ -85,7 +85,7 @@ class TestStructuredErrorLogging:
         assert call_args[1]['operation'] == "get_chapter_metadata"
         assert call_args[1]['context']['document_name'] == "test_doc"
         assert call_args[1]['context']['chapter_file_path'] == str(mock_path)
-        assert call_args[1]['context']['file_exists'] == True
+        assert call_args[1]['context']['file_exists'] is True
         assert isinstance(call_args[1]['exception'], OSError)
 
     def test_read_document_summary_logs_warning_on_invalid_document_name(self, mocker):
@@ -237,8 +237,6 @@ class TestMCPLoggerDecorator:
         
         with pytest.raises(ValueError):
             failing_function("test_arg", kwarg1="test_kwarg")
-        
-        # Verify structured error logging was called
         mock_log_error.assert_called()
         call_args = mock_log_error.call_args
         assert call_args[1]['category'] == ErrorCategory.ERROR
@@ -251,8 +249,6 @@ class TestMCPLoggerDecorator:
         """Test that argument serialization errors are logged appropriately."""
         mock_log_error = mocker.patch('document_mcp.logger_config.log_structured_error')
         from document_mcp.logger_config import log_mcp_call
-        
-        # Create an object that will cause serialization issues
         class UnserializableObject:
             def __repr__(self):
                 raise RuntimeError("Cannot serialize this object")
@@ -263,9 +259,7 @@ class TestMCPLoggerDecorator:
         
         result = function_with_bad_args(UnserializableObject())
         
-        assert result == "success"  # Function should still execute
-        
-        # Check that argument serialization error was logged
+        assert result == "success"
         mock_log_error.assert_called()
         call_args = mock_log_error.call_args
         assert call_args[1]['category'] == ErrorCategory.WARNING
@@ -456,7 +450,6 @@ class TestFileOrdering:
         """Test getting chapter files for non-existent document."""
         mock_path_operations.mock_docs_root_path("/test/docs")
         
-        # Create a mock path that returns False for is_dir
         mock_doc_path = mock_path_operations.create_mock_file("nonexistent_doc", is_file=False, is_dir=False)
         mock_path_operations.mock_document_path("nonexistent_doc", mock_doc_path)
         
@@ -480,7 +473,6 @@ class TestFileOrdering:
         """Test getting chapter files with valid markdown files."""
         mock_path_operations.mock_docs_root_path("/test/docs")
         
-        # Create mock file objects with proper __lt__ method for sorting
         chapter1 = mocker.Mock()
         chapter1.name = "01-intro.md"
         chapter1.is_file.return_value = True
@@ -496,7 +488,6 @@ class TestFileOrdering:
         chapter3.is_file.return_value = True
         chapter3.__lt__ = lambda self, other: self.name < other.name
 
-        # Mock the document path
         mock_doc_path = mocker.Mock()
         mock_doc_path.is_dir.return_value = True
         mock_doc_path.iterdir.return_value = [
@@ -509,7 +500,6 @@ class TestFileOrdering:
         
         result = _get_ordered_chapter_files("test_doc")
 
-        # Should be sorted alphabetically
         assert len(result) == 3
         assert result[0].name == "01-intro.md"
         assert result[1].name == "02-methods.md"
@@ -519,7 +509,6 @@ class TestFileOrdering:
         """Test that non-markdown files are filtered out."""
         mock_path_operations.mock_docs_root_path("/test/docs")
         
-        # Create mock file objects
         chapter1 = mocker.Mock()
         chapter1.name = "01-intro.md"
         chapter1.is_file.return_value = True
@@ -540,14 +529,13 @@ class TestFileOrdering:
         directory.name = "images"
         directory.is_file.return_value = False
 
-        # Mock the document path
         mock_doc_path = mocker.Mock()
         mock_doc_path.is_dir.return_value = True
         mock_doc_path.iterdir.return_value = [
             chapter1,
             text_file,
             manifest_file,
-            summary_file, # Add summary file to the list of items
+            summary_file,
             directory,
         ]
 
@@ -555,7 +543,6 @@ class TestFileOrdering:
         
         result = _get_ordered_chapter_files("test_doc")
 
-        # Should only include the markdown file
         assert len(result) == 1
         assert result[0].name == "01-intro.md"
 
@@ -600,7 +587,6 @@ class TestChapterReading:
         mock_path.name = "01-intro.md"
         mock_path.read_text.return_value = "# Introduction\n\nThis is the first paragraph.\n\nThis is the second paragraph."
 
-        # Mock the stat result
         mock_stat = mocker.Mock()
         mock_stat.st_mtime = 1640995200.0  # 2022-01-01 00:00:00 UTC
         mock_path.stat.return_value = mock_stat
@@ -634,7 +620,6 @@ class TestChapterReading:
         assert result is None
         mock_log_error.assert_called_once()
         
-        # Verify the structured error call
         call_args = mock_log_error.call_args
         assert call_args[1]['category'] == ErrorCategory.ERROR
         assert call_args[1]['message'] == "Failed to read chapter file: corrupted.md"
@@ -655,7 +640,6 @@ class TestChapterReading:
         mock_path.name = "02-methods.md"
         mock_path.read_text.return_value = "# Methods\n\nFirst paragraph about methods.\n\nSecond paragraph with details.\n\nThird paragraph conclusion."
 
-        # Mock the stat result
         mock_stat = mocker.Mock()
         mock_stat.st_mtime = 1640995200.0  # 2022-01-01 00:00:00 UTC
         mock_path.stat.return_value = mock_stat
@@ -680,7 +664,6 @@ class TestChapterReading:
         mock_path.name = "empty.md"
         mock_path.read_text.return_value = ""
 
-        # Mock the stat result
         mock_stat = mocker.Mock()
         mock_stat.st_mtime = 1640995200.0
         mock_path.stat.return_value = mock_stat
@@ -706,7 +689,6 @@ class TestChapterReading:
         assert result is None
         mock_log_error.assert_called_once()
         
-        # Verify the structured error call
         call_args = mock_log_error.call_args
         assert call_args[1]['category'] == ErrorCategory.ERROR
         assert call_args[1]['message'] == "Failed to get metadata for chapter: error.md"
@@ -952,7 +934,6 @@ class TestReadDocumentSummaryTool:
         assert summary_content is None
         mock_log_error.assert_called()
         
-        # Verify the structured error call
         call_args = mock_log_error.call_args
         assert call_args[1]['category'] == ErrorCategory.INFO
         assert call_args[1]['message'] == "Document not found"
@@ -975,7 +956,6 @@ class TestReadDocumentSummaryTool:
         assert summary_content is None
         mock_log_error.assert_called()
         
-        # Verify the structured error call
         call_args = mock_log_error.call_args
         assert call_args[1]['category'] == ErrorCategory.INFO
         assert call_args[1]['message'] == "Summary file not found in document"
@@ -999,7 +979,6 @@ class TestReadDocumentSummaryTool:
         assert summary_content is None
         mock_log_error.assert_called()
         
-        # Verify the structured error call
         call_args = mock_log_error.call_args
         assert call_args[1]['category'] == ErrorCategory.ERROR
         assert call_args[1]['message'] == "Failed to read summary file"
@@ -1015,7 +994,6 @@ class TestReadDocumentSummaryTool:
         assert summary_content is None
         mock_log_error.assert_called()
         
-        # Verify the structured error call
         call_args = mock_log_error.call_args
         assert call_args[1]['category'] == ErrorCategory.WARNING
         assert call_args[1]['message'] == "Invalid document name provided"
@@ -1189,7 +1167,7 @@ class TestAdvancedDocumentTools:
         """Test find_text_in_chapter when text is found."""
         doc_name, search_terms = searchable_document
         chapter_name = "01-intro.md"
-        query = search_terms[0] # Should be 'apple'
+        query = search_terms[0]
 
         results = find_text_in_chapter(doc_name, chapter_name, query)
         assert results is not None
@@ -1239,8 +1217,6 @@ class TestResourceHandlers:
 
     def test_list_resources_empty_root(self, mock_path_operations, mocker):
         """Test list_resources returns empty list when no documents exist."""
-        from document_mcp.doc_tool_server import list_resources
-        
         real_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
         
         # Mock file system operations
@@ -1253,8 +1229,6 @@ class TestResourceHandlers:
 
     def test_list_resources_root_not_exist(self, mock_path_operations, mocker):
         """Test list_resources returns empty list when root directory doesn't exist."""
-        from document_mcp.doc_tool_server import list_resources
-        
         real_docs_root = mock_path_operations.mock_docs_root_path("/test/docs")
         
         # Mock the exists check to return False
@@ -1265,7 +1239,6 @@ class TestResourceHandlers:
 
     def test_list_resources_with_chapters(self, mock_path_operations, mocker):
         """Test list_resources correctly lists all available chapters as Resource objects."""
-        from document_mcp.doc_tool_server import list_resources
         from mcp.types import Resource
         
         # Mock the dependencies
@@ -1326,7 +1299,6 @@ class TestResourceHandlers:
 
     def test_read_resource_valid_uri(self, mock_path_operations, mocker):
         """Test read_resource returns correct TextResourceContents for valid URIs."""
-        from document_mcp.doc_tool_server import read_resource
         from mcp.types import TextResourceContents
         
         # Mock the path operations
@@ -1365,7 +1337,6 @@ class TestResourceHandlers:
 
     def test_read_resource_invalid_scheme(self):
         """Test read_resource raises McpError for invalid URI schemes."""
-        from document_mcp.doc_tool_server import read_resource
         from mcp import McpError
         
         with pytest.raises(McpError, match="Invalid URI scheme: http. Expected 'file'"):
