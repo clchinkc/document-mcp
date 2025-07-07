@@ -1,980 +1,124 @@
 """
-Pytest configuration and fixtures for Document MCP testing.
+Minimal pytest configuration for simplified Document MCP testing.
 
-This module provides pytest-specific configuration and fixtures,
-using the shared testing infrastructure for consistency.
+This provides only essential fixtures needed for the new stdio-based testing approach.
 """
 
 import os
-import shutil
-import sys
 import tempfile
-import uuid
 from pathlib import Path
-from typing import Any, Dict
 
 import pytest
 from dotenv import load_dotenv
 
-# Load environment variables immediately when conftest is imported
-# This ensures API keys are available for skip decorators
+# Load environment variables
 load_dotenv()
 
-# Import shared testing utilities
-from tests.shared import (
-    create_mock_environment,
-    create_test_document,
-    generate_unique_name,
-    has_real_api_key,
-)
-from tests.shared.test_data import (
-    TestDataRegistry,
-    TestDataType,
-    TestDocumentSpec,
-    create_test_document_from_spec,
-)
-from tests.shared.mock_factories import create_mock_agent
 
-# Import for direct doc_tool_server manipulation in tests
-try:
-    from document_mcp import doc_tool_server
-except ImportError:
-    sys.path.insert(0, "..")
-    from document_mcp import doc_tool_server
-
-
-# ================================
-# Pytest Hooks for Environment Management
-# ================================
-
-
-def pytest_runtest_setup(item):
-    """
-    Set up environment for each test run.
-
-    This hook ensures PYTEST_CURRENT_TEST is properly set
-    to avoid teardown errors in Python 3.13.
-    """
-    test_name = f"{item.nodeid}"
-    os.environ["PYTEST_CURRENT_TEST"] = test_name
-
-
-def pytest_runtest_teardown(item, nextitem):
-    """
-    Clean up environment after each test run.
-
-    This hook safely removes PYTEST_CURRENT_TEST to prevent
-    KeyError during pytest's internal teardown process.
-    """
-    # Safely remove the environment variable
-    os.environ.pop("PYTEST_CURRENT_TEST", None)
-
-
-# ================================
-# Session-scoped Server Management
-# ================================
+def check_api_key_available() -> bool:
+    """Check if a real API key is available for testing."""
+    api_keys = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
+    for key in api_keys:
+        value = os.environ.get(key, "").strip()
+        if value and value != "test_key" and not value.startswith("sk-test"):
+            return True
+    return False
 
 
 @pytest.fixture
-def test_docs_root():
-    """
-    Create a clean subdirectory for each test and set DOCUMENT_ROOT_DIR.
-
-    This fixture provides test isolation by creating a unique temporary
-    directory for each test function.
-    """
-    # Create a temporary docs root for the test
-    temp_root = Path(tempfile.mkdtemp(prefix="mcp_test_"))
-
-    # Override doc_tool_server path for this test
-    original_server_path = doc_tool_server.DOCS_ROOT_PATH
-    doc_tool_server.DOCS_ROOT_PATH = temp_root
-
-    # Set environment variables for the test
-    original_root_dir = os.environ.get("DOCUMENT_ROOT_DIR")
-    os.environ["DOCUMENT_ROOT_DIR"] = str(temp_root)
-
-    yield temp_root
-
-    # Cleanup test data and environment
-    if temp_root.exists():
-        shutil.rmtree(temp_root, ignore_errors=True)
-
-    if original_root_dir is None:
-        os.environ.pop("DOCUMENT_ROOT_DIR", None)
-    else:
-        os.environ["DOCUMENT_ROOT_DIR"] = original_root_dir
-
-    doc_tool_server.DOCS_ROOT_PATH = original_server_path
-
-
-# ================================
-# MCP Client Fixtures
-# ================================
-
-
-@pytest.fixture
-async def mcp_client(test_docs_root):
-    """
-    Create an MCP client connected to a real server over stdio.
-    
-    This fixture starts an MCP server subprocess and connects to it
-    using the stdio transport for true end-to-end testing.
-    """
-    from tests.integration.mcp_client import create_mcp_client
-    
-    # Server command to start the MCP server
-    server_command = [sys.executable, "-m", "document_mcp.doc_tool_server", "stdio"]
-    
-    # Environment for the server (including test docs root)
-    env = {
-        "DOCUMENT_ROOT_DIR": str(test_docs_root),
-        "PYTEST_CURRENT_TEST": os.environ.get("PYTEST_CURRENT_TEST", ""),
-    }
-    
-    async with create_mcp_client(server_command, env) as client:
-        yield client
-
-
-@pytest.fixture
-async def mcp_client_with_error_injection(test_docs_root):
-    """
-    Create an MCP client with network error injection capabilities.
-    
-    This fixture provides a client that can simulate network failures
-    for testing error handling and recovery scenarios.
-    """
-    from tests.integration.mcp_client import MCPStdioClient, MCPConnectionError
-    
-    class ErrorInjectingMCPClient(MCPStdioClient):
-        """MCP client with error injection capabilities."""
+def temp_docs_root():
+    """Provide a temporary directory for document storage with mock API key."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
+        old_openai_key = os.environ.get("OPENAI_API_KEY")
+        old_gemini_key = os.environ.get("GEMINI_API_KEY")
         
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self._simulate_network_failure = False
-            self._failure_count = 0
-            self._max_failures = 1
+        # Set up environment for integration tests
+        os.environ["DOCUMENT_ROOT_DIR"] = tmp_dir
+        
+        # Use OpenAI with a mock key for integration tests (simpler schema)
+        if not old_openai_key:
+            os.environ["OPENAI_API_KEY"] = "sk-test-key-for-integration-testing"
+            os.environ["OPENAI_MODEL_NAME"] = "gpt-4o"
+        
+        # Remove Gemini key to force OpenAI usage (avoid schema issues)
+        if "GEMINI_API_KEY" in os.environ:
+            del os.environ["GEMINI_API_KEY"]
             
-        async def simulate_network_failure(self, failure_count=1):
-            """Simulate network failure for the next N requests."""
-            self._simulate_network_failure = True
-            self._failure_count = 0
-            self._max_failures = failure_count
+        # Force reload of doc_tool_server to pick up new DOCUMENT_ROOT_DIR
+        import importlib
+        import sys
+        if 'document_mcp.doc_tool_server' in sys.modules:
+            importlib.reload(sys.modules['document_mcp.doc_tool_server'])
             
-        async def _send_request(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
-            """Send request with potential error injection."""
-            if self._simulate_network_failure and self._failure_count < self._max_failures:
-                self._failure_count += 1
-                if self._failure_count >= self._max_failures:
-                    self._simulate_network_failure = False
-                raise MCPConnectionError("Simulated network failure")
+        try:
+            yield Path(tmp_dir)
+        finally:
+            # Restore environment
+            if old_doc_root:
+                os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
+            else:
+                os.environ.pop("DOCUMENT_ROOT_DIR", None)
                 
-            return await super()._send_request(method, params)
-    
-    # Server command and environment
-    server_command = [sys.executable, "-m", "document_mcp.doc_tool_server", "stdio"]
-    env = {
-        "DOCUMENT_ROOT_DIR": str(test_docs_root),
-        "PYTEST_CURRENT_TEST": os.environ.get("PYTEST_CURRENT_TEST", ""),
-    }
-    
-    client = ErrorInjectingMCPClient(server_command, env)
-    try:
-        await client.connect()
-        yield client
-    finally:
-        await client.disconnect()
-
-
-@pytest.fixture(scope="session")
-def mcp_server_command():
-    """Get the command to start the MCP server."""
-    return [sys.executable, "-m", "document_mcp.doc_tool_server", "stdio"]
-
-
-# ================================
-# Environment and Configuration Fixtures
-# ================================
+            if old_openai_key:
+                os.environ["OPENAI_API_KEY"] = old_openai_key
+            elif "OPENAI_API_KEY" in os.environ:
+                del os.environ["OPENAI_API_KEY"]
+                
+            if old_gemini_key:
+                os.environ["GEMINI_API_KEY"] = old_gemini_key
+                
+            # Force reload again to restore original settings
+            if 'document_mcp.doc_tool_server' in sys.modules:
+                importlib.reload(sys.modules['document_mcp.doc_tool_server'])
 
 
 @pytest.fixture
-def mock_environment():
-    """
-    Set up mock environment for testing AI agents.
-
-    Uses shared mock environment creation for consistency.
-    """
-    env_vars = create_mock_environment(
-        api_key_type="openai",
-        include_server_config=True,
-    )
-
-    with pytest.MonkeyPatch().context() as m:
-        for key, value in env_vars.items():
-            m.setenv(key, value)
-        yield
-
-
-@pytest.fixture
-def mock_gemini_environment():
-    """Set up mock environment with Gemini API key."""
-    env_vars = create_mock_environment(
-        api_key_type="gemini",
-        include_server_config=True,
-    )
-
-    with pytest.MonkeyPatch().context() as m:
-        for key, value in env_vars.items():
-            m.setenv(key, value)
-        yield
-
-
-@pytest.fixture
-def mock_both_api_keys_environment():
-    """Set up mock environment with both OpenAI and Gemini API keys."""
-    env_vars = create_mock_environment(
-        api_key_type="both",
-        include_server_config=True,
-    )
-
-    with pytest.MonkeyPatch().context() as m:
-        for key, value in env_vars.items():
-            m.setenv(key, value)
-        yield
-
-
-# ================================
-# Test Data Fixtures
-# ================================
-
-
-@pytest.fixture
-def sample_document(test_docs_root):
-    """
-    Create a sample document with default structure for testing.
-
-    Returns the document name for use in tests.
-    """
-    doc_name = create_test_document(
-        docs_root=test_docs_root,
-        doc_name=None,  # Auto-generate name
-        chapter_count=3,
-    )
-    return doc_name
-
-
-@pytest.fixture
-def large_document(test_docs_root):
-    """
-    Create a large document for performance testing.
-
-    Returns the document name for use in tests.
-    """
-    from tests.shared.test_data import create_large_test_document
-
-    doc_name = create_large_test_document(
-        docs_root=test_docs_root,
-        doc_name=None,  # Auto-generate name
-        chapter_count=10,  # Smaller than default for faster tests
-        paragraphs_per_chapter=5,
-    )
-    return doc_name
-
-
-@pytest.fixture
-def searchable_document(test_docs_root):
-    """
-    Create a document with searchable content for search tests.
-
-    Returns tuple of (document_name, search_terms).
-    """
-    from tests.shared.test_data import create_searchable_test_document
-
-    return create_searchable_test_document(
-        docs_root=test_docs_root,
-        doc_name=None,  # Auto-generate name
-    )
-
-
-@pytest.fixture
-def empty_document(test_docs_root):
-    """
-    Create an empty document directory for testing edge cases.
-
-    Returns the document name.
-    """
-    doc_name = generate_unique_name("empty_doc")
-    doc_path = test_docs_root / doc_name
-    doc_path.mkdir(parents=True, exist_ok=True)
-    return doc_name
-
-
-# ================================
-# Test Data Management Fixtures
-# ================================
-
-
-@pytest.fixture
-def test_data_registry(test_docs_root):
-    """
-    Provide a test data registry for tracking created test data.
-
-    This fixture automatically cleans up all registered test data
-    after the test completes.
-    """
-    registry = TestDataRegistry()
-    yield registry
-
-    # Cleanup all registered test data
-    registry.cleanup_all(test_docs_root)
-
-
-@pytest.fixture
-def document_factory(test_docs_root, test_data_registry):
-    """
-    Factory fixture for creating test documents from specifications.
-
-    Returns a function that creates documents and automatically
-    registers them for cleanup.
-    """
-    def _create_document(
-        doc_type=None,
-        name=None,
-        chapter_count=3,
-        chapters=None,
-        search_terms=None,
-        target_word_count=None,
-        target_paragraph_count=None,
-        paragraphs_per_chapter=5,
-        cleanup_on_error=True,
-    ):
-        """Create a test document from parameters."""
-        # Convert string to enum if needed
-        if isinstance(doc_type, str):
-            doc_type = TestDataType(doc_type)
-        elif doc_type is None:
-            doc_type = TestDataType.SIMPLE
-
-        spec = TestDocumentSpec(
-            name=name,
-            doc_type=doc_type,
-            chapter_count=chapter_count,
-            chapters=chapters,
-            search_terms=search_terms,
-            target_word_count=target_word_count,
-            target_paragraph_count=target_paragraph_count,
-            paragraphs_per_chapter=paragraphs_per_chapter,
-            cleanup_on_error=cleanup_on_error,
-        )
-
-        return create_test_document_from_spec(
-            docs_root=test_docs_root,
-            spec=spec,
-            registry=test_data_registry,
-        )
-
+def document_factory(temp_docs_root):
+    """Factory for creating test documents."""
+    def _create_document(doc_name: str, chapters: dict = None):
+        doc_path = temp_docs_root / doc_name
+        doc_path.mkdir(exist_ok=True)
+        if chapters:
+            for chapter_name, content in chapters.items():
+                (doc_path / chapter_name).write_text(content)
+        return doc_path
     return _create_document
 
 
-@pytest.fixture(params=[
-    "simple",
-    "large",
-    "searchable",
-    "multi_format",
-    "statistical"
-])
-def parametrized_document(request, document_factory):
-    """
-    Parametrized fixture that creates different types of test documents.
-
-    This fixture automatically runs tests with different document types,
-    useful for comprehensive testing.
-    """
-    doc_type = request.param
-
-    # Adjust parameters based on document type
-    if doc_type == "large":
-        return document_factory(
-            doc_type=doc_type,
-            chapter_count=5,  # Smaller for test performance
-            paragraphs_per_chapter=3,
-        )
-    elif doc_type == "statistical":
-        return document_factory(
-            doc_type=doc_type,
-            target_word_count=200,  # Smaller for test performance
-            target_paragraph_count=10,
-        )
-    else:
-        return document_factory(doc_type=doc_type)
-
-
-# ================================
-# Utility Fixtures
-# ================================
-
-
 @pytest.fixture
-def unique_name():
-    """Generate a unique name for test resources."""
-    return generate_unique_name()
-
-
-# ================================
-# Pytest Configuration
-# ================================
-
-
-def pytest_configure(config):
-    """Configure pytest with custom markers and settings."""
-    config.addinivalue_line(
-        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
-    )
-    config.addinivalue_line("markers", "integration: marks tests as integration tests")
-    config.addinivalue_line("markers", "unit: marks tests as unit tests")
-    config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests")
-    config.addinivalue_line("markers", "stress: marks tests as stress tests")
-
-
-def pytest_collection_modifyitems(config, items):
-    """Modify test collection to add markers automatically."""
-    for item in items:
-        # Add markers based on test file location
-        if "unit" in str(item.fspath):
-            item.add_marker(pytest.mark.unit)
-        elif "integration" in str(item.fspath):
-            item.add_marker(pytest.mark.integration)
-        elif "e2e" in str(item.fspath):
-            item.add_marker(pytest.mark.e2e)
-
-        # Mark slow tests
-        if "large" in item.name or "performance" in item.name:
-            item.add_marker(pytest.mark.slow)
-
-
-# ================================
-# Cleanup and Error Handling
-# ================================
-
-
-@pytest.fixture(autouse=True)
-def cleanup_environment():
-    """
-    Automatically clean up environment after each test.
-
-    This fixture runs automatically for every test to ensure
-    clean state between tests.
-    """
-    # Setup - nothing needed here
+def clean_documents():
+    """Clean all documents before each test."""
+    from document_mcp.doc_tool_server import list_documents, delete_document
+    
+    # Clean existing documents before test
+    try:
+        docs = list_documents()
+        for doc in docs:
+            delete_document(doc.document_name)
+    except Exception:
+        pass  # Ignore cleanup errors
+    
     yield
-
-    # Cleanup - ensure no test environment variables leak
-    test_vars_to_clear = [
-        "TEST_MODE",
-    ]
-
-    for var in test_vars_to_clear:
-        if var in os.environ:
-            del os.environ[var]
-
-
-@pytest.fixture
-def validate_test_data():
-    """
-    Fixture to validate test data integrity during and after tests.
-
-    This fixture provides utilities to ensure test data is in the expected state.
-    """
-    class Validator:
-        """Test data validator with bound methods."""
-
-        def document_exists(self, docs_root, doc_name):
-            """Validate that a document exists and has the expected structure."""
-            doc_path = docs_root / doc_name
-            assert doc_path.exists(), f"Document {doc_name} does not exist"
-            assert doc_path.is_dir(), f"Document {doc_name} is not a directory"
-
-            # Check for at least one markdown file
-            md_files = list(doc_path.glob("*.md"))
-            assert len(md_files) > 0, f"Document {doc_name} has no markdown files"
-
-            return True
-
-        def registry_state(self, registry, docs_root):
-            """Validate that the registry state matches the actual filesystem."""
-            issues = registry.validate_test_state(docs_root)
-            assert len(issues) == 0, f"Test data validation issues: {issues}"
-            return True
-
-        def document_content(self, docs_root, doc_name, expected_chapters=None):
-            """Validate document content structure."""
-            doc_path = docs_root / doc_name
-
-            if expected_chapters:
-                for chapter_name, expected_content in expected_chapters:
-                    chapter_path = doc_path / chapter_name
-                    assert chapter_path.exists(), f"Chapter {chapter_name} does not exist"
-
-                    actual_content = chapter_path.read_text()
-                    if expected_content:
-                        assert expected_content in actual_content, \
-                            f"Expected content not found in {chapter_name}"
-
-            return True
-
-    return Validator()
-
-
-@pytest.fixture
-def capture_logs(caplog):
-    """
-    Capture logs during testing with appropriate levels.
-
-    This fixture configures logging for tests and returns
-    the caplog fixture for log assertions.
-    """
-    import logging
-
-    # Set appropriate log levels for testing
-    logging.getLogger("document_mcp").setLevel(logging.WARNING)
-    logging.getLogger("tests").setLevel(logging.DEBUG)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-
-    return caplog
-
-
-# ================================
-# Pytest-Mock Based Fixtures (Replaces unittest.mock patches)
-# ================================
-
-@pytest.fixture
-def mock_path_operations(mocker):
-    """
-    Centralized fixture for mocking pathlib.Path operations.
     
-    Returns a namespace object with common path mocking utilities.
-    """
-    class PathMocks:
-        def __init__(self, mocker):
-            self.mocker = mocker
-            
-        def mock_docs_root_path(self, path="/test/docs"):
-            """Mock DOCS_ROOT_PATH with specified path."""
-            # Create a real Path object
-            real_path = Path(path)
-            
-            self.mocker.patch(
-                "document_mcp.doc_tool_server.DOCS_ROOT_PATH", 
-                real_path
-            )
-            
-            self.docs_root_path = real_path
-            return real_path
-            
-        def mock_document_path(self, document_name, path=None):
-            """Mock _get_document_path function."""
-            if path is None:
-                path = Path(f"/test/docs/{document_name}")
-            return self.mocker.patch(
-                "document_mcp.doc_tool_server._get_document_path",
-                return_value=path
-            )
-            
-        def mock_chapter_path(self, document_name, chapter_name, path=None):
-            """Mock _get_chapter_path function."""
-            if path is None:
-                path = Path(f"/test/docs/{document_name}/{chapter_name}")
-            return self.mocker.patch(
-                "document_mcp.doc_tool_server._get_chapter_path",
-                return_value=path
-            )
-            
-        def create_mock_file(self, name, content="", is_file=True, is_dir=False):
-            """Create a mock file/directory object."""
-            mock_file = self.mocker.Mock()
-            mock_file.name = name
-            mock_file.is_file.return_value = is_file
-            mock_file.is_dir.return_value = is_dir
-            if content:
-                mock_file.read_text.return_value = content
-            # Add sorting support for chapter ordering
-            mock_file.__lt__ = lambda self, other: self.name < other.name
-            return mock_file
-            
-    return PathMocks(mocker)
+    # Clean up after test
+    try:
+        docs = list_documents()
+        for doc in docs:
+            delete_document(doc.document_name)
+    except Exception:
+        pass  # Ignore cleanup errors
 
 
-@pytest.fixture
-def mock_file_operations(mocker):
-    """
-    Centralized fixture for mocking file I/O operations.
-    
-    Returns utilities for mocking file read/write operations.
-    """
-    class FileMocks:
-        def __init__(self, mocker):
-            self.mocker = mocker
-            
-        def mock_read_text(self, target, content="", side_effect=None):
-            """Mock file read_text method."""
-            if side_effect:
-                return self.mocker.patch.object(target, 'read_text', side_effect=side_effect)
-            return self.mocker.patch.object(target, 'read_text', return_value=content)
-            
-        def mock_write_text(self, target):
-            """Mock file write_text method."""
-            return self.mocker.patch.object(target, 'write_text')
-            
-        def mock_stat(self, target, mtime=1640995200.0):
-            """Mock file stat method."""
-            mock_stat = self.mocker.Mock()
-            mock_stat.st_mtime = mtime
-            return self.mocker.patch.object(target, 'stat', return_value=mock_stat)
-            
-        def mock_print(self):
-            """Mock print function for error message testing."""
-            return self.mocker.patch("builtins.print")
-            
-    return FileMocks(mocker)
+# Custom markers for pytest
+def pytest_configure(config):
+    """Configure custom pytest markers."""
+    config.addinivalue_line("markers", "stdio: marks tests as stdio-based integration tests")
+    config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests requiring real API keys")
 
 
-@pytest.fixture  
-def mock_agent_operations(mocker):
-    """
-    Centralized fixture for mocking AI agent operations.
-    
-    Returns utilities for mocking agent initialization and execution.
-    """
-    class AgentMocks:
-        def __init__(self, mocker):
-            self.mocker = mocker
-            
-        def mock_load_llm_config(self, return_value=None):
-            """Mock load_llm_config function."""
-            if return_value is None:
-                return_value = self.mocker.Mock()
-            # Handle both sync and async versions - use regular mocks to avoid unawaited coroutine warnings
-            mock_sync = self.mocker.patch("src.agents.simple_agent.load_llm_config", return_value=return_value)
-            mock_async = self.mocker.patch("src.agents.react_agent.main.load_llm_config", return_value=return_value)
-            
-            return mock_sync, mock_async
-            
-        def mock_mcp_server(self, host="localhost", port=3001):
-            """Mock MCP server class and instance."""
-            mock_server_instance = self.mocker.Mock()
-            mock_server_instance.host = host
-            mock_server_instance.port = port
-            mock_server_instance.server_url = f"http://{host}:{port}"
-            
-            # Use simple async functions instead of AsyncMock to avoid warnings
-            async def mock_aenter():
-                return mock_server_instance
-            
-            async def mock_aexit(*args):
-                return False
-            
-            mock_server_instance.__aenter__ = mock_aenter
-            mock_server_instance.__aexit__ = mock_aexit
-            
-            mock_server_class = self.mocker.patch("src.agents.simple_agent.MCPServerStdio", return_value=mock_server_instance)
-            mock_server_class_react = self.mocker.patch("src.agents.react_agent.main.MCPServerStdio", return_value=mock_server_instance)
-            
-            return mock_server_instance, mock_server_class, mock_server_class_react
-            
-        def mock_agent_class(self, response_data=None):
-            """Mock Agent class with configurable response."""
-            if response_data is None:
-                response_data = {"summary": "Mock response", "details": None, "error_message": None}
-                
-            mock_agent = create_mock_agent(response_data, mocker=self.mocker)
-            mock_agent_class = self.mocker.patch("src.agents.simple_agent.Agent", return_value=mock_agent)
-            mock_agent_class_react = self.mocker.patch("src.agents.react_agent.main.get_cached_agent", return_value=mock_agent)
-            
-            return mock_agent, mock_agent_class, mock_agent_class_react
-            
-        def mock_execute_tool(self, return_value='{"success": true}'):
-            """Mock MCP tool execution."""
-            return self.mocker.patch("src.agents.react_agent.main.execute_mcp_tool_directly", return_value=return_value)
-            
-        def setup_agent_test_environment(self, api_type="openai"):
-            """Set up complete agent testing environment."""
-            # Mock agent components
-            mock_agent, mock_agent_class, mock_agent_class_react = self.mock_agent_class()
-            mock_server_instance, mock_server_class, mock_server_class_react = self.mock_mcp_server()
-            mock_sync_llm, mock_async_llm = self.mock_load_llm_config()
-            
-            return {
-                'agent': mock_agent,
-                'agent_class': mock_agent_class,
-                'agent_class_react': mock_agent_class_react,
-                'server_instance': mock_server_instance,
-                'server_class': mock_server_class,
-                'server_class_react': mock_server_class_react,
-                'llm_sync': mock_sync_llm,
-                'llm_async': mock_async_llm
-            }
-            
-    return AgentMocks(mocker)
-
-
-@pytest.fixture
-def mock_environment_operations(mocker, monkeypatch):
-    """
-    Centralized fixture for mocking environment operations.
-    
-    Combines monkeypatch with mocker for environment variable management.
-    """
-    class EnvironmentMocks:
-        def __init__(self, mocker, monkeypatch):
-            self.mocker = mocker
-            self.monkeypatch = monkeypatch
-            
-        def set_api_environment(self, api_type="openai", **custom_vars):
-            """Set up API environment variables using monkeypatch."""
-            env_vars = create_mock_environment(
-                api_key_type=api_type,
-                include_server_config=True,
-                custom_vars=custom_vars
-            )
-            
-            for key, value in env_vars.items():
-                self.monkeypatch.setenv(key, value)
-                
-            return env_vars
-            
-        def mock_os_environ(self, env_vars):
-            """Mock os.environ with specified variables."""
-            # Clear all existing environment variables
-            for key in list(os.environ.keys()):
-                self.monkeypatch.delenv(key, raising=False)
-            # Set provided environment variables
-            for key, value in env_vars.items():
-                self.monkeypatch.setenv(key, value)
-            
-    return EnvironmentMocks(mocker, monkeypatch)
-
-
-@pytest.fixture
-def mock_validation_operations(mocker):
-    """
-    Centralized fixture for mocking validation functions.
-    """
-    class ValidationMocks:
-        def __init__(self, mocker):
-            self.mocker = mocker
-            
-        def mock_validate_document_name(self, is_valid=True, error_message=""):
-            """Mock document name validation."""
-            return self.mocker.patch(
-                "document_mcp.doc_tool_server._validate_document_name",
-                return_value=(is_valid, error_message)
-            )
-            
-        def mock_validate_chapter_name(self, is_valid=True, error_message=""):
-            """Mock chapter name validation."""
-            return self.mocker.patch(
-                "document_mcp.doc_tool_server._validate_chapter_name", 
-                return_value=(is_valid, error_message)
-            )
-            
-    return ValidationMocks(mocker)
-
-
-@pytest.fixture 
-def mock_complete_test_environment(
-    mock_path_operations, 
-    mock_file_operations, 
-    mock_agent_operations, 
-    mock_environment_operations,
-    mock_validation_operations
-):
-    """
-    Comprehensive fixture that provides all mocking utilities in one place.
-    
-    This is a convenience fixture for tests that need multiple mocking capabilities.
-    """
-    class CompleteMockEnvironment:
-        def __init__(self):
-            self.paths = mock_path_operations
-            self.files = mock_file_operations  
-            self.agents = mock_agent_operations
-            self.environment = mock_environment_operations
-            self.validation = mock_validation_operations
-            
-        def setup_basic_document_test(self, doc_name="test_doc", chapters=None):
-            """Set up a basic document testing environment."""
-            if chapters is None:
-                chapters = ["01-intro.md", "02-content.md"]
-                
-            # Mock docs root
-            self.paths.mock_docs_root_path("/test/docs")
-            
-            # Create mock chapters
-            mock_chapters = []
-            for chapter_name in chapters:
-                mock_chapter = self.paths.create_mock_file(
-                    chapter_name, 
-                    content=f"# {chapter_name}\n\nContent for {chapter_name}",
-                    is_file=True
-                )
-                mock_chapters.append(mock_chapter)
-                
-            # Mock document directory
-            mock_doc_path = self.mocker.Mock()
-            mock_doc_path.is_dir.return_value = True
-            mock_doc_path.iterdir.return_value = mock_chapters
-            
-            self.paths.mock_document_path(doc_name, mock_doc_path)
-            
-            return mock_doc_path, mock_chapters
-            
-        def setup_agent_test_environment(self, api_type="openai"):
-            """Set up complete agent testing environment."""
-            # Set environment variables
-            self.environment.set_api_environment(api_type)
-            
-            # Mock agent components
-            mock_agent, mock_agent_class, mock_agent_class_react = self.agents.mock_agent_class()
-            mock_server_instance, mock_server_class, mock_server_class_react = self.agents.mock_mcp_server()
-            mock_sync_llm, mock_async_llm = self.agents.mock_load_llm_config()
-            
-            return {
-                'agent': mock_agent,
-                'agent_class': mock_agent_class,
-                'agent_class_react': mock_agent_class_react,
-                'server_instance': mock_server_instance,
-                'server_class': mock_server_class,
-                'server_class_react': mock_server_class_react,
-                'llm_sync': mock_sync_llm,
-                'llm_async': mock_async_llm
-            }
-            
-    return CompleteMockEnvironment()
-
-
-# ================================
-# E2E Testing Fixtures
-# ================================
-
-
-@pytest.fixture
-def skip_if_no_api_key():
-    """
-    Decorator fixture to skip tests if no real API key is available.
-    
-    This uses the shared has_real_api_key function from environment module.
-    """
-    from tests.shared.environment import has_real_api_key
-    
-    def decorator():
-        return pytest.mark.skipif(
-            not has_real_api_key(),
-            reason="E2E test requires a real API key (OPENAI_API_KEY, or GEMINI_API_KEY)",
-        )
-    
-    return decorator()
-
-
-@pytest.fixture
-def sample_documents_fixture(test_docs_root):
-    """
-    Fixture that sets up sample documents for e2e testing.
-    
-    Returns:
-        dict: Contains paths and constants for sample documents
-    """
-    doc_name = "sample_document"
-    chapters = [
-        ("01-chapter1.md", "# Chapter 1\n\nThis is the first chapter."),
-        ("02-chapter2.md", "# Chapter 2\n\nThis is the second chapter."),
-        ("03-chapter3.md", "# Chapter 3\n\nThis is the third chapter."),
-    ]
-    
-    create_test_document(
-        docs_root=test_docs_root,
-        doc_name=doc_name,
-        chapters=chapters,
-    )
-    
-    doc_path = test_docs_root / doc_name
-    
-    # Create summary file
-    summary_text = "# Document Summary\n\n- Chapter 1\n- Chapter 2\n- Chapter 3"
-    (doc_path / "_SUMMARY.md").write_text(summary_text, encoding="utf-8")
-    
-    return {
-        "doc_name": doc_name,
-        "doc_path": doc_path,
-        "summary_text": summary_text,
-        "chapters": [c[0] for c in chapters],
-        "first_paragraph": "This is the first chapter.",
-    }
-
-
-@pytest.fixture
-def e2e_test_documents_storage():
-    """
-    Fixture for Simple Agent e2e tests that use .documents_storage directory.
-    
-    Automatically cleans up before and after test.
-    """
-    from pathlib import Path
-    import shutil
-    
-    storage_path = Path(".documents_storage")
-    
-    # Clean before test
-    if storage_path.exists():
-        shutil.rmtree(storage_path)
-    storage_path.mkdir(exist_ok=True)
-    
-    yield storage_path
-    
-    # Clean after test
-    if storage_path.exists():
-        shutil.rmtree(storage_path)
-
-
-@pytest.fixture
-def e2e_sample_documents(e2e_test_documents_storage):
-    """
-    Sets up sample documents in .documents_storage for Simple Agent e2e tests.
-    
-    Returns:
-        dict: Contains paths and constants for sample documents
-    """
-    doc_name = "sample_document"
-    chapters = [
-        ("01-chapter1.md", "# Chapter 1\n\nThis is the first chapter."),
-        ("02-chapter2.md", "# Chapter 2\n\nThis is the second chapter."),
-        ("03-chapter3.md", "# Chapter 3\n\nThis is the third chapter."),
-    ]
-
-    create_test_document(
-        docs_root=e2e_test_documents_storage,
-        doc_name=doc_name,
-        chapters=chapters,
-    )
-
-    doc_path = e2e_test_documents_storage / doc_name
-
-    # Create summary file
-    summary_text = "# Document Summary\n\n- Chapter 1\n- Chapter 2\n- Chapter 3"
-    (doc_path / "_SUMMARY.md").write_text(summary_text, encoding="utf-8")
-    
-    return {
-        "doc_name": "sample_document",
-        "doc_path": doc_path,
-        "storage_path": e2e_test_documents_storage,
-        "summary_text": summary_text,
-        "chapters": [c[0] for c in chapters],
-        "first_paragraph": "This is the first chapter.",
-    }
-
-
-# Mark for E2E tests
-skip_if_no_real_api_key = pytest.mark.skipif(
-    not has_real_api_key(),
-    reason="E2E test requires a real API key (OPENAI_API_KEY, or GEMINI_API_KEY)"
+# Skip decorator for tests requiring real API keys
+skip_if_no_api_key = pytest.mark.skipif(
+    not check_api_key_available(),
+    reason="Test requires a real API key (OPENAI_API_KEY or GEMINI_API_KEY)"
 )

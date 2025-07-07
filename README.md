@@ -28,6 +28,52 @@ pip install -e ".[dev]"
 python src/agents/simple_agent.py --check-config
 ```
 
+### Development Commands
+
+### Setup and Installation
+```bash
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install package with development dependencies
+pip install -e ".[dev]"
+
+# Verify setup
+python3 src/agents/simple_agent/main.py --check-config
+```
+
+### Testing Strategy
+```bash
+# Run all tests
+pytest
+
+# Run by test tier
+python3 -m pytest tests/unit/          # Unit tests (fastest, no external deps)
+python3 -m pytest tests/integration/   # Integration tests (real MCP, mocked LLM)
+python3 -m pytest tests/e2e/           # E2E tests (requires API keys)
+
+# Run with coverage
+python3 -m pytest --cov=document_mcp --cov-report=html
+
+# Quality checks
+python3 scripts/quality.py full
+```
+
+### Running the System
+```bash
+# Start MCP server (stdio transport)
+python3 -m document_mcp.doc_tool_server stdio
+
+# Test agents
+python3 src/agents/simple_agent/main.py --query "list all documents"
+python3 src/agents/react_agent/main.py --query "create a book with multiple chapters"
+
+# Interactive mode
+python3 src/agents/simple_agent/main.py --interactive
+python3 src/agents/react_agent/main.py --interactive
+```
+
 ### Environment Configuration
 
 Create a `.env` file with your API key according to `.env.example`, and fill in the required values.
@@ -40,11 +86,14 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 ### Key Features
 
-- **📁 Document Structure**: Organize content as directories with chapter files
-- **🔧 MCP Integration**: Full HTTP SSE Model Context Protocol support for AI agents
-- **🤖 Dual AI Agents**: Simple single-step agent and advanced ReAct multi-step agent
-- **📊 Analytics**: Built-in statistics and search capabilities
-- **🔄 Version Control Friendly**: Plain Markdown files work great with Git
+- **📁 Document Structure**: Organize content as directories with chapter files.
+- **🔧 25+ MCP Tools**: Comprehensive document manipulation API with tools for atomic paragraph operations, content analysis, and more.
+- **🤖 Dual AI Agents**: 
+    - **Simple Agent**: Stateless, single-turn execution for discrete operations.
+    - **ReAct Agent**: Stateful, multi-turn agent for complex workflows.
+- **📊 Observability**: Structured logging with OpenTelemetry and Prometheus metrics.
+- **✅ Robust Testing**: 3-tier testing strategy (unit, integration, E2E).
+- **🔄 Version Control Friendly**: Plain Markdown files work great with Git.
 
 ### Document Organization
 
@@ -63,28 +112,25 @@ Document MCP provides a structured way to manage large documents composed of mul
 ## 🏗️ Project Structure
 
 ```
-.
-├── document_mcp/               # 📦 Main MCP server package
-│   ├── doc_tool_server.py      # MCP server implementation
-│   ├── __init__.py             # Package initializer
-│   └── README.md               # Package documentation (PyPI)
-├── src/                        # 💡 Agent implementations
-│   └── agents/
-│       ├── simple_agent.py     # Simple single-step agent
-│       └── react_agent/
-│           └── main.py         # Advanced ReAct multi-step agent
-├── tests/                      # 🧪 Comprehensive test suite
-│   ├── unit/                   # Unit tests
-│   ├── integration/            # Integration tests
-│   └── fixtures/               # Test fixtures and demos
-├── docs/                       # 📚 Documentation
-│   ├── README.md               # Agent architecture guide
-│   └── examples/               # Usage examples
-├── scripts/                    # 🛠️ Development utilities
-│   ├── run_pytest.py           # Pytest test runner
-│   └── quality.py              # Code quality management
-├── pyproject.toml              # Package configuration
-└── README.md                   # This file (GitHub)
+document-mcp/
+├── document_mcp/           # Core MCP server package
+│   ├── doc_tool_server.py  # Main server with 25+ document tools
+│   ├── logger_config.py    # Structured logging with OpenTelemetry
+│   └── metrics_config.py   # Prometheus metrics and monitoring
+├── src/agents/             # AI agent implementations
+│   ├── simple_agent/       # Stateless single-turn agent package
+│   │   ├── main.py         # Agent execution logic
+│   │   └── prompts.py      # System prompts
+│   ├── react_agent/        # Stateful multi-turn ReAct agent
+│   │   └── main.py
+│   └── shared/             # Shared agent utilities
+│       ├── cli.py          # Common CLI functionality
+│       ├── config.py       # Enhanced Pydantic Settings
+│       └── error_handling.py
+└── tests/                  # 3-tier testing strategy
+    ├── unit/              # Isolated component tests (mocked)
+    ├── integration/       # Agent-server tests (real MCP, mocked LLM)
+    └── e2e/               # Full system tests (real APIs)
 ```
 
 ## 🤖 Agent Examples and Tutorials
@@ -113,7 +159,7 @@ This project provides two distinct agent implementations for document management
 
 This project provides two agent implementations with unified command patterns. Choose based on your needs:
 
-- **Simple Agent** (`src/agents/simple_agent.py`): For straightforward single-step operations
+- **Simple Agent** (`src/agents/simple_agent/`): For straightforward single-step operations
 - **ReAct Agent** (`src/agents/react_agent/main.py`): For complex multi-step workflows with reasoning
 
 
@@ -135,6 +181,35 @@ This project provides two agent implementations with unified command patterns. C
 - You're working in production environments requiring robust error handling
 - Your tasks benefit from adaptive problem-solving and cumulative learning
 - You need detailed execution logs for debugging or auditing
+
+### Agent Selection Guide
+
+### Simple Agent - When to Use
+✅ **Ideal for**:
+- Single-step document operations
+- Quick queries and information retrieval
+- JSON output requirements
+- Prototyping and development
+- Batch processing scripts
+
+❌ **Avoid for**:
+- Complex multi-step workflows
+- Tasks requiring intermediate reasoning
+- Operations needing error recovery
+- Production environments with high reliability needs
+
+### ReAct Agent - When to Use
+✅ **Ideal for**:
+- Complex document creation and editing workflows
+- Tasks requiring planning and decomposition
+- Production environments needing reliability
+- Scenarios where reasoning transparency is valuable
+- Multi-step operations with dependencies
+
+❌ **Avoid for**:
+- Simple single-step operations
+- Performance-critical scenarios (higher overhead)
+- Cases where structured JSON output is required
 
 ### Practical Examples - Step by Step
 
@@ -202,16 +277,16 @@ Once you have the MCP server running, you can immediately test all features:
 **Quick Configuration Check:**
 ```bash
 # Verify your setup is working
-python src/agents/simple_agent.py --check-config
+python src/agents/simple_agent/main.py --check-config
 ```
 
 **Test the Complete Workflow:**
 ```bash
 # Start with simple operations
-python src/agents/simple_agent.py --query "Create a new document called 'Test Document'"
-python src/agents/simple_agent.py --query "Add a chapter named '01-intro.md' with content 'Hello World!'"
-python src/agents/simple_agent.py --query "List all my documents"
-python src/agents/simple_agent.py --query "Read the full document 'Test Document'"
+python src/agents/simple_agent/main.py --query "Create a new document called 'Test Document'"
+python src/agents/simple_agent/main.py --query "Add a chapter named '01-intro.md' with content 'Hello World!'"
+python src/agents/simple_agent/main.py --query "List all my documents"
+python src/agents/simple_agent/main.py --query "Read the full document 'Test Document'"
 
 # Try complex multi-step workflows
 python src/agents/react_agent/main.py --query "Create a book outline with 3 chapters"
@@ -220,7 +295,7 @@ python src/agents/react_agent/main.py --query "Create a book outline with 3 chap
 **Interactive Mode for Extended Testing:**
 ```bash
 # Simple agent for straightforward tasks
-python src/agents/simple_agent.py --interactive
+python src/agents/simple_agent/main.py --interactive
 
 # ReAct agent for complex reasoning
 python src/agents/react_agent/main.py --interactive
@@ -254,15 +329,15 @@ Both agents share the same configuration system and support the same command-lin
 
 ```bash
 # Check configuration (both agents)
-python src/agents/simple_agent.py --check-config
+python src/agents/simple_agent/main.py --check-config
 python src/agents/react_agent/main.py --check-config
 
 # Single query mode (both agents)
-python src/agents/simple_agent.py --query "list all documents"
+python src/agents/simple_agent/main.py --query "list all documents"
 python src/agents/react_agent/main.py --query "create a book with multiple chapters"
 
 # Interactive mode (both agents)
-python src/agents/simple_agent.py --interactive
+python src/agents/simple_agent/main.py --interactive
 python src/agents/react_agent/main.py --interactive
 ```
 
@@ -282,35 +357,27 @@ Run through this checklist if you're having issues:
 
 If you're still having issues:
 
-1. **Run the configuration check**: `python src/agents/simple_agent.py --check-config`
-2. **Test basic functionality**: `python src/agents/simple_agent.py --query "list documents"`
+1. **Run the configuration check**: `python src/agents/simple_agent/main.py --check-config`
+2. **Test basic functionality**: `python src/agents/simple_agent/main.py --query "list documents"`
 3. **Review the test suite**: `python scripts/run_pytest.py`
 4. **Check the documentation**: See the Agent Examples section above for detailed agent architecture
 
-## 🧪 Testing
-
-The project is tested using a three-tier strategy: unit, integration, and end-to-end (E2E) tests. We use `pytest` for test execution and `pytest-mock` for mocking dependencies.
-
-### Running Tests
-
-To run all tests, use the following command:
+### Testing Strategy
 ```bash
+# Run all tests
 pytest
-```
 
-To run specific test categories:
-```bash
-pytest tests/unit/          # Unit tests only
-pytest tests/integration/   # Integration tests only
-pytest tests/e2e/           # E2E tests only (requires API keys)
-```
+# Run by test tier
+python3 -m pytest tests/unit/          # Unit tests (fastest, no external deps)
+python3 -m pytest tests/integration/   # Integration tests (real MCP, mocked LLM)
+python3 -m pytest tests/e2e/           # E2E tests (requires API keys)
 
-To run tests with coverage:
-```bash
-pytest --cov=document_mcp --cov-report=html
-```
+# Run with coverage
+python3 -m pytest --cov=document_mcp --cov-report=html
 
-For more details on the testing strategy, see the [Testing Guidelines](tests/testing_guidelines.md).
+# Quality checks
+python3 scripts/quality.py full
+```
 
 ## 🛠️ Development Setup
 
@@ -381,7 +448,7 @@ python scripts/quality.py check --verbose
 - **Import Style**: Black-compatible with isort
 - **Type Hints**: Encouraged for public APIs
 - **Complexity**: Maximum cyclomatic complexity of 10
-- **Test Coverage**: Comprehensive unit and integration tests (445+ tests)
+- **Test Coverage**: Comprehensive unit and integration tests (82+ tests)
 
 #### Recommended Workflow
 
@@ -401,7 +468,7 @@ The quality management system provides comprehensive automation for maintaining 
 
 #### Test Coverage
 
-The system provides enterprise-grade reliability with **445+ comprehensive tests** covering:
+The system provides enterprise-grade reliability with **82+ comprehensive tests** covering:
 
 **Core Testing Areas:**
 - **Document Operations**: Full CRUD operations and management

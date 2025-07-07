@@ -10,6 +10,7 @@ import datetime
 import difflib  # Added for generating unified diffs
 import os
 import re  # Added for robust paragraph splitting
+import shutil
 import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -253,6 +254,13 @@ class FullDocumentContent(BaseModel):
     chapters: List[ChapterContent]  # Ordered list of chapter contents
     total_word_count: int
     total_paragraph_count: int
+
+
+class DocumentSummary(BaseModel):
+    """Content of a document's summary file."""
+
+    document_name: str
+    content: str
 
 
 class StatisticsReport(BaseModel):
@@ -702,7 +710,7 @@ def read_chapter_content(
 
 @mcp_server.tool()
 @log_mcp_call
-def read_document_summary(document_name: str) -> Optional[str]:
+def read_document_summary(document_name: str) -> Optional[DocumentSummary]:
     r"""
     Retrieve the content of a document's summary file (_SUMMARY.md).
     
@@ -714,8 +722,9 @@ def read_document_summary(document_name: str) -> Optional[str]:
         document_name (str): Name of the document directory to read summary from
     
     Returns:
-        Optional[str]: Raw text content of the _SUMMARY.md file if it exists,
-        None if the summary file doesn't exist or cannot be read.
+        Optional[DocumentSummary]: A DocumentSummary object containing the document name
+        and summary content if it exists, None if the summary file doesn't exist or
+        cannot be read.
         
         Returns None if:
         - Document directory doesn't exist
@@ -734,6 +743,7 @@ def read_document_summary(document_name: str) -> Optional[str]:
     Example Success Response:
         ```json
         {
+            "document_name": "user_guide",
             "content": "# Document Summary\n\n- Chapter 1\n- Chapter 2"
         }
         ```
@@ -787,7 +797,7 @@ def read_document_summary(document_name: str) -> Optional[str]:
 
     try:
         summary_content = summary_file_path.read_text(encoding="utf-8")
-        return summary_content
+        return DocumentSummary(document_name=document_name, content=summary_content)
     except Exception as e:
         log_structured_error(
             category=ErrorCategory.ERROR,
@@ -1158,26 +1168,7 @@ def delete_document(document_name: str) -> OperationStatus:
             success=False, message=f"Document '{document_name}' not found."
         )
     try:
-        # Delete all files within the directory first
-        for item in doc_path.iterdir():
-            if item.is_file():
-                item.unlink()
-            elif (
-                item.is_dir()
-            ):  # Should not happen based on current structure, but good practice
-                # Recursively delete subdirectories if any (e.g. import shutil; shutil.rmtree(item))
-                # For now, assume no subdirs other than files.
-                log_structured_error(
-                    category=ErrorCategory.WARNING,
-                    message="Subdirectory found in document during deletion",
-                    context={
-                        "document_name": document_name,
-                        "subdirectory_path": str(item),
-                        "cleanup_note": "Manual cleanup might be needed if it wasn't deleted"
-                    },
-                    operation="delete_document"
-                )
-        doc_path.rmdir()  # Remove the now-empty directory
+        shutil.rmtree(doc_path)
         return OperationStatus(
             success=True,
             message=f"Document '{document_name}' and its contents deleted successfully.",
@@ -1815,16 +1806,16 @@ def delete_paragraph(
         paragraphs = _split_into_paragraphs(original_full_content)
         total_paragraphs = len(paragraphs)
 
-        if not (0 <= paragraph_index < total_paragraphs):
-            return OperationStatus(
-                success=False,
-                message=f"Paragraph index {paragraph_index} is out of bounds (0-{total_paragraphs-1}).",
-            )
-
-        if not paragraphs:
+        if total_paragraphs == 0:
             return OperationStatus(
                 success=False,
                 message="Cannot delete paragraph from an empty chapter.",
+            )
+
+        if not (0 <= paragraph_index < total_paragraphs):
+            return OperationStatus(
+                success=False,
+                message=f"Paragraph index {paragraph_index} is out of bounds for chapter with {total_paragraphs} paragraphs (valid range 0-{total_paragraphs-1}).",
             )
 
         del paragraphs[paragraph_index]
@@ -2040,7 +2031,7 @@ def replace_text_in_chapter(
         return OperationStatus(success=False, message=chapter_error)
 
     if not text_to_find:
-        return OperationStatus(success=False, message="Text to find cannot be empty")
+        return OperationStatus(success=False, message="Text to find cannot be empty.")
 
     is_valid_replacement, replacement_error = _validate_content(replacement_text)
     if not is_valid_replacement:
@@ -2852,6 +2843,13 @@ def move_paragraph_to_end(
             )
 
         # Move the paragraph to the end
+        if paragraph_to_move_index == len(paragraphs) - 1:
+            return OperationStatus(
+                success=True,
+                message=f"Paragraph {paragraph_to_move_index} is already at the end of '{chapter_name}' ({document_name}).",
+                details={"changed": False},
+            )
+    
         paragraph_to_move = paragraphs.pop(paragraph_to_move_index)
         paragraphs.append(paragraph_to_move)
         
