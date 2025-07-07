@@ -9,7 +9,6 @@ checking functionality used by both simple and ReAct agents.
 import argparse
 import os
 from pathlib import Path
-from typing import Dict, Any, Optional
 
 from .config import check_api_keys_config
 
@@ -17,27 +16,27 @@ from .config import check_api_keys_config
 def create_base_parser(description: str) -> argparse.ArgumentParser:
     """Create the base argument parser with common options."""
     parser = argparse.ArgumentParser(description=description)
-    
+
     parser.add_argument(
         "--query",
         "-q",
         type=str,
         help="A single query to process. If provided, the agent will run non-interactively.",
     )
-    
+
     parser.add_argument(
         "--interactive",
         "-i",
         action="store_true",
         help="Run in interactive mode",
     )
-    
+
     parser.add_argument(
         "--check-config",
         action="store_true",
         help="Check API key configuration and exit.",
     )
-    
+
     return parser
 
 
@@ -68,9 +67,7 @@ def handle_config_check() -> None:
         print(f"Active model: {config['active_model']}")
     else:
         print("No API keys configured!")
-        print(
-            "Please set either OPENAI_API_KEY or GEMINI_API_KEY in your .env file."
-        )
+        print("Please set either OPENAI_API_KEY or GEMINI_API_KEY in your .env file.")
 
 
 def validate_api_configuration() -> bool:
@@ -87,8 +84,10 @@ def validate_api_configuration() -> bool:
             "- GEMINI_MODEL_NAME (default: gemini-2.5-flash)"
         )
         return False
-    
-    print(f"Using {config['active_provider'].upper()} with model: {config['active_model']}")
+
+    print(
+        f"Using {config['active_provider'].upper()} with model: {config['active_model']}"
+    )
     return True
 
 
@@ -96,6 +95,7 @@ def setup_document_root() -> None:
     """Set the document root directory for the server-side logic."""
     if "DOCUMENT_ROOT_DIR" in os.environ:
         from document_mcp import doc_tool_server
+
         doc_tool_server.DOCS_ROOT_PATH = Path(os.environ["DOCUMENT_ROOT_DIR"])
 
 
@@ -109,4 +109,10 @@ def parse_react_agent_args() -> argparse.Namespace:
     """Parse command-line arguments for the ReAct agent."""
     parser = create_base_parser("ReAct Document Management Agent")
     add_react_specific_args(parser)
+    return parser.parse_args()
+
+
+def parse_planner_agent_args() -> argparse.Namespace:
+    """Parse command-line arguments for the planner agent."""
+    parser = create_base_parser("Planner Agent - Plan-and-Execute approach")
     return parser.parse_args()

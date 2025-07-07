@@ -1,29 +1,18 @@
-import argparse
 import asyncio
 import logging
 import os
 import sys
-from typing import Any, Dict, List, Optional, Union
+import time
+from typing import Optional, Tuple
 
-from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.mcp import MCPServerStdio
-from pydantic_ai.models.gemini import GeminiModel
-from pydantic_ai.models.openai import OpenAIModel
 
 # Import models from the server to ensure compatibility
-from document_mcp.doc_tool_server import (
-    ChapterContent,
-    ChapterMetadata,
-    DocumentInfo,
-    FullDocumentContent,
-    OperationStatus,
-    ParagraphDetail,
-    StatisticsReport,
-)
 from src.agents.shared.error_handling import RetryManager
+from src.agents.shared.performance_metrics import AgentPerformanceMetrics, PerformanceMetricsCollector
 
 # Suppress verbose HTTP logging from requests/urllib3
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -32,20 +21,27 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 
-# --- Configuration ---
-from src.agents.shared.config import load_llm_config, check_api_keys_config, MCP_SERVER_CMD, DEFAULT_TIMEOUT
-from src.agents.shared.cli import parse_simple_agent_args, handle_config_check, setup_document_root
-from src.agents.simple_agent.prompts import SIMPLE_AGENT_SYSTEM_PROMPT
+from src.agents.shared.cli import (
+    handle_config_check,
+    parse_simple_agent_args,
+    setup_document_root,
+)
 
+# --- Configuration ---
+from src.agents.shared.config import DEFAULT_TIMEOUT, MCP_SERVER_CMD, load_llm_config
+from src.agents.simple_agent.prompts import get_simple_agent_system_prompt
 
 # --- Agent Response Model (for Pydantic AI Agent's structured output) ---
 # Using imported models from the server to ensure compatibility
+
 
 class FinalAgentResponse(BaseModel):
     """Defines the final structured output expected from the Pydantic AI agent."""
 
     summary: str
-    details: Optional[str] = None  # Use string instead of Dict to avoid Gemini additionalProperties limitation
+    details: Optional[str] = (
+        None  # Use string instead of Dict to avoid Gemini additionalProperties limitation
+    )
     error_message: Optional[str] = None
 
 
@@ -68,20 +64,18 @@ async def initialize_agent_and_mcp_server() -> (
         raise
 
     # Configuration for stdio transport using shared constant
-    
+
     # Prepare environment for MCP server subprocess
     server_env = None
     if "DOCUMENT_ROOT_DIR" in os.environ:
         server_env = {
             **os.environ,
-            "PYTEST_CURRENT_TEST": "1"  # Signal to MCP server we're in test mode
+            "PYTEST_CURRENT_TEST": "1",  # Signal to MCP server we're in test mode
         }
-    
+
     try:
         mcp_server = MCPServerStdio(
-            command=MCP_SERVER_CMD[0],
-            args=MCP_SERVER_CMD[1:],
-            env=server_env
+            command=MCP_SERVER_CMD[0], args=MCP_SERVER_CMD[1:], env=server_env
         )
     except Exception as e:
         print(f"Error creating MCP server: {e}", file=sys.stderr)
@@ -91,13 +85,13 @@ async def initialize_agent_and_mcp_server() -> (
         agent: Agent[FinalAgentResponse] = Agent(
             llm,
             mcp_servers=[mcp_server],
-            system_prompt=SIMPLE_AGENT_SYSTEM_PROMPT,
+            system_prompt=get_simple_agent_system_prompt(),
             output_type=FinalAgentResponse,
         )
     except Exception as e:
         print(f"Error creating agent: {e}", file=sys.stderr)
         raise RuntimeError("Agent creation failed") from e
-        
+
     return agent, mcp_server
 
 
@@ -106,6 +100,7 @@ async def process_single_user_query(
 ) -> Optional[FinalAgentResponse]:
     """Processes a single user query using the provided agent and returns the structured response."""
     try:
+
         async def _run_agent():
             return await agent.run(user_query)
 
@@ -134,6 +129,77 @@ async def process_single_user_query(
         )
 
 
+async def process_single_user_query_with_metrics(
+    agent: Agent[FinalAgentResponse], user_query: str
+) -> Tuple[Optional[FinalAgentResponse], AgentPerformanceMetrics]:
+    """
+    Processes a single user query and returns both response and real performance metrics.
+    
+    This function captures actual performance data from the agent execution,
+    replacing hardcoded mock values with real measurements.
+    """
+    start_time = time.time()
+    
+    try:
+        async def _run_agent():
+            return await agent.run(user_query)
+
+        # Use RetryManager for robust error handling with timeout
+        run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
+            _retry_manager.execute_with_retry(_run_agent),
+            timeout=DEFAULT_TIMEOUT,
+        )
+
+        # Collect real performance metrics from the agent result
+        metrics = PerformanceMetricsCollector.collect_from_agent_result(
+            agent_result=run_result,
+            agent_type="simple",
+            execution_start_time=start_time,
+        )
+
+        # Process the response
+        if run_result and run_result.output:
+            response = run_result.output
+            metrics.success = True
+            if hasattr(response, 'model_dump'):
+                metrics.response_data = response.model_dump()
+            return response, metrics
+        elif run_result and run_result.error_message:
+            response = FinalAgentResponse(
+                summary=f"Agent error: {run_result.error_message}",
+                details=None,
+                error_message=run_result.error_message,
+            )
+            metrics.success = False
+            metrics.error_message = run_result.error_message
+            metrics.response_data = response.model_dump()
+            return response, metrics
+        else:
+            # No response case
+            metrics.success = False
+            metrics.error_message = "No response from agent"
+            return None, metrics
+            
+    except Exception as e:
+        # Handle execution exceptions
+        metrics = PerformanceMetricsCollector.collect_from_timing_and_response(
+            execution_start_time=start_time,
+            agent_type="simple",
+            response_data={"error": str(e)},
+            success=False,
+            error_message=str(e)
+        )
+        
+        response = FinalAgentResponse(
+            summary=f"Agent processing failed: {e}",
+            details=None,
+            error_message=str(e),
+        )
+        
+        print(f"Error during agent query processing: {e}", file=sys.stderr)
+        return response, metrics
+
+
 # --- Main Agent Interactive Loop ---
 async def main():
     """Initializes and runs the Pydantic AI agent."""
@@ -146,7 +212,7 @@ async def main():
 
     # Set the document root directory for the server-side logic
     setup_document_root()
-    
+
     try:
         agent, mcp_server = await initialize_agent_and_mcp_server()
     except (ValueError, FileNotFoundError):

@@ -1,15 +1,18 @@
 """
 Unit tests for document MCP tool server helper functions.
 """
+
 import pytest
+
 from document_mcp.doc_tool_server import (
-    _count_words,
-    _split_into_paragraphs,
-    _is_valid_chapter_filename,
-    _validate_content,
     CHAPTER_MANIFEST_FILE,
     DOCUMENT_SUMMARY_FILE,
+    _count_words,
+    _is_valid_chapter_filename,
+    _split_into_paragraphs,
+    _validate_content,
 )
+
 
 class TestHelperFunctions:
     """Test suite for helper functions in doc_tool_server."""
@@ -72,66 +75,92 @@ class TestHelperFunctions:
         """Test filename validation rejects summary file."""
         assert _is_valid_chapter_filename(DOCUMENT_SUMMARY_FILE) is False
 
+
 class TestInputValidationHelpers:
     """Test suite for input validation helper functions."""
 
-    @pytest.mark.parametrize("name, expected_valid, expected_error_msg", [
-        ("doc_name", True, ""),
-        ("doc-name-123", True, ""),
-        (None, False, "Document name cannot be empty"),
-        ("invalid/name", False, "Document name cannot contain path separators"),
-    ])
+    @pytest.mark.parametrize(
+        "name, expected_valid, expected_error_msg",
+        [
+            ("doc_name", True, ""),
+            ("doc-name-123", True, ""),
+            (None, False, "Document name cannot be empty"),
+            ("invalid/name", False, "Document name cannot contain path separators"),
+        ],
+    )
     def test_validate_document_name(self, name, expected_valid, expected_error_msg):
         from document_mcp.doc_tool_server import _validate_document_name
+
         is_valid, error = _validate_document_name(name)
         assert is_valid is expected_valid
         if not expected_valid:
             assert expected_error_msg == error
 
-    @pytest.mark.parametrize("name, expected_valid, expected_error_msg", [
-        ("chapter1.md", True, ""),
-        ("01-intro.md", True, ""),
-        (None, False, "Chapter name cannot be empty"),
-        ("invalid/chapter.md", False, "Chapter name cannot contain path separators"),
-        ("no_extension", False, "Chapter name must end with .md"),
-    ])
+    @pytest.mark.parametrize(
+        "name, expected_valid, expected_error_msg",
+        [
+            ("chapter1.md", True, ""),
+            ("01-intro.md", True, ""),
+            (None, False, "Chapter name cannot be empty"),
+            (
+                "invalid/chapter.md",
+                False,
+                "Chapter name cannot contain path separators",
+            ),
+            ("no_extension", False, "Chapter name must end with .md"),
+        ],
+    )
     def test_validate_chapter_name(self, name, expected_valid, expected_error_msg):
         from document_mcp.doc_tool_server import _validate_chapter_name
+
         is_valid, error = _validate_chapter_name(name)
         assert is_valid == expected_valid
         assert error == expected_error_msg
 
-    @pytest.mark.parametrize("content, expected_valid, expected_error_msg", [
-        ("Some valid content.", True, ""),
-        ("", True, ""),
-        (None, False, "Content cannot be None"),
-        (12345, False, "Content must be a string"),
-    ])
-    def test_validate_content_general_cases(self, content, expected_valid, expected_error_msg):
+    @pytest.mark.parametrize(
+        "content, expected_valid, expected_error_msg",
+        [
+            ("Some valid content.", True, ""),
+            ("", True, ""),
+            (None, False, "Content cannot be None"),
+            (12345, False, "Content must be a string"),
+        ],
+    )
+    def test_validate_content_general_cases(
+        self, content, expected_valid, expected_error_msg
+    ):
         """Test content validation for general cases (None, type, and short strings)."""
         is_valid, error = _validate_content(content)
         assert is_valid == expected_valid
         assert error == expected_error_msg
 
-    @pytest.mark.parametrize("index, expected_valid, expected_error_msg", [
-        (0, True, ""),
-        (100, True, ""),
-        (-1, False, "Paragraph index cannot be negative"),
-    ])
+    @pytest.mark.parametrize(
+        "index, expected_valid, expected_error_msg",
+        [
+            (0, True, ""),
+            (100, True, ""),
+            (-1, False, "Paragraph index cannot be negative"),
+        ],
+    )
     def test_validate_paragraph_index(self, index, expected_valid, expected_error_msg):
         from document_mcp.doc_tool_server import _validate_paragraph_index
+
         is_valid, error = _validate_paragraph_index(index)
         assert is_valid is expected_valid
         if not expected_valid:
             assert expected_error_msg == error
 
-    @pytest.mark.parametrize("query, expected_valid, expected_error_msg", [
-        ("hello", True, ""),
-        (None, False, "Search query cannot be None"),
-        ("", False, "Search query cannot be empty or whitespace only"),
-    ])
+    @pytest.mark.parametrize(
+        "query, expected_valid, expected_error_msg",
+        [
+            ("hello", True, ""),
+            (None, False, "Search query cannot be None"),
+            ("", False, "Search query cannot be empty or whitespace only"),
+        ],
+    )
     def test_validate_search_query(self, query, expected_valid, expected_error_msg):
         from document_mcp.doc_tool_server import _validate_search_query
+
         is_valid, error = _validate_search_query(query)
         assert is_valid is expected_valid
         if not expected_valid:

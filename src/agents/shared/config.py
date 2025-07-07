@@ -1,8 +1,7 @@
-
 """
 Shared configuration for agents using Pydantic Settings for validation.
 """
-import os
+
 from typing import Literal, Optional
 
 from dotenv import load_dotenv
@@ -19,27 +18,37 @@ MAX_RETRIES = 3
 
 class AgentSettings(BaseSettings):
     """Pydantic Settings model for agent configuration with validation."""
-    
+
     # API Keys
     openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key")
-    gemini_api_key: Optional[str] = Field(default=None, description="Google Gemini API key")
-    
+    gemini_api_key: Optional[str] = Field(
+        default=None, description="Google Gemini API key"
+    )
+
     # Model Names
-    openai_model_name: str = Field(default="gpt-4.1-mini", description="OpenAI model name")
-    gemini_model_name: str = Field(default="gemini-2.5-flash", description="Gemini model name")
-    
+    openai_model_name: str = Field(
+        default="gpt-4.1-mini", description="OpenAI model name"
+    )
+    gemini_model_name: str = Field(
+        default="gemini-2.5-flash", description="Gemini model name"
+    )
+
     # Document Root
-    document_root_dir: Optional[str] = Field(default=None, description="Document storage root directory")
-    
+    document_root_dir: Optional[str] = Field(
+        default=None, description="Document storage root directory"
+    )
+
     # Test Mode
-    pytest_current_test: Optional[str] = Field(default=None, description="Test mode indicator")
-    
+    pytest_current_test: Optional[str] = Field(
+        default=None, description="Test mode indicator"
+    )
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
     }
-    
+
     @model_validator(mode="after")
     def validate_api_keys(self):
         """Ensure at least one API key is provided."""
@@ -47,17 +56,17 @@ class AgentSettings(BaseSettings):
             # Don't raise error during initialization - let the application handle it
             pass
         return self
-    
+
     @property
     def openai_configured(self) -> bool:
         """Check if OpenAI is properly configured."""
         return bool(self.openai_api_key and self.openai_api_key.strip())
-    
+
     @property
     def gemini_configured(self) -> bool:
         """Check if Gemini is properly configured."""
         return bool(self.gemini_api_key and self.gemini_api_key.strip())
-    
+
     @property
     def active_provider(self) -> Optional[Literal["openai", "gemini"]]:
         """Get the active provider (OpenAI takes precedence)."""
@@ -66,7 +75,7 @@ class AgentSettings(BaseSettings):
         elif self.gemini_configured:
             return "gemini"
         return None
-    
+
     @property
     def active_model(self) -> Optional[str]:
         """Get the active model name."""
@@ -75,7 +84,7 @@ class AgentSettings(BaseSettings):
         elif self.active_provider == "gemini":
             return self.gemini_model_name
         return None
-    
+
     def to_legacy_dict(self) -> dict:
         """Convert to legacy dictionary format for backwards compatibility."""
         return {
@@ -96,12 +105,13 @@ def get_settings() -> AgentSettings:
 
 def check_api_keys_config():
     """Check API key configuration and return a status dictionary.
-    
+
     Legacy function maintained for backwards compatibility.
     Uses the new Pydantic Settings under the hood.
     """
     settings = get_settings()
     return settings.to_legacy_dict()
+
 
 async def load_llm_config():
     """Load and configure the LLM model based on available environment variables."""
@@ -110,7 +120,7 @@ async def load_llm_config():
     if settings.active_provider == "openai":
         print(f"Using OpenAI model: {settings.active_model}")
         return OpenAIModel(model_name=settings.active_model)
-    
+
     if settings.active_provider == "gemini":
         print(f"Using Gemini model: {settings.active_model}")
         return GeminiModel(model_name=settings.active_model)
@@ -125,4 +135,3 @@ async def load_llm_config():
         "- OPENAI_MODEL_NAME (default: gpt-4.1-mini)\n"
         "- GEMINI_MODEL_NAME (default: gemini-2.5-flash)"
     )
-

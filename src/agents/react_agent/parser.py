@@ -1,5 +1,6 @@
 import json
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, Tuple
+
 
 class ActionParser:
     """
@@ -15,7 +16,7 @@ class ActionParser:
 
         Returns:
             A tuple containing the tool name and a dictionary of arguments.
-        
+
         Raises:
             ValueError: If the action string is malformed.
         """
@@ -61,16 +62,16 @@ class ActionParser:
             # This is a very basic parser and has limitations.
             try:
                 args = {}
-                for arg in args_str.split(','):
-                    key, value = arg.split('=', 1)
+                for arg in args_str.split(","):
+                    key, value = arg.split("=", 1)
                     key = key.strip()
                     value = value.strip()
                     # Try to convert to int or bool
                     if value.isdigit():
                         value = int(value)
-                    elif value.lower() == 'true':
+                    elif value.lower() == "true":
                         value = True
-                    elif value.lower() == 'false':
+                    elif value.lower() == "false":
                         value = False
                     else:
                         # Remove quotes if present
@@ -80,5 +81,7 @@ class ActionParser:
                             value = value[1:-1]
                     args[key] = value
             except ValueError:
-                raise ValueError("Could not parse arguments. Ensure they are in key=value format.")
+                raise ValueError(
+                    "Could not parse arguments. Ensure they are in key=value format."
+                )
         return args

@@ -58,7 +58,7 @@ dev = [
 "document-mcp" = "document_mcp.doc_tool_server:main"
 
 [tool.setuptools]
-packages = ["document_mcp"]
+packages = ["document_mcp", "src", "src.agents", "src.agents.simple_agent", "src.agents.react_agent", "src.agents.planner_agent", "src.agents.shared"]
 
 [tool.setuptools.package-data]
 document_mcp = ["*.ini"]
