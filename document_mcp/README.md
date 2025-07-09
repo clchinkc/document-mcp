@@ -250,7 +250,7 @@ Tests cover all MCP tools, error handling, boundary conditions, and multi-step w
 
 ## Examples and Documentation
 
-For comprehensive examples, tutorials, and usage guides, visit the [GitHub repository](https://github.com/document-mcp/document-mcp).
+For comprehensive examples, tutorials, and usage guides, visit the [GitHub repository](https://github.com/clchinkc/document-mcp).
 
 ## License
 
@@ -258,8 +258,8 @@ MIT License
 
 ## Links
 
-- **GitHub Repository**: [https://github.com/document-mcp/document-mcp](https://github.com/document-mcp)
-- **Bug Reports**: [GitHub Issues](https://github.com/document-mcp/issues)
+- **GitHub Repository**: [https://github.com/clchinkc/document-mcp](https://github.com/clchinkc/document-mcp)
+- **Bug Reports**: [GitHub Issues](https://github.com/clchinkc/document-mcp/issues)
 
 ## Enhanced Error Handling and Logging
 

@@ -10,7 +10,7 @@ authors = [
 ]
 description = "A MCP server for managing structured Markdown documents"
 readme = "document_mcp/README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.9"
 keywords = ["mcp", "document", "management"]
 license = {text = "MIT"}
 classifiers = [
@@ -56,9 +56,10 @@ dev = [
 
 [project.scripts]
 "document-mcp" = "document_mcp.doc_tool_server:main"
+"optimize-prompts" = "prompt_optimizer.cli:main"
 
 [tool.setuptools]
-packages = ["document_mcp"]
+packages = ["document_mcp", "src", "src.agents", "src.agents.simple_agent", "src.agents.react_agent", "src.agents.planner_agent", "src.agents.shared", "prompt_optimizer"]
 
 [tool.setuptools.package-data]
 document_mcp = ["*.ini"]
