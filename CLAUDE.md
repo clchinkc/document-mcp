@@ -36,10 +36,17 @@ document-mcp/
 │       ├── output_formatter.py # JSON output standardization
 │       ├── performance_metrics.py # Performance tracking
 │       └── tool_descriptions.py # Dynamic tool description system
-└── tests/                  # 3-tier testing strategy
+├── prompt_optimizer/       # Automated prompt optimization tool
+│   ├── core.py            # Main PromptOptimizer class
+│   ├── evaluation.py      # Performance evaluation system
+│   ├── cli.py             # Command-line interface
+│   └── README.md          # Optimization tool documentation
+└── tests/                  # 4-tier testing strategy
     ├── unit/              # Isolated component tests (mocked)
     ├── integration/       # Agent-server tests (real MCP, mocked LLM)
-    └── e2e/               # Full system tests (real APIs)
+    ├── e2e/               # Full system tests (real APIs)
+    ├── evaluation/        # Performance benchmarking and prompt evaluation
+    └── README.md          # Testing guidelines and best practices
 ```
 
 ## Development Commands
@@ -86,6 +93,11 @@ python3 src/agents/react_agent/main.py --query "create a book with multiple chap
 # Interactive mode
 python3 src/agents/simple_agent/main.py --interactive
 python3 src/agents/react_agent/main.py --interactive
+
+# Optimize agent prompts (new)
+python3 -m prompt_optimizer simple     # Optimize specific agent
+python3 -m prompt_optimizer all        # Optimize all agents
+optimize-prompts simple                # Using installed CLI command
 ```
 
 ## Core System Components
@@ -161,7 +173,7 @@ python3 src/agents/react_agent/main.py --interactive
 
 ## Testing Architecture
 
-### 3-Tier Testing Strategy
+### 4-Tier Testing Strategy
 
 #### Tier 1: Unit Tests (`tests/unit/`)
 **Philosophy**: Isolated component testing with complete mocking
@@ -196,6 +208,19 @@ python3 src/agents/react_agent/main.py --interactive
 **Reliability Features**:
 - Response validation patterns for API variability
 - Graceful degradation for quota exhaustion
+
+#### Tier 4: Evaluation Tests (`tests/evaluation/`)
+**Philosophy**: Performance benchmarking for prompt optimization and agent evaluation
+**Coverage**: Real agent execution on standardized scenarios
+**Speed**: Medium (real LLM calls, managed execution)
+**LLM Calls**: Controlled real API calls for performance measurement
+
+**Key Features**:
+- Standardized benchmark scenarios for consistent evaluation
+- Performance metrics: token usage, execution time, success rates
+- Agent-specific thresholds and performance baselines
+- Integration with prompt optimizer for comprehensive evaluation
+- **Test Focus**: Measure agent performance improvements and prompt effectiveness
 
 ### Advanced Testing Infrastructure
 
@@ -299,6 +324,38 @@ result = await retry_manager.execute_with_retry(operation)
 4. **Add response models** in Pydantic for structured output
 5. **Test prompt changes** with unit and integration tests
 6. **Validate with E2E tests** for real-world scenarios
+7. **Optimize prompts** using `python3 -m prompt_optimizer <agent>` for automated improvements
+
+### Optimizing Agent Prompts
+The system includes an automated prompt optimizer with comprehensive performance evaluation:
+
+```bash
+# Optimize specific agent
+python3 -m prompt_optimizer simple
+python3 -m prompt_optimizer react  
+python3 -m prompt_optimizer planner
+
+# Optimize all agents
+python3 -m prompt_optimizer all
+
+# Use installed CLI command
+optimize-prompts simple
+```
+
+**Optimization Features**:
+- **Safe Optimization**: Conservative changes that preserve all existing functionality
+- **Performance-Based**: Uses real execution metrics to evaluate improvements
+- **Comprehensive Testing**: Validates changes against 105 tests (unit + integration + E2E)
+- **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
+- **Multi-Agent Support**: Works with Simple, ReAct, and Planner agents
+- **Simple Decision Logic**: Binary comparison - better than baseline performance index or not
+
+**How It Works**:
+1. **Baseline Measurement**: Measures current prompt performance across all tests
+2. **Conservative Optimization**: LLM generates minimal, safe improvements  
+3. **Comprehensive Validation**: Runs 105 tests plus performance benchmarks
+4. **Decision Logic**: Accepts only if tests pass AND performance improves
+5. **Safety First**: Automatic backup and restore if anything breaks
 
 ## Troubleshooting
 

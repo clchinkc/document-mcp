@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document outlines the testing strategy, structure, and best practices for the Document MCP project. A robust testing culture is crucial for maintaining code quality, preventing regressions, and enabling confident refactoring. Our test suite is organized into three main categories—Unit, Integration, and End-to-End (E2E)—each serving a distinct purpose.
+This document outlines the testing strategy, structure, and best practices for the Document MCP project. A robust testing culture is crucial for maintaining code quality, preventing regressions, and enabling confident refactoring. Our test suite is organized into four main categories—Unit, Integration, End-to-End (E2E), and Evaluation—each serving a distinct purpose.
 
 ## 2. Test Structure
 
@@ -13,6 +13,7 @@ tests/
 ├── unit/         # Isolated function/class tests (no I/O)
 ├── integration/  # Component interaction tests (mocked LLM, real MCP)
 ├── e2e/          # Full system tests (real LLM, real MCP)
+├── evaluation/   # Performance benchmarking and prompt evaluation
 ├── shared/       # Shared utilities, base classes, and helpers
 ├── fixtures/     # Complex test data setup and fixtures
 └── conftest.py   # Global pytest configuration and fixtures
@@ -44,6 +45,15 @@ tests/
   - **Stateful and Asynchronous**: Follows the same stateful, class-based, and asynchronous patterns as integration tests.
   - **Conditional Execution**: Tests are automatically skipped via `@skip_if_no_real_api_key` if API keys are not available. This prevents failures in CI environments without secrets.
 - **Example**: Testing a full user query like "Create a document, add a chapter, and then summarize it."
+
+### 3.4. Evaluation Tests (`tests/evaluation/`)
+- **Purpose**: To benchmark agent performance on standardized tasks for prompt optimization and performance measurement.
+- **Characteristics**:
+  - **Performance Benchmarks**: Real agent execution on standardized scenarios measuring success rates, token usage, and execution time.
+  - **Multi-Agent Testing**: Supports Simple, React, and Planner agents with agent-specific performance thresholds.
+  - **Comprehensive Metrics**: Tracks token efficiency, execution time, tool call frequency, and task completion rates.
+  - **Prompt Optimization Integration**: Used by the prompt optimizer to evaluate prompt improvements with real performance data.
+- **Example**: Running 5 benchmark scenarios to measure agent performance before/after prompt changes.
 
 ## 4. Key Architectural Patterns
 

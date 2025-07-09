@@ -6,7 +6,7 @@
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Model Context Protocol (MCP) server and agent implementations for managing structured Markdown documents.
+Document MCP exists to **complement and diversify the predominantly STEM-oriented toolsets (e.g. Claude Code, bash/grep agents)** by giving writers, researchers, and knowledge-managers first-class, local-first control over large-scale Markdown documents.
 
 ## 🚀 Quick Start
 
@@ -72,6 +72,11 @@ python3 src/agents/react_agent/main.py --query "create a book with multiple chap
 # Interactive mode
 python3 src/agents/simple_agent/main.py --interactive
 python3 src/agents/react_agent/main.py --interactive
+
+# Optimize agent prompts
+python3 -m prompt_optimizer simple     # Optimize specific agent
+python3 -m prompt_optimizer all        # Optimize all agents
+optimize-prompts simple                # Using installed CLI command
 ```
 
 ### Environment Configuration
@@ -88,11 +93,13 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 - **📁 Document Structure**: Organize content as directories with chapter files.
 - **🔧 25+ MCP Tools**: Comprehensive document manipulation API with tools for atomic paragraph operations, content analysis, and more.
-- **🤖 Dual AI Agents**: 
+- **🤖 AI Agents**: 
     - **Simple Agent**: Stateless, single-turn execution for discrete operations.
     - **ReAct Agent**: Stateful, multi-turn agent for complex workflows.
+    - **Planner Agent**: Strategic planning with execution for complex task decomposition.
+- **🚀 Prompt Optimizer**: Automated prompt optimization with performance benchmarking and real LLM evaluation.
 - **📊 Observability**: Structured logging with OpenTelemetry and Prometheus metrics.
-- **✅ Robust Testing**: 3-tier testing strategy (unit, integration, E2E).
+- **✅ Robust Testing**: 4-tier testing strategy (unit, integration, E2E, evaluation).
 - **🔄 Version Control Friendly**: Plain Markdown files work great with Git.
 
 ### Document Organization
@@ -127,10 +134,15 @@ document-mcp/
 │       ├── cli.py          # Common CLI functionality
 │       ├── config.py       # Enhanced Pydantic Settings
 │       └── error_handling.py
-└── tests/                  # 3-tier testing strategy
+├── prompt_optimizer/       # Automated prompt optimization tool
+│   ├── core.py            # Main PromptOptimizer class
+│   ├── evaluation.py      # Performance evaluation system
+│   └── cli.py             # Command-line interface
+└── tests/                  # 4-tier testing strategy
     ├── unit/              # Isolated component tests (mocked)
     ├── integration/       # Agent-server tests (real MCP, mocked LLM)
-    └── e2e/               # Full system tests (real APIs)
+    ├── e2e/               # Full system tests (real APIs)
+    └── evaluation/        # Performance benchmarking and prompt evaluation
 ```
 
 ## 🤖 Agent Examples and Tutorials
@@ -157,59 +169,38 @@ This project provides two distinct agent implementations for document management
 
 ### Getting Started with the Agents
 
-This project provides two agent implementations with unified command patterns. Choose based on your needs:
+Choose between three agent implementations:
 
-- **Simple Agent** (`src/agents/simple_agent/`): For straightforward single-step operations
-- **ReAct Agent** (`src/agents/react_agent/main.py`): For complex multi-step workflows with reasoning
+- **Simple Agent**: Single-step operations, structured JSON output, fast performance
+- **ReAct Agent**: Multi-step workflows, contextual reasoning, production reliability  
+- **Planner Agent**: Strategic planning with execution, complex task decomposition
 
+**Agent Selection:**
+- Use Simple Agent for: direct operations, JSON output, prototyping, batch processing
+- Use ReAct Agent for: complex workflows, multi-step planning, production environments, reasoning transparency
+- Use Planner Agent for: strategic planning, complex task decomposition, hierarchical execution
 
+### 🚀 Prompt Optimization
 
-### When to Choose Each Agent
+The system includes an automated prompt optimizer that uses real performance benchmarks to improve agent efficiency:
 
-**Choose Simple Agent when**:
-- You need simple, predictable single-step operations
-- Each query should be processed independently without previous context
-- Your application requires structured JSON output for parsing
-- You're building integrations that expect specific response formats
-- Performance is critical for simple operations
-- You're prototyping or testing basic functionality
+```bash
+# Optimize specific agent
+python3 -m prompt_optimizer simple
+python3 -m prompt_optimizer react
+python3 -m prompt_optimizer planner
 
-**Choose ReAct Agent when**:
-- You have complex, multi-step workflows
-- You need the agent to remember previous steps and build upon context
-- You need transparency in the reasoning process
-- You're working in production environments requiring robust error handling
-- Your tasks benefit from adaptive problem-solving and cumulative learning
-- You need detailed execution logs for debugging or auditing
+# Optimize all agents  
+python3 -m prompt_optimizer all
 
-### Agent Selection Guide
+```
 
-### Simple Agent - When to Use
-✅ **Ideal for**:
-- Single-step document operations
-- Quick queries and information retrieval
-- JSON output requirements
-- Prototyping and development
-- Batch processing scripts
-
-❌ **Avoid for**:
-- Complex multi-step workflows
-- Tasks requiring intermediate reasoning
-- Operations needing error recovery
-- Production environments with high reliability needs
-
-### ReAct Agent - When to Use
-✅ **Ideal for**:
-- Complex document creation and editing workflows
-- Tasks requiring planning and decomposition
-- Production environments needing reliability
-- Scenarios where reasoning transparency is valuable
-- Multi-step operations with dependencies
-
-❌ **Avoid for**:
-- Simple single-step operations
-- Performance-critical scenarios (higher overhead)
-- Cases where structured JSON output is required
+**Key Features:**
+- **Safe Optimization**: Conservative changes that preserve all existing functionality
+- **Performance-Based**: Uses real execution metrics to evaluate improvements
+- **Comprehensive Testing**: Validates changes against 105 tests (unit + integration + E2E)
+- **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
+- **Multi-Agent Support**: Works with Simple, ReAct, and Planner agents
 
 ### Practical Examples - Step by Step
 
