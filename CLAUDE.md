@@ -357,6 +357,11 @@ optimize-prompts simple
 4. **Decision Logic**: Accepts only if tests pass AND performance improves
 5. **Safety First**: Automatic backup and restore if anything breaks
 
+**File Locations**:
+- **Agent Prompts**: `src/agents/{agent_type}/prompts.py`
+- **Backups**: `prompt_backups/{agent}_prompt_backup_{timestamp}.py`
+- **Tests**: `tests/unit/`, `tests/integration/`, `tests/e2e/`
+
 ## Troubleshooting
 
 ### Common Issues
@@ -537,6 +542,85 @@ def test_agent_logic(mock_complete_test_environment):
 6. **Only use real LLM in E2E tests** for end-to-end workflow validation
 7. **Minimize E2E test scope** to critical user journeys
 8. **Implement proper cleanup** in all test fixtures
+
+### Test Maintenance
+- **Update fixtures** when adding new features
+- **Review and update skip conditions** regularly
+- **Keep test dependencies up to date**
+- **Aim for >80% code coverage**
+- **Keep test execution time under 5 minutes**
+- **Minimize flaky tests**
+- **Maintain clear test output**
+
+### Common Testing Patterns
+
+#### Testing Async Functions
+```python
+@pytest.mark.asyncio
+async def test_async_function():
+    result = await some_async_function()
+    assert result == expected
+```
+
+#### Testing with Temporary Files
+```python
+def test_file_operations(tmp_path):
+    test_file = tmp_path / "test.txt"
+    test_file.write_text("content")
+    assert test_file.read_text() == "content"
+```
+
+#### Testing Error Cases
+```python
+def test_error_handling(mocker):
+    mock_func = mocker.patch('module.function')
+    mock_func.side_effect = IOError("Disk error")
+    
+    with pytest.raises(IOError):
+        call_function_that_uses_mock()
+```
+
+#### Testing with Real MCP Server
+```python
+@pytest.mark.asyncio
+async def test_mcp_integration(mcp_client):
+    response = await mcp_client.call_tool(
+        "list_documents",
+        {}
+    )
+    assert response["documents"] == []
+```
+
+### Testing Troubleshooting
+
+#### Common Issues
+1. **Import Errors**
+   - Ensure project root is in PYTHONPATH
+   - Check for circular imports
+   - Verify package structure
+
+2. **Fixture Not Found**
+   - Check fixture scope and availability
+   - Ensure conftest.py is in the right location
+   - Verify fixture names are correct
+
+3. **Async Test Failures**
+   - Use `@pytest.mark.asyncio` decorator
+   - Ensure proper await usage
+   - Check for event loop issues
+
+4. **E2E Test Failures**
+   - Verify API keys are set correctly
+   - Check API rate limits
+   - Ensure network connectivity
+
+#### Contributing to Tests
+When adding new tests:
+1. Follow the existing patterns
+2. Add appropriate fixtures if needed
+3. Update this documentation if adding new patterns
+4. Ensure tests pass locally before submitting PR
+5. Include both positive and negative test cases
 
 ### Agent Development
 1. **Start with Simple Agent** for prototyping
