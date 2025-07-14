@@ -304,7 +304,7 @@ class MockDataGenerator:
             {
                 "name": "document_query_and_analysis",
                 "query": "List all documents and show their statistics",
-                "expected_operations": ["list_documents", "get_document_statistics"],
+                "expected_operations": ["list_documents", "get_statistics"],
                 "max_tokens": {"simple": 300, "react": 600},
                 "max_time": 10.0,
                 "expected_files": [],  # Query operation, no new files

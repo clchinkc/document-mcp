@@ -37,7 +37,7 @@ class ToolDescriptionManager:
         self._tools = self._initialize_tools()
     
     def _initialize_tools(self) -> List[ToolDescription]:
-        """Initialize all tool descriptions with unified format."""
+        """Initialize all tool descriptions with standardized format."""
         return [
             # Document Management (4 tools)
             ToolDescription(
@@ -73,7 +73,7 @@ class ToolDescriptionManager:
                 planner_signature="read_document_summary(document_name: str)"
             ),
             
-            # Chapter Management (6 tools)
+            # Chapter Management (5 tools)
             ToolDescription(
                 name="list_chapters",
                 description="Lists all chapters in a document",
@@ -99,14 +99,6 @@ class ToolDescriptionManager:
                 planner_signature="delete_chapter(document_name: str, chapter_name: str)"
             ),
             ToolDescription(
-                name="read_chapter_content",
-                description="Reads a specific chapter",
-                parameters={"document_name": "str", "chapter_name": "str"},
-                example='read_chapter_content(document_name="My Book", chapter_name="01-intro.md")',
-                category="Chapter Management",
-                planner_signature="read_chapter_content(document_name: str, chapter_name: str)"
-            ),
-            ToolDescription(
                 name="write_chapter_content",
                 description="Overwrites chapter content",
                 parameters={"document_name": "str", "chapter_name": "str", "new_content": "str"},
@@ -114,34 +106,8 @@ class ToolDescriptionManager:
                 category="Chapter Management",
                 planner_signature="write_chapter_content(document_name: str, chapter_name: str, new_content: str)"
             ),
-            ToolDescription(
-                name="append_to_chapter_content",
-                description="Appends content to end of chapter",
-                parameters={"document_name": "str", "chapter_name": "str", "additional_content": "str"},
-                example='append_to_chapter_content(document_name="My Book", chapter_name="01-intro.md", additional_content="More content")',
-                category="Chapter Management",
-                planner_signature="append_to_chapter_content(document_name: str, chapter_name: str, additional_content: str)"
-            ),
             
-            # Reading Operations (2 tools)
-            ToolDescription(
-                name="read_full_document",
-                description="Reads all chapters of a document",
-                parameters={"document_name": "str"},
-                example='read_full_document(document_name="My Book")',
-                category="Reading Operations",
-                planner_signature="read_full_document(document_name: str)"
-            ),
-            ToolDescription(
-                name="read_paragraph_content",
-                description="Reads a specific paragraph",
-                parameters={"document_name": "str", "chapter_name": "str", "paragraph_index": "int"},
-                example='read_paragraph_content(document_name="My Book", chapter_name="01-intro.md", paragraph_index_in_chapter=0)',
-                category="Reading Operations",
-                planner_signature="read_paragraph_content(document_name: str, chapter_name: str, paragraph_index: int)"
-            ),
-            
-            # Paragraph Operations (8 tools)
+            # Paragraph Operations (6 tools)
             ToolDescription(
                 name="append_paragraph_to_chapter",
                 description="Adds content to end of chapter",
@@ -199,56 +165,123 @@ class ToolDescriptionManager:
                 planner_signature="move_paragraph_to_end(document_name: str, chapter_name: str, paragraph_index: int)"
             ),
             
-            # Text Processing (3 tools)
+            # Scope-based Content Access (4 tools - replacing 9 individual tools)
             ToolDescription(
-                name="replace_text_in_chapter",
-                description="Find and replace in chapter",
-                parameters={"document_name": "str", "chapter_name": "str", "find_text": "str", "replace_text": "str"},
-                example='replace_text_in_chapter(document_name="My Book", chapter_name="01-intro.md", text_to_find="old", replacement_text="new")',
-                category="Text Processing",
-                planner_signature="replace_text_in_chapter(document_name: str, chapter_name: str, find_text: str, replace_text: str)"
+                name="read_content",
+                description="Flexible content reading with scope-based targeting. Use scope='document' for full document, scope='chapter' for specific chapter, scope='paragraph' for specific paragraph. Essential for content access operations.",
+                parameters={"document_name": "str", "scope": "str", "chapter_name": "Optional[str]", "paragraph_index": "Optional[int]"},
+                example='read_content(document_name="My Book", scope="chapter", chapter_name="01-intro.md")',
+                category="Scope-based Content Access",
+                planner_signature="read_content(document_name: str, scope: str = 'document', chapter_name: str = None, paragraph_index: int = None)"
             ),
             ToolDescription(
-                name="replace_text_in_document",
-                description="Find and replace across document",
-                parameters={"document_name": "str", "find_text": "str", "replace_text": "str"},
-                example='replace_text_in_document(document_name="My Book", text_to_find="old_term", replacement_text="new_term")',
-                category="Text Processing",
-                planner_signature="replace_text_in_document(document_name: str, find_text: str, replace_text: str)"
+                name="find_text",
+                description="Text search with scope-based targeting and case sensitivity control. Use scope='document' to search entire document, scope='chapter' to search specific chapter. Returns locations of matching text.",
+                parameters={"document_name": "str", "search_text": "str", "scope": "str", "chapter_name": "Optional[str]", "case_sensitive": "bool"},
+                example='find_text(document_name="My Book", search_text="search term", scope="document", case_sensitive=False)',
+                category="Scope-based Content Access",
+                planner_signature="find_text(document_name: str, search_text: str, scope: str = 'document', chapter_name: str = None, case_sensitive: bool = False)"
+            ),
+            ToolDescription(
+                name="replace_text",
+                description="Text replacement with scope-based targeting. Use scope='document' to replace across entire document, scope='chapter' to replace within specific chapter. Performs find-and-replace operations efficiently.",
+                parameters={"document_name": "str", "find_text": "str", "replace_text": "str", "scope": "str", "chapter_name": "Optional[str]"},
+                example='replace_text(document_name="My Book", find_text="old", replace_text="new", scope="document")',
+                category="Scope-based Content Access",
+                planner_signature="replace_text(document_name: str, find_text: str, replace_text: str, scope: str = 'document', chapter_name: str = None)"
+            ),
+            ToolDescription(
+                name="get_statistics",
+                description="Statistics collection with scope-based targeting. Use scope='document' for full document metrics, scope='chapter' for specific chapter metrics. Returns word count, paragraph count, and other content statistics.",
+                parameters={"document_name": "str", "scope": "str", "chapter_name": "Optional[str]"},
+                example='get_statistics(document_name="My Book", scope="document")',
+                category="Scope-based Content Access",
+                planner_signature="get_statistics(document_name: str, scope: str = 'document', chapter_name: str = None)"
+            ),
+            # Version Control Tools (3 tools replacing 6)
+            ToolDescription(
+                name="manage_snapshots",
+                description="Comprehensive snapshot management: create, list, or restore snapshots with action-based interface",
+                parameters={"document_name": "str", "action": "str", "snapshot_id": "str", "message": "str", "auto_cleanup": "bool"},
+                example='manage_snapshots(document_name="My Book", action="create", message="First draft complete")',
+                category="Version Control",
+                planner_signature="manage_snapshots(document_name: str, action: str, snapshot_id: str = None, message: str = None, auto_cleanup: bool = True)"
+            ),
+            ToolDescription(
+                name="check_content_status", 
+                description="Content status checker: freshness validation with optional modification history",
+                parameters={"document_name": "str", "chapter_name": "str", "include_history": "bool", "time_window": "str", "last_known_modified": "str"},
+                example='check_content_status(document_name="My Book", chapter_name="01-intro.md", include_history=True)',
+                category="Version Control",
+                planner_signature="check_content_status(document_name: str, chapter_name: str = None, include_history: bool = False, time_window: str = '24h', last_known_modified: str = None)"
+            ),
+            ToolDescription(
+                name="diff_content",
+                description="Content comparison: flexible diff between snapshots, current content, and files",
+                parameters={"document_name": "str", "source_type": "str", "source_id": "str", "target_type": "str", "target_id": "str", "output_format": "str", "chapter_name": "str"},
+                example='diff_content(document_name="My Book", source_type="snapshot", source_id="snap_1", target_type="current")',
+                category="Version Control", 
+                planner_signature="diff_content(document_name: str, source_type: str = 'snapshot', source_id: str = None, target_type: str = 'current', target_id: str = None, output_format: str = 'unified', chapter_name: str = None)"
             ),
             
-            # Content Analysis (4 tools)
+            # Batch Operations (1 tool)
             ToolDescription(
-                name="get_chapter_statistics",
-                description="Gets word/paragraph counts for a chapter",
-                parameters={"document_name": "str", "chapter_name": "str"},
-                example='get_chapter_statistics(document_name="My Book", chapter_name="01-intro.md")',
-                category="Content Analysis",
-                planner_signature="get_chapter_statistics(document_name: str, chapter_name: str)"
-            ),
-            ToolDescription(
-                name="get_document_statistics",
-                description="Gets aggregate statistics for entire document",
-                parameters={"document_name": "str"},
-                example='get_document_statistics(document_name="My Book")',
-                category="Content Analysis",
-                planner_signature="get_document_statistics(document_name: str)"
-            ),
-            ToolDescription(
-                name="find_text_in_chapter",
-                description="Searches within a chapter",
-                parameters={"document_name": "str", "chapter_name": "str", "search_text": "str"},
-                example='find_text_in_chapter(document_name="My Book", chapter_name="01-intro.md", query="search term", case_sensitive=false)',
-                category="Content Analysis",
-                planner_signature="find_text_in_chapter(document_name: str, chapter_name: str, search_text: str)"
-            ),
-            ToolDescription(
-                name="find_text_in_document",
-                description="Searches across entire document",
-                parameters={"document_name": "str", "search_text": "str"},
-                example='find_text_in_document(document_name="My Book", query="search term", case_sensitive=false)',
-                category="Content Analysis",
-                planner_signature="find_text_in_document(document_name: str, search_text: str)"
+                name="batch_apply_operations",
+                description="""Execute multiple document operations atomically with comprehensive safety and rollback.
+    
+INTELLIGENCE FEATURES:
+• Automatic dependency resolution - operations execute in correct order regardless of definition order
+• Smart conflict detection - prevents contradictory operations (e.g., delete then modify same content)
+• Automatic snapshot creation - every batch gets a restoration checkpoint  
+• Granular rollback - failed batches automatically restore to pre-execution state
+• User modification tracking - all changes attributed and logged for easy restoration
+
+WHEN TO USE BATCHES:
+✅ Multi-step document creation (document + chapters + content)
+✅ Bulk content editing (character renaming, formatting changes) 
+✅ Complex reorganization (moving/restructuring multiple elements)
+✅ Multi-document operations requiring consistency
+✅ Any workflow where partial completion would leave incomplete state
+
+WHEN TO USE INDIVIDUAL OPERATIONS:
+❌ Single, simple edits (one paragraph change)
+❌ Exploratory operations where you need to observe results
+❌ Trial-and-error workflows requiring intermediate feedback
+❌ Operations that depend on external input or validation""",
+                parameters={
+                    "operations": "List[Dict] - List of operations, each with: operation_type (str), target (Dict), parameters (Dict), order (int), operation_id (str), depends_on (List[str], optional)",
+                    "atomic": "bool - True: all succeed or all rollback (recommended for most use cases)",
+                    "validate_only": "bool - True: dry-run validation without execution (test complex batches first)",
+                    "snapshot_before": "bool - True: create named restoration point (automatic for edit operations)",
+                    "continue_on_error": "bool - False: stop on first error (safer), True: continue despite failures",
+                    "execution_mode": "str - 'sequential' (default, safer) or 'parallel_safe' (faster for independent ops)"
+                },
+                example='''batch_apply_operations(
+    operations=[
+        {
+            "operation_type": "create_document",
+            "target": {},
+            "parameters": {"document_name": "Science Fiction Novel"},
+            "order": 1,
+            "operation_id": "create_doc"
+        },
+        {
+            "operation_type": "create_chapter", 
+            "target": {"document_name": "Science Fiction Novel"},
+            "parameters": {
+                "chapter_name": "01-introduction.md",
+                "initial_content": "# The Journey Begins\\n\\nIn a galaxy far away..."
+            },
+            "order": 2,
+            "operation_id": "create_intro",
+            "depends_on": ["create_doc"]
+        }
+    ],
+    atomic=True,
+    snapshot_before=True
+)''',
+                category="Batch Operations",
+                planner_signature="batch_apply_operations(operations: List[Dict], atomic: bool = True, validate_only: bool = False, snapshot_before: bool = False, continue_on_error: bool = False, execution_mode: str = 'sequential')"
             ),
         ]
     

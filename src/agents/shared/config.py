@@ -85,16 +85,6 @@ class AgentSettings(BaseSettings):
             return self.gemini_model_name
         return None
 
-    def to_legacy_dict(self) -> dict:
-        """Convert to legacy dictionary format for backwards compatibility."""
-        return {
-            "openai_configured": self.openai_configured,
-            "gemini_configured": self.gemini_configured,
-            "active_provider": self.active_provider,
-            "active_model": self.active_model,
-            "openai_model": self.openai_model_name if self.openai_configured else None,
-            "gemini_model": self.gemini_model_name if self.gemini_configured else None,
-        }
 
 
 def get_settings() -> AgentSettings:
@@ -103,14 +93,6 @@ def get_settings() -> AgentSettings:
     return AgentSettings()
 
 
-def check_api_keys_config():
-    """Check API key configuration and return a status dictionary.
-
-    Legacy function maintained for backwards compatibility.
-    Uses the new Pydantic Settings under the hood.
-    """
-    settings = get_settings()
-    return settings.to_legacy_dict()
 
 
 async def load_llm_config():

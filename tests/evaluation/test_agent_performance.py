@@ -22,7 +22,6 @@ import pytest
 
 from src.agents.simple_agent.main import FinalAgentResponse, initialize_agent_and_mcp_server, process_single_user_query_with_metrics
 from src.agents.react_agent.main import run_react_agent_with_metrics
-from src.agents.planner_agent.main import run_planner_agent_with_metrics
 from src.agents.shared.performance_metrics import AgentPerformanceMetrics, PerformanceMetricsCollector
 from tests.e2e.validation_utils import (
     DocumentSystemValidator,
@@ -111,8 +110,6 @@ class AgentTestRunner:
             return await self.run_simple_agent_test(query)
         elif agent_type == "react":
             return await self.run_react_agent_test(query)
-        elif agent_type == "planner":
-            return await self.run_planner_agent_test(query)
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
 
@@ -189,38 +186,6 @@ class AgentTestRunner:
                 os.environ.pop("DOCUMENT_ROOT_DIR", None)
 
 
-    async def run_planner_agent_test(self, query: str) -> AgentPerformanceMetrics:
-        """Run Planner Agent test with REAL LLM calls and performance metrics."""
-        
-        # Set up environment
-        old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
-        os.environ["DOCUMENT_ROOT_DIR"] = str(self.docs_root)
-
-        try:
-            # Real Planner agent execution with metrics collection
-            response, metrics = await run_planner_agent_with_metrics(query)
-            
-            # Return real performance metrics from actual Planner agent execution
-            return metrics
-
-        except Exception as e:
-            # Handle any exceptions with real timing data
-            import time
-            metrics = PerformanceMetricsCollector.collect_from_timing_and_response(
-                execution_start_time=time.time(),
-                agent_type="planner",
-                response_data={"error": str(e)},
-                success=False,
-                error_message=str(e)
-            )
-            return metrics
-
-        finally:
-            # Restore environment
-            if old_doc_root:
-                os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
-            else:
-                os.environ.pop("DOCUMENT_ROOT_DIR", None)
 
 
 
@@ -250,7 +215,7 @@ class TestAgentPerformanceEvaluation:
     """Comprehensive agent performance evaluation tests."""
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("agent_type", ["simple", "react", "planner"])
+    @pytest.mark.parametrize("agent_type", ["simple", "react"])
     async def test_document_creation_performance(
         self, agent_test_runner, validator, agent_type
     ):
@@ -276,15 +241,9 @@ class TestAgentPerformanceEvaluation:
             if metrics.success:
                 assert metrics.tool_calls_count >= 0, "Tool calls should be tracked"
                 print(f"React agent success: {metrics.tool_calls_count} tool calls, {metrics.execution_time:.2f}s")
-        elif agent_type == "planner":
-            # Planner agent should succeed with plan execution
-            # Note: token_usage might be None since we haven't implemented full token tracking  
-            if metrics.success:
-                assert metrics.tool_calls_count >= 0, "Tool calls should be tracked"
-                print(f"Planner agent success: {metrics.tool_calls_count} tool calls, {metrics.execution_time:.2f}s")
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("agent_type", ["simple", "react", "planner"])
+    @pytest.mark.parametrize("agent_type", ["simple", "react"])
     async def test_chapter_creation_performance(
         self, agent_test_runner, validator, agent_type
     ):
@@ -304,14 +263,14 @@ class TestAgentPerformanceEvaluation:
             # Simple agent should succeed and have real token usage
             assert metrics.success, f"Simple agent failed: {metrics.error_message}"
             assert metrics.token_usage > 0, "Real token usage should be tracked"
-        elif agent_type in ["react", "planner"]:
-            # React and Planner agents should work with real implementation
+        elif agent_type == "react":
+            # React agent should work with real implementation
             if metrics.success:
                 assert metrics.tool_calls_count >= 0, "Tool calls should be tracked"
                 print(f"{agent_type} agent success: {metrics.tool_calls_count} tool calls, {metrics.execution_time:.2f}s")
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("agent_type", ["simple", "react", "planner"])
+    @pytest.mark.parametrize("agent_type", ["simple", "react"])
     async def test_document_listing_performance(
         self, agent_test_runner, validator, agent_type
     ):
@@ -329,14 +288,14 @@ class TestAgentPerformanceEvaluation:
             # Simple agent should succeed and have real token usage
             assert metrics.success, f"Simple agent failed: {metrics.error_message}"
             assert metrics.token_usage > 0, "Real token usage should be tracked"
-        elif agent_type in ["react", "planner"]:
-            # React and Planner agents should work with real implementation
+        elif agent_type == "react":
+            # React agent should work with real implementation
             if metrics.success:
                 assert metrics.tool_calls_count >= 0, "Tool calls should be tracked"
                 print(f"{agent_type} agent success: {metrics.tool_calls_count} tool calls, {metrics.execution_time:.2f}s")
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("agent_type", ["simple", "react", "planner"])
+    @pytest.mark.parametrize("agent_type", ["simple", "react"])
     async def test_error_handling_performance(
         self, agent_test_runner, validator, agent_type
     ):
@@ -426,7 +385,7 @@ async def run_evaluation_suite():
 
         # Test document creation with all agent types
         doc_metrics = []
-        for agent_type in ["simple", "react", "planner"]:  # All agents now have real metrics
+        for agent_type in ["simple", "react"]:  # All agents now have real metrics
             doc_name = f"test_doc_{uuid.uuid4().hex[:8]}"
             query = f"Create a new document called '{doc_name}'"
             

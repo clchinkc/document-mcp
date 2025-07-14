@@ -342,10 +342,6 @@ def log_mcp_call(func):
                 arguments=arg_str,
             )
 
-            # Also log to the original logger for backward compatibility
-            mcp_call_logger.error(
-                f"Tool {func_name} raised exception: {e}", exc_info=True
-            )
             raise
 
     return wrapper

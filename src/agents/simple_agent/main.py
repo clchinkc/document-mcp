@@ -104,11 +104,8 @@ async def process_single_user_query(
         async def _run_agent():
             return await agent.run(user_query)
 
-        # Use RetryManager for robust error handling with timeout
-        run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
-            _retry_manager.execute_with_retry(_run_agent),
-            timeout=DEFAULT_TIMEOUT,
-        )
+        # Use RetryManager for robust error handling - let it manage its own timeouts
+        run_result: AgentRunResult[FinalAgentResponse] = await _retry_manager.execute_with_retry(_run_agent)
 
         if run_result and run_result.output:
             return run_result.output
@@ -144,11 +141,8 @@ async def process_single_user_query_with_metrics(
         async def _run_agent():
             return await agent.run(user_query)
 
-        # Use RetryManager for robust error handling with timeout
-        run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
-            _retry_manager.execute_with_retry(_run_agent),
-            timeout=DEFAULT_TIMEOUT,
-        )
+        # Use RetryManager for robust error handling - let it manage its own timeouts
+        run_result: AgentRunResult[FinalAgentResponse] = await _retry_manager.execute_with_retry(_run_agent)
 
         # Collect real performance metrics from the agent result
         metrics = PerformanceMetricsCollector.collect_from_agent_result(

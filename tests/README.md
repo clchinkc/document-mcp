@@ -4,6 +4,8 @@
 
 This document outlines the testing strategy, structure, and best practices for the Document MCP project. A robust testing culture is crucial for maintaining code quality, preventing regressions, and enabling confident refactoring. Our test suite is organized into four main categories—Unit, Integration, End-to-End (E2E), and Evaluation—each serving a distinct purpose.
 
+**Special focus on Safety Features**: The testing framework includes comprehensive validation of the write-safety system, automatic micro-snapshots, version control operations, and modification history tracking to ensure zero content loss.
+
 ## 2. Test Structure
 
 The testing framework is organized by test type, ensuring a clear separation of concerns.
@@ -36,6 +38,7 @@ tests/
   - **Mocked LLMs**: LLM calls are mocked to ensure tests are fast, deterministic, and do not incur API costs.
   - **Stateful Patterns**: Tests are class-based and use fixtures to set up and tear down the agent and server, maintaining state across test methods. This is crucial for avoiding event loop errors.
   - **Filesystem**: Use the `test_docs_root` fixture for an isolated temporary directory.
+  - **Safety Feature Testing**: `test_safety_features.py` provides comprehensive validation of write-safety system, automatic micro-snapshots, version control operations, and real-world writer safety scenarios.
 - **Example**: Verifying that the React Agent correctly calls the `create_document` tool on the MCP server.
 
 ### 3.3. End-to-End (E2E) Tests (`tests/e2e/`)

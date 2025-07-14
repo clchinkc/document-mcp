@@ -263,27 +263,39 @@ def safe_get_response_content(response: Dict, field_name: str = "details") -> Di
 
     Returns:
         Extracted content as dictionary, or empty dict if not found/invalid
+        If parsing fails, includes error information for debugging
     """
     if not isinstance(response, dict):
-        return {}
+        return {"_error": f"Response is not a dict, got {type(response).__name__}"}
 
     content = response.get(field_name)
     if content is None:
-        return {}
+        return {"_error": f"Field '{field_name}' not found in response"}
 
     # Handle case where content is a string representation of a dict
     if isinstance(content, str):
-        try:
-            return ast.literal_eval(content)
-        except (ValueError, SyntaxError):
-            return {"raw_content": content}
+        # Check if it looks like it should be parsed (starts with { or [)
+        content_stripped = content.strip()
+        if content_stripped.startswith(("{", "[")):
+            try:
+                return ast.literal_eval(content)
+            except (ValueError, SyntaxError) as e:
+                # This was likely meant to be parsed but failed - preserve error info
+                return {
+                    "content": content,
+                    "_parse_error": f"Failed to parse as dict/list: {str(e)}",
+                    "_original_content": content
+                }
+        else:
+            # Plain string content - this is expected
+            return {"content": content}
 
     # Handle case where content is already a dict
     if isinstance(content, dict):
         return content
 
     # Handle other types
-    return {"raw_content": str(content)}
+    return {"content": str(content), "_type_converted": type(content).__name__}
 
 
 def ensure_proper_model_response(response: any) -> Dict:

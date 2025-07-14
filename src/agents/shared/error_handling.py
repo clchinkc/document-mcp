@@ -65,8 +65,8 @@ class ErrorClassifier:
         """
         error_str = str(error).lower()
 
-        # Network and connection errors (502, 503, 504)
-        if any(
+        # TimeoutError and network/connection errors (502, 503, 504)
+        if isinstance(error, asyncio.TimeoutError) or any(
             keyword in error_str
             for keyword in [
                 "connection",

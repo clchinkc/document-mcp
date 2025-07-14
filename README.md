@@ -6,7 +6,7 @@
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Document MCP exists to **complement and diversify the predominantly STEM-oriented toolsets (e.g. Claude Code, bash/grep agents)** by giving writers, researchers, and knowledge-managers first-class, local-first control over large-scale Markdown documents.
+Document MCP exists to **complement and diversify the predominantly STEM-oriented toolsets (e.g. Claude Code, bash/grep agents)** by giving writers, researchers, and knowledge-managers first-class, local-first control over large-scale Markdown documents with **built-in safety features** that prevent content loss.
 
 ## 🚀 Quick Start
 
@@ -91,6 +91,7 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 ### Key Features
 
+- **🛡️ Built-in Safety Features**: Write-safety system, automatic micro-snapshots, and comprehensive version control prevent content loss.
 - **📁 Document Structure**: Organize content as directories with chapter files.
 - **🔧 25+ MCP Tools**: Comprehensive document manipulation API with tools for atomic paragraph operations, content analysis, and more.
 - **🤖 AI Agents**: 
@@ -115,6 +116,26 @@ Document MCP provides a structured way to manage large documents composed of mul
     ├── 01-introduction.md
     └── 02-methodology.md
 ```
+
+## 🛡️ Safety Features
+
+Document MCP includes comprehensive safety features designed to prevent content loss and enable safe writing workflows:
+
+### Write-Safety System
+- **Content Freshness Checking**: Automatically validates content modification status before writes
+- **Conflict Detection**: Warns about potential overwrites if content has been modified externally
+- **Safe Write Operations**: All write operations include safety information and warnings
+
+### Automatic Version Control
+- **Micro-Snapshots**: Automatic snapshots created before destructive operations
+- **Named Snapshots**: Create checkpoints with messages using `snapshot_document`
+- **Version Restoration**: Restore to any previous version using `restore_snapshot`
+- **Intelligent Diffs**: Compare versions with prose-aware diff algorithms
+
+### Modification History
+- **Complete Tracking**: All document changes tracked with timestamps and operation details
+- **Audit Trail**: Full history accessible via `get_modification_history`
+- **Pattern Analysis**: Understand content change patterns over time
 
 ## 🏗️ Project Structure
 

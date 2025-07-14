@@ -191,7 +191,7 @@ DEFAULT_TEST_SCENARIOS = [
         "name": "document_statistics",
         "description": "Get statistics for a document",
         "query": 'Show statistics for document "tutorial"',
-        "expected_operations": ["get_document_statistics"],
+        "expected_operations": ["get_statistics"],
         "expected_files": [],
         "category": "advanced",
     },
@@ -220,7 +220,7 @@ DEFAULT_TEST_SCENARIOS = [
             "create_chapter",
             "create_chapter",
             "create_chapter",
-            "get_document_statistics",
+            "get_statistics",
         ],
         "expected_files": [
             "user_guide/",

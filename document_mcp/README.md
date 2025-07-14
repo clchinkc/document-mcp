@@ -3,7 +3,7 @@
 [![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 
-A Model Context Protocol (MCP) server for managing structured Markdown documents. This server provides tools to create, read, update, and analyze documents composed of multiple chapters.
+A Model Context Protocol (MCP) server for managing structured Markdown documents with built-in safety features. This server provides tools to create, read, update, and analyze documents composed of multiple chapters, with write-safety, automatic snapshots, and version control.
 
 ## Installation
 
@@ -215,6 +215,17 @@ The server exposes the following tools via the Model Context Protocol:
 |------|------------|-------------|
 | `find_text_in_chapter` | `document_name: str`, `chapter_name: str`, `query: str`, `case_sensitive: bool = False` | Finds paragraphs containing the query string in a specific chapter |
 | `find_text_in_document` | `document_name: str`, `query: str`, `case_sensitive: bool = False` | Finds paragraphs containing the query string across all chapters |
+
+### Safety & Version Control Tools
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `check_content_freshness` | `document_name: str`, `chapter_name: str?`, `last_known_modified: float?` | Validates content modification status and warns about potential conflicts |
+| `get_modification_history` | `document_name: str`, `chapter_name: str?`, `time_window: str?` | Returns comprehensive modification timeline and change patterns |
+| `snapshot_document` | `document_name: str`, `message: str?`, `auto_cleanup: bool?` | Creates timestamped snapshot with optional cleanup policies |
+| `list_snapshots` | `document_name: str`, `limit: int?`, `filter: str?` | Lists all available snapshots with timestamps and metadata |
+| `restore_snapshot` | `document_name: str`, `snapshot_id: str`, `safety_mode: bool?` | Restores document to specified snapshot with safety checks |
+| `diff_snapshots` | `document_name: str`, `snapshot_id_A: str`, `snapshot_id_B: str?`, `output_format: str?` | Compares snapshots with prose-aware diff algorithms |
 
 ## Data Models
 

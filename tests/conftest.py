@@ -129,3 +129,5 @@ skip_if_no_api_key = pytest.mark.skipif(
     not check_api_key_available(),
     reason="Test requires a real API key (OPENAI_API_KEY or GEMINI_API_KEY)",
 )
+
+

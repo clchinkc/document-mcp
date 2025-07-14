@@ -59,14 +59,44 @@ async def run_agent_query(
             raise RuntimeError(f"Agent failed with stderr: {stderr.decode()}")
 
         output_str = stdout.decode().strip()
+        stderr_str = stderr.decode().strip()
+        
+        # Add debug information
+        debug_info = {
+            "returncode": process.returncode,
+            "stdout_length": len(output_str),
+            "stderr_length": len(stderr_str),
+            "stderr_content": stderr_str[:500] if stderr_str else "No stderr",
+        }
 
-        # For React agent, the output is a log, not JSON
+        # For React agent, extract JSON from the output
         if "react_agent" in agent_module:
-            return {"execution_log": output_str}
+            # ReAct agent outputs logs followed by JSON after "JSON OUTPUT:" marker
+            json_marker = "JSON OUTPUT:"
+            if json_marker in output_str:
+                json_start_marker = output_str.find(json_marker)
+                if json_start_marker != -1:
+                    # Find the actual JSON start after the marker
+                    json_portion = output_str[json_start_marker + len(json_marker):].strip()
+                    json_start = json_portion.find("{")
+                    if json_start != -1:
+                        json_str = json_portion[json_start:]
+                        try:
+                            parsed_json = json.loads(json_str)
+                            # Add the full execution log for debugging
+                            parsed_json["full_execution_log"] = output_str
+                            return parsed_json
+                        except json.JSONDecodeError as e:
+                            # JSON parsing failed, return debug info
+                            return {
+                                "execution_log": output_str,
+                                "json_parse_error": str(e),
+                                "json_portion": json_str[:200] + "..." if len(json_str) > 200 else json_str,
+                                "debug_info": debug_info
+                            }
+            # Fallback to log-only format if JSON parsing fails
+            return {"execution_log": output_str, "debug_info": debug_info}
 
-        # For Planner agent, the output is a plain text summary, not JSON
-        if "planner_agent" in agent_module:
-            return {"summary": output_str}
 
         # For Simple agent, find the start of the JSON and parse from there
         try:
@@ -74,9 +104,11 @@ async def run_agent_query(
             if json_start == -1:
                 raise json.JSONDecodeError("No JSON object found", output_str, 0)
             json_str = output_str[json_start:]
-            return json.loads(json_str)
+            parsed_json = json.loads(json_str)
+            parsed_json["debug_info"] = debug_info
+            return parsed_json
         except (json.JSONDecodeError, IndexError):
-            return {"summary": "Failed to parse JSON", "raw_output": output_str}
+            return {"summary": "Failed to parse JSON", "raw_output": output_str, "debug_info": debug_info}
 
     except asyncio.TimeoutError:
         raise RuntimeError(f"Agent query timed out after {timeout}s")
@@ -294,6 +326,7 @@ class TestReactAgentE2E:
             pytest.fail(
                 f"ReAct agent multi-step workflow validation failed.\n"
                 f"Original error: {e}\n"
+                f"Agent response: {response}\n"
                 f"Agent execution log: {log}\n"
                 f"File system state: {debug_info}\n"
                 f"Expected document at: {e2e_docs_dir / doc_name}\n"
@@ -303,101 +336,15 @@ class TestReactAgentE2E:
 
         # 3. Verify the ReAct agent completed successfully
         assert (
-            "ReAct loop finished" in log
-        ), f"ReAct agent should complete successfully. Log: {log}"
+            response.get("summary", "").startswith("Successfully completed") or
+            "complete" in log.lower() or "done" in log.lower()
+        ), f"ReAct agent should complete successfully. Response: {response}"
 
-        # 4. Verify the agent's final thought indicates completion
-        assert (
-            "Final Thought:" in log
-        ), f"The agent should have a final thought. Log: {log}"
-        assert (
-            "complete" in log or "done" in log
-        ), f"The final thought should indicate completion. Log: {log}"
+        # 4. Verify the agent's execution details show steps were taken
+        details = response.get("details", [])
+        assert len(details) > 0, f"The agent should have execution details. Response: {response}"
+        
+        # 5. Verify no error occurred
+        assert response.get("error_message") is None, f"Agent should not have errors. Response: {response}"
 
 
-@pytest.mark.e2e
-@pytest.mark.skipif(
-    not check_api_key_available(), reason="E2E tests require a real API key"
-)
-class TestPlannerAgentE2E:
-    """End-to-end tests for the Planner agent."""
-
-    @pytest.mark.asyncio
-    async def test_plan_and_execute_workflow(
-        self, e2e_docs_dir: Path, validator: DocumentSystemValidator
-    ):
-        """Test the planner agent's plan-and-execute workflow with real AI models."""
-        doc_name = f"e2e_planner_doc_{uuid.uuid4().hex[:8]}"
-
-        # Verify initial state - no documents should exist
-        validator.assert_document_count(0)
-
-        # Complex query that requires multiple steps in sequence
-        query = (
-            f"Create a science fiction novel called '{doc_name}' with three chapters: "
-            f"'01-introduction.md' with an introduction, '02-adventure.md' with the main adventure, "
-            f"and '03-conclusion.md' with the conclusion. Then add a paragraph to the introduction "
-            f"chapter that says 'This story will take you on an amazing journey.'"
-        )
-
-        try:
-            # Run the planner agent through subprocess (like other E2E tests)
-            response = await run_agent_query(
-                "src.agents.planner_agent.main",
-                query,
-                timeout=180,  # Increase timeout for complex multi-step tasks
-            )
-
-            # Get the summary output
-            summary = response.get("summary", "")
-            assert summary, "Planner agent should return a summary"
-
-            # Verify the summary indicates successful execution
-            assert (
-                "Successfully executed" in summary
-            ), f"Summary should indicate successful execution. Summary: {summary}"
-
-            # Verify file system state matches expected results
-            validator.assert_document_exists(doc_name)
-            validator.assert_document_count(1)
-
-            # Verify all three chapters were created
-            validator.assert_chapter_exists(doc_name, "01-introduction.md")
-            validator.assert_chapter_exists(doc_name, "02-adventure.md")
-            validator.assert_chapter_exists(doc_name, "03-conclusion.md")
-            validator.assert_chapter_count(doc_name, 3)
-
-            # Verify the introduction chapter has the added paragraph
-            intro_path = e2e_docs_dir / doc_name / "01-introduction.md"
-            intro_content = intro_path.read_text()
-            assert (
-                "This story will take you on an amazing journey" in intro_content
-            ), f"Introduction should contain the added paragraph. Content: {intro_content}"
-
-            # Verify multiple paragraphs exist in introduction (original + added)
-            intro_paragraphs = [
-                p.strip() for p in intro_content.split("\n\n") if p.strip()
-            ]
-            assert (
-                len(intro_paragraphs) >= 2
-            ), f"Introduction should have at least 2 paragraphs (original + added). Paragraphs: {intro_paragraphs}"
-
-            # Additional verification that the agent completed successfully
-            assert (
-                "create_document" in summary
-            ), "Summary should mention document creation"
-            assert (
-                "create_chapter" in summary
-            ), "Summary should mention chapter creation"
-
-        except Exception as e:
-            # Enhanced error reporting for planner agent
-            debug_info = validator.get_debug_info()
-            pytest.fail(
-                f"Planner agent E2E test failed.\n"
-                f"Original error: {e}\n"
-                f"Query: {query}\n"
-                f"File system state: {debug_info}\n"
-                f"Expected document at: {e2e_docs_dir / doc_name}\n"
-                f"This indicates the planner agent did not successfully complete the workflow."
-            )

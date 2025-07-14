@@ -35,7 +35,7 @@ from src.agents.shared.cli import (
     parse_react_agent_args,
     validate_api_configuration,
 )
-from src.agents.shared.config import DEFAULT_TIMEOUT, MCP_SERVER_CMD, load_llm_config
+from src.agents.shared.config import DEFAULT_TIMEOUT, MAX_RETRIES, MCP_SERVER_CMD, load_llm_config
 
 # Remove invalid imports
 # from .react_agent import ReactAgent
@@ -203,12 +203,35 @@ async def run_react_loop(
         while step < max_steps:
             step += 1
 
-            try:
-                # Run the agent to get the next step
-                result = await asyncio.wait_for(
-                    agent.run(current_context), timeout=DEFAULT_TIMEOUT
-                )
-
+            # Implement retry logic for timeout resilience
+            result = None
+            retry_count = 0
+            last_error = None
+            
+            while retry_count <= MAX_RETRIES:
+                try:
+                    # Run the agent to get the next step
+                    result = await asyncio.wait_for(
+                        agent.run(current_context), timeout=DEFAULT_TIMEOUT
+                    )
+                    break  # Success - exit retry loop
+                    
+                except asyncio.TimeoutError as e:
+                    last_error = e
+                    retry_count += 1
+                    if retry_count <= MAX_RETRIES:
+                        console.print(f"[yellow]API timeout (attempt {retry_count}/{MAX_RETRIES + 1}), retrying...[/yellow]")
+                        await asyncio.sleep(1.0 * retry_count)  # Exponential backoff
+                        continue
+                    # All retries exhausted - fall through to error handling
+                    
+                except Exception as e:
+                    # Non-timeout errors - fail immediately
+                    last_error = e
+                    break
+            
+            if result is not None:
+                # Success path
                 # Capture AgentRunResult for token tracking if requested
                 if capture_agent_results:
                     agent_results.append(result)
@@ -218,13 +241,19 @@ async def run_react_loop(
                     react_step = result.output
                 else:
                     react_step = result
-            except Exception as e:
-                console.print(f"[red]Agent execution error: {e}[/red]")
+            else:
+                # All retries failed - handle error
+                error_msg = str(last_error) if str(last_error) else f"{type(last_error).__name__}: No error message"
+                error_details = f"Exception type: {type(last_error).__name__}, Message: {error_msg}"
+                if retry_count > MAX_RETRIES:
+                    error_details += f" (failed after {MAX_RETRIES + 1} attempts)"
+                
+                console.print(f"[red]Agent execution error: {error_details}[/red]")
                 step_data = {
                     "step": step,
-                    "thought": f"Error occurred during agent execution: {str(e)}",
+                    "thought": f"Error occurred during agent execution: {error_details}",
                     "action": None,
-                    "observation": f"Error: {str(e)}",
+                    "observation": f"Error: {error_details}",
                 }
                 history.append(step_data)
                 break
