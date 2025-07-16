@@ -1,9 +1,9 @@
 # Document MCP Server
 
 [![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
-[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-A Model Context Protocol (MCP) server for managing structured Markdown documents. This server provides tools to create, read, update, and analyze documents composed of multiple chapters.
+A Model Context Protocol (MCP) server for managing structured Markdown documents with built-in safety features. This server provides tools to create, read, update, and analyze documents composed of multiple chapters, with write-safety, automatic snapshots, and version control.
 
 ## Installation
 
@@ -75,9 +75,17 @@ This MCP server treats "documents" as directories containing multiple "chapter" 
 │   └── _manifest.json           # Optional: For future explicit chapter ordering
 └── research_paper/              # Another document
     ├── 00-abstract.md
-    ├── 01-methodology.md
+    ���── 01-methodology.md
     └── 02-results.md
 ```
+
+## New Features
+
+### Unified Tools
+To improve usability and reduce the number of tools, several granular tools have been consolidated into unified, action-based tools. For example, `snapshot_document`, `list_snapshots`, and `restore_snapshot` are now all handled by the `manage_snapshots` tool. This provides a more consistent and intuitive API for interacting with the server.
+
+### Batch Processing
+The server now supports batch processing of operations via the `apply_batch_operations` tool. This allows multiple operations to be executed sequentially in a single request, with support for atomic transactions and rollbacks on failure. This is ideal for complex, multi-step modifications to documents.
 
 ## Running the Server
 
@@ -159,33 +167,31 @@ sum(rate(mcp_tool_errors_total[5m])) / sum(rate(mcp_tool_calls_total[5m]))
 
 ## MCP Tools Reference
 
-The server exposes the following tools via the Model Context Protocol:
+The server exposes 23 MCP tools organized in 6 functional categories via the Model Context Protocol:
 
-### Document Management
+### Document Tools (4 tools)
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
 | `list_documents` | - | Lists all available documents with metadata |
 | `create_document` | `document_name: str` | Creates a new document directory |
 | `delete_document` | `document_name: str` | Deletes a document and all its chapters |
+| `read_document_summary` | `document_name: str` | Retrieve the content of a document's summary file (_SUMMARY.md). |
 
-### Chapter Management
+### Chapter Tools (5 tools)
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
 | `list_chapters` | `document_name: str` | Lists all chapters in a document, ordered by filename |
 | `create_chapter` | `document_name: str`, `chapter_name: str`, `initial_content: str = ""` | Creates a new chapter file |
 | `delete_chapter` | `document_name: str`, `chapter_name: str` | Deletes a chapter from a document |
+| `write_chapter_content` | `document_name: str`, `chapter_name: str`, `new_content: str` | Overwrites the entire content of a chapter |
+| `append_to_chapter_content` | `document_name: str`, `chapter_name: str`, `content_to_append: str` | Append content to an existing chapter file without replacing it. |
 
-### Content Operations
+### Paragraph Tools (7 tools)
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
-| `read_chapter_content` | `document_name: str`, `chapter_name: str` | Reads the content and metadata of a specific chapter |
-| `read_paragraph_content` | `document_name: str`, `chapter_name: str`, `paragraph_index_in_chapter: int` | Reads a specific paragraph from a chapter |
-| `read_full_document` | `document_name: str` | Reads the entire document, concatenating all chapters |
-| `read_document_summary` | `document_name: str` | Retrieve the content of a document's summary file (_SUMMARY.md). |
-| `write_chapter_content` | `document_name: str`, `chapter_name: str`, `new_content: str` | Overwrites the entire content of a chapter |
 | `replace_paragraph` | `document_name: str`, `chapter_name: str`, `paragraph_index: int`, `new_content: str` | Replaces a specific paragraph with new content. |
 | `insert_paragraph_before` | `document_name: str`, `chapter_name: str`, `paragraph_index: int`, `new_content: str` | Inserts a new paragraph before the specified index. |
 | `insert_paragraph_after` | `document_name: str`, `chapter_name: str`, `paragraph_index: int`, `new_content: str` | Inserts a new paragraph after the specified index. |
@@ -193,28 +199,29 @@ The server exposes the following tools via the Model Context Protocol:
 | `move_paragraph_before` | `document_name: str`, `chapter_name: str`, `paragraph_to_move_index: int`, `target_paragraph_index: int` | Moves a paragraph to appear before another paragraph. |
 | `move_paragraph_to_end` | `document_name: str`, `chapter_name: str`, `paragraph_to_move_index: int` | Moves a paragraph to the end of the chapter. |
 | `append_paragraph_to_chapter` | `document_name: str`, `chapter_name: str`, `paragraph_content: str` | Appends a new paragraph to the end of a chapter |
-| `append_to_chapter_content` | `document_name: str`, `chapter_name: str`, `content_to_append: str` | Append content to an existing chapter file without replacing it. |
 
-### Text Operations
-
-| Tool | Parameters | Description |
-|------|------------|-------------|
-| `replace_text_in_chapter` | `document_name: str`, `chapter_name: str`, `text_to_find: str`, `replacement_text: str` | Replaces all occurrences of text in a specific chapter |
-| `replace_text_in_document` | `document_name: str`, `text_to_find: str`, `replacement_text: str` | Replaces all occurrences of text throughout all chapters |
-
-### Analysis Tools
+### Content Tools (4 tools)
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
-| `get_chapter_statistics` | `document_name: str`, `chapter_name: str` | Retrieves statistics (word count, paragraph count) for a chapter |
-| `get_document_statistics` | `document_name: str` | Retrieves aggregated statistics for an entire document |
+| `read_content` | `document_name: str`, `scope: str`, `chapter_name: str?`, `paragraph_index: int?` | Unified tool to read content at the document, chapter, or paragraph level. |
+| `find_text` | `document_name: str`, `search_text: str`, `scope: str`, `chapter_name: str?`, `case_sensitive: bool?` | Unified tool to find text at the document or chapter level. |
+| `replace_text` | `document_name: str`, `find_text: str`, `replace_text: str`, `scope: str`, `chapter_name: str?` | Unified tool to replace text at the document or chapter level. |
+| `get_statistics` | `document_name: str`, `scope: str`, `chapter_name: str?` | Unified tool to get statistics for a document or chapter. |
 
-### Search Tools
+### Safety Tools (3 tools)
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
-| `find_text_in_chapter` | `document_name: str`, `chapter_name: str`, `query: str`, `case_sensitive: bool = False` | Finds paragraphs containing the query string in a specific chapter |
-| `find_text_in_document` | `document_name: str`, `query: str`, `case_sensitive: bool = False` | Finds paragraphs containing the query string across all chapters |
+| `manage_snapshots` | `document_name: str`, `action: str`, `snapshot_id: str?`, `message: str?`, `auto_cleanup: bool?` | Unified tool to create, list, and restore snapshots. |
+| `check_content_status` | `document_name: str`, `chapter_name: str?`, `include_history: bool?`, `time_window: str?`, `last_known_modified: str?` | Unified tool to check content freshness and get modification history. |
+| `diff_content` | `document_name: str`, `source_type: str`, `source_id: str?`, `target_type: str`, `target_id: str?`, `output_format: str?`, `chapter_name: str?` | Unified tool to compare content between snapshots, files, or current state. |
+
+### Batch Tools (1 tool)
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `batch_apply_operations` | `operations: List[Dict]`, `atomic: bool?`, `validate_only: bool?`, `snapshot_before: bool?`, `continue_on_error: bool?` | Executes a batch of operations with support for atomic transactions and rollbacks. |
 
 ## Data Models
 
@@ -225,8 +232,15 @@ The server uses Pydantic models for structured data exchange:
 - `ChapterContent`: Full content and metadata of a chapter
 - `ParagraphDetail`: Information about a specific paragraph
 - `FullDocumentContent`: Complete content of a document
+- `DocumentSummary`: Content of a document's summary file
 - `StatisticsReport`: Word and paragraph count statistics
 - `OperationStatus`: Success/failure status for operations
+- `ContentFreshnessStatus`: Information about content freshness
+- `ModificationHistory`: List of modification entries
+- `SnapshotInfo`: Metadata for a single snapshot
+- `SnapshotsList`: A list of snapshots for a document
+- `BatchOperation`: A single operation within a batch
+- `BatchApplyResult`: The result of a batch operation
 
 ## Requirements
 
@@ -246,7 +260,7 @@ The MCP server uses a three-tier testing strategy:
 2. **Integration Tests**: Real MCP server with mocked AI for tool validation
 3. **E2E Tests**: Real MCP server with real AI for complete system validation (runs in CI/CD)
 
-Tests cover all MCP tools, error handling, boundary conditions, and multi-step workflows. For more details on the testing strategy, see the [Testing Guidelines](https://github.com/clchinkc/document-mcp/blob/main/tests/testing_guidelines.md) in the main project repository.
+Tests cover all MCP tools, error handling, boundary conditions, and multi-step workflows. For more details on the testing strategy, see the [Testing Guidelines](https://github.com/clchinkc/document-mcp/blob/main/tests/README.md) in the main project repository.
 
 ## Examples and Documentation
 
@@ -430,7 +444,3 @@ Both log files use rotating file handlers:
 - Total storage: ~50MB per log type
 
 Configure your log analysis tools to handle log rotation appropriately.
-
-## Features
-
-- **Document Management**: Create, delete, and list document collections 

@@ -5,15 +5,13 @@ import traceback
 from enum import Enum
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 # Import metrics functionality (will gracefully handle if not available)
 try:
-    from .metrics_config import (
-        record_tool_call_error,
-        record_tool_call_start,
-        record_tool_call_success,
-    )
+    from .metrics_config import record_tool_call_error
+    from .metrics_config import record_tool_call_start
+    from .metrics_config import record_tool_call_success
 
     METRICS_AVAILABLE = True
 except ImportError:
@@ -94,7 +92,9 @@ error_log_path = Path(__file__).resolve().parent / "errors.log"
 # Use RotatingFileHandler for log rotation
 # maxBytes: 10MB per file, backupCount: 5 files (total ~50MB)
 file_handler = RotatingFileHandler(
-    log_file_path, maxBytes=10 * 1024 * 1024, backupCount=5  # 10MB
+    log_file_path,
+    maxBytes=10 * 1024 * 1024,
+    backupCount=5,  # 10MB
 )
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
@@ -102,7 +102,9 @@ mcp_call_logger.addHandler(file_handler)
 
 # Structured error log handler
 error_file_handler = RotatingFileHandler(
-    error_log_path, maxBytes=10 * 1024 * 1024, backupCount=5  # 10MB
+    error_log_path,
+    maxBytes=10 * 1024 * 1024,
+    backupCount=5,  # 10MB
 )
 error_file_handler.setFormatter(StructuredLogFormatter())
 error_logger.addHandler(error_file_handler)
@@ -115,13 +117,12 @@ error_logger.propagate = False
 def log_structured_error(
     category: ErrorCategory,
     message: str,
-    exception: Optional[Exception] = None,
-    context: Optional[Dict[str, Any]] = None,
-    operation: Optional[str] = None,
+    exception: Exception | None = None,
+    context: dict[str, Any] | None = None,
+    operation: str | None = None,
     **kwargs,
 ):
-    """
-    Log a structured error with comprehensive context information.
+    """Log a structured error with comprehensive context information.
 
     Args:
         category: Error severity category
@@ -157,11 +158,10 @@ def safe_operation(
     operation_func,
     *args,
     error_category: ErrorCategory = ErrorCategory.ERROR,
-    context: Optional[Dict[str, Any]] = None,
+    context: dict[str, Any] | None = None,
     **kwargs,
 ):
-    """
-    Execute an operation with enhanced error handling and logging.
+    """Execute an operation with enhanced error handling and logging.
 
     Args:
         operation_name: Name of the operation for logging
@@ -342,10 +342,6 @@ def log_mcp_call(func):
                 arguments=arg_str,
             )
 
-            # Also log to the original logger for backward compatibility
-            mcp_call_logger.error(
-                f"Tool {func_name} raised exception: {e}", exc_info=True
-            )
             raise
 
     return wrapper

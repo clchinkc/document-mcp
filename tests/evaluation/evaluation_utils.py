@@ -1,16 +1,17 @@
-"""
-Evaluation utilities for agent performance testing.
+"""Evaluation utilities for agent performance testing with LLM evaluation support.
 
 This module provides specialized utilities for the evaluation test suite,
-focusing on performance metrics collection and analysis.
+focusing on performance metrics collection, analysis, and LLM-based quality assessment.
 """
 
 import json
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from tests.e2e.validation_utils import DocumentSystemValidator
+
+# Removed dependency on over-engineered LLM evaluator
 
 
 @dataclass
@@ -37,16 +38,16 @@ class ToolCallMetrics:
     tool_name: str
     execution_time: float
     success: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
     result_size: int = 0  # Size of the result in characters
 
 
 class EvaluationAssertions:
-    """Specialized assertions for evaluation tests focusing on structured data."""
+    """Specialized assertions for evaluation tests focusing on structured data and LLM evaluation."""
 
     @staticmethod
     def assert_details_field_structure(
-        response: Dict[str, Any], expected_operation: str
+        response: dict[str, Any], expected_operation: str
     ):
         """Assert that the details field contains expected operation structure."""
         assert "details" in response, "Response must contain 'details' field"
@@ -58,13 +59,13 @@ class EvaluationAssertions:
             except json.JSONDecodeError:
                 raise AssertionError(f"Details field contains invalid JSON: {details}")
 
-        assert isinstance(
-            details, dict
-        ), f"Details must be a dictionary, got {type(details)}"
+        assert isinstance(details, dict), (
+            f"Details must be a dictionary, got {type(details)}"
+        )
         assert "operation" in details, "Details must contain 'operation' field"
-        assert (
-            details["operation"] == expected_operation
-        ), f"Expected operation '{expected_operation}', got '{details['operation']}'"
+        assert details["operation"] == expected_operation, (
+            f"Expected operation '{expected_operation}', got '{details['operation']}'"
+        )
         assert "success" in details, "Details must contain 'success' field"
         assert isinstance(details["success"], bool), "Success field must be boolean"
 
@@ -74,17 +75,17 @@ class EvaluationAssertions:
     ):
         """Assert that performance metrics are within acceptable bounds."""
         if metrics.token_usage is not None:
-            assert (
-                metrics.token_usage <= max_tokens
-            ), f"Token usage {metrics.token_usage} exceeds maximum {max_tokens}"
+            assert metrics.token_usage <= max_tokens, (
+                f"Token usage {metrics.token_usage} exceeds maximum {max_tokens}"
+            )
 
-        assert (
-            metrics.execution_time <= max_time
-        ), f"Execution time {metrics.execution_time:.2f}s exceeds maximum {max_time}s"
+        assert metrics.execution_time <= max_time, (
+            f"Execution time {metrics.execution_time:.2f}s exceeds maximum {max_time}s"
+        )
 
     @staticmethod
     def assert_file_system_state(
-        validator: DocumentSystemValidator, expected_changes: Dict[str, Any]
+        validator: DocumentSystemValidator, expected_changes: dict[str, Any]
     ):
         """Assert that file system state matches expected changes."""
         for change_type, change_data in expected_changes.items():
@@ -132,17 +133,80 @@ class EvaluationAssertions:
                 f"expected <= {max_tokens}"
             )
 
+    @staticmethod
+    def assert_llm_evaluation_quality(enhanced_metrics, min_score: float = 0.5):
+        """Assert LLM evaluation quality using clean architecture pattern."""
+        if enhanced_metrics.llm_evaluation and enhanced_metrics.llm_evaluation.success:
+            assert enhanced_metrics.llm_evaluation.score >= min_score, (
+                f"LLM quality score {enhanced_metrics.llm_evaluation.score:.2f} below minimum {min_score}"
+            )
+            assert enhanced_metrics.llm_evaluation.feedback != "", (
+                "Should provide feedback"
+            )
+        # If LLM evaluation is disabled or failed, test still passes (graceful degradation)
+
+    @staticmethod
+    def assert_combined_score_threshold(
+        performance_score: float,
+        quality_score: float,
+        combined_score: float,
+        expected_threshold: float = 0.6,
+        performance_weight: float = 0.7,
+        quality_weight: float = 0.3,
+    ):
+        """Assert that combined score meets threshold and is calculated correctly."""
+        # Verify calculation
+        expected_combined = (performance_weight * performance_score) + (
+            quality_weight * quality_score
+        )
+        assert abs(combined_score - expected_combined) < 0.01, (
+            f"Combined score {combined_score:.3f} doesn't match expected {expected_combined:.3f}"
+        )
+
+        # Verify threshold
+        assert combined_score >= expected_threshold, (
+            f"Combined score {combined_score:.2f} below threshold {expected_threshold}"
+        )
+
+    @staticmethod
+    def assert_comparative_evaluation_results(
+        comparison_results: dict[str, Any],
+        expected_agents: list[str],
+        require_ranking: bool = True,
+    ):
+        """Assert that comparative evaluation results are properly structured."""
+        assert "individual_evaluations" in comparison_results
+        assert "ranked_responses" in comparison_results
+        assert "best_response_index" in comparison_results
+
+        individual_evals = comparison_results["individual_evaluations"]
+        assert len(individual_evals) == len(expected_agents), (
+            f"Expected {len(expected_agents)} evaluations, got {len(individual_evals)}"
+        )
+
+        if require_ranking:
+            ranked_responses = comparison_results["ranked_responses"]
+            assert len(ranked_responses) > 0, "Should have ranked responses"
+
+            # Check ranking order (should be descending by score)
+            for i in range(len(ranked_responses) - 1):
+                current_score = ranked_responses[i]["overall_score"]
+                next_score = ranked_responses[i + 1]["overall_score"]
+                assert current_score >= next_score, (
+                    "Ranking should be in descending order"
+                )
+
 
 class PerformanceTracker:
     """Context manager for tracking performance metrics during test execution."""
 
     def __init__(self):
-        self.start_time: Optional[float] = None
-        self.end_time: Optional[float] = None
-        self.tool_calls: List[ToolCallMetrics] = []
-        self.token_usage: Optional[TokenUsageMetrics] = None
-        self.file_system_snapshot_before: Optional[Dict] = None
-        self.file_system_snapshot_after: Optional[Dict] = None
+        self.start_time: float | None = None
+        self.end_time: float | None = None
+        self.tool_calls: list[ToolCallMetrics] = []
+        self.token_usage: TokenUsageMetrics | None = None
+        self.file_system_snapshot_before: dict | None = None
+        self.file_system_snapshot_after: dict | None = None
 
     def __enter__(self):
         self.start_time = time.time()
@@ -163,7 +227,7 @@ class PerformanceTracker:
         tool_name: str,
         execution_time: float,
         success: bool,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
         result_size: int = 0,
     ):
         """Record a tool call for performance analysis."""
@@ -181,7 +245,7 @@ class PerformanceTracker:
         self,
         prompt_tokens: int,
         completion_tokens: int,
-        total_tokens: Optional[int] = None,
+        total_tokens: int | None = None,
     ):
         """Set token usage metrics."""
         self.token_usage = TokenUsageMetrics(
@@ -208,7 +272,7 @@ class PerformanceTracker:
         elif snapshot_type == "after":
             self.file_system_snapshot_after = snapshot
 
-    def get_file_system_changes(self) -> Dict[str, Any]:
+    def get_file_system_changes(self) -> dict[str, Any]:
         """Get changes in file system state between snapshots."""
         if not self.file_system_snapshot_before or not self.file_system_snapshot_after:
             return {}
@@ -247,7 +311,7 @@ class MockDataGenerator:
     """Generator for consistent mock data across evaluation tests."""
 
     @staticmethod
-    def create_test_document_data(doc_name: str) -> Dict[str, Any]:
+    def create_test_document_data(doc_name: str) -> dict[str, Any]:
         """Create consistent test document data."""
         return {
             "document_name": doc_name,
@@ -261,18 +325,18 @@ class MockDataGenerator:
         }
 
     @staticmethod
-    def create_test_chapter_data(doc_name: str, chapter_name: str) -> Dict[str, Any]:
+    def create_test_chapter_data(doc_name: str, chapter_name: str) -> dict[str, Any]:
         """Create consistent test chapter data."""
         return {
             "document_name": doc_name,
             "chapter_name": chapter_name,
-            "content": f'# {chapter_name.replace(".md", "").replace("-", " ").title()}\n\nThis is test content for {chapter_name}.',
+            "content": f"# {chapter_name.replace('.md', '').replace('-', ' ').title()}\n\nThis is test content for {chapter_name}.",
             "word_count": 50,
             "section_count": 1,
         }
 
     @staticmethod
-    def create_performance_test_scenarios() -> List[Dict[str, Any]]:
+    def create_performance_test_scenarios() -> list[dict[str, Any]]:
         """Create a set of performance test scenarios."""
         return [
             {
@@ -304,7 +368,7 @@ class MockDataGenerator:
             {
                 "name": "document_query_and_analysis",
                 "query": "List all documents and show their statistics",
-                "expected_operations": ["list_documents", "get_document_statistics"],
+                "expected_operations": ["list_documents", "get_statistics"],
                 "max_tokens": {"simple": 300, "react": 600},
                 "max_time": 10.0,
                 "expected_files": [],  # Query operation, no new files
@@ -314,7 +378,7 @@ class MockDataGenerator:
 
 def compare_agent_performance(
     metrics_simple: "AgentPerformanceMetrics", metrics_react: "AgentPerformanceMetrics"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Compare performance between simple and react agents."""
     comparison = {
         "token_efficiency": {
@@ -346,9 +410,9 @@ def compare_agent_performance(
 
 
 def generate_performance_summary(
-    metrics_list: List["AgentPerformanceMetrics"],
-) -> Dict[str, Any]:
-    """Generate a comprehensive performance summary."""
+    metrics_list: list["AgentPerformanceMetrics"], include_llm_evaluation: bool = False
+) -> dict[str, Any]:
+    """Generate a comprehensive performance summary with optional LLM evaluation metrics."""
     successful_tests = [m for m in metrics_list if m.success]
     failed_tests = [m for m in metrics_list if not m.success]
 
@@ -385,4 +449,57 @@ def generate_performance_summary(
         },
     }
 
+    # Add LLM evaluation metrics if requested and available (clean architecture)
+    if include_llm_evaluation:
+        # Extract LLM evaluation metrics from enhanced metrics (using clean architecture)
+        llm_evaluations = []
+        for m in metrics_list:
+            if (
+                hasattr(m, "llm_evaluation")
+                and m.llm_evaluation
+                and m.llm_evaluation.success
+            ):
+                llm_evaluations.append(m.llm_evaluation)
+
+        if llm_evaluations:
+            summary["llm_evaluation"] = {
+                "total_evaluations": len(llm_evaluations),
+                "successful_evaluations": len(llm_evaluations),
+                "average_quality_score": sum(e.score for e in llm_evaluations)
+                / len(llm_evaluations),
+                "quality_distribution": {
+                    "high": len([e for e in llm_evaluations if e.score >= 0.8]),
+                    "medium": len([e for e in llm_evaluations if 0.6 <= e.score < 0.8]),
+                    "low": len([e for e in llm_evaluations if e.score < 0.6]),
+                },
+            }
+
+            # Add combined score metrics if available (using clean architecture)
+            combined_scores = []
+            for m in metrics_list:
+                if hasattr(m, "combined_score") and m.combined_score > 0:
+                    combined_scores.append(m.combined_score)
+
+            if combined_scores:
+                summary["combined_scoring"] = {
+                    "average_combined_score": sum(combined_scores)
+                    / len(combined_scores),
+                    "combined_distribution": {
+                        "excellent": len([s for s in combined_scores if s >= 0.8]),
+                        "good": len([s for s in combined_scores if 0.6 <= s < 0.8]),
+                        "needs_improvement": len(
+                            [s for s in combined_scores if s < 0.6]
+                        ),
+                    },
+                }
+
     return summary
+
+
+# Complex LLM evaluation functions were removed in favor of clean architecture.
+# For LLM evaluation capabilities, use:
+#   from tests.evaluation.llm_evaluation_layer import enhance_test_metrics
+#   enhanced = await enhance_test_metrics(performance_metrics, query, response)
+#   if enhanced.llm_evaluation:
+#       quality_score = enhanced.llm_evaluation.score
+#       feedback = enhanced.llm_evaluation.feedback

@@ -1,12 +1,11 @@
-"""
-Shared output formatter for consistent JSON responses across all agents.
+"""Shared output formatter for consistent JSON responses across all agents.
 
 This module provides a common interface for formatting agent responses
 in JSON format while allowing each agent to maintain its unique characteristics.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class AgentResponseFormatter:
@@ -16,13 +15,12 @@ class AgentResponseFormatter:
     def format_as_json(
         agent_type: str,
         summary: str,
-        details: Optional[Any] = None,
-        execution_log: Optional[str] = None,
-        error_message: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        details: Any | None = None,
+        execution_log: str | None = None,
+        error_message: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
-        """
-        Format agent response as JSON with consistent structure.
+        """Format agent response as JSON with consistent structure.
 
         Args:
             agent_type: Type of agent (e.g., "simple", "react", "planner")
@@ -52,10 +50,9 @@ class AgentResponseFormatter:
 
     @staticmethod
     def format_simple_agent_response(
-        summary: str, details: Any, error_message: Optional[str] = None
+        summary: str, details: Any, error_message: str | None = None
     ) -> str:
-        """
-        Format response for simple agent with minimal metadata.
+        """Format response for simple agent with minimal metadata.
 
         Args:
             summary: Human-readable summary
@@ -75,13 +72,12 @@ class AgentResponseFormatter:
     @staticmethod
     def format_react_agent_response(
         summary: str,
-        steps_executed: List[Dict[str, Any]],
+        steps_executed: list[dict[str, Any]],
         execution_log: str,
         max_steps: int,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ) -> str:
-        """
-        Format response for ReAct agent with execution history.
+        """Format response for ReAct agent with execution history.
 
         Args:
             summary: Human-readable summary of execution
@@ -107,11 +103,10 @@ class AgentResponseFormatter:
         summary: str,
         plan_generated: bool,
         execution_completed: bool,
-        steps_executed: List[Dict[str, Any]],
-        error_message: Optional[str] = None,
+        steps_executed: list[dict[str, Any]],
+        error_message: str | None = None,
     ) -> str:
-        """
-        Format response for planner agent with plan execution details.
+        """Format response for planner agent with plan execution details.
 
         Args:
             summary: Human-readable summary of planning and execution

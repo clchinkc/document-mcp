@@ -1,15 +1,12 @@
 import json
-from typing import Any, Dict, Tuple
+from typing import Any
 
 
 class ActionParser:
-    """
-    Parses an action string in the format tool_name(arg1="value1", arg2="value2").
-    """
+    """Parses an action string in the format tool_name(arg1="value1", arg2="value2")."""
 
-    def parse(self, action_string: str) -> Tuple[str, Dict[str, Any]]:
-        """
-        Parses the action string and returns the tool name and arguments.
+    def parse(self, action_string: str) -> tuple[str, dict[str, Any]]:
+        """Parses the action string and returns the tool name and arguments.
 
         Args:
             action_string: The action string to parse.
@@ -44,9 +41,8 @@ class ActionParser:
 
         return tool_name, args
 
-    def _parse_args(self, args_str: str) -> Dict[str, Any]:
-        """
-        Parses the arguments string.
+    def _parse_args(self, args_str: str) -> dict[str, Any]:
+        """Parses the arguments string.
         This is a simplified parser and may not handle all edge cases.
         """
         args = {}
@@ -75,9 +71,12 @@ class ActionParser:
                         value = False
                     else:
                         # Remove quotes if present
-                        if value.startswith('"') and value.endswith('"'):
-                            value = value[1:-1]
-                        elif value.startswith("'") and value.endswith("'"):
+                        if (
+                            value.startswith('"')
+                            and value.endswith('"')
+                            or value.startswith("'")
+                            and value.endswith("'")
+                        ):
                             value = value[1:-1]
                     args[key] = value
             except ValueError:

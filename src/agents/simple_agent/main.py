@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 import time
-from typing import Optional, Tuple
 
 from pydantic import BaseModel
 from pydantic_ai import Agent
@@ -12,7 +11,8 @@ from pydantic_ai.mcp import MCPServerStdio
 
 # Import models from the server to ensure compatibility
 from src.agents.shared.error_handling import RetryManager
-from src.agents.shared.performance_metrics import AgentPerformanceMetrics, PerformanceMetricsCollector
+from src.agents.shared.performance_metrics import AgentPerformanceMetrics
+from src.agents.shared.performance_metrics import PerformanceMetricsCollector
 
 # Suppress verbose HTTP logging from requests/urllib3
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -21,14 +21,13 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 
-from src.agents.shared.cli import (
-    handle_config_check,
-    parse_simple_agent_args,
-    setup_document_root,
-)
+from src.agents.shared.cli import handle_config_check
+from src.agents.shared.cli import parse_simple_agent_args
+from src.agents.shared.cli import setup_document_root
 
 # --- Configuration ---
-from src.agents.shared.config import DEFAULT_TIMEOUT, MCP_SERVER_CMD, load_llm_config
+from src.agents.shared.config import MCP_SERVER_CMD
+from src.agents.shared.config import load_llm_config
 from src.agents.simple_agent.prompts import get_simple_agent_system_prompt
 
 # --- Agent Response Model (for Pydantic AI Agent's structured output) ---
@@ -39,10 +38,10 @@ class FinalAgentResponse(BaseModel):
     """Defines the final structured output expected from the Pydantic AI agent."""
 
     summary: str
-    details: Optional[str] = (
+    details: str | None = (
         None  # Use string instead of Dict to avoid Gemini additionalProperties limitation
     )
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 # --- System Prompt ---
@@ -53,9 +52,9 @@ class FinalAgentResponse(BaseModel):
 _retry_manager = RetryManager()
 
 
-async def initialize_agent_and_mcp_server() -> (
-    tuple[Agent[FinalAgentResponse], MCPServerStdio]
-):
+async def initialize_agent_and_mcp_server() -> tuple[
+    Agent[FinalAgentResponse], MCPServerStdio
+]:
     """Initializes the Pydantic AI agent and its MCP server configuration."""
     try:
         llm = await _retry_manager.execute_with_retry(load_llm_config)
@@ -97,18 +96,17 @@ async def initialize_agent_and_mcp_server() -> (
 
 async def process_single_user_query(
     agent: Agent[FinalAgentResponse], user_query: str
-) -> Optional[FinalAgentResponse]:
+) -> FinalAgentResponse | None:
     """Processes a single user query using the provided agent and returns the structured response."""
     try:
 
         async def _run_agent():
             return await agent.run(user_query)
 
-        # Use RetryManager for robust error handling with timeout
-        run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
-            _retry_manager.execute_with_retry(_run_agent),
-            timeout=DEFAULT_TIMEOUT,
-        )
+        # Use RetryManager for robust error handling - let it manage its own timeouts
+        run_result: AgentRunResult[
+            FinalAgentResponse
+        ] = await _retry_manager.execute_with_retry(_run_agent)
 
         if run_result and run_result.output:
             return run_result.output
@@ -131,24 +129,23 @@ async def process_single_user_query(
 
 async def process_single_user_query_with_metrics(
     agent: Agent[FinalAgentResponse], user_query: str
-) -> Tuple[Optional[FinalAgentResponse], AgentPerformanceMetrics]:
-    """
-    Processes a single user query and returns both response and real performance metrics.
-    
+) -> tuple[FinalAgentResponse | None, AgentPerformanceMetrics]:
+    """Processes a single user query and returns both response and real performance metrics.
+
     This function captures actual performance data from the agent execution,
     replacing hardcoded mock values with real measurements.
     """
     start_time = time.time()
-    
+
     try:
+
         async def _run_agent():
             return await agent.run(user_query)
 
-        # Use RetryManager for robust error handling with timeout
-        run_result: AgentRunResult[FinalAgentResponse] = await asyncio.wait_for(
-            _retry_manager.execute_with_retry(_run_agent),
-            timeout=DEFAULT_TIMEOUT,
-        )
+        # Use RetryManager for robust error handling - let it manage its own timeouts
+        run_result: AgentRunResult[
+            FinalAgentResponse
+        ] = await _retry_manager.execute_with_retry(_run_agent)
 
         # Collect real performance metrics from the agent result
         metrics = PerformanceMetricsCollector.collect_from_agent_result(
@@ -161,7 +158,7 @@ async def process_single_user_query_with_metrics(
         if run_result and run_result.output:
             response = run_result.output
             metrics.success = True
-            if hasattr(response, 'model_dump'):
+            if hasattr(response, "model_dump"):
                 metrics.response_data = response.model_dump()
             return response, metrics
         elif run_result and run_result.error_message:
@@ -179,7 +176,7 @@ async def process_single_user_query_with_metrics(
             metrics.success = False
             metrics.error_message = "No response from agent"
             return None, metrics
-            
+
     except Exception as e:
         # Handle execution exceptions
         metrics = PerformanceMetricsCollector.collect_from_timing_and_response(
@@ -187,15 +184,15 @@ async def process_single_user_query_with_metrics(
             agent_type="simple",
             response_data={"error": str(e)},
             success=False,
-            error_message=str(e)
+            error_message=str(e),
         )
-        
+
         response = FinalAgentResponse(
             summary=f"Agent processing failed: {e}",
             details=None,
             error_message=str(e),
         )
-        
+
         print(f"Error during agent query processing: {e}", file=sys.stderr)
         return response, metrics
 

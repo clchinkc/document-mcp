@@ -1,10 +1,8 @@
-"""
-Pydantic models for the ReAct agent.
-"""
+"""Pydantic models for the ReAct agent."""
 
-from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from pydantic import Field
 
 
 class ReActStep(BaseModel):
@@ -13,7 +11,7 @@ class ReActStep(BaseModel):
     thought: str = Field(
         min_length=1, description="The agent's reasoning and plan for the next action."
     )
-    action: Optional[str] = Field(
+    action: str | None = Field(
         default=None,
         description="The tool call to execute, or null if reasoning is complete.",
     )

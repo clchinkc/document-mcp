@@ -1,11 +1,10 @@
-"""
-Shared configuration for agents using Pydantic Settings for validation.
-"""
+"""Shared configuration for agents using Pydantic Settings for validation."""
 
-from typing import Literal, Optional
+from typing import Literal
 
 from dotenv import load_dotenv
-from pydantic import Field, model_validator
+from pydantic import Field
+from pydantic import model_validator
 from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_settings import BaseSettings
@@ -20,8 +19,8 @@ class AgentSettings(BaseSettings):
     """Pydantic Settings model for agent configuration with validation."""
 
     # API Keys
-    openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key")
-    gemini_api_key: Optional[str] = Field(
+    openai_api_key: str | None = Field(default=None, description="OpenAI API key")
+    gemini_api_key: str | None = Field(
         default=None, description="Google Gemini API key"
     )
 
@@ -34,12 +33,12 @@ class AgentSettings(BaseSettings):
     )
 
     # Document Root
-    document_root_dir: Optional[str] = Field(
+    document_root_dir: str | None = Field(
         default=None, description="Document storage root directory"
     )
 
     # Test Mode
-    pytest_current_test: Optional[str] = Field(
+    pytest_current_test: str | None = Field(
         default=None, description="Test mode indicator"
     )
 
@@ -68,7 +67,7 @@ class AgentSettings(BaseSettings):
         return bool(self.gemini_api_key and self.gemini_api_key.strip())
 
     @property
-    def active_provider(self) -> Optional[Literal["openai", "gemini"]]:
+    def active_provider(self) -> Literal["openai", "gemini"] | None:
         """Get the active provider (OpenAI takes precedence)."""
         if self.openai_configured:
             return "openai"
@@ -77,7 +76,7 @@ class AgentSettings(BaseSettings):
         return None
 
     @property
-    def active_model(self) -> Optional[str]:
+    def active_model(self) -> str | None:
         """Get the active model name."""
         if self.active_provider == "openai":
             return self.openai_model_name
@@ -85,32 +84,11 @@ class AgentSettings(BaseSettings):
             return self.gemini_model_name
         return None
 
-    def to_legacy_dict(self) -> dict:
-        """Convert to legacy dictionary format for backwards compatibility."""
-        return {
-            "openai_configured": self.openai_configured,
-            "gemini_configured": self.gemini_configured,
-            "active_provider": self.active_provider,
-            "active_model": self.active_model,
-            "openai_model": self.openai_model_name if self.openai_configured else None,
-            "gemini_model": self.gemini_model_name if self.gemini_configured else None,
-        }
-
 
 def get_settings() -> AgentSettings:
     """Get the validated settings instance."""
     load_dotenv()  # Load .env file
     return AgentSettings()
-
-
-def check_api_keys_config():
-    """Check API key configuration and return a status dictionary.
-
-    Legacy function maintained for backwards compatibility.
-    Uses the new Pydantic Settings under the hood.
-    """
-    settings = get_settings()
-    return settings.to_legacy_dict()
 
 
 async def load_llm_config():

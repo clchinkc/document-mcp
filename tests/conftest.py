@@ -1,5 +1,4 @@
-"""
-Minimal pytest configuration for simplified Document MCP testing.
+"""Minimal pytest configuration for simplified Document MCP testing.
 
 This provides only essential fixtures needed for the new stdio-based testing approach.
 """
@@ -92,7 +91,8 @@ def document_factory(temp_docs_root):
 @pytest.fixture
 def clean_documents():
     """Clean all documents before each test."""
-    from document_mcp.doc_tool_server import delete_document, list_documents
+    from tests.tool_imports import delete_document
+    from tests.tool_imports import list_documents
 
     # Clean existing documents before test
     try:

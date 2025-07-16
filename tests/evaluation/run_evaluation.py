@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Standalone evaluation runner for document-mcp agents.
+"""Standalone evaluation runner for document-mcp agents.
 
 This script runs the evaluation suite and generates performance reports
 for both Simple and React agents across various test scenarios.
@@ -10,25 +9,21 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import tempfile
 
-from tests.evaluation.config import get_evaluation_config, get_test_scenarios
-from tests.evaluation.evaluation_utils import (
-    compare_agent_performance,
-    generate_performance_summary,
-)
-from tests.evaluation.test_agent_performance import (
-    AgentTestRunner,
-    print_performance_report,
-)
+from tests.evaluation.config import get_evaluation_config
+from tests.evaluation.config import get_test_scenarios
+from tests.evaluation.evaluation_utils import compare_agent_performance
+from tests.evaluation.evaluation_utils import generate_performance_summary
+from tests.evaluation.test_agent_performance import AgentTestRunner
+from tests.evaluation.test_agent_performance import print_performance_report
 
 
-async def run_single_scenario(runner: AgentTestRunner, scenario: Dict, agent_type: str):
+async def run_single_scenario(runner: AgentTestRunner, scenario: dict, agent_type: str):
     """Run a single test scenario for a given agent type."""
     try:
         query = scenario["query"]
@@ -52,7 +47,7 @@ async def run_single_scenario(runner: AgentTestRunner, scenario: Dict, agent_typ
 
 
 async def run_evaluation_suite(
-    categories: List[str] = None, use_real_llm: bool = False
+    categories: list[str] = None, use_real_llm: bool = False
 ):
     """Run the complete evaluation suite."""
     print("=" * 60)
@@ -139,7 +134,9 @@ async def run_evaluation_suite(
 
     # Comparison Report
     print("\n--- AGENT COMPARISON ---")
-    print_comparison_report(all_results["comparisons"], simple_summary, react_summary, planner_summary)
+    print_comparison_report(
+        all_results["comparisons"], simple_summary, react_summary, planner_summary
+    )
 
     # Save results if configured
     if config.save_metrics_to_file:
@@ -152,7 +149,10 @@ async def run_evaluation_suite(
 
 
 def print_comparison_report(
-    comparisons: List[Dict], simple_summary: Dict, react_summary: Dict, planner_summary: Dict
+    comparisons: list[dict],
+    simple_summary: dict,
+    react_summary: dict,
+    planner_summary: dict,
 ):
     """Print a detailed comparison report between agents."""
     print(f"Total Scenarios: {len(comparisons)}")
@@ -164,10 +164,14 @@ def print_comparison_report(
     simple_avg_tokens = simple_summary["average_token_usage"]
     react_avg_tokens = react_summary["average_token_usage"]
     planner_avg_tokens = planner_summary["average_token_usage"]
-    react_token_ratio = react_avg_tokens / simple_avg_tokens if simple_avg_tokens > 0 else 0
-    planner_token_ratio = planner_avg_tokens / simple_avg_tokens if simple_avg_tokens > 0 else 0
+    react_token_ratio = (
+        react_avg_tokens / simple_avg_tokens if simple_avg_tokens > 0 else 0
+    )
+    planner_token_ratio = (
+        planner_avg_tokens / simple_avg_tokens if simple_avg_tokens > 0 else 0
+    )
 
-    print(f"\nToken Usage Comparison:")
+    print("\nToken Usage Comparison:")
     print(f"  Simple Agent Average: {simple_avg_tokens:.1f} tokens")
     print(f"  React Agent Average: {react_avg_tokens:.1f} tokens")
     print(f"  Planner Agent Average: {planner_avg_tokens:.1f} tokens")
@@ -179,9 +183,11 @@ def print_comparison_report(
     react_avg_time = react_summary["average_execution_time"]
     planner_avg_time = planner_summary["average_execution_time"]
     react_time_ratio = react_avg_time / simple_avg_time if simple_avg_time > 0 else 0
-    planner_time_ratio = planner_avg_time / simple_avg_time if simple_avg_time > 0 else 0
+    planner_time_ratio = (
+        planner_avg_time / simple_avg_time if simple_avg_time > 0 else 0
+    )
 
-    print(f"\nExecution Time Comparison:")
+    print("\nExecution Time Comparison:")
     print(f"  Simple Agent Average: {simple_avg_time:.2f}s")
     print(f"  React Agent Average: {react_avg_time:.2f}s")
     print(f"  Planner Agent Average: {planner_avg_time:.2f}s")
@@ -189,7 +195,7 @@ def print_comparison_report(
     print(f"  Planner/Simple Ratio: {planner_time_ratio:.1f}x")
 
     # Performance buckets
-    print(f"\nPerformance Distribution:")
+    print("\nPerformance Distribution:")
     print(
         f"  Simple Agent - Fast: {simple_summary['performance_buckets']['fast']}, "
         f"Medium: {simple_summary['performance_buckets']['medium']}, "
@@ -207,7 +213,7 @@ def print_comparison_report(
     )
 
     # Token efficiency buckets
-    print(f"\nToken Efficiency Distribution:")
+    print("\nToken Efficiency Distribution:")
     print(
         f"  Simple Agent - Efficient: {simple_summary['token_efficiency_buckets']['efficient']}, "
         f"Moderate: {simple_summary['token_efficiency_buckets']['moderate']}, "
@@ -225,7 +231,7 @@ def print_comparison_report(
     )
 
 
-def save_results_to_file(results: Dict, file_path: str):
+def save_results_to_file(results: dict, file_path: str):
     """Save evaluation results to a JSON file."""
     # Convert metrics to dictionaries for JSON serialization
     serializable_results = {

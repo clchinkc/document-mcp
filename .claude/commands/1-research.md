@@ -1,0 +1,3 @@
+1.  Research (With parallel subagent)
+1a. Look into each implementation file (literally all files in src folder), get to the fundamental principle and concrete implementation of the code. Consider how the system is supposed to work, in lowest complexity and highest usefulness and extensibility.
+1b. Look into each test file (literally all files in tests folder), get to the purpose of testing and the condition of passing and failing the test. Consider how to use testing to ensure the implementation correctness with fewer LLM call.

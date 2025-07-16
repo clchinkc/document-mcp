@@ -1,148 +1,103 @@
 # Document-MCP Agent Evaluation Suite
 
-This directory contains the comprehensive evaluation infrastructure for testing document-mcp agents' performance, token usage, and reliability.
+This directory contains the comprehensive evaluation infrastructure for testing agent performance, token usage, and reliability. It follows a **clean architecture** philosophy where agent logic is decoupled from evaluation logic.
 
-## Overview
+## 1. Overview
 
-The evaluation suite implements **Phase 1** of the LLM Test Suite and Prompt Optimization Plan, providing a robust foundation for measuring and improving agent performance.
+The evaluation suite provides a robust foundation for measuring and improving agent performance. The core principle is:
 
-## Architecture
+**Agents collect their own performance metrics. The test layer optionally enhances them with LLM-based quality evaluation.**
 
-### Core Components
+This approach keeps the agent implementation clean and focused on its primary tasks, while providing a flexible way to assess the quality of its responses during testing.
 
-- **`test_agent_performance.py`** - Main evaluation tests with pytest integration
-- **`evaluation_utils.py`** - Utilities for metrics collection and analysis
-- **`config.py`** - Configuration and performance thresholds
-- **`run_evaluation.py`** - Standalone evaluation runner
+## 2. Clean Architecture
 
-### Key Features
+The evaluation process is best demonstrated in `test_simple_integration.py` and follows these steps:
 
-- **Agent-Agnostic Testing**: Parameterized tests that work with both Simple and React agents
-- **Mock and Real LLM Support**: Fast mock testing for development, real LLM testing for quality assurance
-- **Performance Metrics**: Token usage, execution time, and tool call frequency tracking
-- **Assertion Strategy**: Focus on structured `details` field and file system state validation
-- **Comprehensive Reporting**: Detailed performance reports with comparisons
+1.  **Agent Execution**: An agent is executed to perform a task (e.g., via `process_single_user_query_with_metrics`). It returns its standard response and a `AgentPerformanceMetrics` object containing metrics like execution time, token usage, and success status.
+2.  **Test-Layer Enhancement**: In the test, the `enhance_test_metrics` function from `llm_evaluation_layer.py` is called. This function takes the performance metrics and the agent's query/response.
+3.  **Optional LLM Evaluation**: If the `ENABLE_LLM_EVALUATION` environment variable is set to `true`, `enhance_test_metrics` uses a simple, cost-effective LLM (like `gpt-4o-mini`) to score the response quality and provide brief feedback. This evaluation is designed to be fast and non-blocking.
+4.  **Combined Assertions**: The test can then assert on both the concrete performance metrics (e.g., `execution_time < 5.0`) and the qualitative score from the LLM evaluation (e.g., `quality_score > 0.7`).
 
-## Usage
-
-### Running Tests via pytest
-
-```bash
-# Run all evaluation tests
-pytest tests/evaluation/ -m evaluation
-
-# Run specific test categories
-pytest tests/evaluation/ -k "performance"
-
-# Run with verbose output
-pytest tests/evaluation/ -v -s
-```
-
-### Running Standalone Evaluation Suite
-
-```bash
-# Run full evaluation suite with mock LLM
-python3 tests/evaluation/run_evaluation.py
-
-# Run specific test categories
-python3 tests/evaluation/run_evaluation.py --categories basic intermediate
-
-# Run with real LLM (requires API keys)
-python3 tests/evaluation/run_evaluation.py --real-llm
-
-# Save results to file
-python3 tests/evaluation/run_evaluation.py --save-results
-```
-
-## Test Categories
-
-- **basic**: Simple single-operation tests (document creation, deletion)
-- **intermediate**: Multi-step operations (document with chapters)
-- **advanced**: Complex analysis and search operations
-- **complex**: Multi-step workflows with multiple operations
-- **query**: Read-only query operations (list, read, statistics)
-
-## Performance Thresholds
-
-The evaluation suite enforces performance thresholds to ensure agents remain efficient:
-
-### Token Usage Limits
-- **Simple Agent**: 150-400 tokens per operation
-- **React Agent**: 400-800 tokens per operation
-
-### Execution Time Limits
-- **Simple Agent**: 3-8 seconds per operation
-- **React Agent**: 10-30 seconds per operation
-
-### Tool Call Limits
-- **Most Operations**: 2-7 tool calls maximum
-
-## Evaluation Strategy
-
-### Mock LLM Testing (Fast)
-- **Purpose**: Rapid development and CI/CD pipeline
-- **Speed**: <1 second per test
-- **Cost**: Zero API calls
-- **Coverage**: Agent logic and MCP integration
-
-### Real LLM Testing (Quality Assurance)
-- **Purpose**: End-to-end quality validation
-- **Speed**: 10-60 seconds per test
-- **Cost**: Actual API calls
-- **Coverage**: Complete system behavior
-
-## Assertion Philosophy
-
-The evaluation suite follows the **"Assert on Reality, Not Words"** principle:
-
-1. **Structured Data Validation**: Assert on the `details` field containing MCP tool responses
-2. **File System State**: Verify actual file system changes rather than LLM descriptions
-3. **Performance Metrics**: Track concrete measurements (tokens, time, tool calls)
-4. **Avoid LLM-Generated Text**: Don't rely on the `summary` field for test validation
-
-## Example Usage
+### Example: `test_simple_integration.py`
 
 ```python
-# Import evaluation components
-from tests.evaluation import AgentTestRunner, MockLLMResponse
+# 1. Run agent normally to get standard performance metrics
+response, performance_metrics = await process_single_user_query_with_metrics(agent, query)
 
-# Create test runner
-runner = AgentTestRunner(docs_root, use_mock_llm=True)
+# 2. Standard assertions on performance are always possible
+assert performance_metrics.execution_time > 0
 
-# Run a test scenario
-metrics = await runner.run_simple_agent_test(
-    query="Create a document called 'test'",
-    expected_response=MockLLMResponse.create_document_response("test")
+# 3. Enhance with optional LLM evaluation for testing
+enhanced_metrics = await enhance_test_metrics(
+    performance_metrics, query, response.summary
 )
 
-# Assert on performance and results
-assert metrics.success
-assert metrics.token_usage < 200
-assert metrics.execution_time < 5.0
+# 4. Assert on the optional quality score
+if enhanced_metrics.llm_evaluation and enhanced_metrics.llm_evaluation.success:
+    assert enhanced_metrics.llm_evaluation.score >= 0.7
 ```
 
-## Performance Reporting
+## 3. Core Components
 
-The evaluation suite generates comprehensive performance reports:
+-   **`test_simple_integration.py`**: The primary example of the clean evaluation architecture. It shows how to run an agent and optionally enhance its metrics for a combined quality and performance assessment.
+-   **`llm_evaluation_layer.py`**: Provides the `enhance_test_metrics` function. This is the heart of the optional, test-layer-only LLM evaluation. It is designed to be simple and robust, gracefully handling failures or timeouts.
+-   **`config.py`**: Defines performance thresholds (`PerformanceThresholds`) and standardized test scenarios (`DEFAULT_TEST_SCENARIOS`) used across evaluation tests.
+-   **`evaluation_utils.py`**: Contains helper classes and functions for performance tracking (`PerformanceTracker`), specialized assertions (`EvaluationAssertions`), and reporting.
+-   **`run_evaluation.py`**: A standalone script for running the evaluation suite across multiple scenarios and agents.
 
+## 4. Usage
+
+### Running via Pytest
+
+The simplest way to run evaluation tests is with pytest.
+
+```bash
+# Run all evaluation tests (LLM scoring disabled by default)
+pytest tests/evaluation/
+
+# Run tests with LLM-based quality scoring enabled
+ENABLE_LLM_EVALUATION=true pytest tests/evaluation/
 ```
-=== Performance Report: Document Creation Tests ===
-Total Tests: 2
-Success Rate: 100%
-Total Token Usage: 450
-Total Execution Time: 3.45s
-Average Tokens per Test: 225.0
-Average Execution Time: 1.73s
-  ✓ Test 1: 150 tokens, 0.12s
-  ✓ Test 2: 300 tokens, 3.33s
-==================================================
+
+### Standalone Runner
+
+The `run_evaluation.py` script provides a way to run the suite for multiple agents and scenarios, generating a comparative report.
+
+```bash
+# Run the full evaluation suite
+python3 tests/evaluation/run_evaluation.py
+
+# Run only specific categories
+python3 tests/evaluation/run_evaluation.py --categories basic intermediate
+
+# Run with a real LLM for the agent's actions (E2E mode)
+python3 tests/evaluation/run_evaluation.py --real-llm
 ```
 
-## Integration with CI/CD
+## 5. Test Scenarios and Thresholds
 
-The evaluation suite is designed for integration with continuous integration:
+The `config.py` file defines standardized test scenarios and performance thresholds.
 
-- **Fast Mock Tests**: Run on every commit for rapid feedback
-- **Real LLM Tests**: Run on schedule or release candidates
-- **Performance Regression Detection**: Fail builds if performance degrades
-- **Metrics Tracking**: Historical performance data collection
+### Test Categories
+- **basic**: Simple single-operation tests (document creation, deletion).
+- **intermediate**: Multi-step operations (document with chapters).
+- **advanced**: Complex analysis and search operations.
+- **complex**: Multi-step workflows with multiple operations.
+- **query**: Read-only query operations (list, read, statistics).
+- **error**: Tests for error handling and edge cases.
+
+### Performance Thresholds
+The configuration defines agent-specific limits to prevent performance regressions:
+- **Token Usage**: e.g., Simple Agent: 150-400 tokens; React Agent: 400-800 tokens.
+- **Execution Time**: e.g., Simple Agent: 3-8s; React Agent: 10-30s.
+- **Tool Calls**: e.g., 2-7 tool calls per operation.
+
+## 6. LLM Evaluation Configuration
+
+The optional LLM quality evaluation is designed to be robust and cost-effective.
+
+-   **Control**: Enabled via `export ENABLE_LLM_EVALUATION=true`.
+-   **Cost-Effective**: Uses `gpt-4o-mini` or `gemini-2.5-flash` by default.
+-   **Robust**: A 10-second timeout and graceful failure handling ensure that evaluation issues never break a test run.
+-   **Integration**: Works seamlessly with CI/CD. Fast performance tests can run on every commit, with optional, scheduled runs for LLM-enhanced quality checks.

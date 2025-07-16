@@ -1,5 +1,4 @@
-"""
-Integration tests for agents with mocked LLM and real MCP stdio communication.
+"""Integration tests for agents with mocked LLM and real MCP stdio communication.
 
 This module tests agent-server integration with mocked LLM responses
 to validate that agents properly populate the details field with MCP tool results.
@@ -8,7 +7,6 @@ to validate that agents properly populate the details field with MCP tool result
 import json
 import uuid
 from pathlib import Path
-from typing import Dict, Optional
 
 import pytest
 from pydantic_ai.mcp import MCPServerStdio
@@ -27,7 +25,7 @@ async def mcp_server():
 def document_factory(temp_docs_root: Path):
     """A factory to create documents with chapters for testing."""
 
-    def _create_document(doc_name: str, chapters: Optional[Dict[str, str]] = None):
+    def _create_document(doc_name: str, chapters: dict[str, str] | None = None):
         doc_path = temp_docs_root / doc_name
         doc_path.mkdir(exist_ok=True)
         if chapters:

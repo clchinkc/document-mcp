@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Shared CLI utilities for document management agents.
+"""Shared CLI utilities for document management agents.
 
 This module provides common command-line argument parsing and configuration
 checking functionality used by both simple and ReAct agents.
@@ -10,7 +9,7 @@ import argparse
 import os
 from pathlib import Path
 
-from .config import check_api_keys_config
+from .config import get_settings
 
 
 def create_base_parser(description: str) -> argparse.ArgumentParser:
@@ -53,18 +52,18 @@ def add_react_specific_args(parser: argparse.ArgumentParser) -> None:
 
 def handle_config_check() -> None:
     """Handle the --check-config flag by displaying API configuration status."""
-    config = check_api_keys_config()
+    settings = get_settings()
     print("=== API Configuration Status ===")
-    print(f"OpenAI configured: {'✓' if config['openai_configured'] else '✗'}")
-    if config["openai_configured"]:
-        print(f"  Model: {config.get('openai_model', 'N/A')}")
-    print(f"Gemini configured: {'✓' if config['gemini_configured'] else '✗'}")
-    if config["gemini_configured"]:
-        print(f"  Model: {config.get('gemini_model', 'N/A')}")
+    print(f"OpenAI configured: {'✓' if settings.openai_configured else '✗'}")
+    if settings.openai_configured:
+        print(f"  Model: {settings.openai_model_name}")
+    print(f"Gemini configured: {'✓' if settings.gemini_configured else '✗'}")
+    if settings.gemini_configured:
+        print(f"  Model: {settings.gemini_model_name}")
     print()
-    if config["active_provider"]:
-        print(f"Active provider: {config['active_provider'].upper()}")
-        print(f"Active model: {config['active_model']}")
+    if settings.active_provider:
+        print(f"Active provider: {settings.active_provider.upper()}")
+        print(f"Active model: {settings.active_model}")
     else:
         print("No API keys configured!")
         print("Please set either OPENAI_API_KEY or GEMINI_API_KEY in your .env file.")
@@ -72,8 +71,8 @@ def handle_config_check() -> None:
 
 def validate_api_configuration() -> bool:
     """Validate API configuration and display errors if invalid. Returns True if valid."""
-    config = check_api_keys_config()
-    if not config["active_provider"]:
+    settings = get_settings()
+    if not settings.active_provider:
         print(
             "Configuration error: No valid API key found in environment variables. "
             "Please set one of the following in your .env file:\n"
@@ -86,7 +85,7 @@ def validate_api_configuration() -> bool:
         return False
 
     print(
-        f"Using {config['active_provider'].upper()} with model: {config['active_model']}"
+        f"Using {settings.active_provider.upper()} with model: {settings.active_model}"
     )
     return True
 
