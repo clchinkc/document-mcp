@@ -30,13 +30,17 @@ class TestLLMEvaluator:
     """Simple LLM evaluator for test environments only."""
 
     def __init__(self):
-        self.enabled = os.environ.get("ENABLE_LLM_EVALUATION", "true").lower() == "true"
         self.client = None
         self.model = "gpt-4o-mini"  # Cost-effective for testing
         self.logger = logging.getLogger(__name__)
 
         if self.enabled:
             self._try_initialize()
+
+    @property
+    def enabled(self) -> bool:
+        """Check if LLM evaluation is enabled (dynamically check environment)."""
+        return os.environ.get("ENABLE_LLM_EVALUATION", "true").lower() == "true"
 
     def _try_initialize(self):
         """Try to initialize LLM client, disable if it fails."""
@@ -54,11 +58,13 @@ class TestLLMEvaluator:
                 self.client = genai.GenerativeModel("gemini-2.5-flash")
                 self.model = "gemini-2.5-flash"
             else:
-                self.enabled = False
+                # Will be handled by the enabled property
+                pass
 
         except Exception as e:
             self.logger.info(f"LLM evaluation disabled: {e}")
-            self.enabled = False
+            # Will be handled by the enabled property
+            pass
 
     async def evaluate(self, query: str, response_summary: str) -> LLMEvaluation:
         """Evaluate agent response for test purposes."""

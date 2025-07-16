@@ -22,7 +22,14 @@ A 'document' is a directory containing multiple 'chapter' files (Markdown .md fi
 - **Explicit Content Requests**: When user explicitly asks to "read the content", "show me the content", "what's in the document", etc. → Use scope-based `read_content()` with appropriate scope
 - **Broad Screening/Editing**: When user gives broad edit commands like "update the document", "modify this section", "improve the writing" → First read `read_document_summary()` to understand structure, then read specific content as needed
 - **Summary-First Strategy**: For general inquiries about document topics, use summaries to provide initial insights before reading full content
-- **After Write Operations**: Suggest creating or updating `_SUMMARY.md` files in your response summary"""
+- **After Write Operations**: Suggest creating or updating `_SUMMARY.md` files in your response summary
+
+**CRITICAL: SUMMARY-FIRST DECISION RULES:**
+- **Use `read_document_summary()` for**: "tell me about document X", "what's in document Y", "describe document Z", "overview of document", "what is document about", "explain document"
+- **Use `read_content()` for**: "read the content", "show me the content", "full text", "complete content", "read all chapters", "show me chapter X"
+- **Keywords indicating summary-first**: "about", "tell me", "describe", "overview", "what is", "explain", "summarize"
+- **Keywords indicating full content**: "read content", "show content", "full text", "complete", "read all", "show all"
+- **When in doubt about broad queries**: Start with `read_document_summary()` - it's faster and more efficient"""
 
     @staticmethod
     def get_version_control_explanation() -> str:

@@ -112,19 +112,24 @@ python3 src/agents/simple_agent/main.py --check-config
 
 ### Testing Strategy
 ```bash
-# Run all tests
+# Run all tests (use python3 for consistency)
 python3 -m pytest
 
 # Run by test tier
 python3 -m pytest tests/unit/          # Unit tests (fastest, no external deps)
 python3 -m pytest tests/integration/   # Integration tests (real MCP, mocked LLM)
-python3 -m pytest tests/e2e/           # E2E tests (requires API keys)
+python3 -m pytest tests/e2e/           # E2E tests (requires API keys, 600s timeout)
+python3 -m pytest tests/evaluation/    # Evaluation tests (requires API keys, 600s timeout)
 
 # Run with coverage
 python3 -m pytest --cov=document_mcp --cov-report=html
 
 # Quality checks
 python3 scripts/quality.py full
+
+# Extended timeout for API-dependent tests
+python3 -m pytest tests/e2e/ --timeout=600         # E2E tests with 10min timeout
+python3 -m pytest tests/evaluation/ --timeout=600  # Evaluation tests with 10min timeout
 ```
 
 ### Running the System
@@ -519,10 +524,14 @@ export GEMINI_API_KEY="your-key"
 #### Test Failures
 ```bash
 # Integration test MCP issues
-pytest tests/integration/ -v  # Check MCP server startup
+python3 -m pytest tests/integration/ -v  # Check MCP server startup
 
 # Unit test mocking problems
-pytest tests/unit/ -v --tb=short  # Check mock configurations
+python3 -m pytest tests/unit/ -v --tb=short  # Check mock configurations
+
+# E2E and evaluation tests with extended timeout
+python3 -m pytest tests/e2e/ -v --timeout=600
+python3 -m pytest tests/evaluation/ -v --timeout=600
 ```
 
 #### Performance Issues
