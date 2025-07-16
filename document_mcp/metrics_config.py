@@ -3,7 +3,7 @@ import os
 import socket
 import time
 from functools import wraps
-from typing import Any, Dict, Optional
+from typing import Any
 
 # OpenTelemetry imports
 from opentelemetry import metrics
@@ -16,7 +16,8 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
 
 # Prometheus client for endpoint
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST
+from prometheus_client import generate_latest
 
 # Configuration from environment variables
 METRICS_ENABLED = os.getenv("MCP_METRICS_ENABLED", "true").lower() == "true"
@@ -57,7 +58,10 @@ def get_resource() -> "Resource":
 def initialize_metrics():
     """Initialize OpenTelemetry metrics with both local Prometheus and remote OTLP export."""
     global meter, tool_calls_counter, tool_duration_histogram, tool_errors_counter
-    global tool_argument_sizes_histogram, concurrent_operations_gauge, server_info_counter
+    global \
+        tool_argument_sizes_histogram, \
+        concurrent_operations_gauge, \
+        server_info_counter
     global prometheus_reader
 
     if not METRICS_ENABLED:
@@ -189,7 +193,7 @@ def calculate_argument_size(args: tuple, kwargs: dict) -> int:
 
 def record_tool_call_start(
     tool_name: str, args: tuple, kwargs: dict
-) -> Optional[float]:
+) -> float | None:
     """Record the start of a tool call and return start time for duration calculation."""
     if not is_metrics_enabled():
         return None
@@ -215,7 +219,7 @@ def record_tool_call_start(
 
 
 def record_tool_call_success(
-    tool_name: str, start_time: Optional[float], result_size: int = 0
+    tool_name: str, start_time: float | None, result_size: int = 0
 ):
     """Record a successful tool call completion."""
     if not is_metrics_enabled() or start_time is None:
@@ -252,7 +256,7 @@ def record_tool_call_success(
 
 
 def record_tool_call_error(
-    tool_name: str, start_time: Optional[float], error: Exception
+    tool_name: str, start_time: float | None, error: Exception
 ):
     """Record a failed tool call."""
     if not is_metrics_enabled():
@@ -317,7 +321,7 @@ def get_metrics_export() -> tuple[str, str]:
         return error_msg, "text/plain"
 
 
-def get_metrics_summary() -> Dict[str, Any]:
+def get_metrics_summary() -> dict[str, Any]:
     """Get a summary of current metrics for debugging/monitoring."""
     if not is_metrics_enabled():
         return {

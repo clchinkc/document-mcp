@@ -1,5 +1,4 @@
-"""
-Integration tests for version control tools.
+"""Integration tests for version control tools.
 
 This module tests the manage_snapshots, check_content_status, and diff_content
 tools that manage document versioning and snapshots.
@@ -9,15 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from document_mcp.doc_tool_server import (
-    create_document,
-    create_chapter,
-    delete_document,
-    # Version control tools
-    manage_snapshots,
-    check_content_status,
-    diff_content,
-)
+from tests.tool_imports import check_content_status
+from tests.tool_imports import delete_document
+from tests.tool_imports import diff_content
+from tests.tool_imports import manage_snapshots  # Version control tools
 
 
 @pytest.fixture
@@ -52,9 +46,7 @@ class TestManageSnapshots:
 
         # Create snapshot
         result = manage_snapshots(
-            document_name=doc_name,
-            action="create",
-            message="Test snapshot creation"
+            document_name=doc_name, action="create", message="Test snapshot creation"
         )
 
         assert result["success"] is True
@@ -71,17 +63,12 @@ class TestManageSnapshots:
 
         # Create a snapshot first
         create_result = manage_snapshots(
-            document_name=doc_name,
-            action="create",
-            message="Snapshot for listing test"
+            document_name=doc_name, action="create", message="Snapshot for listing test"
         )
         assert create_result["success"] is True
 
         # List snapshots
-        result = manage_snapshots(
-            document_name=doc_name,
-            action="list"
-        )
+        result = manage_snapshots(document_name=doc_name, action="list")
 
         assert result["success"] is True
         assert result["action"] == "list"
@@ -98,9 +85,7 @@ class TestManageSnapshots:
 
         # Create a snapshot
         create_result = manage_snapshots(
-            document_name=doc_name,
-            action="create",
-            message="Snapshot before changes"
+            document_name=doc_name, action="create", message="Snapshot before changes"
         )
         assert create_result["success"] is True
         snapshot_id = create_result["snapshot_id"]
@@ -111,9 +96,7 @@ class TestManageSnapshots:
 
         # Restore snapshot
         result = manage_snapshots(
-            document_name=doc_name,
-            action="restore",
-            snapshot_id=snapshot_id
+            document_name=doc_name, action="restore", snapshot_id=snapshot_id
         )
 
         assert result["success"] is True
@@ -126,10 +109,7 @@ class TestManageSnapshots:
         doc_name = "invalid_action_doc"
         document_factory(doc_name)
 
-        result = manage_snapshots(
-            document_name=doc_name,
-            action="invalid_action"
-        )
+        result = manage_snapshots(document_name=doc_name, action="invalid_action")
 
         assert result["success"] is False
         assert "Invalid action" in result["message"]
@@ -141,10 +121,7 @@ class TestManageSnapshots:
         doc_name = "restore_no_id_doc"
         document_factory(doc_name)
 
-        result = manage_snapshots(
-            document_name=doc_name,
-            action="restore"
-        )
+        result = manage_snapshots(document_name=doc_name, action="restore")
 
         assert result["success"] is False
         assert "snapshot_id is required" in result["message"]
@@ -161,8 +138,7 @@ class TestCheckContentStatus:
         document_factory(doc_name, chapters)
 
         result = check_content_status(
-            document_name=doc_name,
-            chapter_name="chapter1.md"
+            document_name=doc_name, chapter_name="chapter1.md"
         )
 
         assert result["success"] is True
@@ -180,9 +156,7 @@ class TestCheckContentStatus:
         document_factory(doc_name, chapters)
 
         result = check_content_status(
-            document_name=doc_name,
-            include_history=True,
-            time_window="7d"
+            document_name=doc_name, include_history=True, time_window="7d"
         )
 
         assert result["success"] is True
@@ -196,7 +170,7 @@ class TestCheckContentStatus:
         doc_name = "doc_status_test"
         chapters = {
             "chapter1.md": "# Chapter 1\n\nFirst chapter.",
-            "chapter2.md": "# Chapter 2\n\nSecond chapter."
+            "chapter2.md": "# Chapter 2\n\nSecond chapter.",
         }
         document_factory(doc_name, chapters)
 
@@ -211,9 +185,7 @@ class TestCheckContentStatus:
 
     def test_check_content_status_invalid_document(self):
         """Test content status with invalid document name."""
-        result = check_content_status(
-            document_name="nonexistent_doc"
-        )
+        result = check_content_status(document_name="nonexistent_doc")
 
         # Should handle gracefully, possibly with freshness check failure
         assert result["success"] is True or "not found" in result["message"]
@@ -230,9 +202,7 @@ class TestDiffContent:
 
         # Create first snapshot
         snap1_result = manage_snapshots(
-            document_name=doc_name,
-            action="create",
-            message="First snapshot"
+            document_name=doc_name, action="create", message="First snapshot"
         )
         assert snap1_result["success"] is True
         snapshot_id_1 = snap1_result["snapshot_id"]
@@ -243,9 +213,7 @@ class TestDiffContent:
 
         # Create second snapshot
         snap2_result = manage_snapshots(
-            document_name=doc_name,
-            action="create",
-            message="Second snapshot"
+            document_name=doc_name, action="create", message="Second snapshot"
         )
         assert snap2_result["success"] is True
         snapshot_id_2 = snap2_result["snapshot_id"]
@@ -257,7 +225,7 @@ class TestDiffContent:
             source_id=snapshot_id_1,
             target_type="snapshot",
             target_id=snapshot_id_2,
-            output_format="unified"
+            output_format="unified",
         )
 
         assert result["success"] is True
@@ -275,9 +243,7 @@ class TestDiffContent:
 
         # Create snapshot
         snap_result = manage_snapshots(
-            document_name=doc_name,
-            action="create",
-            message="Snapshot for diff"
+            document_name=doc_name, action="create", message="Snapshot for diff"
         )
         assert snap_result["success"] is True
         snapshot_id = snap_result["snapshot_id"]
@@ -287,7 +253,7 @@ class TestDiffContent:
             document_name=doc_name,
             source_type="snapshot",
             source_id=snapshot_id,
-            target_type="current"
+            target_type="current",
         )
 
         # This should indicate the feature is not fully implemented yet
@@ -301,9 +267,7 @@ class TestDiffContent:
 
         # Test invalid source_type
         result = diff_content(
-            document_name=doc_name,
-            source_type="invalid_type",
-            target_type="current"
+            document_name=doc_name, source_type="invalid_type", target_type="current"
         )
 
         assert result["success"] is False
@@ -319,7 +283,7 @@ class TestDiffContent:
             source_type="snapshot",
             # Missing source_id
             target_type="snapshot",
-            target_id="some_id"
+            target_id="some_id",
         )
 
         # Should handle gracefully when snapshot IDs are missing

@@ -1,0 +1,2 @@
+2. Plan:
+Ultrathink and write the plan to implement the feature, make the code robust, and minimize the implementation complexity while maintaining useful core functionality. Think with focus on high level first, and later fill in details like exact names checklist in the plan.

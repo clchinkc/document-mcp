@@ -3,7 +3,7 @@
 # Document MCP
 
 [![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
-[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Document MCP exists to **complement and diversify the predominantly STEM-oriented toolsets (e.g. Claude Code, bash/grep agents)** by giving writers, researchers, and knowledge-managers first-class, local-first control over large-scale Markdown documents with **built-in safety features** that prevent content loss.
@@ -15,11 +15,11 @@ Document MCP exists to **complement and diversify the predominantly STEM-oriente
 
 ```bash
 # 1. Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# 2. Install the package with development dependencies
-pip install -e ".[dev]"
+# 2. Install the package with development dependencies using uv
+uv sync
 
 # 3. Set up environment variables
 #    Create a `.env` file with your API key according to `.env.example`, and fill in the required values.
@@ -33,11 +33,11 @@ python src/agents/simple_agent.py --check-config
 ### Setup and Installation
 ```bash
 # Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install package with development dependencies
-pip install -e ".[dev]"
+# Install package with development dependencies using uv
+uv sync
 
 # Verify setup
 python3 src/agents/simple_agent/main.py --check-config
@@ -93,7 +93,7 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 - **🛡️ Built-in Safety Features**: Write-safety system, automatic micro-snapshots, and comprehensive version control prevent content loss.
 - **📁 Document Structure**: Organize content as directories with chapter files.
-- **🔧 25+ MCP Tools**: Comprehensive document manipulation API with tools for atomic paragraph operations, content analysis, and more.
+- **🔧 23 MCP Tools**: Comprehensive document manipulation API organized in 6 functional categories with tools for atomic paragraph operations, content analysis, and more.
 - **🤖 AI Agents**: 
     - **Simple Agent**: Stateless, single-turn execution for discrete operations.
     - **ReAct Agent**: Stateful, multi-turn agent for complex workflows.
@@ -142,7 +142,15 @@ Document MCP includes comprehensive safety features designed to prevent content 
 ```
 document-mcp/
 ├── document_mcp/           # Core MCP server package
-│   ├── doc_tool_server.py  # Main server with 25+ document tools
+│   ├── doc_tool_server.py  # Main server with modular tool registrations
+│   ├── tools/              # Modular tool architecture (23 tools)
+│   │   ├── __init__.py     # Tool registration system
+│   │   ├── document_tools.py    # Document management (4 tools)
+│   │   ├── chapter_tools.py     # Chapter operations (5 tools)
+│   │   ├── paragraph_tools.py   # Paragraph editing (7 tools)
+│   │   ├── content_tools.py     # Unified content access (4 tools)
+│   │   ├── safety_tools.py      # Version control (3 tools)
+│   │   └── batch_tools.py       # Batch operations (1 tool)
 │   ├── logger_config.py    # Structured logging with OpenTelemetry
 │   └── metrics_config.py   # Prometheus metrics and monitoring
 ├── src/agents/             # AI agent implementations
@@ -219,7 +227,7 @@ python3 -m prompt_optimizer all
 **Key Features:**
 - **Safe Optimization**: Conservative changes that preserve all existing functionality
 - **Performance-Based**: Uses real execution metrics to evaluate improvements
-- **Comprehensive Testing**: Validates changes against 105 tests (unit + integration + E2E)
+- **Comprehensive Testing**: Validates changes against 255 tests (unit + integration + E2E)
 - **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
 - **Multi-Agent Support**: Works with Simple, ReAct, and Planner agents
 
@@ -480,7 +488,7 @@ The quality management system provides comprehensive automation for maintaining 
 
 #### Test Coverage
 
-The system provides enterprise-grade reliability with **82+ comprehensive tests** covering:
+The system provides enterprise-grade reliability with **255+ comprehensive tests** covering:
 
 **Core Testing Areas:**
 - **Document Operations**: Full CRUD operations and management

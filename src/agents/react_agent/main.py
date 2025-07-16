@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-ReAct Document Management Agent
+"""ReAct Document Management Agent
 
 This module implements a ReAct (Reasoning and Acting) agent that can manage
 structured markdown documents through systematic reasoning and tool execution.
@@ -9,9 +8,8 @@ structured markdown documents through systematic reasoning and tool execution.
 import asyncio
 import os
 import sys
-import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStdio
@@ -20,26 +18,23 @@ from rich.panel import Panel
 
 # Import the shared error handling module
 from src.agents.react_agent.models import ReActStep
-from src.agents.shared.performance_metrics import (
-    AgentPerformanceMetrics, 
-    PerformanceMetricsCollector,
-    MetricsCollectionContext,
-    build_response_data
-)
 
 # Import from shared config
 from src.agents.react_agent.parser import ActionParser
 from src.agents.react_agent.prompts import get_react_system_prompt
-from src.agents.shared.cli import (
-    handle_config_check,
-    parse_react_agent_args,
-    validate_api_configuration,
-)
-from src.agents.shared.config import DEFAULT_TIMEOUT, MAX_RETRIES, MCP_SERVER_CMD, load_llm_config
+from src.agents.shared.cli import handle_config_check
+from src.agents.shared.cli import parse_react_agent_args
+from src.agents.shared.cli import validate_api_configuration
+from src.agents.shared.config import DEFAULT_TIMEOUT
+from src.agents.shared.config import MAX_RETRIES
+from src.agents.shared.config import MCP_SERVER_CMD
+from src.agents.shared.config import load_llm_config
+from src.agents.shared.performance_metrics import AgentPerformanceMetrics
+from src.agents.shared.performance_metrics import MetricsCollectionContext
+from src.agents.shared.performance_metrics import build_response_data
 
 # Remove invalid imports
 # from .react_agent import ReactAgent
-
 
 
 try:
@@ -56,7 +51,7 @@ except ImportError:
 
 
 async def execute_mcp_tool_directly(
-    agent: Agent, tool_name: str, kwargs: Dict[str, Any]
+    agent: Agent, tool_name: str, kwargs: dict[str, Any]
 ) -> str:
     """Execute an MCP tool directly and return the result as a string."""
     try:
@@ -79,10 +74,9 @@ async def execute_mcp_tool_directly(
 
 async def run_react_agent_with_metrics(
     user_query: str, max_steps: int = 10
-) -> Tuple[List[Dict[str, Any]], AgentPerformanceMetrics]:
-    """
-    Run the React agent with real performance metrics collection.
-    
+) -> tuple[list[dict[str, Any]], AgentPerformanceMetrics]:
+    """Run the React agent with real performance metrics collection.
+
     This function provides the same functionality as the main agent execution
     but captures actual performance data from LLM usage and agent execution.
     """
@@ -101,7 +95,7 @@ async def run_react_agent_with_metrics(
                 args=["-m", "document_mcp.doc_tool_server", "stdio"],
                 env=server_env,
             )
-            
+
             # Create agent directly
             llm = await load_llm_config()
             agent = Agent(
@@ -110,22 +104,22 @@ async def run_react_agent_with_metrics(
                 system_prompt=get_react_system_prompt(),
                 output_type=ReActStep,
             )
-            
+
             async with mcp_server:
                 # Run the React loop and capture execution history with agent results
                 history, agent_results = await run_react_loop(
                     agent, mcp_server, user_query, max_steps, capture_agent_results=True
                 )
-                
+
             # Add agent results for token tracking
             for result in agent_results:
                 ctx.add_agent_result(result)
-            
+
             # Extract and add tool calls from history
             tool_calls = ctx.extract_tool_calls_from_history(history)
             for tool in tool_calls:
                 ctx.add_tool_call(tool)
-            
+
             # Build response data
             response_data = build_response_data(
                 "react",
@@ -133,11 +127,11 @@ async def run_react_agent_with_metrics(
                 max_steps=max_steps,
                 final_step=history[-1] if history else None,
                 execution_summary=f"Completed in {len(history)} steps",
-                success=history and history[-1].get("action") is None
+                success=history and history[-1].get("action") is None,
             )
-            
+
             return history, ctx.create_metrics(response_data)
-            
+
         except Exception as e:
             # Handle exceptions with error response data
             error_data = build_response_data("react", error=str(e), success=False)
@@ -149,9 +143,9 @@ async def run_react_loop(
     mcp_server: MCPServerStdio,
     user_query: str,
     max_steps: int = 10,
-    conversation_history: Optional[List[Dict[str, Any]]] = None,
+    conversation_history: list[dict[str, Any]] | None = None,
     capture_agent_results: bool = False,
-) -> Tuple[List[Dict[str, Any]], List[Any]]:
+) -> tuple[list[dict[str, Any]], list[Any]]:
     """Main execution loop for the ReAct agent."""
     console = Console()
     history = []
@@ -207,7 +201,7 @@ async def run_react_loop(
             result = None
             retry_count = 0
             last_error = None
-            
+
             while retry_count <= MAX_RETRIES:
                 try:
                     # Run the agent to get the next step
@@ -215,21 +209,23 @@ async def run_react_loop(
                         agent.run(current_context), timeout=DEFAULT_TIMEOUT
                     )
                     break  # Success - exit retry loop
-                    
+
                 except asyncio.TimeoutError as e:
                     last_error = e
                     retry_count += 1
                     if retry_count <= MAX_RETRIES:
-                        console.print(f"[yellow]API timeout (attempt {retry_count}/{MAX_RETRIES + 1}), retrying...[/yellow]")
+                        console.print(
+                            f"[yellow]API timeout (attempt {retry_count}/{MAX_RETRIES + 1}), retrying...[/yellow]"
+                        )
                         await asyncio.sleep(1.0 * retry_count)  # Exponential backoff
                         continue
                     # All retries exhausted - fall through to error handling
-                    
+
                 except Exception as e:
                     # Non-timeout errors - fail immediately
                     last_error = e
                     break
-            
+
             if result is not None:
                 # Success path
                 # Capture AgentRunResult for token tracking if requested
@@ -243,11 +239,17 @@ async def run_react_loop(
                     react_step = result
             else:
                 # All retries failed - handle error
-                error_msg = str(last_error) if str(last_error) else f"{type(last_error).__name__}: No error message"
-                error_details = f"Exception type: {type(last_error).__name__}, Message: {error_msg}"
+                error_msg = (
+                    str(last_error)
+                    if str(last_error)
+                    else f"{type(last_error).__name__}: No error message"
+                )
+                error_details = (
+                    f"Exception type: {type(last_error).__name__}, Message: {error_msg}"
+                )
                 if retry_count > MAX_RETRIES:
                     error_details += f" (failed after {MAX_RETRIES + 1} attempts)"
-                
+
                 console.print(f"[red]Agent execution error: {error_details}[/red]")
                 step_data = {
                     "step": step,

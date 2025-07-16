@@ -1,5 +1,4 @@
-"""
-Shared Error Handling Utilities for Agents
+"""Shared Error Handling Utilities for Agents
 
 This module provides common classes for error classification and retry logic
 that can be used across different agent implementations.
@@ -8,7 +7,7 @@ that can be used across different agent implementations.
 import asyncio
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 # --- Error Classification and Retry Configuration ---
 
@@ -54,8 +53,7 @@ class ErrorClassifier:
     """Classifies exceptions and provides structured error information."""
 
     def classify(self, error: Exception) -> ErrorInfo:
-        """
-        Classify an error and return appropriate retry and recovery information.
+        """Classify an error and return appropriate retry and recovery information.
 
         Args:
             error: The exception to classify.
@@ -186,8 +184,7 @@ class RetryManager:
         self.error_classifier = ErrorClassifier()
 
     async def execute_with_retry(self, func, *args, **kwargs):
-        """
-        Execute an awaitable function with intelligent, classified retry logic.
+        """Execute an awaitable function with intelligent, classified retry logic.
 
         Args:
             func: The awaitable function to execute.
@@ -226,30 +223,31 @@ class RetryManager:
         # This line should theoretically not be reached, but is a safeguard.
         raise last_error
 
-    def _calculate_delay(self, attempt: int, initial_delay: float, max_delay: float) -> float:
-        """
-        Calculate exponential backoff delay with jitter.
-        
+    def _calculate_delay(
+        self, attempt: int, initial_delay: float, max_delay: float
+    ) -> float:
+        """Calculate exponential backoff delay with jitter.
+
         Args:
             attempt: Current attempt number (1-based)
             initial_delay: Initial delay in seconds
             max_delay: Maximum delay in seconds
-            
+
         Returns:
             Calculated delay in seconds
         """
         import random
-        
+
         # Exponential backoff: delay = initial_delay * (2 ^ (attempt - 1))
         exponential_delay = initial_delay * (2 ** (attempt - 1))
-        
+
         # Cap at max_delay
         delay = min(exponential_delay, max_delay)
-        
+
         # Add jitter (random variation of ±25%)
         jitter = delay * 0.25 * (random.random() * 2 - 1)
         final_delay = max(0.1, delay + jitter)  # Minimum 0.1s delay
-        
+
         return final_delay
 
 
@@ -257,10 +255,9 @@ class RetryManager:
 
 
 def create_error_response(
-    summary: str, error_type: str, details: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
-    """
-    Create a standardized error response for agents.
+    summary: str, error_type: str, details: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Create a standardized error response for agents.
 
     Args:
         summary: Human-readable error summary

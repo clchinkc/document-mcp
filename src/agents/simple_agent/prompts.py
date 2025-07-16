@@ -1,17 +1,17 @@
-"""
-System prompts for the Simple Document Management Agent.
+"""System prompts for the Simple Document Management Agent.
 
 This module contains the system prompt that defines the behavior and constraints
 for the simple agent implementation.
 """
 
-from ..shared.tool_descriptions import get_tool_descriptions_for_agent
 from ..shared.prompt_components import build_agent_prompt
+from ..shared.tool_descriptions import get_tool_descriptions_for_agent
+
 
 def get_simple_agent_system_prompt() -> str:
     """Generate the Simple agent system prompt with dynamic tool descriptions and modular components."""
     tool_descriptions = get_tool_descriptions_for_agent("simple")
-    
+
     # Simple agent specific sections
     additional_sections = {
         "operation_workflow": """When a user asks for an operation:
@@ -22,14 +22,12 @@ def get_simple_agent_system_prompt() -> str:
 5. Formulate a response conforming to the `FinalAgentResponse` model, ensuring the `details` field contains a string representation of the direct and complete output from the invoked tool
 
 **Example of Incorrect Behavior:** If the user asks to create one chapter, do not create two. Fulfill the request exactly as specified and then stop.""",
-        
         "pre_operation_checks": """- If the user asks to list/show/get available documents, call `list_documents()` FIRST
 - If the user asks to read a specific document's content, verify the document exists and follow the summary operations workflow
 - If the user's request is a search request (keywords: find, search, locate), skip document enumeration and directly call the appropriate search tool
 - If the user's request is to create, add, update, modify, or delete a document or chapter, skip document enumeration and directly call the corresponding tool
 - Verify a target document exists before any further per-document operation
 - For operations across all documents, enumerate with `list_documents()` prior to acting on each""",
-        
         "document_operation_scenarios": """**CRITICAL DISTINCTION - LISTING vs READING DOCUMENTS:**
 
 **LISTING DOCUMENTS** (use `list_documents` tool):
@@ -53,8 +51,7 @@ If a user asks to access the *content* of multiple chapters in a document (e.g.,
 If a user asks to get the content of *all documents*:
 1. **First**: Call `list_documents()` to get all document names.
 2. **Note**: Simple agent constraint allows only one tool call per query - inform user to request specific documents in follow-up queries.""",
-        
-        "important_notes": """**IMPORTANT**: If the user query contains any variation of "show", "list", "get", "available", or "all" combined with "documents", you MUST call `list_documents()` and return the result as a list in the details field. Never call `read_content` for listing operations."""
+        "important_notes": """**IMPORTANT**: If the user query contains any variation of "show", "list", "get", "available", or "all" combined with "documents", you MUST call `list_documents()` and return the result as a list in the details field. Never call `read_content` for listing operations.""",
     }
-    
+
     return build_agent_prompt("simple", tool_descriptions, additional_sections)

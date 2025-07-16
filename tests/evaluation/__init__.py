@@ -1,55 +1,44 @@
-"""
-Evaluation test suite for document-mcp agents.
+"""Clean evaluation test suite for document-mcp agents.
 
-This module provides comprehensive evaluation infrastructure for testing
-agent performance, token usage, and reliability across different scenarios.
+This module provides a simplified evaluation infrastructure following clean architecture:
+- Agents collect performance metrics only (tokens, time, success)
+- Tests optionally enhance with LLM evaluation in test layer only
 
 Key Components:
-- test_agent_performance: Core evaluation tests with mock and real LLM support
-- evaluation_utils: Utilities for metrics collection and analysis
+- llm_evaluation_layer: Simple test-layer LLM evaluation enhancement
+- test_simple_integration: Clean integration tests showing natural usage
+- evaluation_utils: Legacy utilities for performance collection and analysis
 - config: Configuration and thresholds for evaluation tests
-- run_evaluation: Standalone evaluation runner script
 
-Usage:
-    # Run evaluation tests via pytest
-    pytest tests/evaluation/ -m evaluation
+Clean Architecture Usage:
+    # Run clean integration tests
+    pytest tests/evaluation/test_simple_integration.py -v
 
-    # Run standalone evaluation suite
-    python3 tests/evaluation/run_evaluation.py
+    # Run with LLM evaluation enabled (optional)
+    ENABLE_LLM_EVALUATION=true pytest tests/evaluation/test_simple_integration.py -v
 
-    # Run specific test categories
-    python3 tests/evaluation/run_evaluation.py --categories basic intermediate
+    # Demo clean architecture
+    python3 tests/evaluation/test_simple_integration.py
 """
 
-from .config import (
-    TEST_CATEGORIES,
-    get_evaluation_config,
-    get_operation_threshold,
-    get_performance_thresholds,
-    get_test_scenarios,
-)
-from .evaluation_utils import (
-    EvaluationAssertions,
-    MockDataGenerator,
-    PerformanceTracker,
-    TokenUsageMetrics,
-    ToolCallMetrics,
-    compare_agent_performance,
-    generate_performance_summary,
-)
-from .test_agent_performance import (
-    AgentPerformanceMetrics,
-    AgentTestRunner,
-    MockLLMResponse,
-    print_performance_report,
-)
+from .config import TEST_CATEGORIES
+from .config import get_evaluation_config
+from .config import get_operation_threshold
+from .config import get_performance_thresholds
+from .config import get_test_scenarios
+from .evaluation_utils import EvaluationAssertions
+from .evaluation_utils import MockDataGenerator
+from .evaluation_utils import PerformanceTracker
+from .evaluation_utils import TokenUsageMetrics
+from .evaluation_utils import ToolCallMetrics
+from .evaluation_utils import compare_agent_performance
+from .evaluation_utils import generate_performance_summary
+
+# Note: test_agent_performance.py removed due to clean architecture.
+# Use simple test enhancement from llm_evaluation_layer.py instead.
 
 __all__ = [
-    # Core evaluation classes
-    "AgentPerformanceMetrics",
-    "AgentTestRunner",
-    "MockLLMResponse",
-    # Utility classes
+    # Utility classes (kept for backwards compatibility)
     "TokenUsageMetrics",
     "ToolCallMetrics",
     "EvaluationAssertions",
@@ -64,5 +53,4 @@ __all__ = [
     # Analysis functions
     "compare_agent_performance",
     "generate_performance_summary",
-    "print_performance_report",
 ]

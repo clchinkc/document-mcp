@@ -1,0 +1,2 @@
+3. Implement
+Create a git worktree. Create virtual environment and install all dependencies. Do the modification step by step and make sure the unit/integration tests are passing after each step. Maintain low code complexity. Minimize the code modification.

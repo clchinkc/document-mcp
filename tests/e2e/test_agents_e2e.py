@@ -1,5 +1,4 @@
-"""
-End-to-end tests for Document MCP agents with real AI models.
+"""End-to-end tests for Document MCP agents with real AI models.
 
 This module provides comprehensive E2E testing using real LLM APIs and MCP stdio
 communication. These tests validate complete user workflows including AI reasoning
@@ -13,11 +12,12 @@ import subprocess
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
-from .validation_utils import DocumentSystemValidator, safe_get_response_content
+from .validation_utils import DocumentSystemValidator
+from .validation_utils import safe_get_response_content
 
 
 def check_api_key_available() -> bool:
@@ -32,10 +32,8 @@ def check_api_key_available() -> bool:
 
 async def run_agent_query(
     agent_module: str, query: str, timeout: int = 120
-) -> Dict[str, Any]:
-    """
-    Run an agent with a given query and return the parsed JSON output.
-    """
+) -> dict[str, Any]:
+    """Run an agent with a given query and return the parsed JSON output."""
     cmd = ["python3", "-m", agent_module, "--query", query]
 
     try:
@@ -60,7 +58,7 @@ async def run_agent_query(
 
         output_str = stdout.decode().strip()
         stderr_str = stderr.decode().strip()
-        
+
         # Add debug information
         debug_info = {
             "returncode": process.returncode,
@@ -77,7 +75,9 @@ async def run_agent_query(
                 json_start_marker = output_str.find(json_marker)
                 if json_start_marker != -1:
                     # Find the actual JSON start after the marker
-                    json_portion = output_str[json_start_marker + len(json_marker):].strip()
+                    json_portion = output_str[
+                        json_start_marker + len(json_marker) :
+                    ].strip()
                     json_start = json_portion.find("{")
                     if json_start != -1:
                         json_str = json_portion[json_start:]
@@ -91,12 +91,13 @@ async def run_agent_query(
                             return {
                                 "execution_log": output_str,
                                 "json_parse_error": str(e),
-                                "json_portion": json_str[:200] + "..." if len(json_str) > 200 else json_str,
-                                "debug_info": debug_info
+                                "json_portion": json_str[:200] + "..."
+                                if len(json_str) > 200
+                                else json_str,
+                                "debug_info": debug_info,
                             }
             # Fallback to log-only format if JSON parsing fails
             return {"execution_log": output_str, "debug_info": debug_info}
-
 
         # For Simple agent, find the start of the JSON and parse from there
         try:
@@ -108,7 +109,11 @@ async def run_agent_query(
             parsed_json["debug_info"] = debug_info
             return parsed_json
         except (json.JSONDecodeError, IndexError):
-            return {"summary": "Failed to parse JSON", "raw_output": output_str, "debug_info": debug_info}
+            return {
+                "summary": "Failed to parse JSON",
+                "raw_output": output_str,
+                "debug_info": debug_info,
+            }
 
     except asyncio.TimeoutError:
         raise RuntimeError(f"Agent query timed out after {timeout}s")
@@ -232,9 +237,9 @@ class TestSimpleAgentE2E:
         # Optional: If the agent provides structured response, verify it contains the content
         read_details = safe_get_response_content(read_resp, "details")
         if read_details and "content" in read_details:
-            assert (
-                content in read_details["content"]
-            ), f"Agent response details should contain expected content. Got: {read_details}"
+            assert content in read_details["content"], (
+                f"Agent response details should contain expected content. Got: {read_details}"
+            )
 
     @pytest.mark.asyncio
     async def test_summary_first_workflow(
@@ -269,12 +274,12 @@ class TestSimpleAgentE2E:
             else details.get("content", "")
         )
 
-        assert (
-            summary_content in content
-        ), f"The agent should have read the summary content. Got details: {details}"
-        assert (
-            "full chapter content" not in content
-        ), f"The agent should not have read the full chapter content. Got details: {details}"
+        assert summary_content in content, (
+            f"The agent should have read the summary content. Got details: {details}"
+        )
+        assert "full chapter content" not in content, (
+            f"The agent should not have read the full chapter content. Got details: {details}"
+        )
 
 
 @pytest.mark.e2e
@@ -336,15 +341,18 @@ class TestReactAgentE2E:
 
         # 3. Verify the ReAct agent completed successfully
         assert (
-            response.get("summary", "").startswith("Successfully completed") or
-            "complete" in log.lower() or "done" in log.lower()
+            response.get("summary", "").startswith("Successfully completed")
+            or "complete" in log.lower()
+            or "done" in log.lower()
         ), f"ReAct agent should complete successfully. Response: {response}"
 
         # 4. Verify the agent's execution details show steps were taken
         details = response.get("details", [])
-        assert len(details) > 0, f"The agent should have execution details. Response: {response}"
-        
+        assert len(details) > 0, (
+            f"The agent should have execution details. Response: {response}"
+        )
+
         # 5. Verify no error occurred
-        assert response.get("error_message") is None, f"Agent should not have errors. Response: {response}"
-
-
+        assert response.get("error_message") is None, (
+            f"Agent should not have errors. Response: {response}"
+        )

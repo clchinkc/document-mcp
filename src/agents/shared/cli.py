@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Shared CLI utilities for document management agents.
+"""Shared CLI utilities for document management agents.
 
 This module provides common command-line argument parsing and configuration
 checking functionality used by both simple and ReAct agents.
