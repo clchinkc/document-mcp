@@ -6,16 +6,16 @@ with real function calls and comprehensive validation of the enhanced features.
 
 import os
 
-from tests.tool_imports import append_paragraph_to_chapter
-from tests.tool_imports import create_chapter
-from tests.tool_imports import create_document
-from tests.tool_imports import delete_document
-from tests.tool_imports import insert_paragraph_before
-from tests.tool_imports import manage_snapshots
-from tests.tool_imports import read_content
-from tests.tool_imports import replace_paragraph
-from tests.tool_imports import replace_text
-from tests.tool_imports import write_chapter_content
+from document_mcp.mcp_client import append_paragraph_to_chapter
+from document_mcp.mcp_client import create_chapter
+from document_mcp.mcp_client import create_document
+from document_mcp.mcp_client import delete_document
+from document_mcp.mcp_client import insert_paragraph_before
+from document_mcp.mcp_client import manage_snapshots
+from document_mcp.mcp_client import read_content
+from document_mcp.mcp_client import replace_paragraph
+from document_mcp.mcp_client import replace_text
+from document_mcp.mcp_client import write_chapter_content
 
 
 class TestAutomaticSnapshotSystemIntegration:
@@ -45,7 +45,7 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # Get initial snapshot count
             initial_snapshots = manage_snapshots(document_name=doc_name, action="list")
-            initial_count = len(initial_snapshots["snapshots"])
+            initial_count = len(initial_snapshots.snapshots)
 
             # Execute edit operation that should create automatic snapshot
             edit_result = replace_paragraph(
@@ -60,7 +60,7 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # Verify automatic snapshot was created
             snapshots_after = manage_snapshots(document_name=doc_name, action="list")
-            final_count = len(snapshots_after["snapshots"])
+            final_count = len(snapshots_after.snapshots)
 
             # Should have exactly one more snapshot from replace_paragraph:
             # Only from @auto_snapshot decorator (@safety_enhanced_write_operation no longer creates snapshots)
@@ -70,8 +70,8 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # Verify snapshot naming pattern contains operation name and user attribution
             # Get the most recent snapshot (snapshots are in reverse chronological order)
-            latest_snapshot = snapshots_after["snapshots"][0]
-            snapshot_message = latest_snapshot["message"]
+            latest_snapshot = snapshots_after.snapshots[0]
+            snapshot_message = latest_snapshot.message
             assert "Auto-snapshot before replace_paragraph" in snapshot_message
             assert "by" in snapshot_message  # User attribution
 
@@ -95,7 +95,7 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # Get baseline snapshot count
             initial_snapshots = manage_snapshots(document_name=doc_name, action="list")
-            initial_count = len(initial_snapshots["snapshots"])
+            initial_count = len(initial_snapshots.snapshots)
 
             # Execute chapter content write (should create automatic snapshot)
             write_result = write_chapter_content(
@@ -108,7 +108,7 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # Verify automatic snapshot creation
             snapshots_after = manage_snapshots(document_name=doc_name, action="list")
-            final_count = len(snapshots_after["snapshots"])
+            final_count = len(snapshots_after.snapshots)
 
             # Both create_chapter and write_chapter_content have @auto_snapshot decorator
             # Each creates exactly 1 snapshot (safety decorators no longer create snapshots)
@@ -119,20 +119,20 @@ class TestAutomaticSnapshotSystemIntegration:
             # Find the automatic snapshot created by our decorator (not the safety system one)
             auto_snapshots = [
                 snap
-                for snap in snapshots_after["snapshots"]
-                if snap.get("message")
+                for snap in snapshots_after.snapshots
+                if snap.message
                 and "Auto-snapshot before write_chapter_content"
-                in snap.get("message", "")
+                in snap.message
             ]
 
             assert len(auto_snapshots) >= 1, (
-                f"Expected at least 1 auto snapshot, found: {[snap.get('message') for snap in snapshots_after['snapshots']]}"
+                f"Expected at least 1 auto snapshot, found: {[snap.message for snap in snapshots_after['snapshots']]}"
             )
 
             # Verify the snapshot message
             auto_snapshot = auto_snapshots[0]
             assert (
-                "Auto-snapshot before write_chapter_content" in auto_snapshot["message"]
+                "Auto-snapshot before write_chapter_content" in auto_snapshot.message
             )
 
         finally:
@@ -154,7 +154,7 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # Get initial snapshot count
             initial_snapshots = manage_snapshots(document_name=doc_name, action="list")
-            initial_count = len(initial_snapshots["snapshots"])
+            initial_count = len(initial_snapshots.snapshots)
 
             # Execute text replacement (should create automatic snapshot)
             replace_result = replace_text(
@@ -166,18 +166,18 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # replace_text returns a dict, not a model with .success attribute
             assert replace_result is not None
-            assert replace_result.get("success", True) is not False
+            assert replace_result.success is True
 
             # Verify automatic snapshot was created
             snapshots_after = manage_snapshots(document_name=doc_name, action="list")
-            final_count = len(snapshots_after["snapshots"])
+            final_count = len(snapshots_after.snapshots)
 
             assert final_count == initial_count + 1
 
             # Verify snapshot message
             # Snapshots are in reverse chronological order, so [0] is most recent
-            latest_snapshot = snapshots_after["snapshots"][0]
-            assert "Auto-snapshot before replace_text" in latest_snapshot["message"]
+            latest_snapshot = snapshots_after.snapshots[0]
+            assert "Auto-snapshot before replace_text" in latest_snapshot.message
 
         finally:
             delete_document(doc_name)
@@ -198,13 +198,13 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # Get baseline snapshot count
             initial_snapshots = manage_snapshots(document_name=doc_name, action="list")
-            initial_count = len(initial_snapshots["snapshots"])
+            initial_count = len(initial_snapshots.snapshots)
 
             # Perform multiple operations that should each create snapshots
             append_paragraph_to_chapter(
                 document_name=doc_name,
                 chapter_name=chapter_name,
-                paragraph_content="First appended paragraph",
+                new_content="First appended paragraph",
             )
 
             insert_paragraph_before(
@@ -216,7 +216,7 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # Verify multiple snapshots were created
             final_snapshots = manage_snapshots(document_name=doc_name, action="list")
-            final_count = len(final_snapshots["snapshots"])
+            final_count = len(final_snapshots.snapshots)
 
             # Should have 2 more snapshots (one for each operation)
             assert final_count >= initial_count + 2, (
@@ -225,8 +225,8 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # Verify snapshot messages contain appropriate operation names
             # Check all snapshots since different operations may create them in different order
-            all_snapshots = final_snapshots["snapshots"]
-            operation_names = [snap["message"] for snap in all_snapshots]
+            all_snapshots = final_snapshots.snapshots
+            operation_names = [snap.message for snap in all_snapshots]
 
             # Check that we have snapshots for both operations
             append_found = any(
@@ -274,23 +274,23 @@ class TestAutomaticSnapshotSystemIntegration:
             # Find the automatic snapshot for replace_paragraph operation
             replace_snapshots = [
                 snap
-                for snap in snapshots["snapshots"]
-                if snap.get("message")
-                and "Auto-snapshot before replace_paragraph" in snap.get("message", "")
+                for snap in snapshots.snapshots
+                if snap.message
+                and "Auto-snapshot before replace_paragraph" in snap.message
             ]
 
             assert len(replace_snapshots) == 1, (
-                f"Expected exactly 1 replace_paragraph snapshot, found: {[snap.get('message') for snap in snapshots['snapshots']]}"
+                f"Expected exactly 1 replace_paragraph snapshot, found: {[snap.message for snap in snapshots.snapshots]}"
             )
 
             # Verify user attribution in the replace_paragraph snapshot
             replace_snapshot = replace_snapshots[0]
-            message = replace_snapshot["message"]
+            message = replace_snapshot.message
             assert "test_user_123" in message
             assert "Auto-snapshot before replace_paragraph" in message
 
             # Verify snapshot ID exists
-            snapshot_id = replace_snapshot["snapshot_id"]
+            snapshot_id = replace_snapshot.snapshot_id
             assert snapshot_id  # Should have a valid ID
 
         finally:
@@ -335,7 +335,7 @@ class TestAutomaticSnapshotSystemIntegration:
 
             assert (
                 "Modified content despite potential snapshot issues"
-                in updated_content["content"]
+                in updated_content.content
             )
 
         finally:

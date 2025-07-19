@@ -4,9 +4,9 @@ These tests validate scope-based tools performance and behavior with realistic,
 complex document structures using direct function calls.
 """
 
-from tests.tool_imports import find_text
-from tests.tool_imports import get_statistics
-from tests.tool_imports import read_content
+from document_mcp.mcp_client import find_text
+from document_mcp.mcp_client import get_statistics
+from document_mcp.mcp_client import read_content
 
 
 class TestScopeBasedToolsComplexScenarios:
@@ -42,7 +42,7 @@ This chapter contains substantial content for testing the scope-based tools.
         response = read_content(document_name=document_name, scope="document")
 
         assert response is not None
-        assert "chapters" in response or "content" in response
+        assert hasattr(response, "chapters") or hasattr(response, "content")
 
         # Test scope-based find_text across entire large document
         search_response = find_text(

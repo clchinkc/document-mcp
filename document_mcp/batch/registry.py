@@ -64,19 +64,19 @@ def execute_batch_operation(operation: BatchOperation) -> OperationResult:
             error=f"Unknown operation type: {operation.operation_type}",
         )
 
-    # Get the actual function from main module globals
+    # Get the actual function from mcp_client module
     import sys
 
-    doc_tool_module = sys.modules.get("document_mcp.doc_tool_server")
-    if not doc_tool_module:
+    mcp_client_module = sys.modules.get("document_mcp.mcp_client")
+    if not mcp_client_module:
         return OperationResult(
             success=False,
             operation_id=operation.operation_id,
             operation_type=operation.operation_type,
-            error="Document tool server module not found",
+            error="MCP client module not found",
         )
 
-    tool_function = getattr(doc_tool_module, tool_function_name, None)
+    tool_function = getattr(mcp_client_module, tool_function_name, None)
     if not tool_function:
         return OperationResult(
             success=False,
@@ -142,11 +142,11 @@ def _get_function_for_operation(operation_type: str):
     if not tool_function_name:
         return None
 
-    # Get the actual function from main module globals
+    # Get the actual function from mcp_client module
     import sys
 
-    doc_tool_module = sys.modules.get("document_mcp.doc_tool_server")
-    if not doc_tool_module:
+    mcp_client_module = sys.modules.get("document_mcp.mcp_client")
+    if not mcp_client_module:
         return None
 
-    return getattr(doc_tool_module, tool_function_name, None)
+    return getattr(mcp_client_module, tool_function_name, None)

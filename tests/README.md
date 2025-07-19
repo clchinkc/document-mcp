@@ -97,28 +97,62 @@ To ensure stability during refactoring, all tests should import MCP tools from *
 
 ## 6. Running Tests
 
-### Run All Tests
+### Modern Toolchain (Recommended)
+
 ```bash
-pytest
+# Run all tests with uv (10-100x faster dependency resolution)
+uv run python -m pytest
+
+# Run specific categories
+uv run python -m pytest tests/unit/          # Unit tests only
+uv run python -m pytest tests/integration/   # Integration tests only
+uv run python -m pytest tests/e2e/           # E2E tests only
+uv run python -m pytest tests/evaluation/    # Evaluation tests only
+
+# Run with coverage
+uv run python -m pytest --cov=document_mcp --cov-report=html
+
+# Code quality checks
+uv run ruff check                             # Lint code
+uv run ruff check --fix                       # Auto-fix issues
+uv run ruff format                           # Format code
+uv run mypy document_mcp/                     # Type checking
+
+# Quality checks script
+python3 scripts/quality.py full
 ```
 
-### Run a Specific Category
+### Traditional Python
+
 ```bash
-pytest tests/unit/
-pytest tests/integration/
-pytest tests/e2e/
+# Run all tests
+python3 -m pytest
+
+# Run specific categories
+python3 -m pytest tests/unit/
+python3 -m pytest tests/integration/
+python3 -m pytest tests/e2e/
+
+# Run with coverage
+python3 -m pytest --cov=document_mcp --cov-report=html
 ```
 
-### Run with Coverage
-```bash
-pytest --cov=document_mcp --cov-report=html
-```
-
-### Run E2E Tests
+### Running E2E Tests
 To run the E2E tests, you must first export your API key:
 ```bash
 export OPENAI_API_KEY="your-key-here"
-pytest tests/e2e/
+# or
+export GEMINI_API_KEY="your-key-here"
+
+# Run E2E tests with extended timeout
+uv run python -m pytest tests/e2e/ --timeout=600
+```
+
+### CI/CD Testing (GitHub Actions)
+The GitHub workflow runs:
+```bash
+# Unit + Integration + E2E tests (excludes evaluation for CI efficiency)
+uv run pytest tests/unit/ tests/integration/ tests/e2e/ --timeout=600
 ```
 
 ## 7. Adding New Tests

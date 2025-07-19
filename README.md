@@ -14,68 +14,78 @@ Document MCP exists to **complement and diversify the predominantly STEM-oriente
 ### Step-by-Step Setup
 
 ```bash
-# 1. Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Install uv package manager (if not already installed)
+# macOS/Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
+# Windows: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
-# 2. Install the package with development dependencies using uv
+# Install project with development dependencies
 uv sync
 
-# 3. Set up environment variables
-#    Create a `.env` file with your API key according to `.env.example`, and fill in the required values.
-
-# 4. Verify your setup
-python src/agents/simple_agent.py --check-config
-```
-
-### Development Commands
-
-### Setup and Installation
-```bash
-# Create and activate virtual environment
+# Alternative: Traditional virtual environment setup
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+uv pip install -e ".[dev]"
 
-# Install package with development dependencies using uv
-uv sync
+# Set up environment variables
+# Create a `.env` file with your API key according to `.env.example`
 
-# Verify setup
+# Verify your setup
 python3 src/agents/simple_agent/main.py --check-config
 ```
 
+## 🛠️ Development
+
+### Modern Toolchain
+This project uses modern Python development tools for enhanced performance and developer experience:
+
+- **`uv`**: Ultra-fast Python package manager and dependency resolver (10-100x faster than pip)
+- **`ruff`**: Lightning-fast Python linter and formatter (replaces black, isort, flake8, pydocstyle, autoflake)
+- **`mypy`**: Static type checking for enhanced code quality
+- **`pytest`**: Comprehensive testing framework with async support
+
 ### Testing Strategy
 ```bash
-# Run all tests
-pytest
+# Run all tests with uv (recommended)
+uv run pytest
+
+# Run with traditional python3 (for compatibility)
+python3 -m pytest
 
 # Run by test tier
-python3 -m pytest tests/unit/          # Unit tests (fastest, no external deps)
-python3 -m pytest tests/integration/   # Integration tests (real MCP, mocked LLM)
-python3 -m pytest tests/e2e/           # E2E tests (requires API keys)
+uv run pytest tests/unit/              # Unit tests (fastest, no external deps)
+uv run pytest tests/integration/       # Integration tests (real MCP, mocked LLM)
+uv run pytest tests/e2e/               # E2E tests (requires API keys, 600s timeout)
 
 # Run with coverage
-python3 -m pytest --cov=document_mcp --cov-report=html
+uv run pytest --cov=document_mcp --cov-report=html
 
-# Quality checks
+# Code quality checks
+uv run ruff check                       # Lint code
+uv run ruff check --fix                 # Auto-fix linting issues  
+uv run ruff format                      # Format code
+uv run mypy document_mcp/               # Type checking
+
+# Quality checks script (uses uv and ruff internally)
 python3 scripts/quality.py full
 ```
 
 ### Running the System
 ```bash
 # Start MCP server (stdio transport)
-python3 -m document_mcp.doc_tool_server stdio
+uv run python -m document_mcp.doc_tool_server stdio
+# Alternative: python3 -m document_mcp.doc_tool_server stdio
 
 # Test agents
-python3 src/agents/simple_agent/main.py --query "list all documents"
-python3 src/agents/react_agent/main.py --query "create a book with multiple chapters"
+uv run python src/agents/simple_agent/main.py --query "list all documents"
+uv run python src/agents/react_agent/main.py --query "create a book with multiple chapters"
 
 # Interactive mode
-python3 src/agents/simple_agent/main.py --interactive
-python3 src/agents/react_agent/main.py --interactive
+uv run python src/agents/simple_agent/main.py --interactive
+uv run python src/agents/react_agent/main.py --interactive
 
 # Optimize agent prompts
-python3 -m prompt_optimizer simple     # Optimize specific agent
-python3 -m prompt_optimizer all        # Optimize all agents
+uv run python -m prompt_optimizer simple     # Optimize specific agent
+uv run python -m prompt_optimizer all        # Optimize all agents
 optimize-prompts simple                # Using installed CLI command
 ```
 

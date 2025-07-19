@@ -99,12 +99,17 @@ document-mcp/
 
 ### Setup and Installation
 ```bash
-# Create and activate virtual environment
+# Install uv package manager (if not already installed)
+# macOS/Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
+# Windows: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Install project with development dependencies
+uv sync
+
+# Alternative: Traditional virtual environment setup
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install package with development dependencies using uv
-uv sync
+uv pip install -e ".[dev]"
 
 # Verify setup
 python3 src/agents/simple_agent/main.py --check-config
@@ -112,43 +117,58 @@ python3 src/agents/simple_agent/main.py --check-config
 
 ### Testing Strategy
 ```bash
-# Run all tests (use python3 for consistency)
+# Run all tests with uv (recommended)
+uv run pytest
+
+# Run with traditional python3 (for consistency with existing setups)
 python3 -m pytest
 
 # Run by test tier
-python3 -m pytest tests/unit/          # Unit tests (fastest, no external deps)
-python3 -m pytest tests/integration/   # Integration tests (real MCP, mocked LLM)
-python3 -m pytest tests/e2e/           # E2E tests (requires API keys, 600s timeout)
-python3 -m pytest tests/evaluation/    # Evaluation tests (requires API keys, 600s timeout)
+uv run pytest tests/unit/              # Unit tests (fastest, no external deps)
+uv run pytest tests/integration/       # Integration tests (real MCP, mocked LLM)
+uv run pytest tests/e2e/               # E2E tests (requires API keys, 600s timeout)
+uv run pytest tests/evaluation/        # Evaluation tests (requires API keys, 600s timeout)
 
 # Run with coverage
-python3 -m pytest --cov=document_mcp --cov-report=html
+uv run pytest --cov=document_mcp --cov-report=html
 
-# Quality checks
+# Code quality checks with ruff (replaces black, isort, flake8, etc.)
+uv run ruff check                       # Lint code
+uv run ruff check --fix                 # Auto-fix linting issues
+uv run ruff format                      # Format code
+uv run mypy document_mcp/               # Type checking
+
+# Quality checks script (uses uv and ruff internally)
 python3 scripts/quality.py full
 
 # Extended timeout for API-dependent tests
-python3 -m pytest tests/e2e/ --timeout=600         # E2E tests with 10min timeout
-python3 -m pytest tests/evaluation/ --timeout=600  # Evaluation tests with 10min timeout
+uv run pytest tests/e2e/ --timeout=600         # E2E tests with 10min timeout
+uv run pytest tests/evaluation/ --timeout=600  # Evaluation tests with 10min timeout
+
+# For CI/CD: Run unit, integration, and e2e tests (exclude evaluation only)
+uv run pytest tests/unit/ tests/integration/ tests/e2e/ --timeout=600  # GitHub Actions pattern
+python3 -m pytest tests/unit/ tests/integration/ --tb=short  # Local dev without APIs
 ```
 
 ### Running the System
 ```bash
 # Start MCP server (stdio transport)
-python3 -m document_mcp.doc_tool_server stdio
+uv run python -m document_mcp.doc_tool_server stdio
+# Alternative: python3 -m document_mcp.doc_tool_server stdio
 
 # Test agents
-python3 src/agents/simple_agent/main.py --query "list all documents"
-python3 src/agents/react_agent/main.py --query "create a book with multiple chapters"
+uv run python src/agents/simple_agent/main.py --query "list all documents"
+uv run python src/agents/react_agent/main.py --query "create a book with multiple chapters"
+# Alternative: python3 src/agents/simple_agent/main.py --query "list all documents"
 
 # Interactive mode
-python3 src/agents/simple_agent/main.py --interactive
-python3 src/agents/react_agent/main.py --interactive
+uv run python src/agents/simple_agent/main.py --interactive
+uv run python src/agents/react_agent/main.py --interactive
 
-# Optimize agent prompts (new)
-python3 -m prompt_optimizer simple     # Optimize specific agent
-python3 -m prompt_optimizer all        # Optimize all agents
-optimize-prompts simple                # Using installed CLI command
+# Optimize agent prompts
+uv run python -m prompt_optimizer simple     # Optimize specific agent
+uv run python -m prompt_optimizer all        # Optimize all agents
+optimize-prompts simple                       # Using installed CLI command
 ```
 
 ## Core System Components
@@ -443,6 +463,31 @@ result = await retry_manager.execute_with_retry(operation)
 - **E2E tests**: Minimized with delays and batching
 - **Production**: Circuit breakers prevent cascade failures
 - **Batch Operations**: Single LLM call for multi-step workflows instead of sequential calls
+
+## CI/CD and GitHub Actions
+
+The project includes a modern GitHub Actions workflow (`.github/workflows/python-test.yml`) configured for optimal CI/CD performance:
+
+### Workflow Features
+- **Uses `uv`**: Ultra-fast dependency installation (10-100x faster than pip)
+- **Uses `ruff`**: Modern code quality checks (linting and formatting)
+- **Includes `mypy`**: Static type checking for enhanced code quality
+- **Runs E2E tests**: Full system validation with real APIs in CI
+- **Excludes evaluation tests**: Optimized for CI speed and reliability
+
+### Test Coverage in CI
+```bash
+# GitHub Actions runs these tests automatically:
+uv run pytest tests/unit/ tests/integration/ tests/e2e/ --timeout=600
+```
+
+### Workflow Configuration
+- **Python Version**: 3.13 (latest stable)
+- **API Keys**: Configured for E2E tests via GitHub Secrets
+- **Coverage**: Uploads results to Codecov
+- **Quality Gates**: All checks must pass for PR approval
+
+The workflow provides fast, reliable CI builds while maintaining comprehensive test coverage across unit, integration, and end-to-end scenarios.
 
 ## Common Workflows
 

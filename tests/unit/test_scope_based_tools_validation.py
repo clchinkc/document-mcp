@@ -4,10 +4,10 @@ These tests ensure scope-based tools properly handle invalid inputs and edge cas
 without requiring external dependencies.
 """
 
-from tests.tool_imports import find_text
-from tests.tool_imports import get_statistics
-from tests.tool_imports import read_content
-from tests.tool_imports import replace_text
+from document_mcp.mcp_client import find_text
+from document_mcp.mcp_client import get_statistics
+from document_mcp.mcp_client import read_content
+from document_mcp.mcp_client import replace_text
 
 
 class TestScopeBasedToolsDataValidation:

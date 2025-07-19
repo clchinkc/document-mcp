@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from tests.tool_imports import create_chapter
-from tests.tool_imports import delete_chapter
-from tests.tool_imports import delete_document
-from tests.tool_imports import get_statistics
-from tests.tool_imports import list_chapters
-from tests.tool_imports import read_content
-from tests.tool_imports import write_chapter_content
+from document_mcp.mcp_client import create_chapter
+from document_mcp.mcp_client import delete_chapter
+from document_mcp.mcp_client import delete_document
+from document_mcp.mcp_client import get_statistics
+from document_mcp.mcp_client import list_chapters
+from document_mcp.mcp_client import read_content
+from document_mcp.mcp_client import write_chapter_content
 
 
 @pytest.fixture
@@ -72,7 +72,7 @@ def test_read_and_write_chapter_content(document_factory, temp_docs_root: Path):
     document_factory(doc_name, {chapter_name: initial_content})
 
     read_result = read_content(doc_name, scope="chapter", chapter_name=chapter_name)
-    assert read_result["content"] == initial_content
+    assert read_result.content == initial_content
 
     new_content = "This is the new, updated content."
     write_result = write_chapter_content(doc_name, chapter_name, new_content)
@@ -90,5 +90,5 @@ def test_chapter_statistics(document_factory):
     document_factory(doc_name, {chapter_name: content})
 
     stats_result = get_statistics(doc_name, scope="chapter", chapter_name=chapter_name)
-    assert stats_result["word_count"] == 8
-    assert stats_result["paragraph_count"] == 2
+    assert stats_result.word_count == 8
+    assert stats_result.paragraph_count == 2

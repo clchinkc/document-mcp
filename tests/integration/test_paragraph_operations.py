@@ -4,14 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from tests.tool_imports import append_paragraph_to_chapter
-from tests.tool_imports import delete_document
-from tests.tool_imports import delete_paragraph
-from tests.tool_imports import find_text
-from tests.tool_imports import insert_paragraph_after
-from tests.tool_imports import insert_paragraph_before
-from tests.tool_imports import replace_paragraph
-from tests.tool_imports import replace_text
+from document_mcp.mcp_client import append_paragraph_to_chapter
+from document_mcp.mcp_client import delete_document
+from document_mcp.mcp_client import delete_paragraph
+from document_mcp.mcp_client import find_text
+from document_mcp.mcp_client import insert_paragraph_after
+from document_mcp.mcp_client import insert_paragraph_before
+from document_mcp.mcp_client import replace_paragraph
+from document_mcp.mcp_client import replace_text
 
 
 @pytest.fixture
@@ -111,8 +111,8 @@ def test_replace_text_in_chapter(document_factory, temp_docs_root: Path):
     result = replace_text(
         doc_name, "old text", "new text", scope="chapter", chapter_name=chapter_name
     )
-    assert result["success"] is True
-    assert result["details"]["occurrences_replaced"] == 2
+    assert result.success is True
+    assert result.details["occurrences_replaced"] == 2
 
     final_content = (temp_docs_root / doc_name / chapter_name).read_text()
     assert final_content == "The new text needs to be replaced. The new text is here."
@@ -128,8 +128,8 @@ def test_replace_text_in_document(document_factory, temp_docs_root: Path):
     document_factory(doc_name, chapters)
 
     result = replace_text(doc_name, "value", "term", scope="document")
-    assert result["success"] is True
-    assert result["details"]["total_occurrences_replaced"] == 2
+    assert result.success is True
+    assert result.details["total_occurrences_replaced"] == 2
 
     chap1_content = (temp_docs_root / doc_name / "chap1.md").read_text()
     assert chap1_content == "Replace this term."
@@ -153,7 +153,7 @@ def test_find_text_in_chapter(document_factory):
         case_sensitive=False,
     )
     assert len(results) >= 1
-    assert results[0]["chapter_name"] == chapter_name
+    assert results[0].chapter_name == chapter_name
 
 
 def test_find_text_in_document(document_factory):
@@ -167,5 +167,5 @@ def test_find_text_in_document(document_factory):
 
     results = find_text(doc_name, "keyword", scope="document")
     assert len(results) == 2
-    assert results[0]["chapter_name"] == "chap1.md"
-    assert results[1]["chapter_name"] == "chap2.md"
+    assert results[0].chapter_name == "chap1.md"
+    assert results[1].chapter_name == "chap2.md"

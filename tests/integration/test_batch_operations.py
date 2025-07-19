@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from tests.tool_imports import batch_apply_operations
-from tests.tool_imports import delete_document
-from tests.tool_imports import list_chapters
-from tests.tool_imports import list_documents
-from tests.tool_imports import read_content
+from document_mcp.mcp_client import batch_apply_operations
+from document_mcp.mcp_client import delete_document
+from document_mcp.mcp_client import list_chapters
+from document_mcp.mcp_client import list_documents
+from document_mcp.mcp_client import read_content
 
 
 @pytest.fixture
@@ -67,14 +67,14 @@ class TestBatchOperationsIntegration:
             operations=operations, atomic=True, validate_only=False
         )
 
-        assert result["success"] is True
-        assert result["total_operations"] == 2
-        assert result["successful_operations"] == 2
-        assert result["failed_operations"] == 0
-        assert len(result["operation_results"]) == 2
+        assert result.success is True
+        assert result.total_operations == 2
+        assert result.successful_operations == 2
+        assert result.failed_operations == 0
+        assert len(result.operation_results) == 2
 
-        for op_result in result["operation_results"]:
-            assert op_result["success"] is True
+        for op_result in result.operation_results:
+            assert op_result.success is True
 
         docs = list_documents()
         doc_names = [doc.document_name for doc in docs]
@@ -89,7 +89,7 @@ class TestBatchOperationsIntegration:
         )
         assert (
             "This is a test chapter created via batch operation"
-            in chapter_content["content"]
+            in chapter_content.content
         )
 
     @pytest.mark.asyncio
@@ -107,11 +107,11 @@ class TestBatchOperationsIntegration:
 
         result = batch_apply_operations(operations=operations, validate_only=True)
 
-        assert result["success"] is True
-        assert result["total_operations"] == 1
-        assert result["successful_operations"] == 0
-        assert result["failed_operations"] == 0
-        assert "Validation successful" in result["summary"]
+        assert result.success is True
+        assert result.total_operations == 1
+        assert result.successful_operations == 0
+        assert result.failed_operations == 0
+        assert "Validation successful" in result.summary
 
         docs = list_documents()
         doc_names = [doc.document_name for doc in docs]
@@ -141,15 +141,15 @@ class TestBatchOperationsIntegration:
 
         result = batch_apply_operations(operations=operations)
 
-        assert result["success"] is False
-        assert result["total_operations"] == 2
-        assert result["successful_operations"] == 1
-        assert result["failed_operations"] == 1
-        assert "Batch failed" in result["error_summary"]
+        assert result.success is False
+        assert result.total_operations == 2
+        assert result.successful_operations == 1
+        assert result.failed_operations == 1
+        assert "Batch failed" in result.error_summary
 
-        failed_op = result["operation_results"][1]
-        assert failed_op["success"] is False
-        assert "Unknown operation type" in failed_op["error"]
+        failed_op = result.operation_results[1]
+        assert failed_op.success is False
+        assert "Unknown operation type" in failed_op.error
 
     @pytest.mark.asyncio
     async def test_batch_apply_operations_continue_on_error_mode(
@@ -186,10 +186,10 @@ class TestBatchOperationsIntegration:
             operations=operations, atomic=False, continue_on_error=True
         )
 
-        assert result["success"] is False
-        assert result["total_operations"] == 3
-        assert result["successful_operations"] == 2
-        assert result["failed_operations"] == 1
+        assert result.success is False
+        assert result.total_operations == 3
+        assert result.successful_operations == 2
+        assert result.failed_operations == 1
 
         docs = list_documents()
         doc_names = [doc.document_name for doc in docs]
@@ -230,20 +230,20 @@ class TestBatchOperationsIntegration:
 
         result = batch_apply_operations(operations=operations)
 
-        assert result["success"] is True
-        assert result["total_operations"] == 2
-        assert result["successful_operations"] == 2
-        assert result["failed_operations"] == 0
+        assert result.success is True
+        assert result.total_operations == 2
+        assert result.successful_operations == 2
+        assert result.failed_operations == 0
 
-        doc_read_result = result["operation_results"][0]
-        assert doc_read_result["success"] is True
-        assert doc_read_result["result"]["document_name"] == doc_name
-        assert len(doc_read_result["result"]["chapters"]) == 2
+        doc_read_result = result.operation_results[0]
+        assert doc_read_result.success is True
+        assert doc_read_result.result["document_name"] == doc_name
+        assert len(doc_read_result.result["chapters"]) == 2
 
-        chapter_read_result = result["operation_results"][1]
-        assert chapter_read_result["success"] is True
-        assert chapter_read_result["result"]["chapter_name"] == "chapter1.md"
-        assert "First chapter content" in chapter_read_result["result"]["content"]
+        chapter_read_result = result.operation_results[1]
+        assert chapter_read_result.success is True
+        assert chapter_read_result.result["chapter_name"] == "chapter1.md"
+        assert "First chapter content" in chapter_read_result.result["content"]
 
 
 class TestBatchOperationsForDocumentCreation:
@@ -301,9 +301,9 @@ class TestBatchOperationsForDocumentCreation:
 
         result = batch_apply_operations(operations, atomic=True, snapshot_before=True)
 
-        assert result["success"] is True
-        assert result["total_operations"] == 4
-        assert result["successful_operations"] == 4
+        assert result.success is True
+        assert result.total_operations == 4
+        assert result.successful_operations == 4
 
         docs = list_documents()
         doc_names = [doc.document_name for doc in docs]
@@ -319,12 +319,12 @@ class TestBatchOperationsForDocumentCreation:
         intro_content = read_content(
             doc_name, scope="chapter", chapter_name="01-introduction.md"
         )
-        assert "Welcome to the guide" in intro_content["content"]
+        assert "Welcome to the guide" in intro_content.content
 
         setup_content = read_content(
             doc_name, scope="chapter", chapter_name="02-setup.md"
         )
-        assert "Installation instructions" in setup_content["content"]
+        assert "Installation instructions" in setup_content.content
 
         delete_document(doc_name)
 
@@ -344,9 +344,9 @@ class TestBatchOperationsForDocumentCreation:
 
         result = batch_apply_operations(operations, atomic=True)
 
-        assert result["success"] is True
-        assert result["total_operations"] == 1
-        assert result["successful_operations"] == 1
+        assert result.success is True
+        assert result.total_operations == 1
+        assert result.successful_operations == 1
 
         docs = list_documents()
         doc_names = [doc.document_name for doc in docs]
@@ -394,7 +394,7 @@ class TestBatchOperationsForDocumentCreation:
 
         result = batch_apply_operations(operations, atomic=True, snapshot_before=True)
 
-        assert result["success"] is False
+        assert result.success is False
 
         docs = list_documents()
         doc_names = [doc.document_name for doc in docs]
@@ -418,7 +418,7 @@ class TestBatchOperationsForDocumentCreation:
 
         result = batch_apply_operations(operations, atomic=True)
 
-        assert result["success"] is False
+        assert result.success is False
         assert "already exists" in str(result).lower()
 
         original_chapters = list_chapters(doc_name)
@@ -440,7 +440,7 @@ class TestBatchOperationsWithDependencies:
             {
                 "operation_type": "append_paragraph_to_chapter",
                 "target": {"document_name": doc_name, "chapter_name": "intro.md"},
-                "parameters": {"paragraph_content": "This is an additional paragraph."},
+                "parameters": {"new_content": "This is an additional paragraph."},
                 "order": 3,
                 "operation_id": "append_para",
                 "depends_on": ["create_chapter"],
@@ -468,15 +468,15 @@ class TestBatchOperationsWithDependencies:
 
         result = batch_apply_operations(operations=operations)
 
-        assert result["success"] is True
-        assert result["total_operations"] == 3
-        assert result["successful_operations"] == 3
-        assert result["failed_operations"] == 0
+        assert result.success is True
+        assert result.total_operations == 3
+        assert result.successful_operations == 3
+        assert result.failed_operations == 0
 
-        assert len(result["operation_results"]) == 3
-        assert result["operation_results"][0]["operation_id"] == "create_doc"
-        assert result["operation_results"][1]["operation_id"] == "create_chapter"
-        assert result["operation_results"][2]["operation_id"] == "append_para"
+        assert len(result.operation_results) == 3
+        assert result.operation_results[0].operation_id == "create_doc"
+        assert result.operation_results[1].operation_id == "create_chapter"
+        assert result.operation_results[2].operation_id == "append_para"
 
         docs = list_documents()
         doc_names = [doc.document_name for doc in docs]
@@ -489,8 +489,8 @@ class TestBatchOperationsWithDependencies:
         chapter_content = read_content(
             doc_name, scope="chapter", chapter_name="intro.md"
         )
-        assert "Welcome to the guide" in chapter_content["content"]
-        assert "This is an additional paragraph" in chapter_content["content"]
+        assert "Welcome to the guide" in chapter_content.content
+        assert "This is an additional paragraph" in chapter_content.content
 
     @pytest.mark.asyncio
     async def test_batch_operations_with_multiple_dependencies(self, document_factory):
@@ -544,24 +544,24 @@ class TestBatchOperationsWithDependencies:
 
         result = batch_apply_operations(operations=operations)
 
-        assert result["success"] is True
-        assert result["total_operations"] == 4
-        assert result["successful_operations"] == 4
+        assert result.success is True
+        assert result.total_operations == 4
+        assert result.successful_operations == 4
 
-        op_results = result["operation_results"]
-        assert op_results[0]["operation_id"] == "create_doc"
-        assert op_results[-1]["operation_id"] == "replace_text_op"
+        op_results = result.operation_results
+        assert op_results[0].operation_id == "create_doc"
+        assert op_results[-1].operation_id == "replace_text_op"
 
         ch1_index = next(
-            i for i, op in enumerate(op_results) if op["operation_id"] == "create_ch1"
+            i for i, op in enumerate(op_results) if op.operation_id == "create_ch1"
         )
         ch2_index = next(
-            i for i, op in enumerate(op_results) if op["operation_id"] == "create_ch2"
+            i for i, op in enumerate(op_results) if op.operation_id == "create_ch2"
         )
         replace_index = next(
             i
             for i, op in enumerate(op_results)
-            if op["operation_id"] == "replace_text_op"
+            if op.operation_id == "replace_text_op"
         )
 
         assert ch1_index < replace_index
@@ -573,10 +573,10 @@ class TestBatchOperationsWithDependencies:
         ch2_content = read_content(
             doc_name, scope="chapter", chapter_name="chapter2.md"
         )
-        assert "final content" in ch1_content["content"]
-        assert "final content" in ch2_content["content"]
-        assert "placeholder" not in ch1_content["content"]
-        assert "placeholder" not in ch2_content["content"]
+        assert "final content" in ch1_content.content
+        assert "final content" in ch2_content.content
+        assert "placeholder" not in ch1_content.content
+        assert "placeholder" not in ch2_content.content
 
     @pytest.mark.asyncio
     async def test_batch_operations_circular_dependency_failure(self):
@@ -602,6 +602,6 @@ class TestBatchOperationsWithDependencies:
 
         result = batch_apply_operations(operations=operations)
 
-        assert result["success"] is False
-        assert result["total_operations"] == 2
-        assert result["successful_operations"] == 0
+        assert result.success is False
+        assert result.total_operations == 2
+        assert result.successful_operations == 0

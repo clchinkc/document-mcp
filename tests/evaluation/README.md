@@ -48,16 +48,23 @@ if enhanced_metrics.llm_evaluation and enhanced_metrics.llm_evaluation.success:
 
 ## 4. Usage
 
-### Running via Pytest
+### Running via Pytest (Modern Toolchain)
 
-The simplest way to run evaluation tests is with pytest.
+The simplest way to run evaluation tests is with pytest using the modern toolchain.
 
 ```bash
-# Run all evaluation tests (LLM scoring disabled by default)
-pytest tests/evaluation/
+# Run all evaluation tests with uv (LLM scoring disabled by default)
+uv run python -m pytest tests/evaluation/
 
 # Run tests with LLM-based quality scoring enabled
-ENABLE_LLM_EVALUATION=true pytest tests/evaluation/
+ENABLE_LLM_EVALUATION=true uv run python -m pytest tests/evaluation/
+
+# Run with extended timeout for real API calls
+uv run python -m pytest tests/evaluation/ --timeout=600
+
+# Traditional Python (alternative)
+python3 -m pytest tests/evaluation/
+ENABLE_LLM_EVALUATION=true python3 -m pytest tests/evaluation/
 ```
 
 ### Standalone Runner
@@ -65,14 +72,17 @@ ENABLE_LLM_EVALUATION=true pytest tests/evaluation/
 The `run_evaluation.py` script provides a way to run the suite for multiple agents and scenarios, generating a comparative report.
 
 ```bash
-# Run the full evaluation suite
-python3 tests/evaluation/run_evaluation.py
+# Run the full evaluation suite with uv
+uv run python tests/evaluation/run_evaluation.py
 
 # Run only specific categories
-python3 tests/evaluation/run_evaluation.py --categories basic intermediate
+uv run python tests/evaluation/run_evaluation.py --categories basic intermediate
 
 # Run with a real LLM for the agent's actions (E2E mode)
-python3 tests/evaluation/run_evaluation.py --real-llm
+uv run python tests/evaluation/run_evaluation.py --real-llm
+
+# Traditional Python (alternative)
+python3 tests/evaluation/run_evaluation.py
 ```
 
 ## 5. Test Scenarios and Thresholds
