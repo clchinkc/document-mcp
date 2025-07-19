@@ -17,43 +17,55 @@ class TestSafetyFeatures:
 
     def test_content_freshness_check(self, temp_docs_root):
         """Test content freshness validation."""
-        from tests.tool_imports import ContentFreshnessStatus
-        from tests.tool_imports import check_content_freshness
+        from document_mcp.mcp_client import check_content_status
+        from document_mcp.models import ContentFreshnessStatus
 
         # Test with non-existent document
-        freshness = check_content_freshness("nonexistent_doc", "test.md")
-        assert isinstance(freshness, ContentFreshnessStatus)
-        assert freshness.safety_status == "conflict"
-        assert not freshness.is_fresh
+        status_result = check_content_status(
+            document_name="nonexistent_doc",
+            chapter_name="test.md",
+            include_history=False
+        )
+        # The MCP tool should return ContentFreshnessStatus when include_history=False
+        assert isinstance(status_result, ContentFreshnessStatus)
+        assert status_result.safety_status == "conflict"
+        assert not status_result.is_fresh
 
     def test_modification_history_tracking(self, temp_docs_root):
         """Test modification history tracking."""
-        from tests.tool_imports import ModificationHistory
-        from tests.tool_imports import get_modification_history
+        from document_mcp.mcp_client import check_content_status
+        from document_mcp.models import ModificationHistory
 
         # Test with non-existent document
-        history = get_modification_history("nonexistent_doc")
+        history = check_content_status(
+            document_name="nonexistent_doc",
+            include_history=True
+        )
+        # The MCP tool should return ModificationHistory when include_history=True and no chapter specified
         assert isinstance(history, ModificationHistory)
         assert history.total_modifications == 0
         assert history.document_name == "nonexistent_doc"
 
     def test_snapshot_operations(self, temp_docs_root):
         """Test snapshot creation and listing."""
-        from tests.tool_imports import SnapshotsList
-        from tests.tool_imports import list_snapshots
+        from document_mcp.mcp_client import manage_snapshots
+        from document_mcp.models import SnapshotsList
 
         # Test with non-existent document
-        snapshots = list_snapshots("nonexistent_doc")
+        snapshots = manage_snapshots(
+            document_name="nonexistent_doc",
+            action="list"
+        )
         assert isinstance(snapshots, SnapshotsList)
         assert snapshots.total_snapshots == 0
         assert snapshots.document_name == "nonexistent_doc"
 
     def test_safety_enhanced_write_operations(self, temp_docs_root):
         """Test that write operations include safety information."""
-        from tests.tool_imports import OperationStatus
-        from tests.tool_imports import create_chapter
-        from tests.tool_imports import create_document
-        from tests.tool_imports import write_chapter_content
+        from document_mcp.mcp_client import create_chapter
+        from document_mcp.mcp_client import create_document
+        from document_mcp.mcp_client import write_chapter_content
+        from document_mcp.models import OperationStatus
 
         # Create document and chapter
         doc_result = create_document("safety_test")
@@ -75,14 +87,12 @@ class TestSafetyFeatures:
 
     def test_snapshot_workflow(self, temp_docs_root):
         """Test complete snapshot workflow."""
-        from tests.tool_imports import create_chapter
-        from tests.tool_imports import create_document
-        from tests.tool_imports import diff_snapshots
-        from tests.tool_imports import list_snapshots
-        from tests.tool_imports import replace_paragraph
-        from tests.tool_imports import restore_snapshot
-        from tests.tool_imports import snapshot_document
-        from tests.tool_imports import write_chapter_content
+        from document_mcp.mcp_client import create_chapter
+        from document_mcp.mcp_client import create_document
+        from document_mcp.mcp_client import diff_content
+        from document_mcp.mcp_client import manage_snapshots
+        from document_mcp.mcp_client import replace_paragraph
+        from document_mcp.mcp_client import write_chapter_content
 
         # Create document and chapter
         doc_result = create_document("snapshot_test")
@@ -98,11 +108,11 @@ class TestSafetyFeatures:
         assert write_result.success
 
         # Create snapshot
-        snapshot_result = snapshot_document("snapshot_test", "Initial version")
+        snapshot_result = manage_snapshots("snapshot_test", "create", message="Initial version")
         assert snapshot_result.success
 
         # List snapshots
-        snapshots = list_snapshots("snapshot_test")
+        snapshots = manage_snapshots("snapshot_test", "list")
         assert snapshots.total_snapshots >= 1
 
         # Make changes
@@ -113,50 +123,57 @@ class TestSafetyFeatures:
 
         # Test diff
         if snapshots.total_snapshots > 0:
-            diff_result = diff_snapshots(
-                "snapshot_test", snapshots.snapshots[0].snapshot_id
+            diff_result = diff_content(
+                document_name="snapshot_test",
+                source_type="snapshot",
+                source_id=snapshots.snapshots[0].snapshot_id,
+                target_type="current"
             )
             assert diff_result.success
             assert diff_result.details["total_changes"] >= 1
 
         # Test restore
         if snapshots.total_snapshots > 0:
-            restore_result = restore_snapshot(
-                "snapshot_test", snapshots.snapshots[0].snapshot_id
+            restore_result = manage_snapshots(
+                "snapshot_test", "restore", snapshot_id=snapshots.snapshots[0].snapshot_id
             )
             assert restore_result.success
             assert restore_result.details["files_restored"] >= 1
 
     def test_error_handling(self, temp_docs_root):
         """Test error handling in safety operations."""
-        from tests.tool_imports import diff_snapshots
-        from tests.tool_imports import restore_snapshot
-        from tests.tool_imports import snapshot_document
+        from document_mcp.mcp_client import diff_content
+        from document_mcp.mcp_client import manage_snapshots
 
         # Test with invalid document
-        result = snapshot_document("invalid_doc", "Test")
+        result = manage_snapshots("invalid_doc", "create", message="Test")
         assert not result.success
         assert "not found" in result.message
 
         # Test with invalid snapshot
-        result = restore_snapshot("invalid_doc", "invalid_snapshot")
+        result = manage_snapshots("invalid_doc", "restore", snapshot_id="invalid_snapshot")
         assert not result.success
         assert "not found" in result.message
 
         # Test with invalid diff
-        result = diff_snapshots("invalid_doc", "invalid_snapshot")
+        result = diff_content(
+            document_name="invalid_doc",
+            source_type="snapshot",
+            source_id="invalid_snapshot",
+            target_type="current"
+        )
         assert not result.success
         assert "not found" in result.message
 
     def test_api_consistency(self, temp_docs_root):
         """Test that all write operations return consistent OperationStatus."""
-        from tests.tool_imports import OperationStatus
-        from tests.tool_imports import create_chapter
-        from tests.tool_imports import create_document
-        from tests.tool_imports import delete_paragraph
-        from tests.tool_imports import insert_paragraph_before
-        from tests.tool_imports import replace_paragraph
-        from tests.tool_imports import write_chapter_content
+        from document_mcp.mcp_client import create_chapter
+        from document_mcp.mcp_client import create_document
+        from document_mcp.mcp_client import delete_paragraph
+        from document_mcp.mcp_client import insert_paragraph_before
+        from document_mcp.mcp_client import replace_paragraph
+        from document_mcp.mcp_client import write_chapter_content
+        from document_mcp.models import OperationStatus
 
         # Create test document and chapter
         doc_result = create_document("api_consistency_test")
@@ -209,12 +226,12 @@ class TestSafetyFeatures:
 
     def test_safety_middleware_integration(self, temp_docs_root):
         """Test that safety middleware is properly integrated across operations."""
-        from tests.tool_imports import create_chapter
-        from tests.tool_imports import create_document
-        from tests.tool_imports import get_modification_history
-        from tests.tool_imports import list_snapshots
-        from tests.tool_imports import replace_paragraph
-        from tests.tool_imports import write_chapter_content
+        from document_mcp.mcp_client import check_content_status
+        from document_mcp.mcp_client import create_chapter
+        from document_mcp.mcp_client import create_document
+        from document_mcp.mcp_client import manage_snapshots
+        from document_mcp.mcp_client import replace_paragraph
+        from document_mcp.mcp_client import write_chapter_content
 
         # Create test document
         doc_result = create_document("middleware_test")
@@ -230,11 +247,11 @@ class TestSafetyFeatures:
         assert write_result.success
 
         # Verify automatic snapshot creation
-        snapshots = list_snapshots("middleware_test")
+        snapshots = manage_snapshots("middleware_test", "list")
         initial_snapshots = snapshots.total_snapshots
 
         # Verify modification history tracking (may be 0 for new documents)
-        history = get_modification_history("middleware_test")
+        history = check_content_status("middleware_test", include_history=True)
         assert hasattr(history, "total_modifications")
 
         # Make another change and verify incremental tracking
@@ -244,25 +261,22 @@ class TestSafetyFeatures:
         assert replace_result.success
 
         # Check that another snapshot was created (micro-snapshot)
-        new_snapshots = list_snapshots("middleware_test")
+        new_snapshots = manage_snapshots("middleware_test", "list")
         assert new_snapshots.total_snapshots >= initial_snapshots
 
         # Check that modification history is being tracked
-        new_history = get_modification_history("middleware_test")
+        new_history = check_content_status("middleware_test", include_history=True)
         assert new_history.total_modifications >= history.total_modifications
 
     def test_end_to_end_version_control_workflow(self, temp_docs_root):
         """Test complete end-to-end version control workflow."""
-        from tests.tool_imports import check_content_freshness
-        from tests.tool_imports import create_chapter
-        from tests.tool_imports import create_document
-        from tests.tool_imports import diff_snapshots
-        from tests.tool_imports import get_modification_history
-        from tests.tool_imports import list_snapshots
-        from tests.tool_imports import replace_paragraph
-        from tests.tool_imports import restore_snapshot
-        from tests.tool_imports import snapshot_document
-        from tests.tool_imports import write_chapter_content
+        from document_mcp.mcp_client import check_content_status
+        from document_mcp.mcp_client import create_chapter
+        from document_mcp.mcp_client import create_document
+        from document_mcp.mcp_client import diff_content
+        from document_mcp.mcp_client import manage_snapshots
+        from document_mcp.mcp_client import replace_paragraph
+        from document_mcp.mcp_client import write_chapter_content
 
         workflow_doc = "e2e_workflow_test"
 
@@ -285,11 +299,11 @@ class TestSafetyFeatures:
         assert hasattr(write_result, "snapshot_created")
 
         # Step 3: Create named snapshot (like a commit)
-        snapshot_result = snapshot_document(workflow_doc, "Initial story version")
+        snapshot_result = manage_snapshots(workflow_doc, "create", message="Initial story version")
         assert snapshot_result.success
 
         # Step 4: Verify snapshot was created
-        snapshots = list_snapshots(workflow_doc)
+        snapshots = manage_snapshots(workflow_doc, "list")
         assert snapshots.total_snapshots >= 1
         initial_snapshot = snapshots.snapshots[0]
 
@@ -301,68 +315,81 @@ class TestSafetyFeatures:
         assert replace_result.success
 
         # Step 6: Check content freshness (simulating external changes check)
-        freshness = check_content_freshness(workflow_doc, "chapter1.md")
+        freshness = check_content_status(workflow_doc, "chapter1.md", include_history=False)
         assert freshness.is_fresh  # Should be fresh since we just modified it
 
         # Step 7: Compare versions using diff
-        diff_result = diff_snapshots(workflow_doc, initial_snapshot.snapshot_id)
+        diff_result = diff_content(
+            document_name=workflow_doc,
+            source_type="snapshot",
+            source_id=initial_snapshot.snapshot_id,
+            target_type="current"
+        )
         assert diff_result.success
         assert diff_result.details["total_changes"] >= 1
         assert diff_result.details["files_changed"] == ["chapter1.md"]
 
         # Step 8: Create another snapshot after changes
-        snapshot_result2 = snapshot_document(workflow_doc, "Updated plot elements")
+        snapshot_result2 = manage_snapshots(workflow_doc, "create", message="Updated plot elements")
         assert snapshot_result2.success
 
         # Step 9: Verify we now have multiple snapshots
-        updated_snapshots = list_snapshots(workflow_doc)
+        updated_snapshots = manage_snapshots(workflow_doc, "list")
         assert updated_snapshots.total_snapshots >= 2
 
         # Step 10: Compare the two named snapshots
         if updated_snapshots.total_snapshots >= 2:
             second_snapshot = updated_snapshots.snapshots[1]
-            diff_between_snapshots = diff_snapshots(
-                workflow_doc, initial_snapshot.snapshot_id, second_snapshot.snapshot_id
+            diff_between_snapshots = diff_content(
+                document_name=workflow_doc,
+                source_type="snapshot",
+                source_id=initial_snapshot.snapshot_id,
+                target_type="snapshot",
+                target_id=second_snapshot.snapshot_id
             )
             assert diff_between_snapshots.success
             # Total changes may be 0 if snapshots are identical
             assert diff_between_snapshots.details["total_changes"] >= 0
 
         # Step 11: Restore to initial version (like git checkout)
-        restore_result = restore_snapshot(workflow_doc, initial_snapshot.snapshot_id)
+        restore_result = manage_snapshots(workflow_doc, "restore", snapshot_id=initial_snapshot.snapshot_id)
         assert restore_result.success
         assert restore_result.details["files_restored"] >= 1
 
         # Step 12: Verify restoration worked by checking diff with current state
-        post_restore_diff = diff_snapshots(workflow_doc, initial_snapshot.snapshot_id)
+        post_restore_diff = diff_content(
+            document_name=workflow_doc,
+            source_type="snapshot",
+            source_id=initial_snapshot.snapshot_id,
+            target_type="current"
+        )
         assert post_restore_diff.success
         # After restoration, there should be no differences with the initial snapshot
         assert post_restore_diff.details["total_changes"] == 0
 
         # Step 13: Verify modification history is accessible
-        final_history = get_modification_history(workflow_doc)
+        final_history = check_content_status(workflow_doc, include_history=True)
         assert hasattr(
             final_history, "total_modifications"
         )  # History tracking is available
 
     def test_comprehensive_safety_validation(self, temp_docs_root):
         """Test comprehensive safety validation across all scenarios."""
-        from tests.tool_imports import ContentFreshnessStatus
-        from tests.tool_imports import ModificationHistory
-        from tests.tool_imports import SnapshotsList
-        from tests.tool_imports import check_content_freshness
-        from tests.tool_imports import create_chapter
-        from tests.tool_imports import create_document
-        from tests.tool_imports import get_modification_history
-        from tests.tool_imports import list_snapshots
-        from tests.tool_imports import write_chapter_content
+        from document_mcp.mcp_client import check_content_status
+        from document_mcp.mcp_client import create_chapter
+        from document_mcp.mcp_client import create_document
+        from document_mcp.mcp_client import manage_snapshots
+        from document_mcp.mcp_client import write_chapter_content
+        from document_mcp.models import ContentFreshnessStatus
+        from document_mcp.models import ModificationHistory
+        from document_mcp.models import SnapshotsList
 
         test_doc = "comprehensive_safety_test"
 
         # Test 1: Content freshness with various scenarios
 
         # Non-existent document
-        freshness = check_content_freshness("nonexistent", "test.md")
+        freshness = check_content_status("nonexistent", "test.md", include_history=False)
         assert isinstance(freshness, ContentFreshnessStatus)
         assert not freshness.is_fresh
         assert freshness.safety_status == "conflict"
@@ -377,7 +404,7 @@ class TestSafetyFeatures:
         assert write_result.success
 
         # Fresh content check
-        freshness = check_content_freshness(test_doc, "test.md")
+        freshness = check_content_status(test_doc, "test.md", include_history=False)
         assert isinstance(freshness, ContentFreshnessStatus)
         assert freshness.is_fresh
         assert freshness.safety_status == "safe"
@@ -385,12 +412,12 @@ class TestSafetyFeatures:
         # Test 2: Modification history with various operations
 
         # Empty history for non-existent document
-        history = get_modification_history("nonexistent")
+        history = check_content_status("nonexistent", include_history=True)
         assert isinstance(history, ModificationHistory)
         assert history.total_modifications == 0
 
         # History with operations
-        history = get_modification_history(test_doc)
+        history = check_content_status(test_doc, include_history=True)
         assert isinstance(history, ModificationHistory)
         assert history.document_name == test_doc
         # Modification count may vary based on implementation
@@ -399,12 +426,12 @@ class TestSafetyFeatures:
         # Test 3: Snapshot operations with various scenarios
 
         # Empty snapshots for non-existent document
-        snapshots = list_snapshots("nonexistent")
+        snapshots = manage_snapshots("nonexistent", "list")
         assert isinstance(snapshots, SnapshotsList)
         assert snapshots.total_snapshots == 0
 
         # Snapshots with content (micro-snapshots from write operations)
-        snapshots = list_snapshots(test_doc)
+        snapshots = manage_snapshots(test_doc, "list")
         assert isinstance(snapshots, SnapshotsList)
         assert snapshots.document_name == test_doc
         # Should have at least micro-snapshots from write operations
@@ -412,14 +439,12 @@ class TestSafetyFeatures:
 
     def test_writer_safety_scenario(self, temp_docs_root):
         """Test a realistic writer safety scenario: protecting against accidental overwrites."""
-        from tests.tool_imports import check_content_freshness
-        from tests.tool_imports import create_chapter
-        from tests.tool_imports import create_document
-        from tests.tool_imports import list_snapshots
-        from tests.tool_imports import replace_paragraph
-        from tests.tool_imports import restore_snapshot
-        from tests.tool_imports import snapshot_document
-        from tests.tool_imports import write_chapter_content
+        from document_mcp.mcp_client import check_content_status
+        from document_mcp.mcp_client import create_chapter
+        from document_mcp.mcp_client import create_document
+        from document_mcp.mcp_client import manage_snapshots
+        from document_mcp.mcp_client import replace_paragraph
+        from document_mcp.mcp_client import write_chapter_content
 
         # Scenario: A writer is working on a novel chapter
         doc_name = "my_novel"
@@ -435,7 +460,7 @@ class TestSafetyFeatures:
         assert write_result.success
 
         # Step 3: Writer creates a checkpoint snapshot
-        checkpoint = snapshot_document(doc_name, "First draft complete")
+        checkpoint = manage_snapshots(doc_name, "create", message="First draft complete")
         assert checkpoint.success
 
         # Step 4: Writer makes significant changes
@@ -447,14 +472,14 @@ class TestSafetyFeatures:
         )
 
         # Step 5: Writer realizes they want to go back to the original
-        snapshots = list_snapshots(doc_name)
+        snapshots = manage_snapshots(doc_name, "list")
         assert snapshots.total_snapshots >= 1
 
         # Step 6: Restore to the checkpoint (safety in action)
-        restore_result = restore_snapshot(doc_name, snapshots.snapshots[0].snapshot_id)
+        restore_result = manage_snapshots(doc_name, "restore", snapshot_id=snapshots.snapshots[0].snapshot_id)
         assert restore_result.success
         assert restore_result.details["files_restored"] >= 1
 
         # Step 7: Verify content is back to original
-        freshness = check_content_freshness(doc_name, chapter_name)
+        freshness = check_content_status(doc_name, chapter_name, include_history=False)
         assert freshness.is_fresh

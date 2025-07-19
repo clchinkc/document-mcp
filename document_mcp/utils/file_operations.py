@@ -26,10 +26,9 @@ DOCS_ROOT_PATH.mkdir(parents=True, exist_ok=True)  # Ensure the root directory e
 
 def get_document_path(document_name: str) -> Path:
     """Return the full path for a given document name."""
-    # Ensure DOCS_ROOT_PATH is a Path object (defensive programming for tests)
-    root_path = (
-        Path(DOCS_ROOT_PATH) if not isinstance(DOCS_ROOT_PATH, Path) else DOCS_ROOT_PATH
-    )
+    # Check environment variable at runtime for test compatibility
+    docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR", _DEFAULT_DOCS_ROOT)
+    root_path = Path(docs_root_name)
     return root_path / document_name
 
 

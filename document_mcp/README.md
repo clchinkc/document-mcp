@@ -8,7 +8,14 @@ A Model Context Protocol (MCP) server for managing structured Markdown documents
 ## Installation
 
 ```bash
+# Install with pip (traditional)
 pip install document-mcp
+
+# Install with uv (recommended - 10-100x faster)
+uv add document-mcp
+
+# For development with modern toolchain
+uv sync
 ```
 
 ## Quick Start
@@ -51,7 +58,10 @@ pip install document-mcp
 ### Manual Server Mode
 
 ```bash
-# Start the MCP server manually
+# Start the MCP server manually with uv (recommended)
+uv run python -m document_mcp.doc_tool_server sse --host localhost --port 3001
+
+# Alternative: Traditional Python
 python -m document_mcp.doc_tool_server sse --host localhost --port 3001
 ```
 
@@ -94,17 +104,23 @@ The server supports both HTTP SSE and stdio transports. HTTP SSE is the default 
 ### HTTP SSE Transport (Recommended)
 
 ```bash
-# Run with HTTP SSE transport (default)
-python -m document_mcp.doc_tool_server sse --host localhost --port 3001
+# Run with HTTP SSE transport (default) using uv
+uv run python -m document_mcp.doc_tool_server sse --host localhost --port 3001
 
 # Or specify arguments explicitly
-python -m document_mcp.doc_tool_server sse --host 0.0.0.0 --port 8000
+uv run python -m document_mcp.doc_tool_server sse --host 0.0.0.0 --port 8000
+
+# Alternative: Traditional Python
+python -m document_mcp.doc_tool_server sse --host localhost --port 3001
 ```
 
 ### Stdio Transport
 
 ```bash
-# Run with stdio transport
+# Run with stdio transport using uv
+uv run python -m document_mcp.doc_tool_server stdio
+
+# Alternative: Traditional Python
 python -m document_mcp.doc_tool_server stdio
 ```
 
@@ -117,6 +133,10 @@ The server exposes detailed performance and usage metrics via a Prometheus-compa
 - **Endpoint**: `http://localhost:3001/metrics` (when running with default SSE settings)
 - **Installation**: Ensure `prometheus-client` is installed. It is included with the `[dev]` extras:
   ```bash
+  # With uv (recommended)
+  uv sync --all-extras
+  
+  # With pip (traditional)
   pip install "document-mcp[dev]"
   # or manually
   pip install "prometheus-client>=0.17.0"
@@ -244,21 +264,49 @@ The server uses Pydantic models for structured data exchange:
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - fastapi
 - uvicorn[standard]
 - pydantic-ai
 - mcp[cli]
 - python-dotenv
 - google-generativeai
+- openai
+
+## Development Toolchain
+
+This project uses modern Python development tools for enhanced performance:
+
+- **`uv`**: Ultra-fast Python package manager (10-100x faster than pip)
+- **`ruff`**: Lightning-fast linter and formatter (replaces black, isort, flake8, etc.)
+- **`mypy`**: Static type checking for enhanced code quality
+- **`pytest`**: Comprehensive testing framework with async support
+
+### Development Commands
+
+```bash
+# Install dependencies
+uv sync --all-extras
+
+# Code quality checks
+uv run ruff check                    # Lint code
+uv run ruff check --fix              # Auto-fix issues
+uv run ruff format                   # Format code
+uv run mypy document_mcp/            # Type checking
+
+# Run tests
+uv run python -m pytest             # All tests
+uv run python -m pytest tests/unit/ # Unit tests only
+```
 
 ## Testing
 
-The MCP server uses a three-tier testing strategy:
+The MCP server uses a four-tier testing strategy:
 
 1. **Unit Tests**: Mock all dependencies for fast, reliable component testing
 2. **Integration Tests**: Real MCP server with mocked AI for tool validation
 3. **E2E Tests**: Real MCP server with real AI for complete system validation (runs in CI/CD)
+4. **Evaluation Tests**: Performance benchmarking and prompt optimization
 
 Tests cover all MCP tools, error handling, boundary conditions, and multi-step workflows. For more details on the testing strategy, see the [Testing Guidelines](https://github.com/clchinkc/document-mcp/blob/main/tests/README.md) in the main project repository.
 

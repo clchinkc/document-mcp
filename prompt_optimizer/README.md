@@ -15,13 +15,20 @@ Automated prompt optimization tool that safely improves agent prompts using perf
 ### Basic Usage
 
 ```bash
-# Optimize all agents
-python3 -m prompt_optimizer all
+# Optimize all agents with uv (recommended)
+uv run python -m prompt_optimizer all
 
 # Optimize specific agent
+uv run python -m prompt_optimizer simple
+uv run python -m prompt_optimizer react
+
+# Traditional Python (alternative)
+python3 -m prompt_optimizer all
 python3 -m prompt_optimizer simple
 python3 -m prompt_optimizer react
-python3 -m prompt_optimizer planner
+
+# Using installed CLI command (if available)
+optimize-prompts simple
 ```
 
 ### As Python Package

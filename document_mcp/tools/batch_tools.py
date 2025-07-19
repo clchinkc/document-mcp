@@ -91,49 +91,29 @@ def register_batch_tools(mcp_server):
         """
         # Import here to avoid circular imports
         from ..batch.global_registry import get_batch_registry
-        from ..doc_tool_server import _get_document_path
-        from ..doc_tool_server import _resolve_operation_dependencies
-        from ..doc_tool_server import snapshot_document
+        from ..helpers import _get_document_path
+        from ..helpers import _resolve_operation_dependencies
+        from ..mcp_client import manage_snapshots
 
         _batch_registry = get_batch_registry()
 
-        # Apply auto snapshot decorator functionality
-        from ..doc_tool_server import auto_snapshot
+        start_time = time.time()
 
-        @auto_snapshot("batch_apply_operations")
-        def _batch_apply_with_snapshot():
-            start_time = time.time()
-
-            try:
-                # Convert dict operations to BatchOperation objects
-                batch_ops = []
-                for i, op_dict in enumerate(operations):
-                    try:
-                        batch_op = BatchOperation(
-                            operation_type=op_dict.get("operation_type", ""),
-                            target=op_dict.get("target", {}),
-                            parameters=op_dict.get("parameters", {}),
-                            order=op_dict.get("order", i),
-                            operation_id=op_dict.get("operation_id", f"op_{i}"),
-                            depends_on=op_dict.get("depends_on", []),
-                        )
-                        batch_ops.append(batch_op)
-                    except Exception as e:
-                        return BatchApplyResult(
-                            success=False,
-                            total_operations=len(operations),
-                            successful_operations=0,
-                            failed_operations=len(operations),
-                            execution_time_ms=0,
-                            operation_results=[],
-                            error_summary=f"Failed to parse operation {i}: {str(e)}",
-                            summary="Batch validation failed",
-                        ).model_dump()
-
-                # Resolve dependencies and sort operations in executable order
+        try:
+            # Convert dict operations to BatchOperation objects
+            batch_ops = []
+            for i, op_dict in enumerate(operations):
                 try:
-                    sorted_ops = _resolve_operation_dependencies(batch_ops)
-                except ValueError as e:
+                    batch_op = BatchOperation(
+                        operation_type=op_dict.get("operation_type", ""),
+                        target=op_dict.get("target", {}),
+                        parameters=op_dict.get("parameters", {}),
+                        order=op_dict.get("order", i),
+                        operation_id=op_dict.get("operation_id", f"op_{i}"),
+                        depends_on=op_dict.get("depends_on", []),
+                    )
+                    batch_ops.append(batch_op)
+                except Exception as e:
                     return BatchApplyResult(
                         success=False,
                         total_operations=len(operations),
@@ -141,105 +121,116 @@ def register_batch_tools(mcp_server):
                         failed_operations=len(operations),
                         execution_time_ms=0,
                         operation_results=[],
-                        error_summary=f"Dependency resolution failed: {str(e)}",
-                        summary="Batch dependency resolution failed",
-                    ).model_dump()
+                        error_summary=f"Failed to parse operation {i}: {str(e)}",
+                        summary="Batch validation failed",
+                    )
 
-                # If validate_only mode, validate operations and return
-                if validate_only:
-                    validation_errors = []
-                    for op in sorted_ops:
-                        if not _batch_registry.is_valid_operation(op.operation_type):
-                            validation_errors.append(
-                                f"Unknown operation type: {op.operation_type}"
-                            )
-
-                    execution_time = (time.time() - start_time) * 1000
-                    if validation_errors:
-                        return BatchApplyResult(
-                            success=False,
-                            total_operations=len(operations),
-                            successful_operations=0,
-                            failed_operations=len(operations),
-                            execution_time_ms=execution_time,
-                            operation_results=[],
-                            error_summary="; ".join(validation_errors),
-                            summary="Batch validation failed",
-                        ).model_dump()
-                    else:
-                        return BatchApplyResult(
-                            success=True,
-                            total_operations=len(operations),
-                            successful_operations=0,
-                            failed_operations=0,
-                            execution_time_ms=execution_time,
-                            operation_results=[],
-                            summary="Validation successful - no operations executed",
-                        ).model_dump()
-
-                # Create snapshot before execution if requested
-                snapshot_id = None
-                if snapshot_before:
-                    # Extract existing documents that will be modified from operations
-                    affected_docs = set()
-                    for op in sorted_ops:
-                        doc_name = op.target.get("document_name") or op.parameters.get(
-                            "document_name"
-                        )
-                        if doc_name and op.operation_type != "create_document":
-                            # Only snapshot existing documents (skip create_document operations)
-                            doc_path = _get_document_path(doc_name)
-                            if doc_path.exists():
-                                affected_docs.add(doc_name)
-
-                    # Create snapshots for existing affected documents
-                    if affected_docs:
-                        try:
-                            # Use first existing document for snapshot
-                            doc_name = list(affected_docs)[0]
-                            snapshot_result = snapshot_document(
-                                doc_name,
-                                f"Batch operation snapshot before {len(operations)} operations",
-                            )
-                            if snapshot_result.success:
-                                snapshot_id = snapshot_result.details.get("snapshot_id")
-                        except Exception as e:
-                            log_structured_error(
-                                ErrorCategory.OPERATION_FAILED,
-                                f"Failed to create snapshot before batch execution: {e}",
-                                {
-                                    "operation": "batch_apply_operations",
-                                    "snapshot_before": True,
-                                },
-                            )
-
-                # Execute operations using simplified batch executor
-                executor = BatchExecutor()
-                result = executor.execute_batch(
-                    sorted_ops,
-                    continue_on_error=continue_on_error,
-                    snapshot_id=snapshot_id,
-                )
-
-                # Add snapshot information if created
-                if snapshot_id:
-                    result_dict = result.model_dump()
-                    result_dict["snapshot_id"] = snapshot_id
-                    return result_dict
-
-                return result.model_dump()
-
-            except Exception as e:
-                execution_time = (time.time() - start_time) * 1000
+            # Resolve dependencies and sort operations in executable order
+            try:
+                sorted_ops = _resolve_operation_dependencies(batch_ops)
+            except ValueError as e:
                 return BatchApplyResult(
                     success=False,
-                    total_operations=len(operations) if operations else 0,
+                    total_operations=len(operations),
                     successful_operations=0,
-                    failed_operations=len(operations) if operations else 0,
-                    execution_time_ms=execution_time,
+                    failed_operations=len(operations),
+                    execution_time_ms=0,
                     operation_results=[],
-                    summary=f"Batch execution failed with error: {str(e)}",
-                    error_summary=str(e),
-                ).model_dump()
+                    error_summary=f"Dependency resolution failed: {str(e)}",
+                    summary="Batch dependency resolution failed",
+                )
 
-        return _batch_apply_with_snapshot()
+            # If validate_only mode, validate operations and return
+            if validate_only:
+                validation_errors = []
+                for op in sorted_ops:
+                    if not _batch_registry.is_valid_operation(op.operation_type):
+                        validation_errors.append(
+                            f"Unknown operation type: {op.operation_type}"
+                        )
+
+                execution_time = (time.time() - start_time) * 1000
+                if validation_errors:
+                    return BatchApplyResult(
+                        success=False,
+                        total_operations=len(operations),
+                        successful_operations=0,
+                        failed_operations=len(operations),
+                        execution_time_ms=execution_time,
+                        operation_results=[],
+                        error_summary="; ".join(validation_errors),
+                        summary="Batch validation failed",
+                    )
+                else:
+                    return BatchApplyResult(
+                        success=True,
+                        total_operations=len(operations),
+                        successful_operations=0,
+                        failed_operations=0,
+                        execution_time_ms=execution_time,
+                        operation_results=[],
+                        summary="Validation successful - no operations executed",
+                    )
+
+            # Create snapshot before execution if requested
+            snapshot_id = None
+            if snapshot_before:
+                # Extract existing documents that will be modified from operations
+                affected_docs = set()
+                for op in sorted_ops:
+                    doc_name = op.target.get("document_name") or op.parameters.get(
+                        "document_name"
+                    )
+                    if doc_name and op.operation_type != "create_document":
+                        # Only snapshot existing documents (skip create_document operations)
+                        doc_path = _get_document_path(doc_name)
+                        if doc_path.exists():
+                            affected_docs.add(doc_name)
+
+                # Create snapshots for existing affected documents
+                if affected_docs:
+                    try:
+                        # Use first existing document for snapshot
+                        doc_name = list(affected_docs)[0]
+                        snapshot_result = manage_snapshots(
+                            doc_name,
+                            action="create",
+                            message=f"Batch operation snapshot before {len(operations)} operations",
+                        )
+                        if snapshot_result.success:
+                            snapshot_id = snapshot_result.details.get("snapshot_id")
+                    except Exception as e:
+                        log_structured_error(
+                            ErrorCategory.OPERATION_FAILED,
+                            f"Failed to create snapshot before batch execution: {e}",
+                            {
+                                "operation": "batch_apply_operations",
+                                "snapshot_before": True,
+                            },
+                        )
+
+            # Execute operations using simplified batch executor
+            executor = BatchExecutor()
+            result = executor.execute_batch(
+                sorted_ops,
+                continue_on_error=continue_on_error,
+                snapshot_id=snapshot_id,
+            )
+
+            # Add snapshot information if created
+            if snapshot_id:
+                result.snapshot_id = snapshot_id
+            return result
+
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            return BatchApplyResult(
+                success=False,
+                total_operations=len(operations) if operations else 0,
+                successful_operations=0,
+                failed_operations=len(operations) if operations else 0,
+                execution_time_ms=execution_time,
+                operation_results=[],
+                summary=f"Batch execution failed with error: {str(e)}",
+                error_summary=str(e),
+            )

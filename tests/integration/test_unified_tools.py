@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from tests.tool_imports import delete_document
-from tests.tool_imports import find_text
-from tests.tool_imports import get_statistics
-from tests.tool_imports import read_content
-from tests.tool_imports import replace_text
+from document_mcp.mcp_client import delete_document
+from document_mcp.mcp_client import find_text
+from document_mcp.mcp_client import get_statistics
+from document_mcp.mcp_client import read_content
+from document_mcp.mcp_client import replace_text
 
 
 @pytest.fixture
@@ -47,11 +47,11 @@ class TestUnifiedReadContent:
         result = read_content(doc_name, scope="document")
 
         assert result is not None
-        assert result["document_name"] == doc_name
-        assert len(result["chapters"]) == 2
-        assert result["total_word_count"] > 0
+        assert result.document_name == doc_name
+        assert len(result.chapters) == 2
+        assert result.total_word_count > 0
 
-        chapter_names = [ch["chapter_name"] for ch in result["chapters"]]
+        chapter_names = [ch.chapter_name for ch in result.chapters]
         assert chapter_names == ["01-intro.md", "02-content.md"]
 
     def test_read_content_chapter_scope(self, document_factory):
@@ -66,10 +66,10 @@ class TestUnifiedReadContent:
         result = read_content(doc_name, scope="chapter", chapter_name="chapter1.md")
 
         assert result is not None
-        assert result["document_name"] == doc_name
-        assert result["chapter_name"] == "chapter1.md"
-        assert "First chapter content" in result["content"]
-        assert result["word_count"] > 0
+        assert result.document_name == doc_name
+        assert result.chapter_name == "chapter1.md"
+        assert "First chapter content" in result.content
+        assert result.word_count > 0
 
     def test_read_content_paragraph_scope(self, document_factory):
         """Test reading specific paragraph using unified read_content tool."""
@@ -84,10 +84,10 @@ class TestUnifiedReadContent:
         )
 
         assert result is not None
-        assert result["document_name"] == doc_name
-        assert result["chapter_name"] == "test.md"
-        assert result["paragraph_index_in_chapter"] == 1
-        assert result["content"] == "First paragraph."
+        assert result.document_name == doc_name
+        assert result.chapter_name == "test.md"
+        assert result.paragraph_index_in_chapter == 1
+        assert result.content == "First paragraph."
 
     def test_read_content_invalid_scope(self, document_factory):
         """Test read_content with invalid scope."""
@@ -140,7 +140,7 @@ class TestUnifiedTools:
 
         assert results is not None
         assert len(results) == 2
-        chapter_names = [r["chapter_name"] for r in results]
+        chapter_names = [r.chapter_name for r in results]
         assert "chapter1.md" in chapter_names
         assert "chapter2.md" in chapter_names
 
@@ -183,8 +183,8 @@ class TestUnifiedTools:
         result = replace_text(doc_name, "old text", "new content", scope="document")
 
         assert result is not None
-        assert result["success"] is True
-        assert result["details"]["total_occurrences_replaced"] == 2
+        assert result.success is True
+        assert result.details["total_occurrences_replaced"] == 2
 
         ch1_content = (temp_docs_root / doc_name / "chapter1.md").read_text()
         ch2_content = (temp_docs_root / doc_name / "chapter2.md").read_text()
@@ -211,8 +211,8 @@ class TestUnifiedTools:
         )
 
         assert result is not None
-        assert result["success"] is True
-        assert result["details"]["occurrences_replaced"] == 1
+        assert result.success is True
+        assert result.details["occurrences_replaced"] == 1
 
         target_content = (temp_docs_root / doc_name / "target.md").read_text()
         other_content = (temp_docs_root / doc_name / "other.md").read_text()
@@ -232,10 +232,10 @@ class TestUnifiedTools:
         result = get_statistics(doc_name, scope="document")
 
         assert result is not None
-        assert result["scope"].startswith("document:")
-        assert result["chapter_count"] == 2
-        assert result["word_count"] == 11
-        assert result["paragraph_count"] == 2
+        assert result.scope.startswith("document:")
+        assert result.chapter_count == 2
+        assert result.word_count == 11
+        assert result.paragraph_count == 2
 
     def test_get_statistics_chapter_scope(self, document_factory):
         """Test unified get_statistics with chapter scope."""
@@ -249,10 +249,10 @@ class TestUnifiedTools:
         result = get_statistics(doc_name, scope="chapter", chapter_name="target.md")
 
         assert result is not None
-        assert result["scope"].endswith("target.md")
-        assert result["word_count"] == 6
-        assert result["paragraph_count"] == 1
-        assert "chapter_count" not in result
+        assert result.scope.endswith("target.md")
+        assert result.word_count == 6
+        assert result.paragraph_count == 1
+        assert not hasattr(result, "chapter_count") or result.chapter_count is None
 
     def test_unified_tools_with_missing_parameters(self, document_factory):
         """Test unified tools with missing required parameters."""

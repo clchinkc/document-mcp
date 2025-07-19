@@ -2,13 +2,13 @@
 
 from pathlib import Path
 
-# Import centralized fixtures
-from tests.tool_imports import create_document
-from tests.tool_imports import delete_document
-from tests.tool_imports import get_statistics
-from tests.tool_imports import list_documents
-from tests.tool_imports import read_document_summary
-from tests.tool_imports import read_full_document
+# Import tool functions from mcp_client
+from document_mcp.mcp_client import create_document
+from document_mcp.mcp_client import delete_document
+from document_mcp.mcp_client import get_statistics
+from document_mcp.mcp_client import list_documents
+from document_mcp.mcp_client import read_content
+from document_mcp.mcp_client import read_document_summary
 
 
 def test_create_and_list_document(temp_docs_root: Path):
@@ -48,7 +48,7 @@ def test_read_full_document(document_factory):
     }
     document_factory(doc_name, chapters)
 
-    full_doc = read_full_document(doc_name)
+    full_doc = read_content(doc_name, scope="document")
 
     assert full_doc is not None
     assert full_doc.document_name == doc_name
@@ -69,9 +69,9 @@ def test_document_statistics(document_factory):
     document_factory(doc_name, chapters)
 
     stats_result = get_statistics(doc_name, scope="document")
-    assert stats_result["chapter_count"] == 2
-    assert stats_result["word_count"] == 7
-    assert stats_result["paragraph_count"] == 2
+    assert stats_result.chapter_count == 2
+    assert stats_result.word_count == 7
+    assert stats_result.paragraph_count == 2
 
 
 def test_read_document_summary(document_factory):

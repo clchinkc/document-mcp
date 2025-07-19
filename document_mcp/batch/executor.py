@@ -213,7 +213,7 @@ class BatchExecutor:
         """
         try:
             # Import snapshot management function
-            from ..doc_tool_server import manage_snapshots
+            from ..mcp_client import manage_snapshots
 
             # Restore the snapshot
             result = manage_snapshots(action="restore", snapshot_id=snapshot_id)
@@ -243,8 +243,8 @@ class BatchExecutor:
         """
         try:
             # Import deletion functions directly
-            from ..doc_tool_server import delete_chapter
-            from ..doc_tool_server import delete_document
+            from ..mcp_client import delete_chapter
+            from ..mcp_client import delete_document
 
             # Rollback in reverse order
             for result in reversed(successful_results):

@@ -85,8 +85,12 @@ def validate_paragraph_index(index: int) -> tuple[bool, str]:
 
 def validate_search_query(query: str) -> tuple[bool, str]:
     """Validate search query input."""
-    if not query or not isinstance(query, str) or not query.strip():
-        return False, "Search query cannot be empty"
+    if query is None:
+        return False, "Search query cannot be None"
+    if not isinstance(query, str):
+        return False, "Search query must be a string"
+    if not query.strip():
+        return False, "Search query cannot be empty or whitespace only"
     if len(query) > 1000:  # Reasonable limit for search queries
         return False, "Search query too long (max 1000 characters)"
     return True, ""
@@ -122,8 +126,11 @@ def check_file_freshness(
             is_fresh=False,
             last_modified=datetime.datetime.now(),
             safety_status="conflict",
-            message="File does not exist",
-            recommendations=["File may have been deleted externally"],
+            message="File no longer exists",
+            recommendations=[
+                "Verify file was not accidentally deleted",
+                "Consider restoring from snapshot",
+            ],
         )
 
     actual_modified = datetime.datetime.fromtimestamp(file_path.stat().st_mtime)
@@ -155,7 +162,7 @@ def check_file_freshness(
             last_modified=actual_modified,
             last_known_modified=last_known_modified,
             safety_status="warning",
-            message="File has been modified externally",
+            message="Content was modified externally",
             recommendations=[
                 "Review changes before proceeding",
                 "Consider creating a backup",

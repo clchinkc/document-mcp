@@ -209,3 +209,5 @@ node_modules/
 *.sln
 *.sw?
 # OS specific
+*.log
+*.log.*

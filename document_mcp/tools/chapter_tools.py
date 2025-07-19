@@ -15,25 +15,25 @@ from typing import Any
 from mcp.server import FastMCP
 
 from ..batch import register_batchable_operation
+from ..helpers import _count_words
+from ..helpers import _get_chapter_metadata
+from ..helpers import _get_chapter_path
+from ..helpers import _get_document_path
+from ..helpers import _get_ordered_chapter_files
+from ..helpers import _is_valid_chapter_filename
+from ..helpers import _split_into_paragraphs
+from ..helpers import validate_chapter_name
+from ..helpers import validate_content
+from ..helpers import validate_document_name
 from ..logger_config import log_mcp_call
 from ..models import ChapterContent
 from ..models import ChapterMetadata
 from ..models import OperationStatus
 from ..utils.decorators import auto_snapshot
 from ..utils.decorators import safety_enhanced_write_operation
-from ..utils.file_operations import get_chapter_path
-from ..utils.file_operations import get_document_path
 from ..utils.validation import CHAPTER_MANIFEST_FILE
-from ..utils.validation import validate_chapter_name
-from ..utils.validation import validate_content
-from ..utils.validation import validate_document_name
 
-# Import shared helper functions from document_tools
-from .document_tools import _count_words
-from .document_tools import _get_chapter_metadata
-from .document_tools import _get_ordered_chapter_files
-from .document_tools import _is_valid_chapter_filename
-from .document_tools import _split_into_paragraphs
+# Note: All helper functions are imported from helpers module above
 
 
 def register_chapter_tools(mcp_server: FastMCP) -> None:
@@ -98,7 +98,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
             null
             ```
         """
-        doc_path = get_document_path(document_name)
+        doc_path = _get_document_path(document_name)
         if not doc_path.is_dir():
             print(f"Document '{document_name}' not found at {doc_path}")
             return None  # Or perhaps OperationStatus(success=False, message="Document not found")
@@ -201,7 +201,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
         if not is_valid_content:
             return OperationStatus(success=False, message=content_error)
 
-        doc_path = get_document_path(document_name)
+        doc_path = _get_document_path(document_name)
         if not doc_path.is_dir():
             return OperationStatus(
                 success=False, message=f"Document '{document_name}' not found."
@@ -213,7 +213,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
                 message=f"Invalid chapter name '{chapter_name}'. Must be a .md file and not a reserved name like '{CHAPTER_MANIFEST_FILE}'.",
             )
 
-        chapter_path = get_chapter_path(document_name, chapter_name)
+        chapter_path = _get_chapter_path(document_name, chapter_name)
         if chapter_path.exists():
             return OperationStatus(
                 success=False,
@@ -293,7 +293,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
                 message=f"Invalid target '{chapter_name}'. Not a valid chapter Markdown file name.",
             )
 
-        chapter_path = get_chapter_path(document_name, chapter_name)
+        chapter_path = _get_chapter_path(document_name, chapter_name)
         if not chapter_path.is_file():
             return OperationStatus(
                 success=False,
@@ -395,7 +395,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
             }
             ```
         """
-        doc_path = get_document_path(document_name)
+        doc_path = _get_document_path(document_name)
         if not doc_path.is_dir():
             return OperationStatus(
                 success=False, message=f"Document '{document_name}' not found."
@@ -406,7 +406,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
                 success=False, message=f"Invalid chapter name '{chapter_name}'."
             )
 
-        chapter_path = get_chapter_path(document_name, chapter_name)
+        chapter_path = _get_chapter_path(document_name, chapter_name)
 
         try:
             # Read original content before overwriting
@@ -491,7 +491,7 @@ def read_chapter_content(
         null
         ```
     """
-    chapter_file_path = get_chapter_path(document_name, chapter_name)
+    chapter_file_path = _get_chapter_path(document_name, chapter_name)
     if not chapter_file_path.is_file() or not _is_valid_chapter_filename(chapter_name):
         print(
             f"Chapter '{chapter_name}' not found or invalid in document '{document_name}' at {chapter_file_path}"

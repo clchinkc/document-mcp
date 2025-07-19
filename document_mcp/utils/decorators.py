@@ -7,245 +7,296 @@ This module provides decorators for enhanced safety features:
 
 import datetime
 from functools import wraps
-from typing import Any
+from pathlib import Path
 
 from ..logger_config import ErrorCategory
 from ..logger_config import log_structured_error
+from ..models import ContentFreshnessStatus
+from ..models import OperationStatus
 from ..utils.file_operations import get_current_user
-from ..utils.file_operations import get_document_path
 
 
 def auto_snapshot(operation_name: str):
-    """Decorator for automatic snapshot creation before edit operations.
-
-    This decorator automatically creates snapshots before any edit operation
-    with intelligent naming, user tracking, and retention policies.
-    """
+    """Decorator for automatic snapshot creation before edit operations."""
 
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # Extract document names from function arguments
-            affected_documents = []
-
-            # Handle different function signatures
+            # Extract document name from arguments (first positional or keyword)
+            document_name = None
             if args and isinstance(args[0], str):
-                # First argument is typically document_name
-                affected_documents.append(args[0])
-            elif "document_name" in kwargs and isinstance(kwargs["document_name"], str):
-                # Document name passed as keyword argument
-                affected_documents.append(kwargs["document_name"])
+                document_name = args[0]
+            elif "document_name" in kwargs:
+                document_name = kwargs["document_name"]
 
-            # For batch operations, extract from operations list
-            if "operations" in kwargs:
-                operations = kwargs["operations"]
-                if isinstance(operations, list):
-                    for op in operations:
-                        if isinstance(op, dict) and "target" in op:
-                            target = op["target"]
-                            if isinstance(target, dict) and "document_name" in target:
-                                doc_name = target["document_name"]
-                                if doc_name not in affected_documents:
-                                    affected_documents.append(doc_name)
+            # Create snapshot if we have a document name
+            if document_name:
+                try:
+                    user_id = get_current_user()
+                    message = f"Auto-snapshot before {operation_name} by {user_id}"
 
-            # Create automatic snapshot before operation
-            snapshot_id = None
-            if affected_documents:
-                snapshot_id = create_automatic_snapshot(
-                    operation_name=operation_name,
-                    affected_documents=affected_documents,
-                    operation_details={
-                        "function_name": func.__name__,
-                        "args_count": len(args),
-                        "kwargs_keys": list(kwargs.keys()),
-                    },
-                )
+                    # Import locally to avoid circular imports
+                    from ..tools.safety_tools import _create_snapshot
+                    _create_snapshot(document_name, message, auto_cleanup=True)
+                except Exception as e:
+                    # Log warning but don't fail the operation
+                    log_structured_error(
+                        category=ErrorCategory.WARNING,
+                        message=f"Auto-snapshot failed for {operation_name}",
+                        exception=e,
+                        operation="auto_snapshot",
+                    )
 
             # Execute the original operation
-            try:
-                result = func(*args, **kwargs)
-                return result
-            except Exception as e:
-                # Log error and re-raise
-                log_structured_error(
-                    category=ErrorCategory.ERROR,
-                    message=f"Operation {operation_name} failed",
-                    exception=e,
-                    operation=operation_name,
-                    affected_documents=affected_documents,
-                )
-                raise
+            return func(*args, **kwargs)
 
         return wrapper
-
     return decorator
 
 
-def create_automatic_snapshot(
-    operation_name: str,
-    affected_documents: list[str],
-    operation_details: dict[str, Any] = None,
-) -> str | None:
-    """Create automatic snapshot for edit operations with enhanced naming and tracking.
-
-    Features:
-    - Human-readable naming with operation context
-    - User modification tracking and attribution
-    - Intelligent retention policy application
-    - Time-based and logical identifiers
-    """
-    if not affected_documents:
-        return None
-
-    try:
-        user_id = get_current_user()
-        timestamp = datetime.datetime.now()
-        operation_details = operation_details or {}
-
-        # Create human-readable snapshot name
-        timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
-        snapshot_name = f"user_edit_{timestamp_str}_{operation_name}"
-
-        # Create snapshot for each affected document
-        snapshot_ids = []
-        for document_name in affected_documents:
-            doc_path = get_document_path(document_name)
-            if not doc_path.is_dir():
-                continue
-
-            # Create the actual snapshot
-            # Note: This is a simplified implementation that skips actual snapshot creation
-            # to avoid circular imports. In the full implementation, this would create
-            # a proper snapshot through the safety tools.
-            snapshot_result = type(
-                "Result",
-                (),
-                {
-                    "success": True,
-                    "details": {
-                        "snapshot_id": f"snap_{timestamp_str}_{operation_name}_{document_name}"
-                    },
-                },
-            )()
-
-            if snapshot_result.success:
-                snapshot_id = snapshot_result.details.get("snapshot_id", "")
-                snapshot_ids.append(snapshot_id)
-
-                # Record user modification for better UX
-                # Note: This would require implementing user modification tracking
-                # For now, we'll skip this to avoid complex dependencies
-
-        # Apply retention policy
-        for document_name in affected_documents:
-            _apply_retention_policy(document_name, operation_name)
-
-        return snapshot_ids[0] if snapshot_ids else None
-
-    except Exception as e:
-        log_structured_error(
-            category=ErrorCategory.WARNING,
-            message=f"Automatic snapshot creation failed for {operation_name}",
-            exception=e,
-            operation="auto_snapshot",
-            operation_name=operation_name,
-            affected_documents=affected_documents,
-        )
-        return None
-
-
-def _apply_retention_policy(document_name: str, operation_name: str):
-    """Apply retention policy for automatic snapshots."""
-    # Basic retention policy implementation
-    # In a full implementation, this would clean up old snapshots
-    # based on age, importance, and user preferences
-    pass
+# Removed create_automatic_snapshot - simplified auto_snapshot decorator handles this directly
 
 
 def safety_enhanced_write_operation(
     operation_name: str, create_snapshot: bool = False, check_freshness: bool = True
 ):
-    """Composed decorator that combines all safety features for write operations.
+    """Simplified safety decorator for write operations.
 
-    Enhanced to work with @auto_snapshot decorator - snapshot creation is now disabled by default
-    since @auto_snapshot handles snapshot creation with better user tracking and naming.
-
-    Features:
-    - File freshness checking
-    - Operation history recording
-    - Result enhancement
-    - Optional snapshot creation (disabled by default to prevent collision with @auto_snapshot)
+    Note: @auto_snapshot decorator handles snapshot creation separately.
+    This decorator focuses on file freshness checking and result enhancement.
     """
 
     def decorator(func):
-        # Apply decorators in reverse order since they wrap from inside out
-        # enhance_operation_result must be outermost to access safety info
         enhanced_func = func
-        enhanced_func = record_operation_history(operation_name)(enhanced_func)
-
-        if create_snapshot:
-            enhanced_func = create_safety_snapshot(operation_name)(enhanced_func)
 
         if check_freshness:
             enhanced_func = check_file_freshness(enhanced_func)
 
-        # Apply result enhancement last so it can access safety info
         enhanced_func = enhance_operation_result(enhanced_func)
-
         return enhanced_func
 
     return decorator
 
 
-def record_operation_history(operation_name: str):
-    """Decorator to record operation history."""
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            # For now, just execute the function
-            # In a full implementation, this would record the operation
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-def create_safety_snapshot(operation_name: str):
-    """Decorator to create safety snapshots."""
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            # For now, just execute the function
-            # In a full implementation, this would create a snapshot
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
 def check_file_freshness(func):
-    """Decorator to check file freshness."""
+    """Decorator to check file freshness before write operations."""
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        # For now, just execute the function
-        # In a full implementation, this would check file freshness
-        return func(*args, **kwargs)
+        document_name, chapter_name, last_known_modified, force_write = (
+            _extract_operation_parameters(args, kwargs)
+        )
+
+        # Parse timestamp
+        last_known_dt = _parse_timestamp(last_known_modified)
+        if last_known_modified and last_known_dt is None:
+            return OperationStatus(
+                success=False,
+                message=f"Invalid timestamp format: {last_known_modified}",
+                warnings=[f"Invalid timestamp format: {last_known_modified}"],
+            )
+
+        # Check freshness
+        operation_path = _get_operation_path(document_name, chapter_name)
+        safety_info = _check_file_freshness(operation_path, last_known_dt)
+
+        # Handle conflicts
+        if safety_info.safety_status in ["warning", "conflict"] and not force_write:
+            warnings = [
+                f"File {safety_info.safety_status} detected: {safety_info.message}"
+            ]
+            warnings.extend(safety_info.recommendations)
+            return OperationStatus(
+                success=False,
+                message=f"Safety check failed: {safety_info.message}. Use force_write=True to proceed.",
+                safety_info=safety_info,
+                warnings=warnings,
+            )
+
+        # Store safety info for later use by enhance_operation_result
+        kwargs["_safety_info"] = safety_info
+
+        # Call the function with original kwargs (but remove the _safety_info since it's not a real parameter)
+        original_kwargs = {k: v for k, v in kwargs.items() if k != "_safety_info"}
+        result = func(*args, **original_kwargs)
+
+        # Re-add safety info to result if needed for enhance_operation_result
+        if hasattr(result, '__dict__') or isinstance(result, dict):
+            kwargs["_safety_info"] = safety_info
+
+        return result
 
     return wrapper
 
 
 def enhance_operation_result(func):
-    """Decorator to enhance operation results."""
+    """Decorator to enhance operation results with safety information."""
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        # For now, just execute the function
-        # In a full implementation, this would enhance results
-        return func(*args, **kwargs)
+        result = func(*args, **kwargs)
+
+        # Enhance result with safety information if successful
+        if result and hasattr(result, 'success') and result.success:
+            safety_info = kwargs.get("_safety_info")
+
+            # Add safety info to result
+            if safety_info:
+                # Ensure safety_info is properly serialized
+                if hasattr(safety_info, "model_dump"):
+                    result.safety_info = safety_info
+                else:
+                    result.safety_info = safety_info
+            else:
+                result.safety_info = None
+
+            # Add warnings if safety info has them
+            if safety_info and hasattr(safety_info, "recommendations"):
+                if not hasattr(result, 'warnings'):
+                    result.warnings = []
+                if safety_info.safety_status == "warning":
+                    result.warnings.append(
+                        f"File was modified externally: {safety_info.message}"
+                    )
+
+        return result
 
     return wrapper
+
+
+def _extract_operation_parameters(args, kwargs):
+    """Extract operation parameters from function arguments."""
+    document_name = None
+    chapter_name = None
+    last_known_modified = None
+    force_write = False
+
+    # Extract document_name
+    if args and isinstance(args[0], str):
+        document_name = args[0]
+    elif "document_name" in kwargs:
+        document_name = kwargs["document_name"]
+
+    # Extract chapter_name
+    if len(args) > 1 and isinstance(args[1], str):
+        chapter_name = args[1]
+    elif "chapter_name" in kwargs:
+        chapter_name = kwargs["chapter_name"]
+
+    # Extract last_known_modified and force_write - depends on function signature
+    if "last_known_modified" in kwargs:
+        last_known_modified = kwargs["last_known_modified"]
+    if "force_write" in kwargs:
+        force_write = kwargs["force_write"]
+
+    # Handle positional arguments based on function signature
+    if len(args) == 5:  # write_chapter_content: (doc, chapter, content, last_known_modified, force_write)
+        if last_known_modified is None:
+            last_known_modified = args[3]
+        if not force_write:
+            force_write = args[4] if args[4] is not None else False
+    elif len(args) == 6:  # replace_paragraph: (doc, chapter, idx, content, last_known_modified, force_write)
+        if last_known_modified is None:
+            last_known_modified = args[4]
+        if not force_write:
+            force_write = args[5] if args[5] is not None else False
+    elif len(args) == 4:  # write_chapter_content without force_write: (doc, chapter, content, last_known_modified)
+        if last_known_modified is None:
+            last_known_modified = args[3]
+
+    return document_name, chapter_name, last_known_modified, force_write
+
+
+def _parse_timestamp(timestamp_str: str | None) -> datetime.datetime | None:
+    """Parse ISO timestamp string to datetime object."""
+    if not timestamp_str:
+        return None
+
+    try:
+        # Handle ISO format with Z suffix
+        if timestamp_str.endswith('Z'):
+            timestamp_str = timestamp_str[:-1] + '+00:00'
+
+        dt = datetime.datetime.fromisoformat(timestamp_str)
+
+        # Convert to naive datetime for consistent comparison
+        if dt.tzinfo:
+            dt = dt.replace(tzinfo=None)
+
+        return dt
+    except (ValueError, AttributeError):
+        return None
+
+
+def _get_operation_path(document_name: str, chapter_name: str | None = None) -> Path:
+    """Get the file path for the operation."""
+    import os
+
+    from ..utils.file_operations import DOCS_ROOT_PATH
+
+    # Use environment variable if available for test isolation
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR", str(DOCS_ROOT_PATH))
+        root_path = Path(docs_root_name)
+    else:
+        root_path = DOCS_ROOT_PATH
+
+    if chapter_name:
+        return root_path / document_name / chapter_name
+    else:
+        return root_path / document_name
+
+
+def _check_file_freshness(
+    file_path: Path, last_known_modified: datetime.datetime | None = None
+) -> ContentFreshnessStatus:
+    """Check if a file has been modified since last known modification time."""
+    if not file_path.exists():
+        return ContentFreshnessStatus(
+            is_fresh=False,
+            last_modified=datetime.datetime.now(),
+            last_known_modified=last_known_modified,
+            safety_status="conflict",
+            message="File no longer exists",
+            recommendations=[
+                "Verify file was not accidentally deleted",
+                "Consider restoring from snapshot",
+            ],
+        )
+
+    current_modified = datetime.datetime.fromtimestamp(file_path.stat().st_mtime)
+
+    if last_known_modified is None:
+        return ContentFreshnessStatus(
+            is_fresh=True,
+            last_modified=current_modified,
+            last_known_modified=None,
+            safety_status="safe",
+            message="No previous modification time to compare against",
+            recommendations=[],
+        )
+
+    time_diff = abs((current_modified - last_known_modified).total_seconds())
+
+    if time_diff < 1:  # Within 1 second tolerance
+        return ContentFreshnessStatus(
+            is_fresh=True,
+            last_modified=current_modified,
+            last_known_modified=last_known_modified,
+            safety_status="safe",
+            message="Content is fresh and safe to modify",
+            recommendations=[],
+        )
+    else:
+        return ContentFreshnessStatus(
+            is_fresh=False,
+            last_modified=current_modified,
+            last_known_modified=last_known_modified,
+            safety_status="warning",
+            message=f"Content was modified {time_diff:.1f} seconds ago by external source",
+            recommendations=[
+                "Re-read content before proceeding",
+                "Consider creating a snapshot before modifying",
+                "Use force_write=True to proceed anyway",
+            ],
+        )

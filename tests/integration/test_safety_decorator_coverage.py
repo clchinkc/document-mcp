@@ -13,20 +13,19 @@ they don't risk overwriting externally modified content.
 
 import time
 
-from tests.tool_imports import append_paragraph_to_chapter
-from tests.tool_imports import create_chapter
-from tests.tool_imports import create_document
-from tests.tool_imports import delete_document
-from tests.tool_imports import delete_paragraph
-from tests.tool_imports import insert_paragraph_after
-from tests.tool_imports import (
-    # Functions without safety decorators (correctly)
-    insert_paragraph_before,
+from document_mcp.mcp_client import append_paragraph_to_chapter
+from document_mcp.mcp_client import create_chapter
+from document_mcp.mcp_client import create_document
+from document_mcp.mcp_client import delete_document
+from document_mcp.mcp_client import delete_paragraph
+from document_mcp.mcp_client import insert_paragraph_after
+from document_mcp.mcp_client import insert_paragraph_before
+from document_mcp.mcp_client import move_paragraph_before
+from document_mcp.mcp_client import move_paragraph_to_end
+from document_mcp.mcp_client import replace_paragraph
+from document_mcp.mcp_client import (
+    write_chapter_content,  # Functions with safety decorators
 )
-from tests.tool_imports import move_paragraph_before
-from tests.tool_imports import move_paragraph_to_end
-from tests.tool_imports import replace_paragraph
-from tests.tool_imports import write_chapter_content  # Functions with safety decorators
 
 
 class TestSafetyDecoratorCoverage:
@@ -82,6 +81,7 @@ class TestSafetyDecoratorCoverage:
             assert (
                 "modified externally" in result.message.lower()
                 or "force_write" in result.message.lower()
+                or "safety check failed" in result.message.lower()
             )
             assert hasattr(result, "safety_info")
 
@@ -145,6 +145,7 @@ class TestSafetyDecoratorCoverage:
             assert (
                 "modified externally" in result.message.lower()
                 or "force_write" in result.message.lower()
+                or "safety check failed" in result.message.lower()
             )
             assert hasattr(result, "safety_info")
 
@@ -208,7 +209,7 @@ class TestSafetyDecoratorCoverage:
             result3 = append_paragraph_to_chapter(
                 document_name=doc_name,
                 chapter_name=chapter_name,
-                paragraph_content="Appended paragraph",
+                new_content="Appended paragraph",
             )
             assert result3.success is True
 
@@ -216,15 +217,15 @@ class TestSafetyDecoratorCoverage:
             result4 = move_paragraph_to_end(
                 document_name=doc_name,
                 chapter_name=chapter_name,
-                paragraph_to_move_index=0,
+                paragraph_index=0,
             )
             assert result4.success is True
 
             result5 = move_paragraph_before(
                 document_name=doc_name,
                 chapter_name=chapter_name,
-                paragraph_to_move_index=4,  # Last paragraph
-                target_paragraph_index=1,
+                source_index=4,  # Last paragraph
+                target_index=1,
             )
             assert result5.success is True
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.tool_imports import delete_document
+from document_mcp.mcp_client import delete_document
 
 
 @pytest.fixture(scope="session")

@@ -81,11 +81,11 @@ class CodeQualityManager:
 
         tools = ["ruff", "mypy"]
         print(f"📦 Installing missing tools with uv: {', '.join(tools)}")
-        
+
         # Set environment variable to tell uv to use the active environment
         env = os.environ.copy()
         env["UV_PROJECT_ENVIRONMENT"] = str(self.venv_path)
-        
+
         subprocess.run(["uv", "add", "--dev"] + tools, cwd=self.root_dir, env=env)
 
     def format_code(self) -> bool:

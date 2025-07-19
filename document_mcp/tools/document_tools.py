@@ -14,18 +14,17 @@ from pathlib import Path
 from mcp.server import FastMCP
 
 from ..batch import register_batchable_operation
+from ..helpers import DOCUMENT_SUMMARY_FILE
+from ..helpers import _get_chapter_metadata
+from ..helpers import _get_document_path
+from ..helpers import _get_ordered_chapter_files
+from ..helpers import validate_document_name
 from ..logger_config import log_mcp_call
 from ..models import DocumentInfo
 from ..models import DocumentSummary
 from ..models import OperationStatus
 from ..utils.decorators import auto_snapshot
 from ..utils.file_operations import DOCS_ROOT_PATH
-from ..utils.file_operations import get_document_path
-from ..utils.validation import CHAPTER_MANIFEST_FILE
-from ..utils.validation import validate_document_name
-
-# Document-specific constants
-DOCUMENT_SUMMARY_FILE = "_SUMMARY.md"
 
 
 def register_document_tools(mcp_server: FastMCP) -> None:
@@ -86,12 +85,10 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             ```
         """
         docs_info = []
-        # Ensure DOCS_ROOT_PATH is a Path object (defensive programming for tests)
-        root_path = (
-            Path(DOCS_ROOT_PATH)
-            if not isinstance(DOCS_ROOT_PATH, Path)
-            else DOCS_ROOT_PATH
-        )
+        # Use runtime environment variable check for test compatibility
+        import os
+        docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR", str(DOCS_ROOT_PATH))
+        root_path = Path(docs_root_name)
 
         if not root_path.exists() or not root_path.is_dir():
             return []
@@ -215,7 +212,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             # Depending on desired strictness, could return None or raise error
             return None  # For now, let's be lenient if the path check below handles it
 
-        doc_path = get_document_path(document_name)
+        doc_path = _get_document_path(document_name)
         if not doc_path.is_dir():
             from ..logger_config import ErrorCategory
             from ..logger_config import log_structured_error
@@ -329,7 +326,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
         if not is_valid:
             return OperationStatus(success=False, message=error_msg)
 
-        doc_path = get_document_path(document_name)
+        doc_path = _get_document_path(document_name)
         if doc_path.exists():
             return OperationStatus(
                 success=False, message=f"Document '{document_name}' already exists."
@@ -393,7 +390,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             }
             ```
         """
-        doc_path = get_document_path(document_name)
+        doc_path = _get_document_path(document_name)
         if not doc_path.is_dir():
             return OperationStatus(
                 success=False, message=f"Document '{document_name}' not found."
@@ -410,103 +407,4 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             )
 
 
-# Helper functions for document operations
-def _get_ordered_chapter_files(document_name: str) -> list[Path]:
-    """Retrieve a sorted list of all valid chapter files in a document.
-
-    The files are sorted alphanumerically by filename. Non-chapter files
-    (like summaries or manifests) are excluded.
-    """
-    doc_path = get_document_path(document_name)
-    if not doc_path.is_dir():
-        return []
-
-    # For now, simple alphanumeric sort of .md files.
-    # Future: could read CHAPTER_MANIFEST_FILE for explicit order.
-    chapter_files = sorted(
-        [
-            f
-            for f in doc_path.iterdir()
-            if f.is_file() and _is_valid_chapter_filename(f.name)
-        ]
-    )
-    return chapter_files
-
-
-def _is_valid_chapter_filename(filename: str) -> bool:
-    """Check if a filename is a valid, non-reserved chapter file.
-
-    Verifies that the filename ends with '.md' and is not a reserved name
-    like the manifest or summary file.
-    """
-    if not filename.lower().endswith(".md"):
-        return False
-    if filename == CHAPTER_MANIFEST_FILE:
-        return False
-    if filename == DOCUMENT_SUMMARY_FILE:  # Exclude document summary file
-        return False
-    return True
-
-
-def _get_chapter_metadata(document_name: str, chapter_file_path: Path):
-    """Generate metadata for a chapter from its file path.
-
-    This helper reads chapter content to calculate word and paragraph counts
-    for the metadata object.
-    """
-    from ..logger_config import ErrorCategory
-    from ..logger_config import log_structured_error
-    from ..models import ChapterMetadata
-
-    if not chapter_file_path.is_file():
-        return None
-    try:
-        content = chapter_file_path.read_text(
-            encoding="utf-8"
-        )  # Read to count words/paragraphs
-        paragraphs = _split_into_paragraphs(content)
-        word_count = _count_words(content)
-        stat = chapter_file_path.stat()
-        return ChapterMetadata(
-            chapter_name=chapter_file_path.name,
-            word_count=word_count,
-            paragraph_count=len(paragraphs),
-            last_modified=datetime.datetime.fromtimestamp(
-                stat.st_mtime, tz=datetime.timezone.utc
-            ),
-            # title can be added later if we parse H1 from content
-        )
-    except Exception as e:
-        log_structured_error(
-            category=ErrorCategory.ERROR,
-            message=f"Failed to read chapter file: {chapter_file_path.name}",
-            exception=e,
-            context={
-                "document_name": document_name,
-                "chapter_file_path": str(chapter_file_path),
-                "file_exists": chapter_file_path.exists(),
-            },
-            operation="read_chapter_content",
-        )
-        return None
-
-
-def _split_into_paragraphs(text: str) -> list[str]:
-    """Split text into a list of paragraphs.
-
-    Paragraphs are separated by one or more blank lines. Leading/trailing
-    whitespace is stripped from each paragraph.
-    """
-    import re
-
-    if not text:
-        return []
-    normalized_text = text.replace("\r\n", "\n").replace("\r", "\n")
-    # Split by one or more blank lines (a line with only whitespace is considered blank after strip)
-    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", normalized_text.strip())]
-    return [p for p in paragraphs if p]
-
-
-def _count_words(text: str) -> int:
-    """Count the number of words in a given text string."""
-    return len(text.split())
+# Helper functions are now imported from centralized helpers module

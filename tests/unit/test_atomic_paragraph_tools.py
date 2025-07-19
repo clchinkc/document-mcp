@@ -8,13 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from tests.tool_imports import append_paragraph_to_chapter
-from tests.tool_imports import delete_paragraph
-from tests.tool_imports import insert_paragraph_after
-from tests.tool_imports import insert_paragraph_before
-from tests.tool_imports import move_paragraph_before
-from tests.tool_imports import move_paragraph_to_end
-from tests.tool_imports import replace_paragraph
+from document_mcp.mcp_client import append_paragraph_to_chapter
+from document_mcp.mcp_client import delete_paragraph
+from document_mcp.mcp_client import insert_paragraph_after
+from document_mcp.mcp_client import insert_paragraph_before
+from document_mcp.mcp_client import move_paragraph_before
+from document_mcp.mcp_client import move_paragraph_to_end
+from document_mcp.mcp_client import replace_paragraph
 
 
 @pytest.fixture
@@ -48,9 +48,11 @@ class TestReplaceParagraph:
         result = replace_paragraph(doc_name, chapter_name, 1, new_content)
 
         assert result.success is True
-        assert "successfully replaced" in result.message
+        assert "replaced successfully" in result.message
         assert result.details is not None
-        assert result.details["changed"] is True
+        assert result.details["document_name"] == doc_name
+        assert result.details["chapter_name"] == chapter_name
+        assert result.details["paragraph_index"] == 1
 
     def test_replace_paragraph_out_of_bounds(self, document_factory):
         """Test replacing paragraph with invalid index."""
@@ -110,7 +112,9 @@ class TestInsertParagraphBefore:
         assert result.success is True
         assert "inserted before index 1" in result.message
         assert result.details is not None
-        assert result.details["changed"] is True
+        assert result.details["document_name"] == doc_name
+        assert result.details["chapter_name"] == chapter_name
+        assert result.details["paragraph_index"] == 1
 
     def test_insert_paragraph_before_at_beginning(self, document_factory):
         """Test inserting paragraph at the very beginning (index 0)."""
@@ -146,21 +150,23 @@ class TestInsertParagraphAfter:
         assert result.success is True
         assert "inserted after index 0" in result.message
         assert result.details is not None
-        assert result.details["changed"] is True
+        assert result.details["document_name"] == doc_name
+        assert result.details["chapter_name"] == chapter_name
+        assert result.details["paragraph_index"] == 1  # Index after insertion (0+1)
 
     def test_insert_paragraph_after_empty_chapter(self, document_factory):
-        """Test inserting paragraph in empty chapter."""
+        """Test inserting paragraph in empty chapter (should fail for index 0)."""
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
 
         document_factory(doc_name, {chapter_name: ""})
 
-        # Insert in empty chapter
+        # Insert in empty chapter - should fail because there's no paragraph at index 0 to insert after
         new_content = "This is the first paragraph in empty chapter."
         result = insert_paragraph_after(doc_name, chapter_name, 0, new_content)
 
-        assert result.success is True
-        assert "inserted after index 0" in result.message
+        assert result.success is False
+        assert "out of bounds" in result.message
 
 
 class TestDeleteParagraph:
@@ -182,7 +188,9 @@ class TestDeleteParagraph:
         assert result.success is True
         assert "deleted from" in result.message
         assert result.details is not None
-        assert result.details["changed"] is True
+        assert result.details["document_name"] == doc_name
+        assert result.details["chapter_name"] == chapter_name
+        assert result.details["paragraph_index"] == 1
 
     def test_delete_paragraph_out_of_bounds(self, document_factory):
         """Test deleting paragraph with invalid index."""
@@ -203,7 +211,7 @@ class TestDeleteParagraph:
         result = delete_paragraph(doc_name, chapter_name, 0)
 
         assert result.success is False
-        assert "Cannot delete paragraph from an empty chapter" in result.message
+        assert "out of bounds" in result.message
 
 
 class TestAppendParagraphToChapter:
@@ -223,7 +231,9 @@ class TestAppendParagraphToChapter:
         assert result.success is True
         assert "appended to chapter" in result.message
         assert result.details is not None
-        assert result.details["changed"] is True
+        assert result.details["document_name"] == doc_name
+        assert result.details["chapter_name"] == chapter_name
+        assert result.details["paragraph_index"] == 1  # Second paragraph (0-indexed)
 
     def test_append_paragraph_to_chapter_empty_chapter(self, document_factory):
         doc_name = "test_doc"

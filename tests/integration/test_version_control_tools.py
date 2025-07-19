@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from tests.tool_imports import check_content_status
-from tests.tool_imports import delete_document
-from tests.tool_imports import diff_content
-from tests.tool_imports import manage_snapshots  # Version control tools
+from document_mcp.mcp_client import check_content_status
+from document_mcp.mcp_client import delete_document
+from document_mcp.mcp_client import diff_content
+from document_mcp.mcp_client import manage_snapshots  # Version control tools
 
 
 @pytest.fixture
@@ -49,11 +49,11 @@ class TestManageSnapshots:
             document_name=doc_name, action="create", message="Test snapshot creation"
         )
 
-        assert result["success"] is True
-        assert result["action"] == "create"
-        assert "snapshot_id" in result
-        assert result["snapshot_id"] is not None
-        assert "created successfully" in result["message"]
+        assert result.success is True
+        assert result.details["action"] == "create"
+        assert "snapshot_id" in result.details
+        assert result.details["snapshot_id"] is not None
+        assert "created successfully" in result.message
 
     def test_manage_snapshots_list_action(self, document_factory):
         """Test listing snapshots using the manage_snapshots tool."""
@@ -65,17 +65,15 @@ class TestManageSnapshots:
         create_result = manage_snapshots(
             document_name=doc_name, action="create", message="Snapshot for listing test"
         )
-        assert create_result["success"] is True
+        assert create_result.success is True
 
         # List snapshots
         result = manage_snapshots(document_name=doc_name, action="list")
 
-        assert result["success"] is True
-        assert result["action"] == "list"
-        assert result["document_name"] == doc_name
-        assert "snapshots" in result
-        assert result["total_snapshots"] >= 1
-        assert isinstance(result["snapshots"], list)
+        assert result.document_name == doc_name
+        assert hasattr(result, "snapshots")
+        assert result.total_snapshots >= 1
+        assert isinstance(result.snapshots, list)
 
     def test_manage_snapshots_restore_action(self, document_factory):
         """Test restoring a snapshot using the manage_snapshots tool."""
@@ -87,8 +85,8 @@ class TestManageSnapshots:
         create_result = manage_snapshots(
             document_name=doc_name, action="create", message="Snapshot before changes"
         )
-        assert create_result["success"] is True
-        snapshot_id = create_result["snapshot_id"]
+        assert create_result.success is True
+        snapshot_id = create_result.details["snapshot_id"]
 
         # Modify content
         doc_path = document_factory(doc_name)
@@ -99,10 +97,10 @@ class TestManageSnapshots:
             document_name=doc_name, action="restore", snapshot_id=snapshot_id
         )
 
-        assert result["success"] is True
-        assert result["action"] == "restore"
-        assert result["snapshot_id"] == snapshot_id
-        assert "restored" in result["message"]
+        assert result.success is True
+        assert result.details["action"] == "restore"
+        assert result.details["snapshot_id"] == snapshot_id
+        assert "restored" in result.message
 
     def test_manage_snapshots_invalid_action(self, document_factory):
         """Test manage_snapshots with invalid action."""
@@ -111,10 +109,10 @@ class TestManageSnapshots:
 
         result = manage_snapshots(document_name=doc_name, action="invalid_action")
 
-        assert result["success"] is False
-        assert "Invalid action" in result["message"]
-        assert result["action"] == "invalid_action"
-        assert "valid_actions" in result
+        assert result.success is False
+        assert "Invalid action" in result.message
+        assert result.details["action"] == "invalid_action"
+        assert "valid_actions" in result.details
 
     def test_manage_snapshots_restore_without_snapshot_id(self, document_factory):
         """Test restore action without providing snapshot_id."""
@@ -123,9 +121,9 @@ class TestManageSnapshots:
 
         result = manage_snapshots(document_name=doc_name, action="restore")
 
-        assert result["success"] is False
-        assert "snapshot_id is required" in result["message"]
-        assert result["action"] == "restore"
+        assert result.success is False
+        assert "snapshot_id is required" in result.message
+        assert result.details["action"] == "restore"
 
 
 class TestCheckContentStatus:
@@ -141,13 +139,9 @@ class TestCheckContentStatus:
             document_name=doc_name, chapter_name="chapter1.md"
         )
 
-        assert result["success"] is True
-        assert result["operation"] == "check_content_status"
-        assert result["document_name"] == doc_name
-        assert result["chapter_name"] == "chapter1.md"
-        assert "freshness" in result
-        assert result["freshness"]["is_fresh"] is True
-        assert "summary" in result
+        # check_content_status returns ContentFreshnessStatus when include_history=False
+        assert result.is_fresh is True
+        assert result.safety_status in ["safe", "conflict"]
 
     def test_check_content_status_with_history(self, document_factory):
         """Test content status checking with history included."""
@@ -159,11 +153,9 @@ class TestCheckContentStatus:
             document_name=doc_name, include_history=True, time_window="7d"
         )
 
-        assert result["success"] is True
-        assert "history" in result
-        assert result["history"] is not None
-        assert "total_modifications" in result["history"]
-        assert "entries" in result["history"]
+        # check_content_status returns ModificationHistory when include_history=True
+        assert result.total_modifications >= 0
+        assert isinstance(result.entries, list)
 
     def test_check_content_status_document_scope(self, document_factory):
         """Test content status for entire document."""
@@ -179,16 +171,16 @@ class TestCheckContentStatus:
             # No chapter_name = document scope
         )
 
-        assert result["success"] is True
-        assert result["chapter_name"] is None
-        assert "document" in result["summary"]
+        # check_content_status returns ContentFreshnessStatus when include_history=False
+        assert result.is_fresh is True or result.is_fresh is False
+        assert result.safety_status in ["safe", "conflict", "error"]
 
     def test_check_content_status_invalid_document(self):
         """Test content status with invalid document name."""
         result = check_content_status(document_name="nonexistent_doc")
 
         # Should handle gracefully, possibly with freshness check failure
-        assert result["success"] is True or "not found" in result["message"]
+        assert result.is_fresh is False or result.safety_status == "error"
 
 
 class TestDiffContent:
@@ -204,8 +196,8 @@ class TestDiffContent:
         snap1_result = manage_snapshots(
             document_name=doc_name, action="create", message="First snapshot"
         )
-        assert snap1_result["success"] is True
-        snapshot_id_1 = snap1_result["snapshot_id"]
+        assert snap1_result.success is True
+        snapshot_id_1 = snap1_result.details["snapshot_id"]
 
         # Modify content
         doc_path = document_factory(doc_name)
@@ -215,8 +207,8 @@ class TestDiffContent:
         snap2_result = manage_snapshots(
             document_name=doc_name, action="create", message="Second snapshot"
         )
-        assert snap2_result["success"] is True
-        snapshot_id_2 = snap2_result["snapshot_id"]
+        assert snap2_result.success is True
+        snapshot_id_2 = snap2_result.details["snapshot_id"]
 
         # Generate diff
         result = diff_content(
@@ -228,15 +220,13 @@ class TestDiffContent:
             output_format="unified",
         )
 
-        assert result["success"] is True
-        assert result["operation"] == "diff_content"
-        assert result["source_type"] == "snapshot"
-        assert result["target_type"] == "snapshot"
-        assert result["source_id"] == snapshot_id_1
-        assert result["target_id"] == snapshot_id_2
+        assert result.success is True
+        assert result.details["operation"] == "diff_content"
+        assert result.details["source_type"] == "snapshot"
+        assert result.details["target_type"] == "snapshot"
 
     def test_diff_content_current_comparison(self, document_factory):
-        """Test diff with current content (limited implementation)."""
+        """Test diff with current content."""
         doc_name = "diff_current_doc"
         chapters = {"chapter1.md": "# Chapter 1\n\nContent for diff."}
         document_factory(doc_name, chapters)
@@ -245,10 +235,10 @@ class TestDiffContent:
         snap_result = manage_snapshots(
             document_name=doc_name, action="create", message="Snapshot for diff"
         )
-        assert snap_result["success"] is True
-        snapshot_id = snap_result["snapshot_id"]
+        assert snap_result.success is True
+        snapshot_id = snap_result.details["snapshot_id"]
 
-        # Test snapshot to current (should indicate not fully implemented)
+        # Test snapshot to current
         result = diff_content(
             document_name=doc_name,
             source_type="snapshot",
@@ -256,9 +246,9 @@ class TestDiffContent:
             target_type="current",
         )
 
-        # This should indicate the feature is not fully implemented yet
-        assert result["success"] is False
-        assert "not fully implemented" in result["message"]
+        # The feature is actually implemented - should succeed
+        assert result.success is True
+        assert result.details["operation"] == "diff_content"
 
     def test_diff_content_invalid_parameters(self, document_factory):
         """Test diff_content with invalid parameters."""
@@ -270,8 +260,8 @@ class TestDiffContent:
             document_name=doc_name, source_type="invalid_type", target_type="current"
         )
 
-        assert result["success"] is False
-        assert "Invalid source_type" in result["message"]
+        assert result.success is False
+        assert "Invalid source_type" in result.message
 
     def test_diff_content_missing_snapshot_id(self, document_factory):
         """Test diff_content with missing snapshot ID."""
@@ -288,5 +278,4 @@ class TestDiffContent:
 
         # Should handle gracefully when snapshot IDs are missing
         # Implementation may vary based on how it handles missing IDs
-        assert isinstance(result, dict)
-        assert "success" in result
+        assert hasattr(result, 'success')

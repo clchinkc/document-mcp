@@ -1,10 +1,10 @@
-"""
-Simple CLI interface for the prompt optimizer.
+"""Simple CLI interface for the prompt optimizer.
 """
 
 import asyncio
 import sys
 import time
+
 from .core import PromptOptimizer
 
 
@@ -24,16 +24,16 @@ def print_summary(results: dict, duration: float):
     print(f"\n{'='*40}")
     print("📊 SUMMARY")
     print("=" * 40)
-    
+
     improved = sum(1 for r in results.values() if r.keep_improvement)
     total_tokens = sum(r.token_change for r in results.values() if r.keep_improvement)
-    
+
     for agent, result in results.items():
         status = "✅" if result.keep_improvement else "❌"
         print(f"{agent:>8}: {status} {result.reason}")
         if result.keep_improvement:
             print(f"          Tokens: {result.token_change:+d}")
-    
+
     print(f"\nResults: {improved}/{len(results)} improved")
     print(f"Tokens saved: {total_tokens:+d}")
     print(f"Duration: {duration:.1f}s")
@@ -45,12 +45,12 @@ async def main():
     if len(sys.argv) < 2 or sys.argv[1] in ['-h', '--help']:
         print_help()
         return
-    
+
     print("🚀 Prompt Optimizer")
     print("=" * 20)
-    
+
     agent_arg = sys.argv[1].lower()
-    
+
     # Determine agents to optimize
     if agent_arg == "all":
         agents = ["simple", "react", "planner"]
@@ -60,12 +60,12 @@ async def main():
         print(f"❌ Unknown agent: {agent_arg}")
         print_help()
         return
-    
+
     # Run optimization
     optimizer = PromptOptimizer()
     results = {}
     start_time = time.time()
-    
+
     for agent in agents:
         try:
             results[agent] = await optimizer.optimize_agent(agent)
@@ -79,7 +79,7 @@ async def main():
                 token_change=0,
                 test_count=0
             )
-    
+
     duration = time.time() - start_time
     print_summary(results, duration)
 

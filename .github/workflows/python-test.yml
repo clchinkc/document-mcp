@@ -26,23 +26,25 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
-      run: |
-        python -m venv .venv
-        source .venv/bin/activate
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
 
-    - name: Run code quality checks
+    - name: Install dependencies with uv
       run: |
-        source .venv/bin/activate
-        python scripts/quality.py check || echo "Code quality checks completed with warnings"
+        uv sync
+
+    - name: Run code quality checks with ruff
+      run: |
+        uv run ruff check --output-format=github
+        uv run ruff format --check
+        uv run mypy document_mcp/ || echo "Type checking completed with warnings"
       continue-on-error: true
 
-    - name: Run tests with coverage
+    - name: Run tests with coverage (including e2e, excluding evaluation)
       run: |
-        source .venv/bin/activate
-        pytest --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings
+        uv run pytest tests/unit/ tests/integration/ tests/e2e/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings --timeout=600
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5

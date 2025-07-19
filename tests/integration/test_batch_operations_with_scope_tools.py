@@ -6,8 +6,8 @@ batch operation system and provide proper rollback capabilities.
 
 import pytest
 
-from tests.tool_imports import batch_apply_operations
-from tests.tool_imports import read_content
+from document_mcp.mcp_client import batch_apply_operations
+from document_mcp.mcp_client import read_content
 
 
 class TestScopeBasedToolsBatchIntegration:

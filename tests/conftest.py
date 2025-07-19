@@ -91,8 +91,8 @@ def document_factory(temp_docs_root):
 @pytest.fixture
 def clean_documents():
     """Clean all documents before each test."""
-    from tests.tool_imports import delete_document
-    from tests.tool_imports import list_documents
+    from document_mcp.mcp_client import delete_document
+    from document_mcp.mcp_client import list_documents
 
     # Clean existing documents before test
     try:

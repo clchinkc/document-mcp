@@ -1,9 +1,9 @@
-"""
-Main entry point for the prompt optimizer package.
+"""Main entry point for the prompt optimizer package.
 """
 
-from .cli import main
 import asyncio
+
+from .cli import main
 
 if __name__ == "__main__":
     asyncio.run(main())
