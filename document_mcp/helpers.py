@@ -60,12 +60,8 @@ def _generate_content_diff(
         )
     )
 
-    lines_added = sum(
-        1 for line in diff_lines if line.startswith("+") and not line.startswith("+++")
-    )
-    lines_removed = sum(
-        1 for line in diff_lines if line.startswith("-") and not line.startswith("---")
-    )
+    lines_added = sum(1 for line in diff_lines if line.startswith("+") and not line.startswith("+++"))
+    lines_removed = sum(1 for line in diff_lines if line.startswith("-") and not line.startswith("---"))
 
     return {
         "changed": True,
@@ -124,11 +120,7 @@ def _get_ordered_chapter_files(document_name: str) -> list[Path]:
     # For now, simple alphanumeric sort of .md files.
     # Future: could read CHAPTER_MANIFEST_FILE for explicit order.
     chapter_files = sorted(
-        [
-            f
-            for f in doc_path.iterdir()
-            if f.is_file() and _is_valid_chapter_filename(f.name)
-        ]
+        [f for f in doc_path.iterdir() if f.is_file() and _is_valid_chapter_filename(f.name)]
     )
     return chapter_files
 
@@ -158,9 +150,7 @@ def _count_words(text: str) -> int:
 # --- Chapter Content Operations ---
 
 
-def _read_chapter_content_details(
-    document_name: str, chapter_file_path: Path
-) -> ChapterContent | None:
+def _read_chapter_content_details(document_name: str, chapter_file_path: Path) -> ChapterContent | None:
     """Read the content and metadata of a chapter from its file path."""
     if not chapter_file_path.is_file():
         return None
@@ -175,9 +165,7 @@ def _read_chapter_content_details(
             content=content,
             word_count=word_count,
             paragraph_count=len(paragraphs),
-            last_modified=datetime.datetime.fromtimestamp(
-                stat.st_mtime, tz=datetime.timezone.utc
-            ),
+            last_modified=datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc),
         )
     except Exception as e:
         log_structured_error(
@@ -194,9 +182,7 @@ def _read_chapter_content_details(
         return None
 
 
-def _get_chapter_metadata(
-    document_name: str, chapter_file_path: Path
-) -> ChapterMetadata | None:
+def _get_chapter_metadata(document_name: str, chapter_file_path: Path) -> ChapterMetadata | None:
     """Generate metadata for a chapter from its file path.
 
     This helper reads chapter content to calculate word and paragraph counts
@@ -205,9 +191,7 @@ def _get_chapter_metadata(
     if not chapter_file_path.is_file():
         return None
     try:
-        content = chapter_file_path.read_text(
-            encoding="utf-8"
-        )  # Read to count words/paragraphs
+        content = chapter_file_path.read_text(encoding="utf-8")  # Read to count words/paragraphs
         paragraphs = _split_into_paragraphs(content)
         word_count = _count_words(content)
         stat = chapter_file_path.stat()
@@ -215,9 +199,7 @@ def _get_chapter_metadata(
             chapter_name=chapter_file_path.name,
             word_count=word_count,
             paragraph_count=len(paragraphs),
-            last_modified=datetime.datetime.fromtimestamp(
-                stat.st_mtime, tz=datetime.timezone.utc
-            ),
+            last_modified=datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc),
             # title can be added later if we parse H1 from content
         )
     except Exception as e:
@@ -294,29 +276,18 @@ def _resolve_operation_dependencies(
             for op in remaining:
                 for dep_id in op.depends_on:
                     # Check if dependency is in remaining operations (potential circular)
-                    if any(
-                        remaining_op.operation_id == dep_id
-                        for remaining_op in remaining
-                    ):
+                    if any(remaining_op.operation_id == dep_id for remaining_op in remaining):
                         has_circular = True
                     # Check if dependency was never defined
-                    elif not any(
-                        resolved_op.operation_id == dep_id for resolved_op in resolved
-                    ):
+                    elif not any(resolved_op.operation_id == dep_id for resolved_op in resolved):
                         missing_deps.add(dep_id)
 
             if has_circular:
-                raise ValueError(
-                    f"Circular dependency detected among operations: {remaining_ids}"
-                )
+                raise ValueError(f"Circular dependency detected among operations: {remaining_ids}")
             elif missing_deps:
-                raise ValueError(
-                    f"Operations depend on unknown operation(s): {list(missing_deps)}"
-                )
+                raise ValueError(f"Operations depend on unknown operation(s): {list(missing_deps)}")
             else:
-                raise ValueError(
-                    f"Dependency resolution failed for operations: {remaining_ids}"
-                )
+                raise ValueError(f"Dependency resolution failed for operations: {remaining_ids}")
         # Sort ready operations by their order
         ready.sort(key=lambda op: op.order)
         resolved.extend(ready)

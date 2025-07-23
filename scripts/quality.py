@@ -124,17 +124,13 @@ class CodeQualityManager:
         """Run ruff linting."""
         print("🔍 Running ruff linting...")
 
-        return self._run_command(
-            ["uv", "run", "ruff", "check"] + self.target_dirs, "Ruff linting"
-        )
+        return self._run_command(["uv", "run", "ruff", "check"] + self.target_dirs, "Ruff linting")
 
     def type_check(self) -> bool:
         """Run mypy type checking."""
         print("🔎 Running mypy type checking...")
 
-        return self._run_command(
-            ["uv", "run", "mypy"] + self.target_dirs, "MyPy type checking"
-        )
+        return self._run_command(["uv", "run", "mypy"] + self.target_dirs, "MyPy type checking")
 
     def validate_docstrings(self) -> bool:
         """Run ruff docstring validation (replaces pydocstyle)."""
@@ -200,9 +196,7 @@ def main():
         choices=["check", "fix", "format", "lint", "typecheck", "docstring", "full"],
         help="Quality command to run",
     )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show detailed output"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed output")
 
     args = parser.parse_args()
 

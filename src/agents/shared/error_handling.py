@@ -105,10 +105,7 @@ class ErrorClassifier:
                 )
 
         # Authentication errors (401)
-        if any(
-            keyword in error_str
-            for keyword in ["api key", "authentication", "unauthorized", "401"]
-        ):
+        if any(keyword in error_str for keyword in ["api key", "authentication", "unauthorized", "401"]):
             return ErrorInfo(
                 error_type=ErrorType.AUTHENTICATION_ERROR,
                 is_retryable=False,
@@ -117,16 +114,11 @@ class ErrorClassifier:
                 max_delay=0.0,
                 severity="high",
                 recovery_action="check_config",
-                user_message=(
-                    "Authentication error. Please check your API key configuration."
-                ),
+                user_message=("Authentication error. Please check your API key configuration."),
             )
 
         # Rate limiting errors (429)
-        if any(
-            keyword in error_str
-            for keyword in ["rate limit", "quota", "too many requests", "429"]
-        ):
+        if any(keyword in error_str for keyword in ["rate limit", "quota", "too many requests", "429"]):
             # Use different retry settings for test environments
             import os
 
@@ -156,10 +148,7 @@ class ErrorClassifier:
                 )
 
         # Validation errors
-        if any(
-            keyword in error_str
-            for keyword in ["invalid", "validation", "format", "parse"]
-        ):
+        if any(keyword in error_str for keyword in ["invalid", "validation", "format", "parse"]):
             return ErrorInfo(
                 error_type=ErrorType.VALIDATION_ERROR,
                 is_retryable=False,
@@ -168,9 +157,7 @@ class ErrorClassifier:
                 max_delay=0.0,
                 severity="low",
                 recovery_action="user_feedback",
-                user_message=(
-                    "Input validation error. Please check the format of your request."
-                ),
+                user_message=("Input validation error. Please check the format of your request."),
             )
 
         # Tool execution errors
@@ -187,10 +174,7 @@ class ErrorClassifier:
             )
 
         # LLM generation errors
-        if any(
-            keyword in error_str
-            for keyword in ["llm", "model", "generation", "completion"]
-        ):
+        if any(keyword in error_str for keyword in ["llm", "model", "generation", "completion"]):
             return ErrorInfo(
                 error_type=ErrorType.LLM_ERROR,
                 is_retryable=True,
@@ -249,15 +233,10 @@ class RetryManager:
                 error_info = self.error_classifier.classify(e)
 
                 if not error_info.is_retryable or attempt > error_info.max_retries:
-                    print(
-                        f"Final failure after {attempt} attempts: "
-                        f"{error_info.user_message}"
-                    )
+                    print(f"Final failure after {attempt} attempts: {error_info.user_message}")
                     raise e
 
-                delay = self._calculate_delay(
-                    attempt, error_info.initial_delay, error_info.max_delay
-                )
+                delay = self._calculate_delay(attempt, error_info.initial_delay, error_info.max_delay)
                 print(f"Attempt {attempt} failed: {error_info.user_message}")
                 print(f"Retrying in {delay:.1f}s...")
                 await asyncio.sleep(delay)
@@ -265,9 +244,7 @@ class RetryManager:
         # This line should theoretically not be reached, but is a safeguard.
         raise last_error
 
-    def _calculate_delay(
-        self, attempt: int, initial_delay: float, max_delay: float
-    ) -> float:
+    def _calculate_delay(self, attempt: int, initial_delay: float, max_delay: float) -> float:
         """Calculate exponential backoff delay with jitter.
 
         Args:

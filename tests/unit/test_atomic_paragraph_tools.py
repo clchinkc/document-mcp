@@ -53,26 +53,17 @@ class TestReplaceParagraph:
         result = replace_paragraph("", "test.md", 0, "content")
         assert result.success is False
         # Safety system catches this before validation, expecting safety error
-        assert (
-            "Document name cannot be empty" in result.message
-            or "Safety check failed" in result.message
-        )
+        assert "Document name cannot be empty" in result.message or "Safety check failed" in result.message
 
         result = replace_paragraph("doc", "invalid", 0, "content")
         assert result.success is False
         # Either validation error or safety error is acceptable
-        assert (
-            "must end with .md" in result.message
-            or "Safety check failed" in result.message
-        )
+        assert "must end with .md" in result.message or "Safety check failed" in result.message
 
         result = replace_paragraph("doc", "test.md", -1, "content")
         assert result.success is False
         # Either validation error or safety error is acceptable
-        assert (
-            "cannot be negative" in result.message
-            or "Safety check failed" in result.message
-        )
+        assert "cannot be negative" in result.message or "Safety check failed" in result.message
 
 
 class TestInsertParagraphBefore:
@@ -83,9 +74,7 @@ class TestInsertParagraphBefore:
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
 
-        document_factory(
-            doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."}
-        )
+        document_factory(doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."})
 
         # Insert before the second paragraph (index 1)
         new_content = "This is inserted before the second paragraph."
@@ -121,9 +110,7 @@ class TestInsertParagraphAfter:
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
 
-        document_factory(
-            doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."}
-        )
+        document_factory(doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."})
 
         # Insert after the first paragraph (index 0)
         new_content = "This is inserted after the first paragraph."
@@ -241,9 +228,7 @@ class TestMoveParagraphBefore:
 
         document_factory(
             doc_name,
-            {
-                chapter_name: "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.\n\nFourth paragraph."
-            },
+            {chapter_name: "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.\n\nFourth paragraph."},
         )
 
         # Move paragraph 3 (index 2) before paragraph 1 (index 0)
@@ -259,9 +244,7 @@ class TestMoveParagraphBefore:
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
 
-        document_factory(
-            doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."}
-        )
+        document_factory(doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."})
 
         result = move_paragraph_before(doc_name, chapter_name, 1, 1)
 
@@ -273,9 +256,7 @@ class TestMoveParagraphBefore:
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
 
-        document_factory(
-            doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."}
-        )
+        document_factory(doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."})
 
         result = move_paragraph_before(doc_name, chapter_name, 5, 0)
 
@@ -308,9 +289,7 @@ class TestMoveParagraphToEnd:
         """Test moving paragraph that's already at the end."""
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
-        document_factory(
-            doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."}
-        )
+        document_factory(doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."})
 
         # Move last paragraph (index 1) to end (should be no-op)
         result = move_paragraph_to_end(doc_name, chapter_name, 1)

@@ -65,9 +65,7 @@ class TestSemanticSearchCore:
     @patch("document_mcp.tools.content_tools.genai")
     @patch("document_mcp.tools.content_tools._get_chapter_path")
     @patch("document_mcp.tools.content_tools._split_into_paragraphs")
-    def test_perform_semantic_search_chapter_scope(
-        self, mock_split, mock_chapter_path, mock_genai
-    ):
+    def test_perform_semantic_search_chapter_scope(self, mock_split, mock_chapter_path, mock_genai):
         """Test semantic search with chapter scope."""
         # Setup mocks
         mock_chapter_path.return_value.exists.return_value = True

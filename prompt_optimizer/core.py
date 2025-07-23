@@ -60,9 +60,7 @@ class PromptOptimizer:
     def backup_prompt(self, agent_type: str) -> str:
         """Backup current prompt file."""
         source_file = Path(self.agent_files[agent_type])
-        backup_file = (
-            self.backup_dir / f"{agent_type}_prompt_backup_{int(time.time())}.py"
-        )
+        backup_file = self.backup_dir / f"{agent_type}_prompt_backup_{int(time.time())}.py"
 
         if source_file.exists():
             shutil.copy2(source_file, backup_file)
@@ -143,9 +141,7 @@ Return ONLY the improved prompt text - no explanations or markdown:"""
             llm = await load_llm_config()
             optimizer_agent = Agent(llm, output_type=str)
 
-            result = await asyncio.wait_for(
-                optimizer_agent.run(optimization_request), timeout=120
-            )
+            result = await asyncio.wait_for(optimizer_agent.run(optimization_request), timeout=120)
 
             improved_prompt = result.output.strip()
             return improved_prompt
@@ -189,14 +185,10 @@ Return ONLY the improved prompt text - no explanations or markdown:"""
 
         try:
             # Get improved prompt from LLM
-            improved_prompt = await self.get_llm_optimization(
-                agent_type, current_prompt
-            )
+            improved_prompt = await self.get_llm_optimization(agent_type, current_prompt)
             improved_tokens = len(improved_prompt) // 4
 
-            print(
-                f"📏 Improved: ~{improved_tokens} tokens ({improved_tokens - baseline_tokens:+d})"
-            )
+            print(f"📏 Improved: ~{improved_tokens} tokens ({improved_tokens - baseline_tokens:+d})")
 
             # Apply the improvement
             if not self.apply_improved_prompt(agent_type, improved_prompt):
@@ -219,9 +211,7 @@ Return ONLY the improved prompt text - no explanations or markdown:"""
             print(f"  Tests: {'✅' if result.test_passed else '❌'}")
 
             if result.scenario_results:
-                successful = sum(
-                    1 for r in result.scenario_results.values() if r["success"]
-                )
+                successful = sum(1 for r in result.scenario_results.values() if r["success"])
                 total = len(result.scenario_results)
                 print(f"  Benchmarks: {successful}/{total}")
 

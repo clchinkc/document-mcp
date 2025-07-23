@@ -29,9 +29,7 @@ class TestEmbeddingCacheIntegration:
     @patch("document_mcp.tools.content_tools._get_document_path")
     @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
     @patch("document_mcp.tools.content_tools._split_into_paragraphs")
-    def test_semantic_search_with_empty_cache(
-        self, mock_split, mock_chapters, mock_doc_path, mock_genai
-    ):
+    def test_semantic_search_with_empty_cache(self, mock_split, mock_chapters, mock_doc_path, mock_genai):
         """Test semantic search when cache is empty (first run)."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup document structure
@@ -106,9 +104,7 @@ class TestEmbeddingCacheIntegration:
     @patch("document_mcp.tools.content_tools._get_document_path")
     @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
     @patch("document_mcp.tools.content_tools._split_into_paragraphs")
-    def test_semantic_search_with_valid_cache(
-        self, mock_split, mock_chapters, mock_doc_path, mock_genai
-    ):
+    def test_semantic_search_with_valid_cache(self, mock_split, mock_chapters, mock_doc_path, mock_genai):
         """Test semantic search when cache is valid (subsequent runs)."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup document structure
@@ -141,9 +137,7 @@ class TestEmbeddingCacheIntegration:
             # Pre-populate cache with embeddings that will have high similarity to query
             cache = EmbeddingCache("models/text-embedding-004")
             test_embeddings = {
-                0: np.array(
-                    [1.0, 0.0, 0.0]
-                ),  # Perfect match with query [1.0, 0.0, 0.0]
+                0: np.array([1.0, 0.0, 0.0]),  # Perfect match with query [1.0, 0.0, 0.0]
                 1: np.array([0.9, 0.1, 0.0]),  # High similarity with query
             }
             test_contents = {
@@ -174,9 +168,7 @@ class TestEmbeddingCacheIntegration:
 
             # Verify results (should get results from cached embeddings)
             assert len(results) >= 1  # At least first paragraph should match
-            assert (
-                results[0].paragraph_index == 0
-            )  # Best match should be first paragraph
+            assert results[0].paragraph_index == 0  # Best match should be first paragraph
 
             # Verify API was called only for query (not paragraphs)
             mock_genai.embed_content.assert_called_once()
@@ -188,9 +180,7 @@ class TestEmbeddingCacheIntegration:
     @patch("document_mcp.tools.content_tools._get_document_path")
     @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
     @patch("document_mcp.tools.content_tools._split_into_paragraphs")
-    def test_semantic_search_cache_invalidation(
-        self, mock_split, mock_chapters, mock_doc_path, mock_genai
-    ):
+    def test_semantic_search_cache_invalidation(self, mock_split, mock_chapters, mock_doc_path, mock_genai):
         """Test that cache is invalidated when content changes."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup document structure
@@ -279,9 +269,7 @@ class TestEmbeddingCacheIntegration:
 
             # Create second cache instance and verify it can load embeddings
             cache2 = EmbeddingCache("models/text-embedding-004")
-            loaded_embeddings = cache2.get_chapter_embeddings(
-                self.test_document, self.test_chapter
-            )
+            loaded_embeddings = cache2.get_chapter_embeddings(self.test_document, self.test_chapter)
 
             assert len(loaded_embeddings) == 1
             assert 0 in loaded_embeddings
@@ -303,15 +291,11 @@ class TestEmbeddingCacheIntegration:
             embeddings_v1 = {0: np.array([1.0, 0.0, 0.0])}
             contents = {0: "Test content"}
 
-            cache_v1.store_chapter_embeddings(
-                self.test_document, self.test_chapter, embeddings_v1, contents
-            )
+            cache_v1.store_chapter_embeddings(self.test_document, self.test_chapter, embeddings_v1, contents)
 
             # Try to load with different model version
             cache_v2 = EmbeddingCache("models/text-embedding-004")
-            loaded_embeddings = cache_v2.get_chapter_embeddings(
-                self.test_document, self.test_chapter
-            )
+            loaded_embeddings = cache_v2.get_chapter_embeddings(self.test_document, self.test_chapter)
 
             # Should return empty dict (different model version)
             assert loaded_embeddings == {}

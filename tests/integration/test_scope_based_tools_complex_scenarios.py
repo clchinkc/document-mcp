@@ -45,9 +45,7 @@ This chapter contains substantial content for testing the scope-based tools.
         assert hasattr(response, "chapters") or hasattr(response, "content")
 
         # Test scope-based find_text across entire large document
-        search_response = find_text(
-            document_name=document_name, search_text="character", scope="document"
-        )
+        search_response = find_text(document_name=document_name, search_text="character", scope="document")
 
         assert search_response is not None
         # Should find multiple occurrences across chapters
@@ -154,28 +152,20 @@ and special characters in real-world document scenarios.
     def test_scope_based_tools_multiple_operations(self, document_factory):
         """Test scope-based tools with multiple sequential operations."""
         document_name = "Multi Operation Test Document"
-        document_factory(
-            document_name, {"01-test.md": "Test content for multiple operations"}
-        )
+        document_factory(document_name, {"01-test.md": "Test content for multiple operations"})
 
         # Test multiple read operations
         doc_result = read_content(document_name=document_name, scope="document")
         assert doc_result is not None
 
-        chapter_result = read_content(
-            document_name=document_name, scope="chapter", chapter_name="01-test.md"
-        )
+        chapter_result = read_content(document_name=document_name, scope="chapter", chapter_name="01-test.md")
         assert chapter_result is not None
 
         # Test multiple find operations
-        find_result1 = find_text(
-            document_name=document_name, search_text="Test", scope="document"
-        )
+        find_result1 = find_text(document_name=document_name, search_text="Test", scope="document")
         assert find_result1 is not None or find_result1 == []
 
-        find_result2 = find_text(
-            document_name=document_name, search_text="content", scope="document"
-        )
+        find_result2 = find_text(document_name=document_name, search_text="content", scope="document")
         assert find_result2 is not None or find_result2 == []
 
         # Test statistics operation

@@ -49,9 +49,7 @@ class AgentResponseFormatter:
         return json.dumps(response, indent=2, ensure_ascii=False)
 
     @staticmethod
-    def format_simple_agent_response(
-        summary: str, details: Any, error_message: str | None = None
-    ) -> str:
+    def format_simple_agent_response(summary: str, details: Any, error_message: str | None = None) -> str:
         """Format response for simple agent with minimal metadata.
 
         Args:

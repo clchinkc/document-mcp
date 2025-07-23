@@ -145,9 +145,7 @@ class TestInputValidationHelpers:
             (12345, False, "Content must be a string"),
         ],
     )
-    def test_validate_content_general_cases(
-        self, content, expected_valid, expected_error_msg
-    ):
+    def test_validate_content_general_cases(self, content, expected_valid, expected_error_msg):
         """Test content validation for general cases (None, type, and short strings)."""
         is_valid, error = validate_content(content)
         assert is_valid == expected_valid
@@ -189,21 +187,93 @@ class TestInputValidationHelpers:
 class TestSafetyHelperFunctions:
     """Test suite for safety feature helper functions."""
 
-    def test_get_snapshots_path(self):
-        """Test snapshots path generation."""
-        from document_mcp.utils.file_operations import DOCS_ROOT_PATH
+    def test_get_snapshots_path_with_default_root(self):
+        """Test snapshots path generation with default DOCS_ROOT_PATH."""
+        import os
+        from pathlib import Path
 
-        result = _get_snapshots_path("test_doc")
-        expected = DOCS_ROOT_PATH / "test_doc" / ".snapshots"
-        assert result == expected
+        # Test without DOCUMENT_ROOT_DIR environment variable (production behavior)
+        old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
+        if "DOCUMENT_ROOT_DIR" in os.environ:
+            del os.environ["DOCUMENT_ROOT_DIR"]
 
-    def test_get_modification_history_path(self):
-        """Test modification history path generation."""
-        from document_mcp.utils.file_operations import DOCS_ROOT_PATH
+        try:
+            from document_mcp.utils.file_operations import DOCS_ROOT_PATH
 
-        result = _get_modification_history_path("test_doc")
-        expected = DOCS_ROOT_PATH / "test_doc" / ".mod_history.json"
-        assert result == expected
+            result = _get_snapshots_path("test_doc")
+            expected = DOCS_ROOT_PATH / "test_doc" / ".snapshots"
+            assert result == expected
+        finally:
+            # Restore environment
+            if old_doc_root:
+                os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
+
+    def test_get_snapshots_path_with_custom_root(self):
+        """Test snapshots path generation with custom DOCUMENT_ROOT_DIR."""
+        import os
+        import tempfile
+        from pathlib import Path
+
+        # Test with DOCUMENT_ROOT_DIR environment variable (test isolation behavior)
+        old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            os.environ["DOCUMENT_ROOT_DIR"] = temp_dir
+
+            try:
+                result = _get_snapshots_path("test_doc")
+                expected = Path(temp_dir) / "test_doc" / ".snapshots"
+                assert result == expected
+            finally:
+                # Restore environment
+                if old_doc_root:
+                    os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
+                else:
+                    os.environ.pop("DOCUMENT_ROOT_DIR", None)
+
+    def test_get_modification_history_path_with_default_root(self):
+        """Test modification history path generation with default DOCS_ROOT_PATH."""
+        import os
+        from pathlib import Path
+
+        # Test without DOCUMENT_ROOT_DIR environment variable (production behavior)
+        old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
+        if "DOCUMENT_ROOT_DIR" in os.environ:
+            del os.environ["DOCUMENT_ROOT_DIR"]
+
+        try:
+            from document_mcp.utils.file_operations import DOCS_ROOT_PATH
+
+            result = _get_modification_history_path("test_doc")
+            expected = DOCS_ROOT_PATH / "test_doc" / ".mod_history.json"
+            assert result == expected
+        finally:
+            # Restore environment
+            if old_doc_root:
+                os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
+
+    def test_get_modification_history_path_with_custom_root(self):
+        """Test modification history path generation with custom DOCUMENT_ROOT_DIR."""
+        import os
+        import tempfile
+        from pathlib import Path
+
+        # Test with DOCUMENT_ROOT_DIR environment variable (test isolation behavior)
+        old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            os.environ["DOCUMENT_ROOT_DIR"] = temp_dir
+
+            try:
+                result = _get_modification_history_path("test_doc")
+                expected = Path(temp_dir) / "test_doc" / ".mod_history.json"
+                assert result == expected
+            finally:
+                # Restore environment
+                if old_doc_root:
+                    os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
+                else:
+                    os.environ.pop("DOCUMENT_ROOT_DIR", None)
 
     def test_check_file_freshness_file_not_exists(self, mocker):
         mock_path = mocker.Mock()
@@ -397,9 +467,7 @@ class TestBatchOperations:
         registry.register_operation("missing_function_op", "nonexistent_function")
 
         # Mock the global registry function as used within execute_batch_operation
-        mock_get_registry = mocker.patch(
-            "document_mcp.batch.global_registry.get_batch_registry"
-        )
+        mock_get_registry = mocker.patch("document_mcp.batch.global_registry.get_batch_registry")
         mock_get_registry.return_value = registry
 
         # Mock the mcp_client module to simulate missing function
@@ -543,15 +611,9 @@ class TestDependencyResolution:
         assert resolved_ops[-1].operation_id == "snapshot"
 
         # Both chapters should come before snapshot
-        ch1_index = next(
-            i for i, op in enumerate(resolved_ops) if op.operation_id == "create_ch1"
-        )
-        ch2_index = next(
-            i for i, op in enumerate(resolved_ops) if op.operation_id == "create_ch2"
-        )
-        snapshot_index = next(
-            i for i, op in enumerate(resolved_ops) if op.operation_id == "snapshot"
-        )
+        ch1_index = next(i for i, op in enumerate(resolved_ops) if op.operation_id == "create_ch1")
+        ch2_index = next(i for i, op in enumerate(resolved_ops) if op.operation_id == "create_ch2")
+        snapshot_index = next(i for i, op in enumerate(resolved_ops) if op.operation_id == "snapshot")
 
         assert ch1_index < snapshot_index
         assert ch2_index < snapshot_index
@@ -756,9 +818,7 @@ class TestUnifiedContentTools:
         assert result is None
 
         # Test chapter scope with empty chapter_name
-        result = replace_text(
-            "test_doc", "find_text", "replace_text", scope="chapter", chapter_name=""
-        )
+        result = replace_text("test_doc", "find_text", "replace_text", scope="chapter", chapter_name="")
         assert result is None
 
     def test_get_statistics_document_scope_validation(self):
@@ -837,9 +897,7 @@ class TestUnifiedContentTools:
         assert result is None  # Document doesn't exist, but validation passes
 
         # Paragraph scope with all required parameters
-        result = read_content(
-            "test_doc", scope="paragraph", chapter_name="01-intro.md", paragraph_index=0
-        )
+        result = read_content("test_doc", scope="paragraph", chapter_name="01-intro.md", paragraph_index=0)
         assert result is None  # Document doesn't exist, but validation passes
 
         # Test find_text with case sensitivity

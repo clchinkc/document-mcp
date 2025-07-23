@@ -91,9 +91,7 @@ class FinalAgentResponse(BaseModel):
 _retry_manager = RetryManager()
 
 
-async def initialize_agent_and_mcp_server() -> tuple[
-    Agent[LLMOnlyResponse], MCPServerStdio
-]:
+async def initialize_agent_and_mcp_server() -> tuple[Agent[LLMOnlyResponse], MCPServerStdio]:
     """Initializes the Pydantic AI agent and its MCP server configuration."""
     try:
         llm = await _retry_manager.execute_with_retry(load_llm_config)
@@ -109,9 +107,7 @@ async def initialize_agent_and_mcp_server() -> tuple[
     server_env = prepare_mcp_server_environment()
 
     try:
-        mcp_server = MCPServerStdio(
-            command=MCP_SERVER_CMD[0], args=MCP_SERVER_CMD[1:], env=server_env
-        )
+        mcp_server = MCPServerStdio(command=MCP_SERVER_CMD[0], args=MCP_SERVER_CMD[1:], env=server_env)
     except Exception as e:
         print(f"Error creating MCP server: {e}", file=sys.stderr)
         raise RuntimeError("Agent creation failed") from e
@@ -132,11 +128,7 @@ async def initialize_agent_and_mcp_server() -> tuple[
 
 async def process_single_user_query(
     agent: Agent[LLMOnlyResponse], user_query: str, collect_metrics: bool = False
-) -> (
-    FinalAgentResponse
-    | None
-    | tuple[FinalAgentResponse | None, AgentPerformanceMetrics]
-):
+) -> FinalAgentResponse | None | tuple[FinalAgentResponse | None, AgentPerformanceMetrics]:
     """Processes a single user query using the provided agent and returns the structured response.
 
     Args:
@@ -156,9 +148,7 @@ async def process_single_user_query(
             return await agent.run(user_query)
 
         # Use RetryManager for robust error handling - let it manage its own timeouts
-        run_result: AgentRunResult[
-            LLMOnlyResponse
-        ] = await _retry_manager.execute_with_retry(_run_agent)
+        run_result: AgentRunResult[LLMOnlyResponse] = await _retry_manager.execute_with_retry(_run_agent)
 
         # Collect metrics if requested
         metrics = None
@@ -222,14 +212,12 @@ async def process_single_user_query(
         )
 
         if collect_metrics:
-            error_metrics = (
-                PerformanceMetricsCollector.collect_from_timing_and_response(
-                    execution_start_time=start_time,
-                    agent_type="simple",
-                    response_data={"error": str(e)},
-                    success=False,
-                    error_message=str(e),
-                )
+            error_metrics = PerformanceMetricsCollector.collect_from_timing_and_response(
+                execution_start_time=start_time,
+                agent_type="simple",
+                response_data={"error": str(e)},
+                success=False,
+                error_message=str(e),
             )
             return error_response, error_metrics
         else:
@@ -302,22 +290,14 @@ async def main():
                                 print("Details: [] (Empty list)")
                             else:
                                 item_type = type(final_response.details[0])
-                                print(
-                                    f"\n--- Details (List of {item_type.__name__}) ---"
-                                )
-                                for item_idx, item_detail in enumerate(
-                                    final_response.details
-                                ):
+                                print(f"\n--- Details (List of {item_type.__name__}) ---")
+                                for item_idx, item_detail in enumerate(final_response.details):
                                     print(f"Item {item_idx + 1}:")
-                                    if hasattr(
-                                        item_detail, "model_dump"
-                                    ):  # Check if Pydantic model
+                                    if hasattr(item_detail, "model_dump"):  # Check if Pydantic model
                                         print(item_detail.model_dump(exclude_none=True))
                                     else:
                                         print(item_detail)
-                        elif hasattr(
-                            final_response.details, "model_dump"
-                        ):  # Check if Pydantic model
+                        elif hasattr(final_response.details, "model_dump"):  # Check if Pydantic model
                             print("\n--- Details ---")
                             print(final_response.details.model_dump(exclude_none=True))
                         elif final_response.details is not None:
@@ -332,22 +312,16 @@ async def main():
                 # No arguments provided, show help
                 action_parser.print_help()
                 print("\nExample usage:")
-                print(
-                    '  python src/agents/simple_agent.py --query "List all documents"'
-                )
+                print('  python src/agents/simple_agent.py --query "List all documents"')
                 print("  python src/agents/simple_agent.py --interactive")
 
     except KeyboardInterrupt:
-        if (
-            args.interactive or not args.query
-        ):  # Only print this message in interactive mode
+        if args.interactive or not args.query:  # Only print this message in interactive mode
             print("\nUser requested exit. Shutting down...")
     except Exception as e:
         print(f"An unexpected error occurred in the agent: {e}", file=sys.stderr)
     finally:
-        if (
-            args.interactive or not args.query
-        ):  # Only print shutdown message in interactive mode
+        if args.interactive or not args.query:  # Only print shutdown message in interactive mode
             print("Agent has shut down.")
 
 

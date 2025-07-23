@@ -220,9 +220,7 @@ def test_insert_paragraph_before(para_doc, temp_docs_root: Path):
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
-    assert (
-        content == "Paragraph 1.\n\nInserted Paragraph.\n\nParagraph 2.\n\nParagraph 3."
-    )
+    assert content == "Paragraph 1.\n\nInserted Paragraph.\n\nParagraph 2.\n\nParagraph 3."
 
 
 def test_insert_paragraph_after(para_doc, temp_docs_root: Path):
@@ -232,9 +230,7 @@ def test_insert_paragraph_after(para_doc, temp_docs_root: Path):
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
-    assert (
-        content == "Paragraph 1.\n\nParagraph 2.\n\nInserted Paragraph.\n\nParagraph 3."
-    )
+    assert content == "Paragraph 1.\n\nParagraph 2.\n\nInserted Paragraph.\n\nParagraph 3."
 
 
 def test_delete_paragraph(para_doc, temp_docs_root: Path):
@@ -254,9 +250,7 @@ def test_append_paragraph_to_chapter(para_doc, temp_docs_root: Path):
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
-    assert (
-        content == "Paragraph 1.\n\nParagraph 2.\n\nParagraph 3.\n\nAppended Paragraph."
-    )
+    assert content == "Paragraph 1.\n\nParagraph 2.\n\nParagraph 3.\n\nAppended Paragraph."
 
 
 # ===================================
@@ -271,9 +265,7 @@ def test_replace_text_in_chapter(document_factory, temp_docs_root: Path):
     content = "The old text needs to be replaced. The old text is here."
     document_factory(doc_name, {chapter_name: content})
 
-    result = replace_text(
-        doc_name, "old text", "new text", scope="chapter", chapter_name=chapter_name
-    )
+    result = replace_text(doc_name, "old text", "new text", scope="chapter", chapter_name=chapter_name)
     assert result.success is True
     assert result.details["occurrences_replaced"] == 2
 
@@ -308,9 +300,7 @@ def test_find_text_in_chapter(document_factory):
     document_factory(doc_name, {chapter_name: content})
 
     # Case-sensitive find
-    results = find_text(
-        doc_name, "text to find", scope="chapter", chapter_name=chapter_name
-    )
+    results = find_text(doc_name, "text to find", scope="chapter", chapter_name=chapter_name)
     assert len(results) == 1
     assert results[0].paragraph_index_in_chapter == 0
 
@@ -393,9 +383,7 @@ class TestUnifiedReadContent:
         document_factory(doc_name, chapters)
 
         # Test paragraph scope
-        result = read_content(
-            doc_name, scope="paragraph", chapter_name="test.md", paragraph_index=1
-        )
+        result = read_content(doc_name, scope="paragraph", chapter_name="test.md", paragraph_index=1)
 
         assert result is not None
         assert result.document_name == doc_name
@@ -411,9 +399,7 @@ class TestUnifiedReadContent:
         result = read_content(doc_name, scope="invalid_scope")
         assert result is None
 
-    def test_read_content_missing_chapter_name_for_chapter_scope(
-        self, document_factory
-    ):
+    def test_read_content_missing_chapter_name_for_chapter_scope(self, document_factory):
         """Test read_content chapter scope without chapter_name."""
         doc_name = "test_missing_chapter"
         document_factory(doc_name, {"test.md": "Content"})
@@ -421,9 +407,7 @@ class TestUnifiedReadContent:
         result = read_content(doc_name, scope="chapter")
         assert result is None
 
-    def test_read_content_missing_parameters_for_paragraph_scope(
-        self, document_factory
-    ):
+    def test_read_content_missing_parameters_for_paragraph_scope(self, document_factory):
         """Test read_content paragraph scope without required parameters."""
         doc_name = "test_missing_params"
         document_factory(doc_name, {"test.md": "Content"})
@@ -451,9 +435,7 @@ class TestUnifiedTools:
         document_factory(doc_name, chapters)
 
         # Test document scope search
-        results = find_text(
-            doc_name, "important", scope="document", case_sensitive=False
-        )
+        results = find_text(doc_name, "important", scope="document", case_sensitive=False)
 
         assert results is not None
         assert len(results) == 2
@@ -601,9 +583,7 @@ class TestBatchOperationsIntegration:
     """Integration tests for batch operations with real MCP server."""
 
     @pytest.mark.asyncio
-    async def test_batch_apply_operations_create_document_and_chapter(
-        self, document_factory
-    ):
+    async def test_batch_apply_operations_create_document_and_chapter(self, document_factory):
         """Test batch operation to create document and chapter atomically."""
         doc_name = "test_batch_doc"
 
@@ -630,9 +610,7 @@ class TestBatchOperationsIntegration:
         ]
 
         # Execute batch
-        result = batch_apply_operations(
-            operations=operations, atomic=True, validate_only=False
-        )
+        result = batch_apply_operations(operations=operations, atomic=True, validate_only=False)
 
         # Verify batch result
         assert result.success is True
@@ -655,13 +633,8 @@ class TestBatchOperationsIntegration:
         assert chapters[0].chapter_name == "01-intro.md"
 
         # Verify chapter content
-        chapter_content = read_content(
-            doc_name, scope="chapter", chapter_name="01-intro.md"
-        )
-        assert (
-            "This is a test chapter created via batch operation"
-            in chapter_content.content
-        )
+        chapter_content = read_content(doc_name, scope="chapter", chapter_name="01-intro.md")
+        assert "This is a test chapter created via batch operation" in chapter_content.content
 
     @pytest.mark.asyncio
     async def test_batch_apply_operations_validate_only_mode(self, document_factory):
@@ -692,9 +665,7 @@ class TestBatchOperationsIntegration:
         assert "validate_test_doc" not in doc_names
 
     @pytest.mark.asyncio
-    async def test_batch_apply_operations_atomic_failure(
-        self, temp_docs_root, document_factory
-    ):
+    async def test_batch_apply_operations_atomic_failure(self, temp_docs_root, document_factory):
         """Test batch operation atomic failure with rollback."""
         operations = [
             {
@@ -729,9 +700,7 @@ class TestBatchOperationsIntegration:
         assert "Unknown operation type" in failed_op.error
 
     @pytest.mark.asyncio
-    async def test_batch_apply_operations_continue_on_error_mode(
-        self, temp_docs_root, document_factory
-    ):
+    async def test_batch_apply_operations_continue_on_error_mode(self, temp_docs_root, document_factory):
         """Test batch operation with continue_on_error=True."""
         doc_name = "continue_test_doc"
 
@@ -760,9 +729,7 @@ class TestBatchOperationsIntegration:
         ]
 
         # Execute with continue_on_error=True and atomic=False
-        result = batch_apply_operations(
-            operations=operations, atomic=False, continue_on_error=True
-        )
+        result = batch_apply_operations(operations=operations, atomic=False, continue_on_error=True)
 
         # Verify mixed results
         assert result.success is False  # Overall failure due to one failed op
@@ -780,9 +747,7 @@ class TestBatchOperationsIntegration:
         assert chapters[0].chapter_name == "test.md"
 
     @pytest.mark.asyncio
-    async def test_batch_apply_operations_with_unified_read_content(
-        self, temp_docs_root, document_factory
-    ):
+    async def test_batch_apply_operations_with_unified_read_content(self, temp_docs_root, document_factory):
         """Test batch operation using the unified read_content tool."""
         doc_name = "unified_batch_test"
         chapters = {
@@ -905,14 +870,10 @@ class TestBatchOperationsForDocumentCreation:
         assert "03-usage.md" in chapter_names
 
         # Verify chapter content
-        intro_content = read_content(
-            doc_name, scope="chapter", chapter_name="01-introduction.md"
-        )
+        intro_content = read_content(doc_name, scope="chapter", chapter_name="01-introduction.md")
         assert "Welcome to the guide" in intro_content.content
 
-        setup_content = read_content(
-            doc_name, scope="chapter", chapter_name="02-setup.md"
-        )
+        setup_content = read_content(doc_name, scope="chapter", chapter_name="02-setup.md")
         assert "Installation instructions" in setup_content.content
 
         # Clean up
@@ -1030,9 +991,7 @@ class TestBatchOperationsWithDependencies:
     """Integration tests for batch operations with dependency resolution."""
 
     @pytest.mark.asyncio
-    async def test_batch_operations_with_simple_dependencies(
-        self, temp_docs_root, document_factory
-    ):
+    async def test_batch_operations_with_simple_dependencies(self, temp_docs_root, document_factory):
         """Test batch operations with simple dependency chain."""
         doc_name = "dependency_test_doc"
 
@@ -1091,9 +1050,7 @@ class TestBatchOperationsWithDependencies:
         assert len(chapters) == 1
         assert chapters[0].chapter_name == "intro.md"
 
-        chapter_content = read_content(
-            doc_name, scope="chapter", chapter_name="intro.md"
-        )
+        chapter_content = read_content(doc_name, scope="chapter", chapter_name="intro.md")
         assert "Welcome to the guide" in chapter_content.content
         assert "This is an additional paragraph" in chapter_content.content
 
@@ -1161,26 +1118,16 @@ class TestBatchOperationsWithDependencies:
         assert op_results[-1].operation_id == "replace_text_op"
 
         # Both chapters should come before text replacement
-        ch1_index = next(
-            i for i, op in enumerate(op_results) if op.operation_id == "create_ch1"
-        )
-        ch2_index = next(
-            i for i, op in enumerate(op_results) if op.operation_id == "create_ch2"
-        )
-        replace_index = next(
-            i for i, op in enumerate(op_results) if op.operation_id == "replace_text_op"
-        )
+        ch1_index = next(i for i, op in enumerate(op_results) if op.operation_id == "create_ch1")
+        ch2_index = next(i for i, op in enumerate(op_results) if op.operation_id == "create_ch2")
+        replace_index = next(i for i, op in enumerate(op_results) if op.operation_id == "replace_text_op")
 
         assert ch1_index < replace_index
         assert ch2_index < replace_index
 
         # Verify text replacement worked on both chapters
-        ch1_content = read_content(
-            doc_name, scope="chapter", chapter_name="chapter1.md"
-        )
-        ch2_content = read_content(
-            doc_name, scope="chapter", chapter_name="chapter2.md"
-        )
+        ch1_content = read_content(doc_name, scope="chapter", chapter_name="chapter1.md")
+        ch2_content = read_content(doc_name, scope="chapter", chapter_name="chapter2.md")
         assert "final content" in ch1_content.content
         assert "final content" in ch2_content.content
         assert "placeholder" not in ch1_content.content

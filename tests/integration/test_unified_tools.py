@@ -56,9 +56,7 @@ class TestUnifiedReadContent:
         }
         document_factory(doc_name, chapters)
 
-        result = read_content(
-            doc_name, scope="paragraph", chapter_name="test.md", paragraph_index=1
-        )
+        result = read_content(doc_name, scope="paragraph", chapter_name="test.md", paragraph_index=1)
 
         assert result is not None
         assert result.document_name == doc_name
@@ -74,9 +72,7 @@ class TestUnifiedReadContent:
         result = read_content(doc_name, scope="invalid_scope")
         assert result is None
 
-    def test_read_content_missing_chapter_name_for_chapter_scope(
-        self, document_factory
-    ):
+    def test_read_content_missing_chapter_name_for_chapter_scope(self, document_factory):
         """Test read_content chapter scope without chapter_name."""
         doc_name = "test_missing_chapter"
         document_factory(doc_name, {"test.md": "Content"})
@@ -84,9 +80,7 @@ class TestUnifiedReadContent:
         result = read_content(doc_name, scope="chapter")
         assert result is None
 
-    def test_read_content_missing_parameters_for_paragraph_scope(
-        self, document_factory
-    ):
+    def test_read_content_missing_parameters_for_paragraph_scope(self, document_factory):
         """Test read_content paragraph scope without required parameters."""
         doc_name = "test_missing_params"
         document_factory(doc_name, {"test.md": "Content"})
@@ -111,9 +105,7 @@ class TestUnifiedTools:
         }
         document_factory(doc_name, chapters)
 
-        results = find_text(
-            doc_name, "important", scope="document", case_sensitive=False
-        )
+        results = find_text(doc_name, "important", scope="document", case_sensitive=False)
 
         assert results is not None
         assert len(results) == 2
@@ -250,9 +242,7 @@ class TestSemanticSearchIntegration:
     """Integration tests for semantic search functionality."""
 
     @pytest.mark.skipif(
-        not pytest.importorskip(
-            "google.generativeai", reason="google-generativeai not available"
-        )
+        not pytest.importorskip("google.generativeai", reason="google-generativeai not available")
         or not pytest.importorskip("numpy", reason="numpy not available"),
         reason="Dependencies not available for semantic search",
     )
@@ -300,9 +290,7 @@ class TestSemanticSearchIntegration:
         assert first_result.content != ""
 
     @pytest.mark.skipif(
-        not pytest.importorskip(
-            "google.generativeai", reason="google-generativeai not available"
-        )
+        not pytest.importorskip("google.generativeai", reason="google-generativeai not available")
         or not pytest.importorskip("numpy", reason="numpy not available"),
         reason="Dependencies not available for semantic search",
     )

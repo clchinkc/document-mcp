@@ -116,12 +116,8 @@ def clean_documents():
 # Custom markers for pytest
 def pytest_configure(config):
     """Configure custom pytest markers."""
-    config.addinivalue_line(
-        "markers", "stdio: marks tests as stdio-based integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "e2e: marks tests as end-to-end tests requiring real API keys"
-    )
+    config.addinivalue_line("markers", "stdio: marks tests as stdio-based integration tests")
+    config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests requiring real API keys")
 
 
 # Skip decorator for tests requiring real API keys

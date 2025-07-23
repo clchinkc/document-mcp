@@ -261,16 +261,12 @@ def register_safety_tools(mcp_server):
             if include_history:
                 # Return ModificationHistory when history is requested
                 # Call the internal implementation directly to avoid circular imports
-                history_result = get_modification_history(
-                    document_name, chapter_name, time_window
-                )
+                history_result = get_modification_history(document_name, chapter_name, time_window)
                 return history_result
             else:
                 # Return ContentFreshnessStatus when only freshness is requested
                 # Call the internal implementation directly to avoid circular imports
-                freshness_result = check_content_freshness(
-                    document_name, chapter_name, last_known_modified
-                )
+                freshness_result = check_content_freshness(document_name, chapter_name, last_known_modified)
                 return freshness_result
 
         except Exception as e:
@@ -435,9 +431,7 @@ def register_safety_tools(mcp_server):
                         "operation": "diff_content",
                         "source_type": source_type,
                         "target_type": target_type,
-                        "total_changes": result.get("statistics", {}).get(
-                            "lines_added", 0
-                        )
+                        "total_changes": result.get("statistics", {}).get("lines_added", 0)
                         + result.get("statistics", {}).get("lines_removed", 0)
                         + result.get("statistics", {}).get("lines_modified", 0),
                         "diff_text": result.get("diff_text", ""),
@@ -463,9 +457,7 @@ def register_safety_tools(mcp_server):
                         "operation": "diff_content",
                         "source_type": source_type,
                         "target_type": target_type,
-                        "total_changes": result.get("statistics", {}).get(
-                            "lines_added", 0
-                        )
+                        "total_changes": result.get("statistics", {}).get("lines_added", 0)
                         + result.get("statistics", {}).get("lines_removed", 0)
                         + result.get("statistics", {}).get("lines_modified", 0),
                         "diff_text": result.get("diff_text", ""),
@@ -529,9 +521,7 @@ def check_content_freshness(
     last_known_dt = None
     if last_known_modified:
         try:
-            last_known_dt = datetime.datetime.fromisoformat(
-                last_known_modified.replace("Z", "+00:00")
-            )
+            last_known_dt = datetime.datetime.fromisoformat(last_known_modified.replace("Z", "+00:00"))
             if last_known_dt.tzinfo:
                 last_known_dt = last_known_dt.replace(tzinfo=None)
         except ValueError:
@@ -542,9 +532,7 @@ def check_content_freshness(
                 last_modified=datetime.datetime.now(),
                 safety_status="error",
                 message=f"Invalid timestamp format: {last_known_modified}",
-                recommendations=[
-                    "Use ISO format: YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDTHH:MM:SSZ"
-                ],
+                recommendations=["Use ISO format: YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDTHH:MM:SSZ"],
             )
 
     result = check_file_freshness(file_path, last_known_dt)
@@ -687,9 +675,7 @@ def _create_snapshot(
     snapshots_path.mkdir(parents=True, exist_ok=True)
 
     # Create a snapshot ID and basic snapshot info
-    timestamp = datetime.datetime.now().strftime(
-        "%Y%m%d_%H%M%S_%f"
-    )  # Include microseconds for uniqueness
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")  # Include microseconds for uniqueness
     user = get_current_user()
     snapshot_id = f"snap_{timestamp}_{user}"
 
@@ -762,9 +748,7 @@ def _list_snapshots(document_name: str) -> SnapshotsList:
 
             for line in lines:
                 if line.startswith("Snapshot created at "):
-                    created_at = datetime.datetime.fromisoformat(
-                        line.split("Snapshot created at ")[1]
-                    )
+                    created_at = datetime.datetime.fromisoformat(line.split("Snapshot created at ")[1])
                 elif line.startswith("Message: "):
                     message = line.split("Message: ")[1]
 

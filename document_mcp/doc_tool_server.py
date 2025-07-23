@@ -118,9 +118,7 @@ def get_current_user() -> str:
     return os.environ.get("USER", "system_user")
 
 
-mcp_server = FastMCP(
-    name="DocumentManagementTools", capabilities=["tools", "resources"]
-)
+mcp_server = FastMCP(name="DocumentManagementTools", capabilities=["tools", "resources"])
 
 # Register tools from modular architecture
 register_document_tools(mcp_server)
@@ -196,9 +194,7 @@ def main():
         print("Metrics: not available (install prometheus-client)")
 
     if args.transport == "stdio":
-        print(
-            "MCP server running with stdio transport. Waiting for client connection..."
-        )
+        print("MCP server running with stdio transport. Waiting for client connection...")
         mcp_server.run(transport="stdio")
     else:
         print(f"MCP server running with HTTP SSE transport on {args.host}:{args.port}")

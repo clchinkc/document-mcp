@@ -73,18 +73,14 @@ class PerformanceEvaluator:
         else:
             print("ℹ️  LLM evaluation disabled")
 
-    async def run_performance_benchmarks(
-        self, agent_type: str
-    ) -> list[BenchmarkResult]:
+    async def run_performance_benchmarks(self, agent_type: str) -> list[BenchmarkResult]:
         """Run performance benchmarks using clean architecture with optional LLM evaluation."""
         print(f"🏃 Running performance benchmarks for {agent_type} agent...")
 
         # Get 5 key scenarios for optimization speed
         scenarios = get_test_scenarios()
         benchmark_scenarios = [
-            s
-            for s in scenarios
-            if s.get("category") in ["basic", "intermediate", "query"]
+            s for s in scenarios if s.get("category") in ["basic", "intermediate", "query"]
         ][:5]
 
         results = []
@@ -107,28 +103,18 @@ class PerformanceEvaluator:
                                 (
                                     response,
                                     performance_metrics,
-                                ) = await process_single_user_query_with_metrics(
-                                    agent, scenario["query"]
-                                )
+                                ) = await process_single_user_query_with_metrics(agent, scenario["query"])
                         elif agent_type == "react":
                             (
                                 history,
                                 performance_metrics,
-                            ) = await run_react_agent_with_metrics(
-                                scenario["query"], max_steps=5
-                            )
-                            response = {
-                                "summary": str(history[-1])
-                                if history
-                                else "No response"
-                            }
+                            ) = await run_react_agent_with_metrics(scenario["query"], max_steps=5)
+                            response = {"summary": str(history[-1]) if history else "No response"}
                         else:
                             raise ValueError(f"Unknown agent type: {agent_type}")
 
                         # Calculate simple performance index
-                        performance_index = self._calculate_performance_index(
-                            performance_metrics
-                        )
+                        performance_index = self._calculate_performance_index(performance_metrics)
 
                         # Enhance with LLM evaluation if enabled
                         llm_evaluation = None
@@ -153,9 +139,7 @@ class PerformanceEvaluator:
                                 ):
                                     llm_evaluation = enhanced_metrics.llm_evaluation
                                     quality_score = llm_evaluation.score
-                                    print(
-                                        f"    🎯 LLM Quality Score: {quality_score:.2f}"
-                                    )
+                                    print(f"    🎯 LLM Quality Score: {quality_score:.2f}")
 
                             except Exception as e:
                                 print(f"    ⚠️ LLM evaluation failed: {e}")
@@ -175,11 +159,7 @@ class PerformanceEvaluator:
 
                         # Log results
                         status = "✅" if result.success else "❌"
-                        quality_info = (
-                            f", Quality: {quality_score:.2f}"
-                            if quality_score > 0
-                            else ""
-                        )
+                        quality_info = f", Quality: {quality_score:.2f}" if quality_score > 0 else ""
                         print(
                             f"    {status} Score: {result.performance_score:.2f}, Time: {result.execution_time:.2f}s{quality_info}"
                         )
@@ -213,13 +193,9 @@ class PerformanceEvaluator:
         token_factor = (metrics.token_usage or 0) / 100  # Normalize tokens
 
         # Performance index: higher is better
-        return 1.0 / (
-            time_factor + token_factor + 0.1
-        )  # Small constant to prevent infinite values
+        return 1.0 / (time_factor + token_factor + 0.1)  # Small constant to prevent infinite values
 
-    def _calculate_combined_score(
-        self, performance_index: float, quality_score: float
-    ) -> float:
+    def _calculate_combined_score(self, performance_index: float, quality_score: float) -> float:
         """Calculate combined score from performance and quality metrics."""
         if not self.enable_llm_evaluation or quality_score == 0.0:
             return performance_index
@@ -239,21 +215,15 @@ class PerformanceEvaluator:
         # Calculate traditional metrics
         metrics = {
             "success_rate": len(successful_results) / len(benchmark_results),
-            "avg_time": sum(r.execution_time for r in successful_results)
-            / len(successful_results),
-            "avg_tokens": sum(r.token_usage or 0 for r in successful_results)
-            / len(successful_results),
-            "avg_performance_index": sum(
-                r.performance_score for r in successful_results
-            )
+            "avg_time": sum(r.execution_time for r in successful_results) / len(successful_results),
+            "avg_tokens": sum(r.token_usage or 0 for r in successful_results) / len(successful_results),
+            "avg_performance_index": sum(r.performance_score for r in successful_results)
             / len(successful_results),
         }
 
         # Add LLM evaluation metrics if available
         if self.enable_llm_evaluation:
-            quality_scores = [
-                r.quality_score for r in successful_results if r.quality_score > 0
-            ]
+            quality_scores = [r.quality_score for r in successful_results if r.quality_score > 0]
             if quality_scores:
                 metrics["avg_quality_score"] = sum(quality_scores) / len(quality_scores)
                 # Calculate combined score for optimization decision
@@ -261,9 +231,7 @@ class PerformanceEvaluator:
                     self._calculate_combined_score(r.performance_score, r.quality_score)
                     for r in successful_results
                 ]
-                metrics["avg_combined_score"] = sum(combined_scores) / len(
-                    combined_scores
-                )
+                metrics["avg_combined_score"] = sum(combined_scores) / len(combined_scores)
             else:
                 metrics["avg_quality_score"] = 0.0
                 metrics["avg_combined_score"] = metrics["avg_performance_index"]
@@ -285,9 +253,7 @@ class PerformanceEvaluator:
         ]
 
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, cwd=self.project_root, timeout=600
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.project_root, timeout=600)
 
             passed = result.returncode == 0
             test_count = self._count_tests(result.stdout)
@@ -354,9 +320,7 @@ class PerformanceEvaluator:
         success_rate = current_metrics.get("success_rate", 0.0)
         avg_performance_index = current_metrics.get("avg_performance_index", 0.0)
         avg_quality_score = current_metrics.get("avg_quality_score", 0.0)
-        avg_combined_score = current_metrics.get(
-            "avg_combined_score", avg_performance_index
-        )
+        avg_combined_score = current_metrics.get("avg_combined_score", avg_performance_index)
         avg_time = current_metrics.get("avg_time", 0.0)
         avg_tokens = current_metrics.get("avg_tokens", 0.0)
 
@@ -371,9 +335,7 @@ class PerformanceEvaluator:
                 "execution_time": r.execution_time,
                 "token_usage": r.token_usage,
                 "quality_score": r.quality_score,
-                "combined_score": self._calculate_combined_score(
-                    r.performance_score, r.quality_score
-                ),
+                "combined_score": self._calculate_combined_score(r.performance_score, r.quality_score),
                 "llm_feedback": r.llm_evaluation.feedback if r.llm_evaluation else "",
             }
             for r in benchmark_results
@@ -385,7 +347,9 @@ class PerformanceEvaluator:
             keep = False
         elif not baseline_metrics:  # No baseline to compare against
             if self.enable_llm_evaluation:
-                reason = f"No baseline - accepting if all tests pass (combined score: {avg_combined_score:.2f})"
+                reason = (
+                    f"No baseline - accepting if all tests pass (combined score: {avg_combined_score:.2f})"
+                )
             else:
                 reason = f"No baseline - accepting if all tests pass (performance index: {avg_performance_index:.2f})"
             keep = True
@@ -400,10 +364,14 @@ class PerformanceEvaluator:
                 metric_name = "performance index"
 
             if current_score > baseline_score:
-                reason = f"{metric_name.title()} improved: {current_score:.2f} > {baseline_score:.2f} (baseline)"
+                reason = (
+                    f"{metric_name.title()} improved: {current_score:.2f} > {baseline_score:.2f} (baseline)"
+                )
                 keep = True
             else:
-                reason = f"{metric_name.title()} declined: {current_score:.2f} <= {baseline_score:.2f} (baseline)"
+                reason = (
+                    f"{metric_name.title()} declined: {current_score:.2f} <= {baseline_score:.2f} (baseline)"
+                )
                 keep = False
 
         # Enhanced performance comparison metrics
@@ -463,17 +431,13 @@ class PerformanceEvaluator:
             llm_evaluation_feedback=llm_feedback,
         )
 
-    def _generate_llm_evaluation_feedback(
-        self, benchmark_results: list[BenchmarkResult]
-    ) -> str:
+    def _generate_llm_evaluation_feedback(self, benchmark_results: list[BenchmarkResult]) -> str:
         """Generate consolidated LLM evaluation feedback."""
         if not self.enable_llm_evaluation:
             return "LLM evaluation not enabled"
 
         feedback_parts = []
-        successful_evaluations = [
-            r for r in benchmark_results if r.llm_evaluation and r.success
-        ]
+        successful_evaluations = [r for r in benchmark_results if r.llm_evaluation and r.success]
 
         if not successful_evaluations:
             return "No successful LLM evaluations available"
@@ -494,13 +458,9 @@ class PerformanceEvaluator:
         if feedback_entries:
             feedback_parts.append("Sample feedback:")
             for _i, feedback in enumerate(feedback_entries[:3]):  # Show first 3
-                feedback_parts.append(
-                    f"  - {feedback[:100]}{'...' if len(feedback) > 100 else ''}"
-                )
+                feedback_parts.append(f"  - {feedback[:100]}{'...' if len(feedback) > 100 else ''}")
 
             if len(feedback_entries) > 3:
-                feedback_parts.append(
-                    f"  ... and {len(feedback_entries) - 3} more evaluations"
-                )
+                feedback_parts.append(f"  ... and {len(feedback_entries) - 3} more evaluations")
 
         return "\n".join(feedback_parts)

@@ -45,9 +45,7 @@ class DocumentInfo(BaseModel):
     total_chapters: int
     total_word_count: int
     total_paragraph_count: int
-    last_modified: (
-        datetime.datetime
-    )  # Could be latest of any chapter or document folder itself
+    last_modified: datetime.datetime  # Could be latest of any chapter or document folder itself
     chapters: list[ChapterMetadata]  # Ordered list of chapter metadata
     has_summary: bool = False
 

@@ -30,27 +30,17 @@ class AgentSettings(BaseSettings):
 
     # API Keys
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
-    gemini_api_key: str | None = Field(
-        default=None, description="Google Gemini API key"
-    )
+    gemini_api_key: str | None = Field(default=None, description="Google Gemini API key")
 
     # Model Names
-    openai_model_name: str = Field(
-        default="gpt-4.1-mini", description="OpenAI model name"
-    )
-    gemini_model_name: str = Field(
-        default="gemini-2.5-flash", description="Gemini model name"
-    )
+    openai_model_name: str = Field(default="gpt-4.1-mini", description="OpenAI model name")
+    gemini_model_name: str = Field(default="gemini-2.5-flash", description="Gemini model name")
 
     # Document Root
-    document_root_dir: str | None = Field(
-        default=None, description="Document storage root directory"
-    )
+    document_root_dir: str | None = Field(default=None, description="Document storage root directory")
 
     # Test Mode
-    pytest_current_test: str | None = Field(
-        default=None, description="Test mode indicator"
-    )
+    pytest_current_test: str | None = Field(default=None, description="Test mode indicator")
 
     model_config = {
         "env_file": ".env",

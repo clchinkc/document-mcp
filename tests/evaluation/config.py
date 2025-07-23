@@ -423,9 +423,7 @@ def get_test_scenarios(category: str | None = None) -> list[dict]:
     return scenarios
 
 
-def get_operation_threshold(
-    agent_type: str, operation: str, metric_type: str
-) -> float | None:
+def get_operation_threshold(agent_type: str, operation: str, metric_type: str) -> float | None:
     """Get the threshold for a specific agent type, operation, and metric type."""
     thresholds = get_performance_thresholds()
 
@@ -531,9 +529,7 @@ def validate_scenario_quality_expectations(scenario: dict) -> bool:
     for criterion, expected_score in expectations.items():
         if criterion not in valid_criteria:
             return False
-        if not isinstance(expected_score, int | float) or not (
-            0.0 <= expected_score <= 1.0
-        ):
+        if not isinstance(expected_score, int | float) or not (0.0 <= expected_score <= 1.0):
             return False
 
     return True
@@ -567,9 +563,7 @@ def get_combined_score_thresholds(agent_type: str, operation: str) -> dict[str, 
     quality_threshold = 0.7
 
     # Combined threshold
-    combined_threshold = (performance_weight * performance_threshold) + (
-        quality_weight * quality_threshold
-    )
+    combined_threshold = (performance_weight * performance_threshold) + (quality_weight * quality_threshold)
 
     thresholds = {
         "performance_threshold": performance_threshold,

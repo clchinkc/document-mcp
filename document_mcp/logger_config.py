@@ -216,13 +216,9 @@ def log_mcp_call(func):
             logged_args = []
             for arg in args:
                 if hasattr(arg, "model_dump_json"):  # Check for Pydantic v2 model
-                    logged_args.append(
-                        arg.model_dump_json(indent=None, exclude_none=True)
-                    )  # Compact JSON
+                    logged_args.append(arg.model_dump_json(indent=None, exclude_none=True))  # Compact JSON
                 elif hasattr(arg, "json"):  # Check for Pydantic v1 model
-                    logged_args.append(
-                        arg.json(indent=None, exclude_none=True)
-                    )  # Compact JSON
+                    logged_args.append(arg.json(indent=None, exclude_none=True))  # Compact JSON
                 else:
                     logged_args.append(repr(arg))
 
@@ -278,20 +274,13 @@ def log_mcp_call(func):
             try:
                 if isinstance(result, list):
                     # Check if it's a list of Pydantic-like objects
-                    if result and (
-                        hasattr(result[0], "model_dump_json")
-                        or hasattr(result[0], "json")
-                    ):
+                    if result and (hasattr(result[0], "model_dump_json") or hasattr(result[0], "json")):
                         logged_list = []
                         for item in result:
                             if hasattr(item, "model_dump_json"):
-                                logged_list.append(
-                                    item.model_dump_json(indent=None, exclude_none=True)
-                                )
+                                logged_list.append(item.model_dump_json(indent=None, exclude_none=True))
                             elif hasattr(item, "json"):  # Pydantic v1 fallback
-                                logged_list.append(
-                                    item.json(indent=None, exclude_none=True)
-                                )
+                                logged_list.append(item.json(indent=None, exclude_none=True))
                             else:
                                 logged_list.append(repr(item))
                         result_str = "[" + ", ".join(logged_list) + "]"

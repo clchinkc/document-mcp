@@ -120,8 +120,7 @@ class TestAutomaticSnapshotSystemIntegration:
             auto_snapshots = [
                 snap
                 for snap in snapshots_after.snapshots
-                if snap.message
-                and "Auto-snapshot before write_chapter_content" in snap.message
+                if snap.message and "Auto-snapshot before write_chapter_content" in snap.message
             ]
 
             assert len(auto_snapshots) >= 1, (
@@ -226,12 +225,8 @@ class TestAutomaticSnapshotSystemIntegration:
             operation_names = [snap.message for snap in all_snapshots]
 
             # Check that we have snapshots for both operations
-            append_found = any(
-                "append_paragraph_to_chapter" in msg for msg in operation_names
-            )
-            insert_found = any(
-                "insert_paragraph_before" in msg for msg in operation_names
-            )
+            append_found = any("append_paragraph_to_chapter" in msg for msg in operation_names)
+            insert_found = any("insert_paragraph_before" in msg for msg in operation_names)
 
             assert append_found, f"No append snapshot found in: {operation_names}"
             assert insert_found, f"No insert snapshot found in: {operation_names}"
@@ -272,8 +267,7 @@ class TestAutomaticSnapshotSystemIntegration:
             replace_snapshots = [
                 snap
                 for snap in snapshots.snapshots
-                if snap.message
-                and "Auto-snapshot before replace_paragraph" in snap.message
+                if snap.message and "Auto-snapshot before replace_paragraph" in snap.message
             ]
 
             assert len(replace_snapshots) == 1, (
@@ -326,14 +320,9 @@ class TestAutomaticSnapshotSystemIntegration:
             assert edit_result.success is True
 
             # Verify the content was actually modified
-            updated_content = read_content(
-                document_name=doc_name, chapter_name=chapter_name, scope="chapter"
-            )
+            updated_content = read_content(document_name=doc_name, chapter_name=chapter_name, scope="chapter")
 
-            assert (
-                "Modified content despite potential snapshot issues"
-                in updated_content.content
-            )
+            assert "Modified content despite potential snapshot issues" in updated_content.content
 
         finally:
             delete_document(doc_name)

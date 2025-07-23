@@ -32,12 +32,8 @@ class DocumentSystemValidator:
             AssertionError: If document directory doesn't exist
         """
         doc_path = self.docs_root / doc_name
-        assert doc_path.exists(), (
-            f"Document directory '{doc_name}' does not exist at {doc_path}"
-        )
-        assert doc_path.is_dir(), (
-            f"Document path '{doc_path}' exists but is not a directory"
-        )
+        assert doc_path.exists(), f"Document directory '{doc_name}' does not exist at {doc_path}"
+        assert doc_path.is_dir(), f"Document path '{doc_path}' exists but is not a directory"
         return doc_path
 
     def document_exists(self, doc_name: str) -> bool:
@@ -84,12 +80,8 @@ class DocumentSystemValidator:
         """
         doc_path = self.assert_document_exists(doc_name)
         chapter_path = doc_path / chapter_name
-        assert chapter_path.exists(), (
-            f"Chapter file '{chapter_name}' does not exist at {chapter_path}"
-        )
-        assert chapter_path.is_file(), (
-            f"Chapter path '{chapter_path}' exists but is not a file"
-        )
+        assert chapter_path.exists(), f"Chapter file '{chapter_name}' does not exist at {chapter_path}"
+        assert chapter_path.is_file(), f"Chapter path '{chapter_path}' exists but is not a file"
         return chapter_path
 
     def chapter_exists(self, doc_name: str, chapter_name: str) -> bool:
@@ -142,12 +134,8 @@ class DocumentSystemValidator:
         """
         doc_path = self.assert_document_exists(doc_name)
         summary_path = doc_path / "_SUMMARY.md"
-        assert summary_path.exists(), (
-            f"Summary file '_SUMMARY.md' does not exist at {summary_path}"
-        )
-        assert summary_path.is_file(), (
-            f"Summary path '{summary_path}' exists but is not a file"
-        )
+        assert summary_path.exists(), f"Summary file '_SUMMARY.md' does not exist at {summary_path}"
+        assert summary_path.is_file(), f"Summary path '{summary_path}' exists but is not a file"
         return summary_path
 
     def assert_chapter_content_contains(
@@ -171,9 +159,7 @@ class DocumentSystemValidator:
             f"Actual content: '{actual_content}'"
         )
 
-    def assert_chapter_content_equals(
-        self, doc_name: str, chapter_name: str, expected_content: str
-    ) -> None:
+    def assert_chapter_content_equals(self, doc_name: str, chapter_name: str, expected_content: str) -> None:
         """Assert that a chapter file's content exactly matches expected content.
 
         Args:
@@ -203,9 +189,7 @@ class DocumentSystemValidator:
             return set()
 
         return {
-            item.name
-            for item in self.docs_root.iterdir()
-            if item.is_dir() and not item.name.startswith(".")
+            item.name for item in self.docs_root.iterdir() if item.is_dir() and not item.name.startswith(".")
         }
 
     def get_chapter_names(self, doc_name: str) -> set[str]:
@@ -224,9 +208,7 @@ class DocumentSystemValidator:
         return {
             item.name
             for item in doc_path.iterdir()
-            if item.is_file()
-            and item.name.endswith(".md")
-            and not item.name.startswith("_")
+            if item.is_file() and item.name.endswith(".md") and not item.name.startswith("_")
         }
 
     def assert_document_count(self, expected_count: int) -> None:
@@ -278,9 +260,7 @@ class DocumentSystemValidator:
                 debug_info["documents"][doc_name] = {
                     "path": str(doc_path),
                     "chapters": list(self.get_chapter_names(doc_name)),
-                    "all_files": [
-                        item.name for item in doc_path.iterdir() if item.is_file()
-                    ],
+                    "all_files": [item.name for item in doc_path.iterdir() if item.is_file()],
                 }
 
         return debug_info

@@ -226,9 +226,7 @@ async def enhance_test_metrics(
         evaluator = get_test_evaluator()
         if evaluator.enabled:
             try:
-                enhanced.llm_evaluation = await evaluator.evaluate(
-                    query, response_summary
-                )
+                enhanced.llm_evaluation = await evaluator.evaluate(query, response_summary)
             except Exception:
                 # LLM evaluation failed, continue with just performance metrics
                 pass

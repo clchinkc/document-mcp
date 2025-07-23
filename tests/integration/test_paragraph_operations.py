@@ -40,9 +40,7 @@ def test_insert_paragraph_before(para_doc, temp_docs_root: Path):
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
-    assert (
-        content == "Paragraph 1.\n\nInserted Paragraph.\n\nParagraph 2.\n\nParagraph 3."
-    )
+    assert content == "Paragraph 1.\n\nInserted Paragraph.\n\nParagraph 2.\n\nParagraph 3."
 
 
 def test_insert_paragraph_after(para_doc, temp_docs_root: Path):
@@ -52,9 +50,7 @@ def test_insert_paragraph_after(para_doc, temp_docs_root: Path):
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
-    assert (
-        content == "Paragraph 1.\n\nParagraph 2.\n\nInserted Paragraph.\n\nParagraph 3."
-    )
+    assert content == "Paragraph 1.\n\nParagraph 2.\n\nInserted Paragraph.\n\nParagraph 3."
 
 
 def test_delete_paragraph(para_doc, temp_docs_root: Path):
@@ -74,9 +70,7 @@ def test_append_paragraph_to_chapter(para_doc, temp_docs_root: Path):
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
-    assert (
-        content == "Paragraph 1.\n\nParagraph 2.\n\nParagraph 3.\n\nAppended Paragraph."
-    )
+    assert content == "Paragraph 1.\n\nParagraph 2.\n\nParagraph 3.\n\nAppended Paragraph."
 
 
 def test_replace_text_in_chapter(document_factory, temp_docs_root: Path):
@@ -86,9 +80,7 @@ def test_replace_text_in_chapter(document_factory, temp_docs_root: Path):
     content = "The old text needs to be replaced. The old text is here."
     document_factory(doc_name, {chapter_name: content})
 
-    result = replace_text(
-        doc_name, "old text", "new text", scope="chapter", chapter_name=chapter_name
-    )
+    result = replace_text(doc_name, "old text", "new text", scope="chapter", chapter_name=chapter_name)
     assert result.success is True
     assert result.details["occurrences_replaced"] == 2
 

@@ -437,15 +437,11 @@ def register_content_tools(mcp_server):
         # Scope-based dispatch to helper functions
         try:
             if scope == "document":
-                result = _find_text_in_document(
-                    document_name, search_text, case_sensitive
-                )
+                result = _find_text_in_document(document_name, search_text, case_sensitive)
                 return result if result else []
 
             elif scope == "chapter":
-                result = _find_text_in_chapter(
-                    document_name, chapter_name, search_text, case_sensitive
-                )
+                result = _find_text_in_chapter(document_name, chapter_name, search_text, case_sensitive)
                 return result if result else []
 
         except Exception as e:
@@ -594,15 +590,11 @@ def register_content_tools(mcp_server):
         # Scope-based dispatch to helper functions
         try:
             if scope == "document":
-                result = _replace_text_in_document(
-                    document_name, find_text, replace_text
-                )
+                result = _replace_text_in_document(document_name, find_text, replace_text)
                 return result if result else None
 
             elif scope == "chapter":
-                result = _replace_text_in_chapter(
-                    document_name, chapter_name, find_text, replace_text
-                )
+                result = _replace_text_in_chapter(document_name, chapter_name, find_text, replace_text)
                 return result if result else None
 
         except Exception as e:
@@ -963,9 +955,7 @@ def _find_text_in_document(
 
     chapter_files = _get_ordered_chapter_files(document_name)
     for chapter_file in chapter_files:
-        chapter_results = _find_text_in_chapter(
-            document_name, chapter_file.name, query, case_sensitive
-        )
+        chapter_results = _find_text_in_chapter(document_name, chapter_file.name, query, case_sensitive)
         results.extend(chapter_results)
 
     return results
@@ -1010,17 +1000,13 @@ def _replace_text_in_document(
     """Replace all occurrences of text throughout all chapters of a document."""
     doc_path = _get_document_path(document_name)
     if not doc_path.exists():
-        return OperationStatus(
-            success=False, message=f"Document '{document_name}' not found."
-        )
+        return OperationStatus(success=False, message=f"Document '{document_name}' not found.")
 
     chapter_files = _get_ordered_chapter_files(document_name)
     total_replacements = 0
 
     for chapter_file in chapter_files:
-        result = _replace_text_in_chapter(
-            document_name, chapter_file.name, text_to_find, replacement_text
-        )
+        result = _replace_text_in_chapter(document_name, chapter_file.name, text_to_find, replacement_text)
         if result.success and result.details:
             total_replacements += result.details.get("occurrences_replaced", 0)
 
@@ -1088,9 +1074,7 @@ def _get_document_statistics(document_name: str) -> StatisticsReport | None:
     )
 
 
-def _get_chapter_statistics(
-    document_name: str, chapter_name: str
-) -> StatisticsReport | None:
+def _get_chapter_statistics(document_name: str, chapter_name: str) -> StatisticsReport | None:
     """Get comprehensive statistics for a specific chapter."""
     chapter_path = _get_chapter_path(document_name, chapter_name)
     if not chapter_path.exists():
@@ -1167,10 +1151,7 @@ def _perform_semantic_search(
                     if chapter_paragraphs:
                         chapters_data[chapter_file.name] = {
                             "paragraphs": chapter_paragraphs,
-                            "content": {
-                                p["paragraph_index"]: p["content"]
-                                for p in chapter_paragraphs
-                            },
+                            "content": {p["paragraph_index"]: p["content"] for p in chapter_paragraphs},
                         }
 
                 except Exception:
@@ -1201,10 +1182,7 @@ def _perform_semantic_search(
                 if chapter_paragraphs:
                     chapters_data[chapter_name] = {
                         "paragraphs": chapter_paragraphs,
-                        "content": {
-                            p["paragraph_index"]: p["content"]
-                            for p in chapter_paragraphs
-                        },
+                        "content": {p["paragraph_index"]: p["content"] for p in chapter_paragraphs},
                     }
 
             except Exception:
@@ -1220,9 +1198,7 @@ def _perform_semantic_search(
 
         for chapter_name, chapter_data in chapters_data.items():
             # Try to load cached embeddings for this chapter
-            cached_embeddings = cache.get_chapter_embeddings(
-                document_name, chapter_name
-            )
+            cached_embeddings = cache.get_chapter_embeddings(document_name, chapter_name)
 
             chapter_needs_caching = {}
             for paragraph_data in chapter_data["paragraphs"]:
@@ -1230,9 +1206,9 @@ def _perform_semantic_search(
 
                 if paragraph_index in cached_embeddings:
                     # Use cached embedding
-                    all_paragraph_embeddings[(chapter_name, paragraph_index)] = (
-                        cached_embeddings[paragraph_index]
-                    )
+                    all_paragraph_embeddings[(chapter_name, paragraph_index)] = cached_embeddings[
+                        paragraph_index
+                    ]
                 else:
                     # Need to embed this paragraph
                     paragraphs_to_embed.append(paragraph_data)
@@ -1281,14 +1257,10 @@ def _perform_semantic_search(
 
         # Cache new embeddings by chapter
         for chapter_name, embeddings_to_cache in chapters_to_cache.items():
-            if embeddings_to_cache and isinstance(
-                list(embeddings_to_cache.values())[0], np.ndarray
-            ):
+            if embeddings_to_cache and isinstance(list(embeddings_to_cache.values())[0], np.ndarray):
                 # Convert embeddings dict to the format expected by cache
                 paragraph_embeddings = {
-                    idx: emb
-                    for idx, emb in embeddings_to_cache.items()
-                    if isinstance(emb, np.ndarray)
+                    idx: emb for idx, emb in embeddings_to_cache.items() if isinstance(emb, np.ndarray)
                 }
                 paragraph_contents = chapters_data[chapter_name]["content"]
 
@@ -1306,9 +1278,7 @@ def _perform_semantic_search(
             paragraph_index = paragraph_data["paragraph_index"]
 
             if (chapter_name, paragraph_index) in all_paragraph_embeddings:
-                paragraph_embedding = all_paragraph_embeddings[
-                    (chapter_name, paragraph_index)
-                ]
+                paragraph_embedding = all_paragraph_embeddings[(chapter_name, paragraph_index)]
 
                 # Cosine similarity using numpy
                 dot_product = np.dot(query_embedding, paragraph_embedding)
@@ -1331,9 +1301,7 @@ def _perform_semantic_search(
             paragraph_data = all_paragraphs_data[idx]
 
             # Generate context snippet (surrounding paragraphs)
-            context_snippet = _generate_context_snippet(
-                paragraph_data["content"], all_paragraphs_data, idx
-            )
+            context_snippet = _generate_context_snippet(paragraph_data["content"], all_paragraphs_data, idx)
 
             result = SemanticSearchResult(
                 document_name=paragraph_data["document_name"],
@@ -1368,9 +1336,7 @@ def _generate_context_snippet(
     try:
         # Get previous and next paragraphs from the same chapter
         target_chapter = all_paragraphs[target_index]["chapter_name"]
-        chapter_paragraphs = [
-            p for p in all_paragraphs if p["chapter_name"] == target_chapter
-        ]
+        chapter_paragraphs = [p for p in all_paragraphs if p["chapter_name"] == target_chapter]
 
         # Find the target paragraph within the chapter
         target_para_idx = None
@@ -1386,16 +1352,12 @@ def _generate_context_snippet(
         context_parts = []
 
         if target_para_idx > 0:
-            context_parts.append(
-                f"...{chapter_paragraphs[target_para_idx - 1]['content'][:100]}..."
-            )
+            context_parts.append(f"...{chapter_paragraphs[target_para_idx - 1]['content'][:100]}...")
 
         context_parts.append(f"[MATCH] {target_content}")
 
         if target_para_idx < len(chapter_paragraphs) - 1:
-            context_parts.append(
-                f"...{chapter_paragraphs[target_para_idx + 1]['content'][:100]}..."
-            )
+            context_parts.append(f"...{chapter_paragraphs[target_para_idx + 1]['content'][:100]}...")
 
         return " ".join(context_parts)
     except Exception:

@@ -249,8 +249,7 @@ def build_agent_prompt(
         )
         prompt_parts.append("")
         prompt_parts.append(
-            "**YOUR ROLE:** "
-            + agent_specific["constraint"].replace("**PLANNING ROLE:** ", "")
+            "**YOUR ROLE:** " + agent_specific["constraint"].replace("**PLANNING ROLE:** ", "")
         )
 
     # Add shared components

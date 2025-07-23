@@ -14,9 +14,7 @@ from pydantic_ai.mcp import MCPServerStdio
 @pytest.fixture
 async def mcp_server():
     """Provide a real MCP server for integration testing."""
-    server = MCPServerStdio(
-        command="python3", args=["-m", "document_mcp.doc_tool_server", "stdio"]
-    )
+    server = MCPServerStdio(command="python3", args=["-m", "document_mcp.doc_tool_server", "stdio"])
     yield server
 
 
@@ -32,9 +30,7 @@ class TestAgentMCPIntegration:
 
         async with mcp_server:
             # Test creating document directly via MCP
-            create_result = await mcp_server._client.call_tool(
-                "create_document", {"document_name": doc_name}
-            )
+            create_result = await mcp_server._client.call_tool("create_document", {"document_name": doc_name})
 
             # Parse MCP result - it's a list of TextContent objects with JSON text
             result_text = create_result.content[0].text

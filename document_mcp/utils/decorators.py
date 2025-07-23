@@ -85,8 +85,8 @@ def check_file_freshness(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        document_name, chapter_name, last_known_modified, force_write = (
-            _extract_operation_parameters(args, kwargs)
+        document_name, chapter_name, last_known_modified, force_write = _extract_operation_parameters(
+            args, kwargs
         )
 
         # Parse timestamp
@@ -104,9 +104,7 @@ def check_file_freshness(func):
 
         # Handle conflicts
         if safety_info.safety_status in ["warning", "conflict"] and not force_write:
-            warnings = [
-                f"File {safety_info.safety_status} detected: {safety_info.message}"
-            ]
+            warnings = [f"File {safety_info.safety_status} detected: {safety_info.message}"]
             warnings.extend(safety_info.recommendations)
             return OperationStatus(
                 success=False,
@@ -157,9 +155,7 @@ def enhance_operation_result(func):
                 if not hasattr(result, "warnings"):
                     result.warnings = []
                 if safety_info.safety_status == "warning":
-                    result.warnings.append(
-                        f"File was modified externally: {safety_info.message}"
-                    )
+                    result.warnings.append(f"File was modified externally: {safety_info.message}")
 
         return result
 
@@ -192,16 +188,12 @@ def _extract_operation_parameters(args, kwargs):
         force_write = kwargs["force_write"]
 
     # Handle positional arguments based on function signature
-    if (
-        len(args) == 5
-    ):  # write_chapter_content: (doc, chapter, content, last_known_modified, force_write)
+    if len(args) == 5:  # write_chapter_content: (doc, chapter, content, last_known_modified, force_write)
         if last_known_modified is None:
             last_known_modified = args[3]
         if not force_write:
             force_write = args[4] if args[4] is not None else False
-    elif (
-        len(args) == 6
-    ):  # replace_paragraph: (doc, chapter, idx, content, last_known_modified, force_write)
+    elif len(args) == 6:  # replace_paragraph: (doc, chapter, idx, content, last_known_modified, force_write)
         if last_known_modified is None:
             last_known_modified = args[4]
         if not force_write:

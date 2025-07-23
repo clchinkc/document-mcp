@@ -40,9 +40,7 @@ class TestEmbeddingCache:
 
     @patch("document_mcp.utils.embedding_cache._get_chapter_embeddings_path")
     @patch("document_mcp.utils.embedding_cache._get_chapter_path")
-    def test_get_chapter_embeddings_no_cache(
-        self, mock_chapter_path, mock_embeddings_path
-    ):
+    def test_get_chapter_embeddings_no_cache(self, mock_chapter_path, mock_embeddings_path):
         """Test getting embeddings when no cache exists."""
         # Setup mocks
         mock_embeddings_path.return_value = Path("/fake/embeddings/path")
@@ -50,17 +48,13 @@ class TestEmbeddingCache:
 
         # Mock manifest file not existing
         with patch("pathlib.Path.exists", return_value=False):
-            result = self.cache.get_chapter_embeddings(
-                self.test_document, self.test_chapter
-            )
+            result = self.cache.get_chapter_embeddings(self.test_document, self.test_chapter)
 
         assert result == {}
 
     @patch("document_mcp.utils.embedding_cache._get_chapter_embeddings_path")
     @patch("document_mcp.utils.embedding_cache._get_chapter_path")
-    def test_get_chapter_embeddings_invalid_cache(
-        self, mock_chapter_path, mock_embeddings_path
-    ):
+    def test_get_chapter_embeddings_invalid_cache(self, mock_chapter_path, mock_embeddings_path):
         """Test getting embeddings when cache is older than source file."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup paths
@@ -87,16 +81,12 @@ class TestEmbeddingCache:
             )
             manifest_path.write_text(manifest.model_dump_json())
 
-            result = self.cache.get_chapter_embeddings(
-                self.test_document, self.test_chapter
-            )
+            result = self.cache.get_chapter_embeddings(self.test_document, self.test_chapter)
             assert result == {}
 
     @patch("document_mcp.utils.embedding_cache._get_chapter_embeddings_path")
     @patch("document_mcp.utils.embedding_cache._get_chapter_path")
-    def test_get_chapter_embeddings_valid_cache(
-        self, mock_chapter_path, mock_embeddings_path
-    ):
+    def test_get_chapter_embeddings_valid_cache(self, mock_chapter_path, mock_embeddings_path):
         """Test getting embeddings when cache is valid and newer than source."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup paths
@@ -143,9 +133,7 @@ class TestEmbeddingCache:
             )
             manifest_path.write_text(manifest.model_dump_json())
 
-            result = self.cache.get_chapter_embeddings(
-                self.test_document, self.test_chapter
-            )
+            result = self.cache.get_chapter_embeddings(self.test_document, self.test_chapter)
 
             # Verify all embeddings were loaded
             assert len(result) == len(self.test_embeddings)
@@ -186,9 +174,7 @@ class TestEmbeddingCache:
 
                 # Load and verify embedding
                 loaded_embedding = np.load(str(embedding_file))
-                np.testing.assert_array_equal(
-                    loaded_embedding, self.test_embeddings[idx]
-                )
+                np.testing.assert_array_equal(loaded_embedding, self.test_embeddings[idx])
 
             # Verify manifest was created
             manifest_file = chapter_dir / "manifest.json"

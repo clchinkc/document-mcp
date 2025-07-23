@@ -77,9 +77,7 @@ def list_chapters(document_name: str):
 # Paragraph management tools
 def read_paragraph_content(document_name: str, chapter_name: str, paragraph_index: int):
     """Read the content of a specific paragraph."""
-    return _get_mcp_tool("read_paragraph_content")(
-        document_name, chapter_name, paragraph_index
-    )
+    return _get_mcp_tool("read_paragraph_content")(document_name, chapter_name, paragraph_index)
 
 
 def replace_paragraph(
@@ -101,54 +99,34 @@ def replace_paragraph(
     )
 
 
-def insert_paragraph_before(
-    document_name: str, chapter_name: str, paragraph_index: int, new_content: str
-):
+def insert_paragraph_before(document_name: str, chapter_name: str, paragraph_index: int, new_content: str):
     """Insert paragraph before specified index."""
-    return _get_mcp_tool("insert_paragraph_before")(
-        document_name, chapter_name, paragraph_index, new_content
-    )
+    return _get_mcp_tool("insert_paragraph_before")(document_name, chapter_name, paragraph_index, new_content)
 
 
-def insert_paragraph_after(
-    document_name: str, chapter_name: str, paragraph_index: int, new_content: str
-):
+def insert_paragraph_after(document_name: str, chapter_name: str, paragraph_index: int, new_content: str):
     """Insert paragraph after specified index."""
-    return _get_mcp_tool("insert_paragraph_after")(
-        document_name, chapter_name, paragraph_index, new_content
-    )
+    return _get_mcp_tool("insert_paragraph_after")(document_name, chapter_name, paragraph_index, new_content)
 
 
 def delete_paragraph(document_name: str, chapter_name: str, paragraph_index: int):
     """Delete a specific paragraph."""
-    return _get_mcp_tool("delete_paragraph")(
-        document_name, chapter_name, paragraph_index
-    )
+    return _get_mcp_tool("delete_paragraph")(document_name, chapter_name, paragraph_index)
 
 
-def append_paragraph_to_chapter(
-    document_name: str, chapter_name: str, new_content: str
-):
+def append_paragraph_to_chapter(document_name: str, chapter_name: str, new_content: str):
     """Add paragraph to end of chapter."""
-    return _get_mcp_tool("append_paragraph_to_chapter")(
-        document_name, chapter_name, new_content
-    )
+    return _get_mcp_tool("append_paragraph_to_chapter")(document_name, chapter_name, new_content)
 
 
-def move_paragraph_before(
-    document_name: str, chapter_name: str, source_index: int, target_index: int
-):
+def move_paragraph_before(document_name: str, chapter_name: str, source_index: int, target_index: int):
     """Move paragraph to before another paragraph."""
-    return _get_mcp_tool("move_paragraph_before")(
-        document_name, chapter_name, source_index, target_index
-    )
+    return _get_mcp_tool("move_paragraph_before")(document_name, chapter_name, source_index, target_index)
 
 
 def move_paragraph_to_end(document_name: str, chapter_name: str, paragraph_index: int):
     """Move paragraph to end of chapter."""
-    return _get_mcp_tool("move_paragraph_to_end")(
-        document_name, chapter_name, paragraph_index
-    )
+    return _get_mcp_tool("move_paragraph_to_end")(document_name, chapter_name, paragraph_index)
 
 
 # Unified content tools (scope-based)
@@ -159,9 +137,7 @@ def read_content(
     paragraph_index: int | None = None,
 ):
     """Unified content reading with scope-based targeting."""
-    return _get_mcp_tool("read_content")(
-        document_name, scope, chapter_name, paragraph_index
-    )
+    return _get_mcp_tool("read_content")(document_name, scope, chapter_name, paragraph_index)
 
 
 def find_text(
@@ -172,9 +148,7 @@ def find_text(
     case_sensitive: bool = False,
 ):
     """Unified text search with scope-based targeting."""
-    return _get_mcp_tool("find_text")(
-        document_name, search_text, scope, chapter_name, case_sensitive
-    )
+    return _get_mcp_tool("find_text")(document_name, search_text, scope, chapter_name, case_sensitive)
 
 
 def replace_text(
@@ -185,14 +159,10 @@ def replace_text(
     chapter_name: str | None = None,
 ):
     """Unified text replacement with scope-based targeting."""
-    return _get_mcp_tool("replace_text")(
-        document_name, find_text, replace_text, scope, chapter_name
-    )
+    return _get_mcp_tool("replace_text")(document_name, find_text, replace_text, scope, chapter_name)
 
 
-def get_statistics(
-    document_name: str, scope: str = "document", chapter_name: str | None = None
-):
+def get_statistics(document_name: str, scope: str = "document", chapter_name: str | None = None):
     """Unified statistics collection with scope-based targeting."""
     return _get_mcp_tool("get_statistics")(document_name, scope, chapter_name)
 
@@ -225,9 +195,7 @@ def manage_snapshots(
     auto_cleanup: bool = True,
 ):
     """Unified snapshot management tool."""
-    return _get_mcp_tool("manage_snapshots")(
-        document_name, action, snapshot_id, message, auto_cleanup
-    )
+    return _get_mcp_tool("manage_snapshots")(document_name, action, snapshot_id, message, auto_cleanup)
 
 
 def check_content_status(

@@ -39,9 +39,7 @@ def check_api_key_available() -> bool:
     return False
 
 
-async def run_agent_query(
-    agent_module: str, query: str, timeout: int = 300
-) -> dict[str, Any]:
+async def run_agent_query(agent_module: str, query: str, timeout: int = 300) -> dict[str, Any]:
     """Run an agent with a given query and return the parsed JSON output."""
     cmd = ["uv", "run", "python", "-m", agent_module, "--query", query]
 
@@ -73,9 +71,7 @@ async def run_agent_query(
 
         # Use asyncio.wait_for with proper timeout handling
         try:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
             # Kill the process if it times out
             process.kill()
@@ -104,9 +100,7 @@ async def run_agent_query(
                 json_start_marker = output_str.find(json_marker)
                 if json_start_marker != -1:
                     # Find the actual JSON start after the marker
-                    json_portion = output_str[
-                        json_start_marker + len(json_marker) :
-                    ].strip()
+                    json_portion = output_str[json_start_marker + len(json_marker) :].strip()
                     json_start = json_portion.find("{")
                     if json_start != -1:
                         json_str = json_portion[json_start:]
@@ -120,11 +114,7 @@ async def run_agent_query(
                             return {
                                 "execution_log": output_str,
                                 "json_parse_error": str(e),
-                                "json_portion": (
-                                    json_str[:200] + "..."
-                                    if len(json_str) > 200
-                                    else json_str
-                                ),
+                                "json_portion": (json_str[:200] + "..." if len(json_str) > 200 else json_str),
                                 "debug_info": debug_info,
                             }
             # Fallback to log-only format if JSON parsing fails
@@ -176,9 +166,7 @@ def validator(e2e_docs_dir):
 
 
 @pytest.mark.e2e
-@pytest.mark.skipif(
-    not check_api_key_available(), reason="E2E tests require a real API key"
-)
+@pytest.mark.skipif(not check_api_key_available(), reason="E2E tests require a real API key")
 class TestSimpleAgentE2E:
     """Comprehensive E2E tests for Simple Agent.
 
@@ -200,9 +188,7 @@ class TestSimpleAgentE2E:
         validator.assert_document_count(0)
 
         # 1. Create Document
-        await run_agent_query(
-            "src.agents.simple_agent.main", f"Create a document named '{doc_name}'"
-        )
+        await run_agent_query("src.agents.simple_agent.main", f"Create a document named '{doc_name}'")
 
         validator.assert_document_exists(doc_name)
         validator.assert_document_count(1)
@@ -210,8 +196,7 @@ class TestSimpleAgentE2E:
         # 2. Add Chapter with Content
         await run_agent_query(
             "src.agents.simple_agent.main",
-            f"In document '{doc_name}', create chapter '{chapter_name}' with "
-            f"content: {content}",
+            f"In document '{doc_name}', create chapter '{chapter_name}' with content: {content}",
         )
 
         validator.assert_chapter_exists(doc_name, chapter_name)
@@ -224,22 +209,14 @@ class TestSimpleAgentE2E:
 
         # 4. Test Summary-First Workflow
         summary_query = f"Tell me about the document '{doc_name}'"
-        summary_resp = await run_agent_query(
-            "src.agents.simple_agent.main", summary_query
-        )
+        summary_resp = await run_agent_query("src.agents.simple_agent.main", summary_query)
 
         details = safe_get_response_content(summary_resp, "details")
         summary_response = details.get("read_document_summary", {})
-        read_content = (
-            summary_response.get("content", "")
-            if summary_response
-            else details.get("content", "")
-        )
+        read_content = summary_response.get("content", "") if summary_response else details.get("content", "")
 
         assert summary_content in read_content, "Agent should read summary content"
-        assert content not in read_content, (
-            "Agent should not read full chapter content for broad queries"
-        )
+        assert content not in read_content, "Agent should not read full chapter content for broad queries"
 
         # 5. Test Direct Chapter Reading
         read_resp = await run_agent_query(
@@ -255,23 +232,17 @@ class TestSimpleAgentE2E:
                     "Direct chapter read should contain chapter content"
                 )
         elif "content" in read_details:
-            assert content in read_details["content"], (
-                "Direct chapter read should contain chapter content"
-            )
+            assert content in read_details["content"], "Direct chapter read should contain chapter content"
 
     @pytest.mark.asyncio
-    async def test_semantic_search_capabilities(
-        self, e2e_docs_dir: Path, validator: DocumentSystemValidator
-    ):
+    async def test_semantic_search_capabilities(self, e2e_docs_dir: Path, validator: DocumentSystemValidator):
         """Test comprehensive semantic search functionality with scoped and
         unscoped queries.
         """
         doc_name = f"e2e_search_{uuid.uuid4().hex[:8]}"
 
         # Create knowledge base with diverse content
-        await run_agent_query(
-            "src.agents.simple_agent.main", f"Create a document named '{doc_name}'"
-        )
+        await run_agent_query("src.agents.simple_agent.main", f"Create a document named '{doc_name}'")
 
         # Add chapters with different topics
         ai_content = (
@@ -289,20 +260,17 @@ class TestSimpleAgentE2E:
 
         await run_agent_query(
             "src.agents.simple_agent.main",
-            f"In document '{doc_name}', create chapter '01-ai.md' with "
-            f"content: {ai_content}",
+            f"In document '{doc_name}', create chapter '01-ai.md' with content: {ai_content}",
         )
 
         await run_agent_query(
             "src.agents.simple_agent.main",
-            f"In document '{doc_name}', create chapter '02-algorithms.md' with "
-            f"content: {algorithms_content}",
+            f"In document '{doc_name}', create chapter '02-algorithms.md' with content: {algorithms_content}",
         )
 
         await run_agent_query(
             "src.agents.simple_agent.main",
-            f"In document '{doc_name}', create chapter '03-data.md' with "
-            f"content: {data_content}",
+            f"In document '{doc_name}', create chapter '03-data.md' with content: {data_content}",
         )
 
         # Verify setup
@@ -323,18 +291,14 @@ class TestSimpleAgentE2E:
         )
 
         search_data = search_details["find_similar_text"]
-        assert "results" in search_data, (
-            f"Search data should contain results. Got: {search_data}"
-        )
+        assert "results" in search_data, f"Search data should contain results. Got: {search_data}"
 
         results = search_data.get("results", [])
         assert len(results) > 0, f"Search should find results. Got: {search_data}"
 
         # Verify AI chapter is most relevant
         best_result = results[0] if results else {}
-        assert "01-ai.md" in str(best_result), (
-            f"Best result should be from AI chapter. Got: {best_result}"
-        )
+        assert "01-ai.md" in str(best_result), f"Best result should be from AI chapter. Got: {best_result}"
         assert "similarity_score" in best_result, "Result should have similarity score"
         assert "content" in best_result, "Result should have content"
 
@@ -360,9 +324,7 @@ class TestSimpleAgentE2E:
 
 
 @pytest.mark.e2e
-@pytest.mark.skipif(
-    not check_api_key_available(), reason="E2E tests require a real API key"
-)
+@pytest.mark.skipif(not check_api_key_available(), reason="E2E tests require a real API key")
 class TestReactAgentE2E:
     """E2E tests for ReAct agent basic functionality."""
 
@@ -389,24 +351,18 @@ class TestReactAgentE2E:
         if "execution_log" in response:
             print("✅ ReAct agent execution log present")
 
-        assert response.get("error_message") is None, (
-            "ReAct agent should not have errors"
-        )
+        assert response.get("error_message") is None, "ReAct agent should not have errors"
 
         print("✅ ReAct agent reasoning workflow verified")
 
 
 @pytest.mark.e2e
-@pytest.mark.skipif(
-    not check_api_key_available(), reason="E2E tests require a real API key"
-)
+@pytest.mark.skipif(not check_api_key_available(), reason="E2E tests require a real API key")
 class TestSafetyAndVersionControlE2E:
     """E2E tests for safety features and version control."""
 
     @pytest.mark.asyncio
-    async def test_safety_features_workflow(
-        self, e2e_docs_dir: Path, validator: DocumentSystemValidator
-    ):
+    async def test_safety_features_workflow(self, e2e_docs_dir: Path, validator: DocumentSystemValidator):
         """Test essential safety features: snapshots and version control."""
         doc_name = f"e2e_safety_{uuid.uuid4().hex[:8]}"
 
@@ -436,33 +392,21 @@ class TestSafetyAndVersionControlE2E:
         )
 
         # Verify safety workflow
-        assert response1.get("error_message") is None, (
-            "Document creation should succeed"
-        )
+        assert response1.get("error_message") is None, "Document creation should succeed"
         assert response2.get("error_message") is None, "Chapter creation should succeed"
-        assert snapshot_response.get("error_message") is None, (
-            "Snapshot creation should succeed"
-        )
+        assert snapshot_response.get("error_message") is None, "Snapshot creation should succeed"
 
         # Validate actual safety functionality (snapshot creation)
         snapshot_details = safe_get_response_content(snapshot_response, "details")
-        assert (
-            "manage_snapshots" in snapshot_details
-            or "snapshot" in str(snapshot_details).lower()
-        ), f"Should use snapshot management. Got: {snapshot_details}"
+        assert "manage_snapshots" in snapshot_details or "snapshot" in str(snapshot_details).lower(), (
+            f"Should use snapshot management. Got: {snapshot_details}"
+        )
 
         # Verify snapshot was actually created
-        if (
-            isinstance(snapshot_details, dict)
-            and "manage_snapshots" in snapshot_details
-        ):
+        if isinstance(snapshot_details, dict) and "manage_snapshots" in snapshot_details:
             snapshot_data = snapshot_details["manage_snapshots"]
-            assert snapshot_data.get("success") is True, (
-                "Snapshot creation should succeed"
-            )
-            assert "snapshot_id" in snapshot_data.get("details", {}), (
-                "Should have snapshot ID"
-            )
+            assert snapshot_data.get("success") is True, "Snapshot creation should succeed"
+            assert "snapshot_id" in snapshot_data.get("details", {}), "Should have snapshot ID"
 
         print("✅ Safety features workflow verified (actual snapshot creation)")
         print("   - Document and content creation")
@@ -471,16 +415,12 @@ class TestSafetyAndVersionControlE2E:
 
 
 @pytest.mark.e2e
-@pytest.mark.skipif(
-    not check_api_key_available(), reason="E2E tests require a real API key"
-)
+@pytest.mark.skipif(not check_api_key_available(), reason="E2E tests require a real API key")
 class TestBatchOperationsE2E:
     """E2E tests for batch operations functionality."""
 
     @pytest.mark.asyncio
-    async def test_batch_operations_capability(
-        self, e2e_docs_dir: Path, validator: DocumentSystemValidator
-    ):
+    async def test_batch_operations_capability(self, e2e_docs_dir: Path, validator: DocumentSystemValidator):
         """Test batch operations with coordinated multi-step workflows."""
         doc_name = f"e2e_batch_{uuid.uuid4().hex[:8]}"
 
@@ -515,36 +455,22 @@ class TestBatchOperationsE2E:
         validator.assert_chapter_count(doc_name, 2)
 
         # Verify content was actually created
-        validator.assert_chapter_content_contains(
-            doc_name, "01-intro.md", "Introduction"
-        )
-        validator.assert_chapter_content_contains(
-            doc_name, "02-main.md", "Main content"
-        )
+        validator.assert_chapter_content_contains(doc_name, "01-intro.md", "Introduction")
+        validator.assert_chapter_content_contains(doc_name, "02-main.md", "Main content")
 
         # Verify all operations succeeded
-        assert create_response.get("error_message") is None, (
-            "Document creation should succeed"
-        )
-        assert chapter1_response.get("error_message") is None, (
-            "First chapter creation should succeed"
-        )
-        assert chapter2_response.get("error_message") is None, (
-            "Second chapter creation should succeed"
-        )
+        assert create_response.get("error_message") is None, "Document creation should succeed"
+        assert chapter1_response.get("error_message") is None, "First chapter creation should succeed"
+        assert chapter2_response.get("error_message") is None, "Second chapter creation should succeed"
 
-        print(
-            "✅ Batch operations capability verified (Sequential multi-step workflow)"
-        )
+        print("✅ Batch operations capability verified (Sequential multi-step workflow)")
         print("   - Document creation")
         print("   - Multiple chapter creation with content")
         print("   - Coordinated sequential operation execution")
 
 
 @pytest.mark.e2e
-@pytest.mark.skipif(
-    not check_api_key_available(), reason="E2E tests require a real API key"
-)
+@pytest.mark.skipif(not check_api_key_available(), reason="E2E tests require a real API key")
 class TestIntegratedWorkflowE2E:
     """E2E tests for integrated workflows combining multiple features."""
 
@@ -597,32 +523,22 @@ class TestIntegratedWorkflowE2E:
         )
 
         # Verify integrated workflow
-        assert creation_response.get("error_message") is None, (
-            "Document creation should succeed"
-        )
-        assert analysis_response.get("error_message") is None, (
-            "Semantic search should succeed"
-        )
-        assert snapshot_response.get("error_message") is None, (
-            "Safety snapshot should succeed"
-        )
-        assert improvement_response.get("error_message") is None, (
-            "Content improvement should succeed"
-        )
+        assert creation_response.get("error_message") is None, "Document creation should succeed"
+        assert analysis_response.get("error_message") is None, "Semantic search should succeed"
+        assert snapshot_response.get("error_message") is None, "Safety snapshot should succeed"
+        assert improvement_response.get("error_message") is None, "Content improvement should succeed"
 
         # Validate semantic search functionality
         analysis_details = safe_get_response_content(analysis_response, "details")
-        assert (
-            "find_similar_text" in analysis_details
-            or "semantic" in str(analysis_response).lower()
-        ), f"Should use semantic search. Got: {analysis_details}"
+        assert "find_similar_text" in analysis_details or "semantic" in str(analysis_response).lower(), (
+            f"Should use semantic search. Got: {analysis_details}"
+        )
 
         # Validate safety features (actual snapshot creation)
         snapshot_details = safe_get_response_content(snapshot_response, "details")
-        assert (
-            "manage_snapshots" in snapshot_details
-            or "snapshot" in str(snapshot_details).lower()
-        ), f"Should use snapshot management. Got: {snapshot_details}"
+        assert "manage_snapshots" in snapshot_details or "snapshot" in str(snapshot_details).lower(), (
+            f"Should use snapshot management. Got: {snapshot_details}"
+        )
 
         # Validate final state
         validator.assert_chapter_exists(doc_name, "03-setup.md")

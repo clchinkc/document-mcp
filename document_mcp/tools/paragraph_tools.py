@@ -137,9 +137,7 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             )
 
         except Exception as e:
-            return OperationStatus(
-                success=False, message=f"Error replacing paragraph: {e}"
-            )
+            return OperationStatus(success=False, message=f"Error replacing paragraph: {e}")
 
     @mcp_server.tool()
     @register_batchable_operation("insert_paragraph_before")
@@ -215,9 +213,7 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             )
 
         except Exception as e:
-            return OperationStatus(
-                success=False, message=f"Error inserting paragraph: {e}"
-            )
+            return OperationStatus(success=False, message=f"Error inserting paragraph: {e}")
 
     @mcp_server.tool()
     @register_batchable_operation("insert_paragraph_after")
@@ -293,9 +289,7 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             )
 
         except Exception as e:
-            return OperationStatus(
-                success=False, message=f"Error inserting paragraph: {e}"
-            )
+            return OperationStatus(success=False, message=f"Error inserting paragraph: {e}")
 
     @mcp_server.tool()
     @register_batchable_operation("delete_paragraph")
@@ -373,9 +367,7 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             )
 
         except Exception as e:
-            return OperationStatus(
-                success=False, message=f"Error deleting paragraph: {e}"
-            )
+            return OperationStatus(success=False, message=f"Error deleting paragraph: {e}")
 
     @mcp_server.tool()
     @register_batchable_operation("append_paragraph_to_chapter")
@@ -439,9 +431,7 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             )
 
         except Exception as e:
-            return OperationStatus(
-                success=False, message=f"Error appending paragraph: {e}"
-            )
+            return OperationStatus(success=False, message=f"Error appending paragraph: {e}")
 
     @mcp_server.tool()
     @register_batchable_operation("move_paragraph_before")
@@ -476,21 +466,13 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
         if not is_valid_chapter:
             return OperationStatus(success=False, message=chapter_error)
 
-        is_valid_move_index, move_index_error = validate_paragraph_index(
-            paragraph_to_move_index
-        )
+        is_valid_move_index, move_index_error = validate_paragraph_index(paragraph_to_move_index)
         if not is_valid_move_index:
-            return OperationStatus(
-                success=False, message=f"Move index: {move_index_error}"
-            )
+            return OperationStatus(success=False, message=f"Move index: {move_index_error}")
 
-        is_valid_target_index, target_index_error = validate_paragraph_index(
-            target_paragraph_index
-        )
+        is_valid_target_index, target_index_error = validate_paragraph_index(target_paragraph_index)
         if not is_valid_target_index:
-            return OperationStatus(
-                success=False, message=f"Target index: {target_index_error}"
-            )
+            return OperationStatus(success=False, message=f"Target index: {target_index_error}")
 
         if paragraph_to_move_index == target_paragraph_index:
             return OperationStatus(
@@ -537,9 +519,7 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             # Generate diff for details
             from ..helpers import _generate_content_diff
 
-            diff_info = _generate_content_diff(
-                original_full_content, final_content, chapter_name
-            )
+            diff_info = _generate_content_diff(original_full_content, final_content, chapter_name)
 
             return OperationStatus(
                 success=True,
@@ -624,9 +604,7 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             # Generate diff for details
             from ..helpers import _generate_content_diff
 
-            diff_info = _generate_content_diff(
-                original_full_content, final_content, chapter_name
-            )
+            diff_info = _generate_content_diff(original_full_content, final_content, chapter_name)
 
             return OperationStatus(
                 success=True,
@@ -659,18 +637,14 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             Optional[ParagraphDetail]: Paragraph content object if found, None if not found.
         """
         chapter_file_path = _get_chapter_path(document_name, chapter_name)
-        if not chapter_file_path.is_file() or not _is_valid_chapter_filename(
-            chapter_name
-        ):
+        if not chapter_file_path.is_file() or not _is_valid_chapter_filename(chapter_name):
             return None
 
         try:
             content = chapter_file_path.read_text(encoding="utf-8")
             paragraphs = _split_into_paragraphs(content)
 
-            if paragraph_index_in_chapter < 0 or paragraph_index_in_chapter >= len(
-                paragraphs
-            ):
+            if paragraph_index_in_chapter < 0 or paragraph_index_in_chapter >= len(paragraphs):
                 return None
 
             paragraph_content = paragraphs[paragraph_index_in_chapter]

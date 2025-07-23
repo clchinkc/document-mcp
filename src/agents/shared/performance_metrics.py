@@ -167,9 +167,7 @@ class PerformanceMetricsCollector:
             metrics.tool_names = list(set(tool_calls))  # Unique tool names
 
         # Determine success status
-        metrics.success = agent_result.output is not None and not getattr(
-            agent_result, "error_message", None
-        )
+        metrics.success = agent_result.output is not None and not getattr(agent_result, "error_message", None)
 
         # Extract error message if present
         if hasattr(agent_result, "error_message") and agent_result.error_message:
@@ -255,13 +253,9 @@ class PerformanceMetricsCollector:
 
         # Check token usage range
         if metrics.token_usage < token_range[0]:
-            violations.append(
-                f"Token usage {metrics.token_usage} below minimum {token_range[0]}"
-            )
+            violations.append(f"Token usage {metrics.token_usage} below minimum {token_range[0]}")
         elif metrics.token_usage > token_range[1]:
-            violations.append(
-                f"Token usage {metrics.token_usage} above maximum {token_range[1]}"
-            )
+            violations.append(f"Token usage {metrics.token_usage} above maximum {token_range[1]}")
 
         # Check execution time
         if metrics.execution_time > max_execution_time:
@@ -311,11 +305,7 @@ class TokenUsageAggregator:
         """Extract usage from an agent result with error handling."""
         try:
             if hasattr(agent_result, "usage") and agent_result.usage:
-                usage = (
-                    agent_result.usage()
-                    if callable(agent_result.usage)
-                    else agent_result.usage
-                )
+                usage = agent_result.usage() if callable(agent_result.usage) else agent_result.usage
                 return usage if usage else None
         except Exception:
             # Continue aggregating even if one result fails
@@ -372,9 +362,7 @@ class MetricsCollectionContext:
 
             # Override with aggregated token usage from all results
             if len(self.agent_results) > 1:
-                aggregated = TokenUsageAggregator.aggregate_from_results(
-                    self.agent_results
-                )
+                aggregated = TokenUsageAggregator.aggregate_from_results(self.agent_results)
                 metrics.token_usage = aggregated["total_tokens"]
                 metrics.request_tokens = aggregated["request_tokens"]
                 metrics.response_tokens = aggregated["response_tokens"]

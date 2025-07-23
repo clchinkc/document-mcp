@@ -80,7 +80,5 @@ class ActionParser:
                             value = value[1:-1]
                     args[key] = value
             except ValueError:
-                raise ValueError(
-                    "Could not parse arguments. Ensure they are in key=value format."
-                )
+                raise ValueError("Could not parse arguments. Ensure they are in key=value format.")
         return args

@@ -387,9 +387,7 @@ WHEN TO USE INDIVIDUAL OPERATIONS:
             categories[tool.category].append(tool)
         return categories
 
-    def get_tool_descriptions_text(
-        self, format_type: ToolFormat = ToolFormat.FULL
-    ) -> str:
+    def get_tool_descriptions_text(self, format_type: ToolFormat = ToolFormat.FULL) -> str:
         """Generate tool descriptions text for prompt inclusion."""
         if format_type == ToolFormat.COMPACT:
             return self._generate_compact_format()

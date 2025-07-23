@@ -171,9 +171,7 @@ async def run_react_loop(
             while retry_count <= MAX_RETRIES:
                 try:
                     # Run the agent to get the next step
-                    result = await asyncio.wait_for(
-                        agent.run(current_context), timeout=DEFAULT_TIMEOUT
-                    )
+                    result = await asyncio.wait_for(agent.run(current_context), timeout=DEFAULT_TIMEOUT)
                     break  # Success - exit retry loop
 
                 except asyncio.TimeoutError as e:
@@ -203,13 +201,9 @@ async def run_react_loop(
             else:
                 # All retries failed - handle error
                 error_msg = (
-                    str(last_error)
-                    if str(last_error)
-                    else f"{type(last_error).__name__}: No error message"
+                    str(last_error) if str(last_error) else f"{type(last_error).__name__}: No error message"
                 )
-                error_details = (
-                    f"Exception type: {type(last_error).__name__}, Message: {error_msg}"
-                )
+                error_details = f"Exception type: {type(last_error).__name__}, Message: {error_msg}"
                 if retry_count > MAX_RETRIES:
                     error_details += f" (failed after {MAX_RETRIES + 1} attempts)"
 
@@ -241,9 +235,7 @@ async def run_react_loop(
                     tool_prompt = f"Call the {tool_name} tool with these exact parameters: {kwargs}"
 
                     # Run the agent to execute the tool
-                    tool_result = await asyncio.wait_for(
-                        agent.run(tool_prompt), timeout=DEFAULT_TIMEOUT
-                    )
+                    tool_result = await asyncio.wait_for(agent.run(tool_prompt), timeout=DEFAULT_TIMEOUT)
 
                     # Extract the actual tool response from the agent result
                     observation = "Tool execution completed"
@@ -264,15 +256,11 @@ async def run_react_loop(
 
                                         # Store the actual MCP tool response data using Simple Agent pattern
                                         if isinstance(tool_content, list):
-                                            tool_response_data = {
-                                                "documents": tool_content
-                                            }
+                                            tool_response_data = {"documents": tool_content}
                                         elif isinstance(tool_content, dict):
                                             tool_response_data = tool_content
                                         else:
-                                            tool_response_data = {
-                                                "content": tool_content
-                                            }
+                                            tool_response_data = {"content": tool_content}
 
                                         observation = str(tool_response_data)
                                         break
@@ -322,11 +310,7 @@ async def run_react_loop(
         if not history:  # Only add error if no history exists yet
             history.append({"step": 1, "error": str(e)})
 
-    final_thought = (
-        history[-1].get("thought", "No final thought.")
-        if history
-        else "No steps completed."
-    )
+    final_thought = history[-1].get("thought", "No final thought.") if history else "No steps completed."
     console.print(
         Panel(
             f"ReAct loop finished.\n[bold]Final Thought:[/bold] {final_thought}",
@@ -364,9 +348,7 @@ async def main():
 
         server_env = prepare_mcp_server_environment()
 
-        mcp_server = MCPServerStdio(
-            command=MCP_SERVER_CMD[0], args=MCP_SERVER_CMD[1:], env=server_env
-        )
+        mcp_server = MCPServerStdio(command=MCP_SERVER_CMD[0], args=MCP_SERVER_CMD[1:], env=server_env)
         # Create agent directly (no caching needed for E2E tests)
         llm = await load_llm_config()
         agent = Agent(
@@ -445,9 +427,7 @@ async def main():
                 output_type=ReActStep,
             )
             async with mcp_server:
-                history, _ = await run_react_loop(
-                    agent, mcp_server, args.query, args.max_steps
-                )
+                history, _ = await run_react_loop(agent, mcp_server, args.query, args.max_steps)
 
             # Display summary
             print("\nExecution Summary:")
@@ -468,9 +448,7 @@ async def main():
             if history:
                 final_step = history[-1]
                 if final_step["action"] is None:
-                    execution_summary = (
-                        f"Successfully completed task in {len(history)} steps"
-                    )
+                    execution_summary = f"Successfully completed task in {len(history)} steps"
                 else:
                     execution_summary = f"Execution incomplete after {len(history)} steps (max steps reached)"
 
@@ -540,12 +518,11 @@ async def main():
     else:
         # No query provided, show help
         import argparse
+
         parser = argparse.ArgumentParser(description="ReAct Agent")
         parser.print_help()
         print("\nExample usage:")
-        print(
-            '  python src/agents/react_agent/main.py --query "Create a document called My Story"'
-        )
+        print('  python src/agents/react_agent/main.py --query "Create a document called My Story"')
         print("  python src/agents/react_agent/main.py --interactive")
 
 

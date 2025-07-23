@@ -121,9 +121,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
     @register_batchable_operation("create_chapter")
     @log_mcp_call
     @auto_snapshot("create_chapter")
-    def create_chapter(
-        document_name: str, chapter_name: str, initial_content: str = ""
-    ) -> OperationStatus:
+    def create_chapter(document_name: str, chapter_name: str, initial_content: str = "") -> OperationStatus:
         r"""Create a new chapter file within an existing document directory.
 
         .. note::
@@ -203,9 +201,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
 
         doc_path = _get_document_path(document_name)
         if not doc_path.is_dir():
-            return OperationStatus(
-                success=False, message=f"Document '{document_name}' not found."
-            )
+            return OperationStatus(success=False, message=f"Document '{document_name}' not found.")
 
         if not _is_valid_chapter_filename(chapter_name):
             return OperationStatus(
@@ -285,9 +281,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
             }
             ```
         """
-        if not _is_valid_chapter_filename(
-            chapter_name
-        ):  # Check early to avoid issues with non-MD files
+        if not _is_valid_chapter_filename(chapter_name):  # Check early to avoid issues with non-MD files
             return OperationStatus(
                 success=False,
                 message=f"Invalid target '{chapter_name}'. Not a valid chapter Markdown file name.",
@@ -397,14 +391,10 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
         """
         doc_path = _get_document_path(document_name)
         if not doc_path.is_dir():
-            return OperationStatus(
-                success=False, message=f"Document '{document_name}' not found."
-            )
+            return OperationStatus(success=False, message=f"Document '{document_name}' not found.")
 
         if not _is_valid_chapter_filename(chapter_name):
-            return OperationStatus(
-                success=False, message=f"Invalid chapter name '{chapter_name}'."
-            )
+            return OperationStatus(success=False, message=f"Invalid chapter name '{chapter_name}'.")
 
         chapter_path = _get_chapter_path(document_name, chapter_name)
 
@@ -418,9 +408,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
             chapter_path.write_text(new_content, encoding="utf-8")
 
             # Generate diff for details
-            diff_info = _generate_content_diff(
-                original_content, new_content, chapter_name
-            )
+            diff_info = _generate_content_diff(original_content, new_content, chapter_name)
 
             return OperationStatus(
                 success=True,
@@ -434,9 +422,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
             )
 
 
-def read_chapter_content(
-    document_name: str, chapter_name: str
-) -> ChapterContent | None:
+def read_chapter_content(document_name: str, chapter_name: str) -> ChapterContent | None:
     r"""Retrieve the complete content and metadata of a specific chapter within a document.
 
     This tool reads a chapter file (.md) from a document directory and returns both
@@ -500,9 +486,7 @@ def read_chapter_content(
     return _read_chapter_content_details(document_name, chapter_file_path)
 
 
-def _read_chapter_content_details(
-    document_name: str, chapter_file_path: Path
-) -> ChapterContent | None:
+def _read_chapter_content_details(document_name: str, chapter_file_path: Path) -> ChapterContent | None:
     """Read the content and metadata of a chapter from its file path."""
     if not chapter_file_path.is_file():
         return None
@@ -517,9 +501,7 @@ def _read_chapter_content_details(
             content=content,
             word_count=word_count,
             paragraph_count=len(paragraphs),
-            last_modified=datetime.datetime.fromtimestamp(
-                stat.st_mtime, tz=datetime.timezone.utc
-            ),
+            last_modified=datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc),
         )
     except Exception as e:
         from ..logger_config import ErrorCategory
@@ -563,12 +545,8 @@ def _generate_content_diff(
         )
     )
 
-    added_lines = sum(
-        1 for line in diff_lines if line.startswith("+") and not line.startswith("+++")
-    )
-    removed_lines = sum(
-        1 for line in diff_lines if line.startswith("-") and not line.startswith("---")
-    )
+    added_lines = sum(1 for line in diff_lines if line.startswith("+") and not line.startswith("+++"))
+    removed_lines = sum(1 for line in diff_lines if line.startswith("-") and not line.startswith("---"))
 
     diff_text = "\n".join(diff_lines)
     summary = f"Modified content: +{added_lines} lines, -{removed_lines} lines"

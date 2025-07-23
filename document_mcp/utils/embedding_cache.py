@@ -26,9 +26,7 @@ class EmbeddingCache:
         """Initialize cache with specific embedding model version."""
         self.model_version = model_version
 
-    def get_chapter_embeddings(
-        self, document_name: str, chapter_name: str
-    ) -> dict[int, np.ndarray]:
+    def get_chapter_embeddings(self, document_name: str, chapter_name: str) -> dict[int, np.ndarray]:
         """Get all cached embeddings for a chapter if cache is valid.
 
         Args:
@@ -44,9 +42,7 @@ class EmbeddingCache:
             if not self._is_cache_valid(document_name, chapter_name):
                 return {}
 
-            chapter_embeddings_path = _get_chapter_embeddings_path(
-                document_name, chapter_name
-            )
+            chapter_embeddings_path = _get_chapter_embeddings_path(document_name, chapter_name)
             manifest_path = chapter_embeddings_path / "manifest.json"
 
             if not manifest_path.exists():
@@ -59,18 +55,13 @@ class EmbeddingCache:
             manifest = ChapterEmbeddingManifest.model_validate(manifest_data)
 
             # Check model version compatibility
-            if not all(
-                entry.model_version == self.model_version
-                for entry in manifest.cache_entries
-            ):
+            if not all(entry.model_version == self.model_version for entry in manifest.cache_entries):
                 return {}
 
             # Load embeddings
             embeddings = {}
             for entry in manifest.cache_entries:
-                embedding_file = (
-                    chapter_embeddings_path / f"paragraph_{entry.paragraph_index}.npy"
-                )
+                embedding_file = chapter_embeddings_path / f"paragraph_{entry.paragraph_index}.npy"
                 if embedding_file.exists():
                     try:
                         embedding = np.load(str(embedding_file))
@@ -117,17 +108,13 @@ class EmbeddingCache:
             paragraph_contents: Dict mapping paragraph index to content (for hashing)
         """
         try:
-            chapter_embeddings_path = _get_chapter_embeddings_path(
-                document_name, chapter_name
-            )
+            chapter_embeddings_path = _get_chapter_embeddings_path(document_name, chapter_name)
             chapter_embeddings_path.mkdir(parents=True, exist_ok=True)
 
             # Get source file modification time
             chapter_path = _get_chapter_path(document_name, chapter_name)
             if chapter_path.exists():
-                file_modified_time = datetime.datetime.fromtimestamp(
-                    chapter_path.stat().st_mtime
-                )
+                file_modified_time = datetime.datetime.fromtimestamp(chapter_path.stat().st_mtime)
             else:
                 file_modified_time = datetime.datetime.now()
 
@@ -139,9 +126,7 @@ class EmbeddingCache:
                 content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
 
                 # Save embedding to binary file (np.save adds .npy extension automatically)
-                embedding_file = (
-                    chapter_embeddings_path / f"paragraph_{paragraph_index}"
-                )
+                embedding_file = chapter_embeddings_path / f"paragraph_{paragraph_index}"
                 np.save(str(embedding_file), embedding)
 
                 # Create cache entry
@@ -187,9 +172,7 @@ class EmbeddingCache:
             True if cache is valid and newer than source file
         """
         try:
-            chapter_embeddings_path = _get_chapter_embeddings_path(
-                document_name, chapter_name
-            )
+            chapter_embeddings_path = _get_chapter_embeddings_path(document_name, chapter_name)
             manifest_path = chapter_embeddings_path / "manifest.json"
 
             if not manifest_path.exists():
@@ -231,9 +214,7 @@ class EmbeddingCache:
             chapter_name: Name of the chapter file
         """
         try:
-            chapter_embeddings_path = _get_chapter_embeddings_path(
-                document_name, chapter_name
-            )
+            chapter_embeddings_path = _get_chapter_embeddings_path(document_name, chapter_name)
 
             if chapter_embeddings_path.exists():
                 # Remove all files in the chapter embedding directory
