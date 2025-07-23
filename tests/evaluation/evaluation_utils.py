@@ -201,6 +201,7 @@ class PerformanceTracker:
     """Context manager for tracking performance metrics during test execution."""
 
     def __init__(self):
+        """Initialize the test runner."""
         self.start_time: float | None = None
         self.end_time: float | None = None
         self.tool_calls: list[ToolCallMetrics] = []

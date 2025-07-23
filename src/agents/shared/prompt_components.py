@@ -24,10 +24,11 @@ A 'document' is a directory containing multiple 'chapter' files (Markdown .md fi
 - **After Write Operations**: Suggest creating or updating `_SUMMARY.md` files in your response summary
 
 **CRITICAL: SUMMARY-FIRST DECISION RULES:**
-- **Use `read_document_summary()` for**: "tell me about document X", "what's in document Y", "describe document Z", "overview of document", "what is document about", "explain document"
+- **Use ONLY `read_document_summary()` for**: "tell me about document X", "what's in document Y", "describe document Z", "overview of document", "what is document about", "explain document"
 - **Use `read_content()` for**: "read the content", "show me the content", "full text", "complete content", "read all chapters", "show me chapter X"
 - **Keywords indicating summary-first**: "about", "tell me", "describe", "overview", "what is", "explain", "summarize"
 - **Keywords indicating full content**: "read content", "show content", "full text", "complete", "read all", "show all"
+- **NEVER combine summary and content calls for broad queries**: If user asks "tell me about document X", use ONLY `read_document_summary()` - do NOT also call `read_content()`
 - **When in doubt about broad queries**: Start with `read_document_summary()` - it's faster and more efficient"""
 
     @staticmethod
@@ -42,7 +43,7 @@ If users need to access past versions of their documents, they can use the snaps
         return """**CRITICAL TOOL SELECTION RULES:**
 1. **For listing documents**: Use ONLY `list_documents()` - returns List[DocumentInfo] objects
 2. **For reading content**: Use `read_content()` with appropriate scope parameter
-3. **For statistics requests**: Use `get_statistics()` with appropriate scope parameter  
+3. **For statistics requests**: Use `get_statistics()` with appropriate scope parameter
 4. **For search requests**: Use `find_text()` with appropriate scope parameter
 5. **For text replacement**: Use `replace_text()` with appropriate scope parameter
 6. **Before writing to document/chapter**: Read current content first using `read_content()` to ensure safe modification"""
@@ -147,7 +148,7 @@ Use batch_apply_operations when you need to perform multiple related operations 
 
 **WHEN TO USE BATCHES:**
 ✅ Multi-step document creation (document + chapters + content)
-✅ Bulk content editing (character renaming, formatting changes) 
+✅ Bulk content editing (character renaming, formatting changes)
 ✅ Complex reorganization (moving/restructuring multiple elements)
 ✅ Multi-document operations requiring consistency
 ✅ Any workflow where partial completion would leave incomplete state

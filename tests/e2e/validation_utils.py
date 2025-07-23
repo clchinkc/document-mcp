@@ -42,10 +42,10 @@ class DocumentSystemValidator:
 
     def document_exists(self, doc_name: str) -> bool:
         """Check if a document exists without raising an assertion error.
-        
+
         Args:
             doc_name: Name of the document to check
-            
+
         Returns:
             True if the document exists, False otherwise
         """
@@ -94,11 +94,11 @@ class DocumentSystemValidator:
 
     def chapter_exists(self, doc_name: str, chapter_name: str) -> bool:
         """Check if a chapter file exists without raising an assertion error.
-        
+
         Args:
             doc_name: Name of the document containing the chapter
             chapter_name: Name of the chapter file (e.g., '01-intro.md')
-            
+
         Returns:
             True if the chapter exists, False otherwise
         """

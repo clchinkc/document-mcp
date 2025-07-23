@@ -1,18 +1,12 @@
 """Integration tests for unified tools in the Document MCP tool server."""
 
-from pathlib import Path
-
 import pytest
 
-from document_mcp.mcp_client import delete_document
 from document_mcp.mcp_client import find_similar_text
 from document_mcp.mcp_client import find_text
 from document_mcp.mcp_client import get_statistics
 from document_mcp.mcp_client import read_content
 from document_mcp.mcp_client import replace_text
-from tests.shared.fixtures import document_factory
-
-
 
 
 class TestUnifiedReadContent:

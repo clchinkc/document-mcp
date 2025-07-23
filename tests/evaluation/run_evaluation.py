@@ -27,7 +27,7 @@ async def run_single_scenario(runner: AgentTestRunner, scenario: dict, agent_typ
     """Run a single test scenario for a given agent type."""
     try:
         query = scenario["query"]
-        expected_operations = scenario.get("expected_operations", [])
+        scenario.get("expected_operations", [])
 
         # Since we're using real LLM evaluation only, use the unified run_agent_test method
         metrics = await runner.run_agent_test(agent_type, query)

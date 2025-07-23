@@ -1,4 +1,4 @@
-"""Paragraph Management Tools
+"""Paragraph Management Tools.
 
 This module contains MCP tools for precise paragraph-level operations within chapters:
 - replace_paragraph: Replace specific paragraph content

@@ -6,11 +6,9 @@ to validate that agents properly populate the details field with MCP tool result
 
 import json
 import uuid
-from pathlib import Path
 
 import pytest
 from pydantic_ai.mcp import MCPServerStdio
-from tests.shared.fixtures import document_factory
 
 
 @pytest.fixture
@@ -20,8 +18,6 @@ async def mcp_server():
         command="python3", args=["-m", "document_mcp.doc_tool_server", "stdio"]
     )
     yield server
-
-
 
 
 class TestAgentMCPIntegration:

@@ -12,6 +12,7 @@ class BatchOperationRegistry:
     """Simple registry for batchable operations."""
 
     def __init__(self):
+        """Initialize the operation registry."""
         self._operations: dict[str, str] = {}  # operation_type -> tool_function_name
 
     def register_operation(self, operation_type: str, tool_function_name: str):

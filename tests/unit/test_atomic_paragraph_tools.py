@@ -4,10 +4,6 @@ This module tests the atomic paragraph manipulation tools that were added
 to replace the non-atomic modify_paragraph_content function.
 """
 
-from pathlib import Path
-
-import pytest
-
 from document_mcp.mcp_client import append_paragraph_to_chapter
 from document_mcp.mcp_client import delete_paragraph
 from document_mcp.mcp_client import insert_paragraph_after
@@ -15,9 +11,6 @@ from document_mcp.mcp_client import insert_paragraph_before
 from document_mcp.mcp_client import move_paragraph_before
 from document_mcp.mcp_client import move_paragraph_to_end
 from document_mcp.mcp_client import replace_paragraph
-from tests.shared.fixtures import document_factory
-
-
 
 
 class TestReplaceParagraph:

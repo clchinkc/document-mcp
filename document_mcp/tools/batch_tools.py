@@ -27,7 +27,7 @@ def register_batch_tools(mcp_server):
         snapshot_before: bool = False,
         continue_on_error: bool = False,
     ) -> dict[str, Any]:
-        """Execute multiple operations as a batch with sequential execution.
+        r"""Execute multiple operations as a batch with sequential execution.
 
         This tool enables atomic execution of multiple document operations with
         automatic rollback on failure through snapshots.

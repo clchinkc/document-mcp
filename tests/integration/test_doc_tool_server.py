@@ -24,8 +24,6 @@ from document_mcp.mcp_client import read_document_summary
 from document_mcp.mcp_client import replace_paragraph
 from document_mcp.mcp_client import replace_text
 from document_mcp.mcp_client import write_chapter_content
-from tests.shared.fixtures import document_factory
-
 
 # ===================================
 # Document-Level Tests

@@ -28,6 +28,7 @@ class PromptOptimizer:
     """Simplified prompt optimizer that focuses on test-based validation."""
 
     def __init__(self):
+        """Initialize the prompt optimizer."""
         self.project_root = Path(__file__).parent.parent
         self.backup_dir = Path("prompt_backups")
         self.backup_dir.mkdir(exist_ok=True)
@@ -101,7 +102,7 @@ class PromptOptimizer:
 def {templates[agent_type]}() -> str:
     """Generate the {agent_type} agent system prompt with dynamic tool descriptions."""
     tool_descriptions = get_tool_descriptions_for_agent("{agent_type}")
-    
+
     return f"""{improved_prompt}"""
 '''
 

@@ -102,9 +102,9 @@ class AgentResponseFormatter:
             execution_log=execution_log,
             error_message=error_message,
             metadata={
-                "steps_executed": len(steps_executed), 
+                "steps_executed": len(steps_executed),
                 "max_steps": max_steps,
-                "execution_steps": steps_executed  # ReAct steps moved to metadata
+                "execution_steps": steps_executed,  # ReAct steps moved to metadata
             },
         )
 

@@ -16,6 +16,7 @@ class BatchExecutor:
     """Simple executor for batch operations with basic conflict detection."""
 
     def __init__(self):
+        """Initialize the batch executor with operation categorization."""
         # Operations that modify content and cannot run on the same resource
         self._write_operations = {
             "create_document",

@@ -6,6 +6,7 @@ It provides validation, text processing, file operations, and other utility func
 
 import datetime
 import difflib
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -80,7 +81,6 @@ def _generate_content_diff(
 def _get_document_path(document_name: str) -> Path:
     """Return the full path for a given document name."""
     # Use environment variable if available for test isolation
-    import os
 
     # Check for custom document root directory (for testing or configuration)
     docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR")
@@ -324,5 +324,3 @@ def _resolve_operation_dependencies(
         for op in ready:
             remaining.remove(op)
     return resolved
-
-

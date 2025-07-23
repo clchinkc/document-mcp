@@ -531,7 +531,7 @@ def validate_scenario_quality_expectations(scenario: dict) -> bool:
     for criterion, expected_score in expectations.items():
         if criterion not in valid_criteria:
             return False
-        if not isinstance(expected_score, (int, float)) or not (
+        if not isinstance(expected_score, int | float) or not (
             0.0 <= expected_score <= 1.0
         ):
             return False

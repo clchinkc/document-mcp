@@ -7,10 +7,10 @@ the cache integration works correctly in real scenarios.
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import numpy as np
-import pytest
 
 from document_mcp.tools.content_tools import _perform_semantic_search
 from document_mcp.utils.embedding_cache import EmbeddingCache
@@ -37,7 +37,7 @@ class TestEmbeddingCacheIntegration:
             # Setup document structure
             doc_path = Path(temp_dir) / self.test_document
             doc_path.mkdir()
-            
+
             # Mock document path to return our temp directory
             mock_doc_path.return_value = doc_path
 
@@ -51,7 +51,7 @@ class TestEmbeddingCacheIntegration:
             test_paragraphs = [
                 "First paragraph about machine learning",
                 "Second paragraph about deep learning",
-                "Third paragraph about neural networks"
+                "Third paragraph about neural networks",
             ]
             mock_split.return_value = test_paragraphs
 
@@ -82,7 +82,7 @@ class TestEmbeddingCacheIntegration:
             assert len(results) >= 1  # At least first paragraph meets threshold
             assert results[0].paragraph_index == 0
             assert "machine learning" in results[0].content
-            
+
             # Verify API was called with query + paragraphs
             mock_genai.embed_content.assert_called_once()
             call_args = mock_genai.embed_content.call_args[1]
@@ -91,12 +91,12 @@ class TestEmbeddingCacheIntegration:
             # Verify cache directory was created
             cache_dir = doc_path / ".embeddings" / self.test_chapter
             assert cache_dir.exists()
-            
+
             # Verify embedding files were created
             for i in range(3):
                 embedding_file = cache_dir / f"paragraph_{i}.npy"
                 assert embedding_file.exists()
-            
+
             # Verify manifest was created
             manifest_file = cache_dir / "manifest.json"
             assert manifest_file.exists()
@@ -111,14 +111,14 @@ class TestEmbeddingCacheIntegration:
     ):
         """Test semantic search when cache is valid (subsequent runs)."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Setup document structure  
+            # Setup document structure
             doc_path = Path(temp_dir) / self.test_document
             doc_path.mkdir()
-            
+
             # Create actual chapter file (needed for cache validation)
             chapter_path = doc_path / self.test_chapter
             chapter_path.write_text("Sample content for testing")
-            
+
             # Mock document path to return our temp directory
             mock_doc_path.return_value = doc_path
 
@@ -131,7 +131,7 @@ class TestEmbeddingCacheIntegration:
             # Mock paragraphs
             test_paragraphs = [
                 "First paragraph about machine learning",
-                "Second paragraph about deep learning"
+                "Second paragraph about deep learning",
             ]
             mock_split.return_value = test_paragraphs
 
@@ -141,19 +141,18 @@ class TestEmbeddingCacheIntegration:
             # Pre-populate cache with embeddings that will have high similarity to query
             cache = EmbeddingCache("models/text-embedding-004")
             test_embeddings = {
-                0: np.array([1.0, 0.0, 0.0]),  # Perfect match with query [1.0, 0.0, 0.0]
-                1: np.array([0.9, 0.1, 0.0])   # High similarity with query
+                0: np.array(
+                    [1.0, 0.0, 0.0]
+                ),  # Perfect match with query [1.0, 0.0, 0.0]
+                1: np.array([0.9, 0.1, 0.0]),  # High similarity with query
             }
             test_contents = {
                 0: "First paragraph about machine learning",
-                1: "Second paragraph about deep learning"
+                1: "Second paragraph about deep learning",
             }
-            
+
             cache.store_chapter_embeddings(
-                self.test_document,
-                self.test_chapter,
-                test_embeddings,
-                test_contents
+                self.test_document, self.test_chapter, test_embeddings, test_contents
             )
 
             # Mock only query embedding (paragraphs should be cached)
@@ -175,14 +174,16 @@ class TestEmbeddingCacheIntegration:
 
             # Verify results (should get results from cached embeddings)
             assert len(results) >= 1  # At least first paragraph should match
-            assert results[0].paragraph_index == 0  # Best match should be first paragraph
+            assert (
+                results[0].paragraph_index == 0
+            )  # Best match should be first paragraph
 
             # Verify API was called only for query (not paragraphs)
             mock_genai.embed_content.assert_called_once()
             call_args = mock_genai.embed_content.call_args[1]
             assert len(call_args["content"]) == 1  # Only query, no paragraphs
 
-    @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})  
+    @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
     @patch("document_mcp.tools.content_tools.genai")
     @patch("document_mcp.tools.content_tools._get_document_path")
     @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
@@ -193,11 +194,11 @@ class TestEmbeddingCacheIntegration:
         """Test that cache is invalidated when content changes."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup document structure
-            doc_path = Path(temp_dir) / self.test_document  
+            doc_path = Path(temp_dir) / self.test_document
             doc_path.mkdir()
             chapter_path = doc_path / self.test_chapter
             chapter_path.write_text("Original content")
-            
+
             # Mock document path to return our temp directory
             mock_doc_path.return_value = doc_path
 
@@ -218,12 +219,9 @@ class TestEmbeddingCacheIntegration:
             cache = EmbeddingCache("models/text-embedding-004")
             old_embeddings = {0: np.array([0.9, 0.1, 0.0])}
             old_contents = {0: "Original paragraph"}
-            
+
             cache.store_chapter_embeddings(
-                self.test_document,
-                self.test_chapter, 
-                old_embeddings,
-                old_contents
+                self.test_document, self.test_chapter, old_embeddings, old_contents
             )
 
             # Verify cache exists
@@ -232,6 +230,7 @@ class TestEmbeddingCacheIntegration:
 
             # Modify source file to make it newer than cache
             import time
+
             time.sleep(0.2)  # Ensure newer timestamp (increased for reliability)
             chapter_path.write_text("Modified content")
 
@@ -244,10 +243,10 @@ class TestEmbeddingCacheIntegration:
             }
 
             # Execute search
-            results = _perform_semantic_search(
+            _perform_semantic_search(
                 document_name=self.test_document,
                 query_text="test query",
-                scope="document", 
+                scope="document",
                 chapter_name=None,
                 similarity_threshold=0.5,
                 max_results=10,
@@ -275,17 +274,13 @@ class TestEmbeddingCacheIntegration:
             chapter_path.write_text("Test content")
 
             cache1.store_chapter_embeddings(
-                self.test_document,
-                self.test_chapter,
-                test_embeddings,
-                test_contents
+                self.test_document, self.test_chapter, test_embeddings, test_contents
             )
 
             # Create second cache instance and verify it can load embeddings
             cache2 = EmbeddingCache("models/text-embedding-004")
             loaded_embeddings = cache2.get_chapter_embeddings(
-                self.test_document,
-                self.test_chapter
+                self.test_document, self.test_chapter
             )
 
             assert len(loaded_embeddings) == 1
@@ -307,19 +302,15 @@ class TestEmbeddingCacheIntegration:
             cache_v1 = EmbeddingCache("models/text-embedding-003")
             embeddings_v1 = {0: np.array([1.0, 0.0, 0.0])}
             contents = {0: "Test content"}
-            
+
             cache_v1.store_chapter_embeddings(
-                self.test_document,
-                self.test_chapter,
-                embeddings_v1,
-                contents
+                self.test_document, self.test_chapter, embeddings_v1, contents
             )
 
             # Try to load with different model version
             cache_v2 = EmbeddingCache("models/text-embedding-004")
             loaded_embeddings = cache_v2.get_chapter_embeddings(
-                self.test_document,
-                self.test_chapter
+                self.test_document, self.test_chapter
             )
 
             # Should return empty dict (different model version)

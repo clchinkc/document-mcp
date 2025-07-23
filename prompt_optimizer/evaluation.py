@@ -64,6 +64,7 @@ class PerformanceEvaluator:
     """Clean evaluator using real agent performance benchmarks with simple LLM assessment."""
 
     def __init__(self, project_root: Path, enable_llm_evaluation: bool = True):
+        """Initialize the performance evaluator."""
         self.project_root = project_root
         self.enable_llm_evaluation = enable_llm_evaluation
 
@@ -492,7 +493,7 @@ class PerformanceEvaluator:
         # Add feedback summary
         if feedback_entries:
             feedback_parts.append("Sample feedback:")
-            for i, feedback in enumerate(feedback_entries[:3]):  # Show first 3
+            for _i, feedback in enumerate(feedback_entries[:3]):  # Show first 3
                 feedback_parts.append(
                     f"  - {feedback[:100]}{'...' if len(feedback) > 100 else ''}"
                 )

@@ -14,6 +14,7 @@ MCP_SERVER_CMD = ["python3", "-m", "document_mcp.doc_tool_server", "stdio"]
 
 # Timeout configuration - use shorter timeouts in test environments
 import os
+
 if "PYTEST_CURRENT_TEST" in os.environ or "DOCUMENT_ROOT_DIR" in os.environ:
     # Test environment: shorter timeouts to prevent hanging
     DEFAULT_TIMEOUT = 30.0
@@ -102,31 +103,31 @@ def get_settings() -> AgentSettings:
 
 def prepare_mcp_server_environment() -> dict[str, str]:
     """Prepare environment variables for MCP server subprocess.
-    
+
     This ensures that API keys from .env file are properly passed to the
     MCP server subprocess, which runs in a separate process.
-    
+
     Returns:
         dict: Environment variables for MCP server subprocess
     """
     import os
-    
+
     # Load settings to get API keys from .env file
     settings = get_settings()
-    
+
     # Start with current environment
     server_env = {**os.environ}
-    
+
     # Add API keys from settings if available
     if settings.gemini_api_key:
         server_env["GEMINI_API_KEY"] = settings.gemini_api_key
     if settings.openai_api_key:
         server_env["OPENAI_API_KEY"] = settings.openai_api_key
-    
+
     # Add test mode flag if DOCUMENT_ROOT_DIR is set (for test environments)
     if "DOCUMENT_ROOT_DIR" in os.environ:
         server_env["PYTEST_CURRENT_TEST"] = "1"
-    
+
     return server_env
 
 

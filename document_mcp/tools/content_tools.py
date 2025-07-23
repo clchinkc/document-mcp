@@ -6,7 +6,6 @@ scopes (document, chapter, paragraph) with a consistent interface.
 
 import os
 import time
-from typing import Any
 
 import google.generativeai as genai
 import numpy as np
@@ -1153,7 +1152,7 @@ def _perform_semantic_search(
                     content = chapter_file.read_text(encoding="utf-8")
                     paragraphs = _split_into_paragraphs(content)
                     chapter_paragraphs = []
-                    
+
                     for i, paragraph in enumerate(paragraphs):
                         if paragraph.strip():  # Skip empty paragraphs
                             paragraph_data = {
@@ -1164,13 +1163,16 @@ def _perform_semantic_search(
                             }
                             chapter_paragraphs.append(paragraph_data)
                             all_paragraphs_data.append(paragraph_data)
-                    
+
                     if chapter_paragraphs:
                         chapters_data[chapter_file.name] = {
                             "paragraphs": chapter_paragraphs,
-                            "content": {p["paragraph_index"]: p["content"] for p in chapter_paragraphs}
+                            "content": {
+                                p["paragraph_index"]: p["content"]
+                                for p in chapter_paragraphs
+                            },
                         }
-                        
+
                 except Exception:
                     continue
 
@@ -1184,7 +1186,7 @@ def _perform_semantic_search(
                 content = chapter_path.read_text(encoding="utf-8")
                 paragraphs = _split_into_paragraphs(content)
                 chapter_paragraphs = []
-                
+
                 for i, paragraph in enumerate(paragraphs):
                     if paragraph.strip():  # Skip empty paragraphs
                         paragraph_data = {
@@ -1195,13 +1197,16 @@ def _perform_semantic_search(
                         }
                         chapter_paragraphs.append(paragraph_data)
                         all_paragraphs_data.append(paragraph_data)
-                
+
                 if chapter_paragraphs:
                     chapters_data[chapter_name] = {
                         "paragraphs": chapter_paragraphs,
-                        "content": {p["paragraph_index"]: p["content"] for p in chapter_paragraphs}
+                        "content": {
+                            p["paragraph_index"]: p["content"]
+                            for p in chapter_paragraphs
+                        },
                     }
-                    
+
             except Exception:
                 return []
 
@@ -1215,26 +1220,30 @@ def _perform_semantic_search(
 
         for chapter_name, chapter_data in chapters_data.items():
             # Try to load cached embeddings for this chapter
-            cached_embeddings = cache.get_chapter_embeddings(document_name, chapter_name)
-            
+            cached_embeddings = cache.get_chapter_embeddings(
+                document_name, chapter_name
+            )
+
             chapter_needs_caching = {}
             for paragraph_data in chapter_data["paragraphs"]:
                 paragraph_index = paragraph_data["paragraph_index"]
-                
+
                 if paragraph_index in cached_embeddings:
                     # Use cached embedding
-                    all_paragraph_embeddings[(chapter_name, paragraph_index)] = cached_embeddings[paragraph_index]
+                    all_paragraph_embeddings[(chapter_name, paragraph_index)] = (
+                        cached_embeddings[paragraph_index]
+                    )
                 else:
                     # Need to embed this paragraph
                     paragraphs_to_embed.append(paragraph_data)
                     chapter_needs_caching[paragraph_index] = paragraph_data["content"]
-            
+
             if chapter_needs_caching:
                 chapters_to_cache[chapter_name] = chapter_needs_caching
 
         # Prepare content for embedding (query + uncached paragraphs)
         texts_to_embed = [query_text] + [p["content"] for p in paragraphs_to_embed]
-        
+
         # Get embeddings from Gemini (only for uncached content)
         if len(texts_to_embed) > 1:  # If there are paragraphs to embed
             response = genai.embed_content(
@@ -1242,25 +1251,25 @@ def _perform_semantic_search(
                 content=texts_to_embed,
                 task_type="retrieval_document",
             )
-            
+
             embeddings = response["embedding"]
             query_embedding = np.array(embeddings[0])
             new_paragraph_embeddings = [np.array(emb) for emb in embeddings[1:]]
-            
+
             # Store new embeddings and prepare for caching
             for i, paragraph_data in enumerate(paragraphs_to_embed):
                 chapter_name = paragraph_data["chapter_name"]
                 paragraph_index = paragraph_data["paragraph_index"]
                 embedding = new_paragraph_embeddings[i]
-                
+
                 # Add to our working set
                 all_paragraph_embeddings[(chapter_name, paragraph_index)] = embedding
-                
+
                 # Prepare for caching
                 if chapter_name not in chapters_to_cache:
                     chapters_to_cache[chapter_name] = {}
                 chapters_to_cache[chapter_name][paragraph_index] = embedding
-                
+
         else:
             # Only need query embedding
             response = genai.embed_content(
@@ -1272,16 +1281,22 @@ def _perform_semantic_search(
 
         # Cache new embeddings by chapter
         for chapter_name, embeddings_to_cache in chapters_to_cache.items():
-            if embeddings_to_cache and isinstance(list(embeddings_to_cache.values())[0], np.ndarray):
+            if embeddings_to_cache and isinstance(
+                list(embeddings_to_cache.values())[0], np.ndarray
+            ):
                 # Convert embeddings dict to the format expected by cache
-                paragraph_embeddings = {idx: emb for idx, emb in embeddings_to_cache.items() if isinstance(emb, np.ndarray)}
+                paragraph_embeddings = {
+                    idx: emb
+                    for idx, emb in embeddings_to_cache.items()
+                    if isinstance(emb, np.ndarray)
+                }
                 paragraph_contents = chapters_data[chapter_name]["content"]
-                
+
                 cache.store_chapter_embeddings(
-                    document_name, 
-                    chapter_name, 
+                    document_name,
+                    chapter_name,
                     paragraph_embeddings,
-                    paragraph_contents
+                    paragraph_contents,
                 )
 
         # Calculate cosine similarities
@@ -1289,10 +1304,12 @@ def _perform_semantic_search(
         for i, paragraph_data in enumerate(all_paragraphs_data):
             chapter_name = paragraph_data["chapter_name"]
             paragraph_index = paragraph_data["paragraph_index"]
-            
+
             if (chapter_name, paragraph_index) in all_paragraph_embeddings:
-                paragraph_embedding = all_paragraph_embeddings[(chapter_name, paragraph_index)]
-                
+                paragraph_embedding = all_paragraph_embeddings[
+                    (chapter_name, paragraph_index)
+                ]
+
                 # Cosine similarity using numpy
                 dot_product = np.dot(query_embedding, paragraph_embedding)
                 query_norm = np.linalg.norm(query_embedding)

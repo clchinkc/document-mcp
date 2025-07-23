@@ -1,4 +1,4 @@
-"""Document Management Tools
+"""Document Management Tools.
 
 This module contains MCP tools for managing document collections:
 - list_documents: List all available document collections

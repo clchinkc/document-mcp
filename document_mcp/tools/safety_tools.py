@@ -560,24 +560,24 @@ def get_modification_history(
     from ..helpers import _get_modification_history_path
     from ..models import ModificationHistory
 
-    history_path = _get_modification_history_path(document_name)
+    _get_modification_history_path(document_name)
 
     # Parse time window
     now = datetime.datetime.now()
     if time_window == "all":
-        cutoff_time = datetime.datetime.min
+        pass
     else:
         try:
             if time_window.endswith("h"):
                 hours = int(time_window[:-1])
-                cutoff_time = now - datetime.timedelta(hours=hours)
+                now - datetime.timedelta(hours=hours)
             elif time_window.endswith("d"):
                 days = int(time_window[:-1])
-                cutoff_time = now - datetime.timedelta(days=days)
+                now - datetime.timedelta(days=days)
             else:
-                cutoff_time = now - datetime.timedelta(hours=24)
+                now - datetime.timedelta(hours=24)
         except ValueError:
-            cutoff_time = now - datetime.timedelta(hours=24)
+            now - datetime.timedelta(hours=24)
 
     # For now, return a basic history structure
     # In production, this would read from actual modification logs

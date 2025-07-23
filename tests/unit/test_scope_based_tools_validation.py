@@ -99,7 +99,7 @@ class TestScopeBasedToolsDataValidation:
             document_name="Test Doc", search_text="!@#$%^&*()", scope="document"
         )
         # Should either return None, empty list (no matches), or handle gracefully
-        assert result is None or isinstance(result, (dict, list))
+        assert result is None or isinstance(result, dict | list)
 
     def test_scope_based_tools_parameter_validation_edge_cases(self):
         """Test parameter validation for complex edge cases."""

@@ -30,6 +30,7 @@ class TestLLMEvaluator:
     """Simple LLM evaluator for test environments only."""
 
     def __init__(self):
+        """Initialize the LLM evaluation layer."""
         self.client = None
         self.model = "gpt-4o-mini"  # Cost-effective for testing
         self.logger = logging.getLogger(__name__)
@@ -168,7 +169,7 @@ class EnhancedTestMetrics:
 
     @property
     def combined_score(self) -> float:
-        """Simple combined score: (speed_factor + quality_score) / 2"""
+        """Simple combined score: (speed_factor + quality_score) / 2."""
         if not self.llm_evaluation or not self.llm_evaluation.success:
             return 0.0
 

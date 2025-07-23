@@ -327,6 +327,7 @@ class MetricsCollectionContext:
     """Context manager for simplified metrics collection during agent execution."""
 
     def __init__(self, agent_type: str):
+        """Initialize the performance tracker."""
         self.agent_type = agent_type
         self.start_time = None
         self.agent_results = []

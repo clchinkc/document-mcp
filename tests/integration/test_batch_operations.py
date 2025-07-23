@@ -1,7 +1,5 @@
 """Integration tests for batch operations in the Document MCP tool server."""
 
-from pathlib import Path
-
 import pytest
 
 from document_mcp.mcp_client import batch_apply_operations
@@ -9,7 +7,6 @@ from document_mcp.mcp_client import delete_document
 from document_mcp.mcp_client import list_chapters
 from document_mcp.mcp_client import list_documents
 from document_mcp.mcp_client import read_content
-from tests.shared.fixtures import document_factory
 
 
 class TestBatchOperationsIntegration:

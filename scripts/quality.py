@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Document MCP Code Quality Manager
+"""Document MCP Code Quality Manager.
 
 A comprehensive script for managing code quality across the Document MCP project.
 Integrates formatting, linting, and type checking using uv and ruff.
@@ -18,6 +18,7 @@ class CodeQualityManager:
     """Manages code quality tools for the Document MCP project using uv and ruff."""
 
     def __init__(self, verbose: bool = False):
+        """Initialize the quality checker."""
         self.verbose = verbose
         self.root_dir = Path(__file__).parent.parent
         self.target_dirs = ["src/", "document_mcp/", "tests/", "scripts/"]

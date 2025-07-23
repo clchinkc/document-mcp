@@ -1,4 +1,4 @@
-"""Shared Error Handling Utilities for Agents
+"""Shared Error Handling Utilities for Agents.
 
 This module provides common classes for error classification and retry logic
 that can be used across different agent implementations.
@@ -78,6 +78,7 @@ class ErrorClassifier:
         ):
             # Use different retry settings for test environments
             import os
+
             if "PYTEST_CURRENT_TEST" in os.environ or "DOCUMENT_ROOT_DIR" in os.environ:
                 # Test environment: shorter retries to prevent timeout
                 return ErrorInfo(
@@ -128,6 +129,7 @@ class ErrorClassifier:
         ):
             # Use different retry settings for test environments
             import os
+
             if "PYTEST_CURRENT_TEST" in os.environ or "DOCUMENT_ROOT_DIR" in os.environ:
                 # Test environment: shorter retries to prevent timeout
                 return ErrorInfo(
@@ -214,10 +216,12 @@ class ErrorClassifier:
 
 
 class RetryManager:
-    """Manages retry logic with exponential backoff and jitter for function 
-    execution."""
+    """Manages retry logic with exponential backoff and jitter for function
+    execution.
+    """
 
     def __init__(self):
+        """Initialize the circuit breaker."""
         self.error_classifier = ErrorClassifier()
 
     async def execute_with_retry(self, func, *args, **kwargs):

@@ -5,16 +5,12 @@ from pathlib import Path
 import pytest
 
 from document_mcp.mcp_client import append_paragraph_to_chapter
-from document_mcp.mcp_client import delete_document
 from document_mcp.mcp_client import delete_paragraph
 from document_mcp.mcp_client import find_text
 from document_mcp.mcp_client import insert_paragraph_after
 from document_mcp.mcp_client import insert_paragraph_before
 from document_mcp.mcp_client import replace_paragraph
 from document_mcp.mcp_client import replace_text
-from tests.shared.fixtures import document_factory
-
-
 
 
 @pytest.fixture

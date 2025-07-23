@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tool Description Optimization Analysis
+"""Tool Description Optimization Analysis.
 
 This script analyzes the token reduction achieved by extracting hardcoded tool descriptions
 and using dynamic generation with different formats.

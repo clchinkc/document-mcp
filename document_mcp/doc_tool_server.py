@@ -15,6 +15,9 @@ from typing import Any
 from dotenv import load_dotenv
 from mcp.server import FastMCP
 
+# Import metrics functionality
+from .metrics_config import METRICS_ENABLED
+
 # Local imports for safe operation handling
 # Import models
 from .models import BatchApplyResult
@@ -33,10 +36,6 @@ from .models import ParagraphDetail
 from .models import SnapshotInfo
 from .models import SnapshotsList
 from .models import StatisticsReport
-from .utils.file_operations import DOCS_ROOT_PATH
-
-# Import metrics functionality
-from .metrics_config import METRICS_ENABLED
 
 # Import tool registration functions from modular architecture
 from .tools import register_batch_tools
@@ -45,6 +44,7 @@ from .tools import register_content_tools
 from .tools import register_document_tools
 from .tools import register_paragraph_tools
 from .tools import register_safety_tools
+from .utils.file_operations import DOCS_ROOT_PATH
 
 # --- Configuration ---
 # Each "document" will be a subdirectory within DOCS_ROOT_DIR.
@@ -156,6 +156,7 @@ __all__ = [
     # No internal batch helpers - use batch.registry.execute_batch_operation
 ]
 
+
 # --- Main Server Execution ---
 def main():
     """Run the main entry point for the server with argument parsing."""
@@ -203,7 +204,7 @@ def main():
         print(f"MCP server running with HTTP SSE transport on {args.host}:{args.port}")
         print(f"SSE endpoint: http://{args.host}:{args.port}/sse")
         print(f"Health endpoint: http://{args.host}:{args.port}/health")
-        if METRICS_AVAILABLE:
+        if METRICS_ENABLED:
             print(f"Metrics endpoint: http://{args.host}:{args.port}/metrics")
         # Update server settings before running
         mcp_server.settings.host = args.host

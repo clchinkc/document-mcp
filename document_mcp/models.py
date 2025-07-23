@@ -246,17 +246,17 @@ class SemanticSearchResponse(BaseModel):
 
 class EmbeddingCacheEntry(BaseModel):
     """Single paragraph embedding cache entry."""
-    
-    content_hash: str              # MD5 of paragraph content
-    paragraph_index: int           # Index within chapter
-    model_version: str             # "models/text-embedding-004"
+
+    content_hash: str  # MD5 of paragraph content
+    paragraph_index: int  # Index within chapter
+    model_version: str  # "models/text-embedding-004"
     created_at: datetime.datetime  # When embedding was generated
     file_modified_time: datetime.datetime  # Source file modification time
 
 
 class ChapterEmbeddingManifest(BaseModel):
     """Manifest for chapter embedding cache."""
-    
+
     chapter_name: str
     total_paragraphs: int
     cache_entries: list[EmbeddingCacheEntry]

@@ -1,4 +1,4 @@
-"""Chapter Management Tools
+"""Chapter Management Tools.
 
 This module contains MCP tools for managing chapter files within documents:
 - list_chapters: List all chapter files within a document

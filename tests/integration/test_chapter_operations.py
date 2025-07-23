@@ -2,18 +2,12 @@
 
 from pathlib import Path
 
-import pytest
-
 from document_mcp.mcp_client import create_chapter
 from document_mcp.mcp_client import delete_chapter
-from document_mcp.mcp_client import delete_document
 from document_mcp.mcp_client import get_statistics
 from document_mcp.mcp_client import list_chapters
 from document_mcp.mcp_client import read_content
 from document_mcp.mcp_client import write_chapter_content
-from tests.shared.fixtures import document_factory
-
-
 
 
 def test_create_and_list_chapter(document_factory):

@@ -13,13 +13,14 @@ from .doc_tool_server import mcp_server
 
 def _get_mcp_tool(tool_name: str):
     """Get a registered MCP tool function by name."""
-    if hasattr(mcp_server, "_tool_manager") and hasattr(
-        mcp_server._tool_manager, "_tools"
+    if (
+        hasattr(mcp_server, "_tool_manager")
+        and hasattr(mcp_server._tool_manager, "_tools")
+        and tool_name in mcp_server._tool_manager._tools
     ):
-        if tool_name in mcp_server._tool_manager._tools:
-            tool = mcp_server._tool_manager._tools[tool_name]
-            if hasattr(tool, "fn"):
-                return tool.fn
+        tool = mcp_server._tool_manager._tools[tool_name]
+        if hasattr(tool, "fn"):
+            return tool.fn
     raise RuntimeError(f"MCP tool '{tool_name}' not found or not properly registered")
 
 

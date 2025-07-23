@@ -55,6 +55,7 @@ async def run_agent_query(
         # Add API keys from .env file for E2E tests
         # This ensures the subprocess has access to API keys
         from src.agents.shared.config import get_settings
+
         settings = get_settings()
         if settings.gemini_api_key:
             env["GEMINI_API_KEY"] = settings.gemini_api_key
@@ -73,8 +74,7 @@ async def run_agent_query(
         # Use asyncio.wait_for with proper timeout handling
         try:
             stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=timeout
+                process.communicate(), timeout=timeout
             )
         except asyncio.TimeoutError:
             # Kill the process if it times out
@@ -105,7 +105,7 @@ async def run_agent_query(
                 if json_start_marker != -1:
                     # Find the actual JSON start after the marker
                     json_portion = output_str[
-                        json_start_marker + len(json_marker):
+                        json_start_marker + len(json_marker) :
                     ].strip()
                     json_start = json_portion.find("{")
                     if json_start != -1:
@@ -182,7 +182,7 @@ def validator(e2e_docs_dir):
 class TestSimpleAgentE2E:
     """Comprehensive E2E tests for Simple Agent.
 
-    Tests document lifecycle, semantic search, summary workflows, and content 
+    Tests document lifecycle, semantic search, summary workflows, and content
     operations.
     """
 
@@ -201,8 +201,7 @@ class TestSimpleAgentE2E:
 
         # 1. Create Document
         await run_agent_query(
-            "src.agents.simple_agent.main",
-            f"Create a document named '{doc_name}'"
+            "src.agents.simple_agent.main", f"Create a document named '{doc_name}'"
         )
 
         validator.assert_document_exists(doc_name)
@@ -212,7 +211,7 @@ class TestSimpleAgentE2E:
         await run_agent_query(
             "src.agents.simple_agent.main",
             f"In document '{doc_name}', create chapter '{chapter_name}' with "
-            f"content: {content}"
+            f"content: {content}",
         )
 
         validator.assert_chapter_exists(doc_name, chapter_name)
@@ -238,40 +237,40 @@ class TestSimpleAgentE2E:
         )
 
         assert summary_content in read_content, "Agent should read summary content"
-        assert (
-            content not in read_content
-        ), "Agent should not read full chapter content for broad queries"
+        assert content not in read_content, (
+            "Agent should not read full chapter content for broad queries"
+        )
 
         # 5. Test Direct Chapter Reading
         read_resp = await run_agent_query(
             "src.agents.simple_agent.main",
-            f"Read chapter '{chapter_name}' from document '{doc_name}'"
+            f"Read chapter '{chapter_name}' from document '{doc_name}'",
         )
 
         read_details = safe_get_response_content(read_resp, "details")
         if "read_content_response" in read_details:
             content_data = read_details["read_content_response"]
             if "content" in content_data:
-                assert (
-                    content in content_data["content"]
-                ), "Direct chapter read should contain chapter content"
+                assert content in content_data["content"], (
+                    "Direct chapter read should contain chapter content"
+                )
         elif "content" in read_details:
-            assert (
-                content in read_details["content"]
-            ), "Direct chapter read should contain chapter content"
+            assert content in read_details["content"], (
+                "Direct chapter read should contain chapter content"
+            )
 
     @pytest.mark.asyncio
     async def test_semantic_search_capabilities(
         self, e2e_docs_dir: Path, validator: DocumentSystemValidator
     ):
-        """Test comprehensive semantic search functionality with scoped and 
-        unscoped queries."""
+        """Test comprehensive semantic search functionality with scoped and
+        unscoped queries.
+        """
         doc_name = f"e2e_search_{uuid.uuid4().hex[:8]}"
 
         # Create knowledge base with diverse content
         await run_agent_query(
-            "src.agents.simple_agent.main",
-            f"Create a document named '{doc_name}'"
+            "src.agents.simple_agent.main", f"Create a document named '{doc_name}'"
         )
 
         # Add chapters with different topics
@@ -291,19 +290,19 @@ class TestSimpleAgentE2E:
         await run_agent_query(
             "src.agents.simple_agent.main",
             f"In document '{doc_name}', create chapter '01-ai.md' with "
-            f"content: {ai_content}"
+            f"content: {ai_content}",
         )
 
         await run_agent_query(
             "src.agents.simple_agent.main",
             f"In document '{doc_name}', create chapter '02-algorithms.md' with "
-            f"content: {algorithms_content}"
+            f"content: {algorithms_content}",
         )
 
         await run_agent_query(
             "src.agents.simple_agent.main",
             f"In document '{doc_name}', create chapter '03-data.md' with "
-            f"content: {data_content}"
+            f"content: {data_content}",
         )
 
         # Verify setup
@@ -315,34 +314,34 @@ class TestSimpleAgentE2E:
         # Test 1: Document-wide semantic search
         search_response = await run_agent_query(
             "src.agents.simple_agent.main",
-            f"In document '{doc_name}', find content similar to 'neural networks and AI technology'"
+            f"In document '{doc_name}', find content similar to 'neural networks and AI technology'",
         )
 
         search_details = safe_get_response_content(search_response, "details")
-        assert (
-            "find_similar_text" in search_details
-        ), f"Search should return find_similar_text. Got: {search_details}"
+        assert "find_similar_text" in search_details, (
+            f"Search should return find_similar_text. Got: {search_details}"
+        )
 
         search_data = search_details["find_similar_text"]
-        assert (
-            "results" in search_data
-        ), f"Search data should contain results. Got: {search_data}"
+        assert "results" in search_data, (
+            f"Search data should contain results. Got: {search_data}"
+        )
 
         results = search_data.get("results", [])
         assert len(results) > 0, f"Search should find results. Got: {search_data}"
 
         # Verify AI chapter is most relevant
         best_result = results[0] if results else {}
-        assert (
-            "01-ai.md" in str(best_result)
-        ), f"Best result should be from AI chapter. Got: {best_result}"
+        assert "01-ai.md" in str(best_result), (
+            f"Best result should be from AI chapter. Got: {best_result}"
+        )
         assert "similarity_score" in best_result, "Result should have similarity score"
         assert "content" in best_result, "Result should have content"
 
         # Test 2: Chapter-scoped semantic search
         scoped_search_response = await run_agent_query(
             "src.agents.simple_agent.main",
-            f"In document '{doc_name}', find content similar to 'sorting and searching' in chapter '02-algorithms.md'"
+            f"In document '{doc_name}', find content similar to 'sorting and searching' in chapter '02-algorithms.md'",
         )
 
         scoped_details = safe_get_response_content(scoped_search_response, "details")
@@ -355,11 +354,9 @@ class TestSimpleAgentE2E:
         if scoped_results:
             # All results should be from algorithms chapter
             for result in scoped_results:
-                assert (
-                    "02-algorithms.md" in str(result)
-                ), f"Scoped results should be from algorithms chapter. Got: {result}"
-
-
+                assert "02-algorithms.md" in str(result), (
+                    f"Scoped results should be from algorithms chapter. Got: {result}"
+                )
 
 
 @pytest.mark.e2e
@@ -379,7 +376,7 @@ class TestReactAgentE2E:
         # Test ReAct agent with reasoning task
         response = await run_agent_query(
             "src.agents.react_agent.main",
-            f"Create document '{doc_name}' and add a chapter explaining why this task requires reasoning"
+            f"Create document '{doc_name}' and add a chapter explaining why this task requires reasoning",
         )
 
         # Verify ReAct agent functionality
@@ -392,12 +389,11 @@ class TestReactAgentE2E:
         if "execution_log" in response:
             print("✅ ReAct agent execution log present")
 
-        assert (
-            response.get("error_message") is None
-        ), "ReAct agent should not have errors"
+        assert response.get("error_message") is None, (
+            "ReAct agent should not have errors"
+        )
 
         print("✅ ReAct agent reasoning workflow verified")
-
 
 
 @pytest.mark.e2e
@@ -418,7 +414,7 @@ class TestSafetyAndVersionControlE2E:
         response1 = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create document '{doc_name}'",
-            timeout=30  # Simple document creation
+            timeout=30,  # Simple document creation
         )
 
         validator.assert_document_exists(doc_name)
@@ -427,7 +423,7 @@ class TestSafetyAndVersionControlE2E:
         response2 = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '01-content.md' to document '{doc_name}' with content: Initial content for snapshot testing",
-            timeout=30  # Simple chapter addition
+            timeout=30,  # Simple chapter addition
         )
 
         validator.assert_chapter_exists(doc_name, "01-content.md")
@@ -436,19 +432,17 @@ class TestSafetyAndVersionControlE2E:
         snapshot_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create a snapshot of document '{doc_name}' with message 'Safety test snapshot'",
-            timeout=45  # Snapshots take ~14 seconds + E2E overhead
+            timeout=45,  # Snapshots take ~14 seconds + E2E overhead
         )
 
         # Verify safety workflow
-        assert (
-            response1.get("error_message") is None
-        ), "Document creation should succeed"
-        assert (
-            response2.get("error_message") is None
-        ), "Chapter creation should succeed"
-        assert (
-            snapshot_response.get("error_message") is None
-        ), "Snapshot creation should succeed"
+        assert response1.get("error_message") is None, (
+            "Document creation should succeed"
+        )
+        assert response2.get("error_message") is None, "Chapter creation should succeed"
+        assert snapshot_response.get("error_message") is None, (
+            "Snapshot creation should succeed"
+        )
 
         # Validate actual safety functionality (snapshot creation)
         snapshot_details = safe_get_response_content(snapshot_response, "details")
@@ -463,12 +457,12 @@ class TestSafetyAndVersionControlE2E:
             and "manage_snapshots" in snapshot_details
         ):
             snapshot_data = snapshot_details["manage_snapshots"]
-            assert (
-                snapshot_data.get("success") is True
-            ), "Snapshot creation should succeed"
-            assert (
-                "snapshot_id" in snapshot_data.get("details", {})
-            ), "Should have snapshot ID"
+            assert snapshot_data.get("success") is True, (
+                "Snapshot creation should succeed"
+            )
+            assert "snapshot_id" in snapshot_data.get("details", {}), (
+                "Should have snapshot ID"
+            )
 
         print("✅ Safety features workflow verified (actual snapshot creation)")
         print("   - Document and content creation")
@@ -497,21 +491,21 @@ class TestBatchOperationsE2E:
         create_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create document '{doc_name}'",
-            timeout=30  # Simple operation
+            timeout=30,  # Simple operation
         )
 
         # Step 2: Add first chapter
         chapter1_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '01-intro.md' to document '{doc_name}' with content: Introduction text",
-            timeout=30  # Simple operation
+            timeout=30,  # Simple operation
         )
 
         # Step 3: Add second chapter (demonstrates batch-like workflow)
         chapter2_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '02-main.md' to document '{doc_name}' with content: Main content text",
-            timeout=30  # Simple operation
+            timeout=30,  # Simple operation
         )
 
         # Verify batch workflow succeeded through file system state
@@ -521,21 +515,27 @@ class TestBatchOperationsE2E:
         validator.assert_chapter_count(doc_name, 2)
 
         # Verify content was actually created
-        validator.assert_chapter_content_contains(doc_name, "01-intro.md", "Introduction")
-        validator.assert_chapter_content_contains(doc_name, "02-main.md", "Main content")
+        validator.assert_chapter_content_contains(
+            doc_name, "01-intro.md", "Introduction"
+        )
+        validator.assert_chapter_content_contains(
+            doc_name, "02-main.md", "Main content"
+        )
 
         # Verify all operations succeeded
-        assert (
-            create_response.get("error_message") is None
-        ), "Document creation should succeed"
-        assert (
-            chapter1_response.get("error_message") is None
-        ), "First chapter creation should succeed"
-        assert (
-            chapter2_response.get("error_message") is None
-        ), "Second chapter creation should succeed"
+        assert create_response.get("error_message") is None, (
+            "Document creation should succeed"
+        )
+        assert chapter1_response.get("error_message") is None, (
+            "First chapter creation should succeed"
+        )
+        assert chapter2_response.get("error_message") is None, (
+            "Second chapter creation should succeed"
+        )
 
-        print("✅ Batch operations capability verified (Sequential multi-step workflow)")
+        print(
+            "✅ Batch operations capability verified (Sequential multi-step workflow)"
+        )
         print("   - Document creation")
         print("   - Multiple chapter creation with content")
         print("   - Coordinated sequential operation execution")
@@ -558,20 +558,19 @@ class TestIntegratedWorkflowE2E:
 
         # Step 1: Create knowledge base with structured content
         creation_response = await run_agent_query(
-            "src.agents.simple_agent.main",
-            f"Create document '{doc_name}'"
+            "src.agents.simple_agent.main", f"Create document '{doc_name}'"
         )
 
         await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '01-overview.md' to document '{doc_name}' with content: "
-            "This document provides project overview and architectural guidance."
+            "This document provides project overview and architectural guidance.",
         )
 
         await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '02-api.md' to document '{doc_name}' with content: "
-            "API documentation covers REST endpoints and authentication methods."
+            "API documentation covers REST endpoints and authentication methods.",
         )
 
         validator.assert_document_exists(doc_name)
@@ -581,38 +580,49 @@ class TestIntegratedWorkflowE2E:
         # Step 2: Use semantic search to analyze content
         analysis_response = await run_agent_query(
             "src.agents.simple_agent.main",
-            f"In document '{doc_name}', find content similar to 'API and authentication'"
+            f"In document '{doc_name}', find content similar to 'API and authentication'",
         )
 
         # Step 3: Create safety snapshot before improvements (using proper timeout)
         snapshot_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create snapshot of document '{doc_name}' with message 'Before adding setup documentation'",
-            timeout=45  # Snapshot operations take ~15 seconds + overhead
+            timeout=45,  # Snapshot operations take ~15 seconds + overhead
         )
 
         # Step 4: Add improvement based on analysis
         improvement_response = await run_agent_query(
             "src.agents.simple_agent.main",
-            f"Add chapter '03-setup.md' to document '{doc_name}' with setup and installation instructions"
+            f"Add chapter '03-setup.md' to document '{doc_name}' with setup and installation instructions",
         )
 
         # Verify integrated workflow
-        assert creation_response.get("error_message") is None, "Document creation should succeed"
-        assert analysis_response.get("error_message") is None, "Semantic search should succeed"
-        assert snapshot_response.get("error_message") is None, "Safety snapshot should succeed"
-        assert improvement_response.get("error_message") is None, "Content improvement should succeed"
+        assert creation_response.get("error_message") is None, (
+            "Document creation should succeed"
+        )
+        assert analysis_response.get("error_message") is None, (
+            "Semantic search should succeed"
+        )
+        assert snapshot_response.get("error_message") is None, (
+            "Safety snapshot should succeed"
+        )
+        assert improvement_response.get("error_message") is None, (
+            "Content improvement should succeed"
+        )
 
         # Validate semantic search functionality
         analysis_details = safe_get_response_content(analysis_response, "details")
-        assert "find_similar_text" in analysis_details or "semantic" in str(analysis_response).lower(), \
-            f"Should use semantic search. Got: {analysis_details}"
+        assert (
+            "find_similar_text" in analysis_details
+            or "semantic" in str(analysis_response).lower()
+        ), f"Should use semantic search. Got: {analysis_details}"
 
         # Validate safety features (actual snapshot creation)
         snapshot_details = safe_get_response_content(snapshot_response, "details")
-        assert ("manage_snapshots" in snapshot_details or
-                "snapshot" in str(snapshot_details).lower()), \
-            f"Should use snapshot management. Got: {snapshot_details}"
+        assert (
+            "manage_snapshots" in snapshot_details
+            or "snapshot" in str(snapshot_details).lower()
+        ), f"Should use snapshot management. Got: {snapshot_details}"
 
         # Validate final state
         validator.assert_chapter_exists(doc_name, "03-setup.md")
