@@ -6,7 +6,9 @@ structured markdown documents through systematic reasoning and tool execution.
 """
 
 import asyncio
+import os
 import sys
+from pathlib import Path
 from typing import Any
 
 from pydantic_ai import Agent
@@ -524,6 +526,7 @@ async def main():
 
             json_output = AgentResponseFormatter.format_react_agent_response(
                 summary=f"Error during execution: {e}",
+                mcp_tool_responses={},
                 steps_executed=[],
                 execution_log="",
                 max_steps=args.max_steps,
@@ -536,7 +539,9 @@ async def main():
 
     else:
         # No query provided, show help
-        action_parser.print_help()
+        import argparse
+        parser = argparse.ArgumentParser(description="ReAct Agent")
+        parser.print_help()
         print("\nExample usage:")
         print(
             '  python src/agents/react_agent/main.py --query "Create a document called My Story"'
