@@ -103,7 +103,7 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 - **🛡️ Built-in Safety Features**: Write-safety system, automatic micro-snapshots, and comprehensive version control prevent content loss.
 - **📁 Document Structure**: Organize content as directories with chapter files.
-- **🔧 23 MCP Tools**: Comprehensive document manipulation API organized in 6 functional categories with tools for atomic paragraph operations, content analysis, and more.
+- **🔧 24 MCP Tools**: Comprehensive document manipulation API organized in 6 functional categories with tools for atomic paragraph operations, content analysis, semantic search, and more.
 - **🤖 AI Agents**: 
     - **Simple Agent**: Stateless, single-turn execution for discrete operations.
     - **ReAct Agent**: Stateful, multi-turn agent for complex workflows.
@@ -153,12 +153,12 @@ Document MCP includes comprehensive safety features designed to prevent content 
 document-mcp/
 ├── document_mcp/           # Core MCP server package
 │   ├── doc_tool_server.py  # Main server with modular tool registrations
-│   ├── tools/              # Modular tool architecture (23 tools)
+│   ├── tools/              # Modular tool architecture (24 tools)
 │   │   ├── __init__.py     # Tool registration system
 │   │   ├── document_tools.py    # Document management (4 tools)
 │   │   ├── chapter_tools.py     # Chapter operations (5 tools)
 │   │   ├── paragraph_tools.py   # Paragraph editing (7 tools)
-│   │   ├── content_tools.py     # Unified content access (4 tools)
+│   │   ├── content_tools.py     # Unified content access (5 tools)
 │   │   ├── safety_tools.py      # Version control (3 tools)
 │   │   └── batch_tools.py       # Batch operations (1 tool)
 │   ├── logger_config.py    # Structured logging with OpenTelemetry
@@ -237,7 +237,7 @@ python3 -m prompt_optimizer all
 **Key Features:**
 - **Safe Optimization**: Conservative changes that preserve all existing functionality
 - **Performance-Based**: Uses real execution metrics to evaluate improvements
-- **Comprehensive Testing**: Validates changes against 255 tests (unit + integration + E2E)
+- **Comprehensive Testing**: Validates changes against 300 tests (unit + integration + E2E + evaluation + metrics)
 - **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
 - **Multi-Agent Support**: Works with Simple, ReAct, and Planner agents
 
@@ -478,7 +478,7 @@ python scripts/quality.py check --verbose
 - **Import Style**: Black-compatible with isort
 - **Type Hints**: Encouraged for public APIs
 - **Complexity**: Maximum cyclomatic complexity of 10
-- **Test Coverage**: Comprehensive unit and integration tests (82+ tests)
+- **Test Coverage**: Comprehensive 4-tier testing (300 tests with 100% pass rate)
 
 #### Recommended Workflow
 
@@ -498,14 +498,17 @@ The quality management system provides comprehensive automation for maintaining 
 
 #### Test Coverage
 
-The system provides enterprise-grade reliability with **255+ comprehensive tests** covering:
+The system provides enterprise-grade reliability with **300 comprehensive tests** covering:
 
 **Core Testing Areas:**
-- **Document Operations**: Full CRUD operations and management
-- **Agent Architecture**: Complete testing of both Simple and React agent implementations  
-- **MCP Protocol**: End-to-end server-client communication validation
-- **Multi-round Conversations**: Complex workflows with state management and error recovery
-- **Performance & Reliability**: Timeout handling, resource management, and cleanup verification
+- **Document Operations**: Full CRUD operations and management (131 unit tests)
+- **Agent Architecture**: Complete testing of both Simple and React agent implementations (153 integration tests)
+- **MCP Protocol**: End-to-end server-client communication validation (6 E2E tests)
+- **Performance Benchmarking**: Real API testing and prompt optimization (4 evaluation tests)
+- **Monitoring & Metrics**: OpenTelemetry and Prometheus integration (6 metrics tests)
+- **Quality Assurance**: Centralized fixtures and comprehensive cleanup validation
+
+**Test Results:** 100% success rate (300/300 tests passing) with execution time under 3.5 minutes
 
 The test suite spans unit, integration, and end-to-end categories, ensuring production-ready reliability with proper resource management and state isolation.
 

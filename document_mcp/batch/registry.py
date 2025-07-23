@@ -4,7 +4,6 @@ This module provides a simple registry that manages the mapping
 between operation types and their corresponding tool functions.
 """
 
-
 from .models import BatchOperation
 from .models import OperationResult
 

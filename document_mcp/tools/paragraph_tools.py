@@ -10,7 +10,6 @@ This module contains MCP tools for precise paragraph-level operations within cha
 - move_paragraph_to_end: Move paragraph to end of chapter
 """
 
-
 from mcp.server import FastMCP
 
 from ..batch import register_batchable_operation
@@ -444,7 +443,6 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
                 success=False, message=f"Error appending paragraph: {e}"
             )
 
-
     @mcp_server.tool()
     @register_batchable_operation("move_paragraph_before")
     @log_mcp_call
@@ -482,7 +480,9 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             paragraph_to_move_index
         )
         if not is_valid_move_index:
-            return OperationStatus(success=False, message=f"Move index: {move_index_error}")
+            return OperationStatus(
+                success=False, message=f"Move index: {move_index_error}"
+            )
 
         is_valid_target_index, target_index_error = validate_paragraph_index(
             target_paragraph_index
@@ -536,6 +536,7 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
 
             # Generate diff for details
             from ..helpers import _generate_content_diff
+
             diff_info = _generate_content_diff(
                 original_full_content, final_content, chapter_name
             )
@@ -622,6 +623,7 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
 
             # Generate diff for details
             from ..helpers import _generate_content_diff
+
             diff_info = _generate_content_diff(
                 original_full_content, final_content, chapter_name
             )
@@ -657,7 +659,9 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             Optional[ParagraphDetail]: Paragraph content object if found, None if not found.
         """
         chapter_file_path = _get_chapter_path(document_name, chapter_name)
-        if not chapter_file_path.is_file() or not _is_valid_chapter_filename(chapter_name):
+        if not chapter_file_path.is_file() or not _is_valid_chapter_filename(
+            chapter_name
+        ):
             return None
 
         try:

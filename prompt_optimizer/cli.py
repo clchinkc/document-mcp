@@ -1,5 +1,4 @@
-"""Simple CLI interface for the prompt optimizer.
-"""
+"""Simple CLI interface for the prompt optimizer."""
 
 import asyncio
 import sys
@@ -21,7 +20,7 @@ def print_help():
 
 def print_summary(results: dict, duration: float):
     """Print optimization summary."""
-    print(f"\n{'='*40}")
+    print(f"\n{'=' * 40}")
     print("📊 SUMMARY")
     print("=" * 40)
 
@@ -42,7 +41,7 @@ def print_summary(results: dict, duration: float):
 async def main():
     """Main CLI entry point."""
     # Parse arguments
-    if len(sys.argv) < 2 or sys.argv[1] in ['-h', '--help']:
+    if len(sys.argv) < 2 or sys.argv[1] in ["-h", "--help"]:
         print_help()
         return
 
@@ -72,12 +71,13 @@ async def main():
         except Exception as e:
             print(f"❌ Failed to optimize {agent}: {e}")
             from .evaluation import OptimizationResult
+
             results[agent] = OptimizationResult(
                 keep_improvement=False,
                 reason=f"Failed: {e}",
                 test_passed=False,
                 token_change=0,
-                test_count=0
+                test_count=0,
             )
 
     duration = time.time() - start_time

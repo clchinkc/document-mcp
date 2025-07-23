@@ -24,7 +24,7 @@ class TestSafetyFeatures:
         status_result = check_content_status(
             document_name="nonexistent_doc",
             chapter_name="test.md",
-            include_history=False
+            include_history=False,
         )
         # The MCP tool should return ContentFreshnessStatus when include_history=False
         assert isinstance(status_result, ContentFreshnessStatus)
@@ -38,8 +38,7 @@ class TestSafetyFeatures:
 
         # Test with non-existent document
         history = check_content_status(
-            document_name="nonexistent_doc",
-            include_history=True
+            document_name="nonexistent_doc", include_history=True
         )
         # The MCP tool should return ModificationHistory when include_history=True and no chapter specified
         assert isinstance(history, ModificationHistory)
@@ -52,10 +51,7 @@ class TestSafetyFeatures:
         from document_mcp.models import SnapshotsList
 
         # Test with non-existent document
-        snapshots = manage_snapshots(
-            document_name="nonexistent_doc",
-            action="list"
-        )
+        snapshots = manage_snapshots(document_name="nonexistent_doc", action="list")
         assert isinstance(snapshots, SnapshotsList)
         assert snapshots.total_snapshots == 0
         assert snapshots.document_name == "nonexistent_doc"
@@ -108,7 +104,9 @@ class TestSafetyFeatures:
         assert write_result.success
 
         # Create snapshot
-        snapshot_result = manage_snapshots("snapshot_test", "create", message="Initial version")
+        snapshot_result = manage_snapshots(
+            "snapshot_test", "create", message="Initial version"
+        )
         assert snapshot_result.success
 
         # List snapshots
@@ -127,7 +125,7 @@ class TestSafetyFeatures:
                 document_name="snapshot_test",
                 source_type="snapshot",
                 source_id=snapshots.snapshots[0].snapshot_id,
-                target_type="current"
+                target_type="current",
             )
             assert diff_result.success
             assert diff_result.details["total_changes"] >= 1
@@ -135,7 +133,9 @@ class TestSafetyFeatures:
         # Test restore
         if snapshots.total_snapshots > 0:
             restore_result = manage_snapshots(
-                "snapshot_test", "restore", snapshot_id=snapshots.snapshots[0].snapshot_id
+                "snapshot_test",
+                "restore",
+                snapshot_id=snapshots.snapshots[0].snapshot_id,
             )
             assert restore_result.success
             assert restore_result.details["files_restored"] >= 1
@@ -151,7 +151,9 @@ class TestSafetyFeatures:
         assert "not found" in result.message
 
         # Test with invalid snapshot
-        result = manage_snapshots("invalid_doc", "restore", snapshot_id="invalid_snapshot")
+        result = manage_snapshots(
+            "invalid_doc", "restore", snapshot_id="invalid_snapshot"
+        )
         assert not result.success
         assert "not found" in result.message
 
@@ -160,7 +162,7 @@ class TestSafetyFeatures:
             document_name="invalid_doc",
             source_type="snapshot",
             source_id="invalid_snapshot",
-            target_type="current"
+            target_type="current",
         )
         assert not result.success
         assert "not found" in result.message
@@ -299,7 +301,9 @@ class TestSafetyFeatures:
         assert hasattr(write_result, "snapshot_created")
 
         # Step 3: Create named snapshot (like a commit)
-        snapshot_result = manage_snapshots(workflow_doc, "create", message="Initial story version")
+        snapshot_result = manage_snapshots(
+            workflow_doc, "create", message="Initial story version"
+        )
         assert snapshot_result.success
 
         # Step 4: Verify snapshot was created
@@ -315,7 +319,9 @@ class TestSafetyFeatures:
         assert replace_result.success
 
         # Step 6: Check content freshness (simulating external changes check)
-        freshness = check_content_status(workflow_doc, "chapter1.md", include_history=False)
+        freshness = check_content_status(
+            workflow_doc, "chapter1.md", include_history=False
+        )
         assert freshness.is_fresh  # Should be fresh since we just modified it
 
         # Step 7: Compare versions using diff
@@ -323,14 +329,16 @@ class TestSafetyFeatures:
             document_name=workflow_doc,
             source_type="snapshot",
             source_id=initial_snapshot.snapshot_id,
-            target_type="current"
+            target_type="current",
         )
         assert diff_result.success
         assert diff_result.details["total_changes"] >= 1
         assert diff_result.details["files_changed"] == ["chapter1.md"]
 
         # Step 8: Create another snapshot after changes
-        snapshot_result2 = manage_snapshots(workflow_doc, "create", message="Updated plot elements")
+        snapshot_result2 = manage_snapshots(
+            workflow_doc, "create", message="Updated plot elements"
+        )
         assert snapshot_result2.success
 
         # Step 9: Verify we now have multiple snapshots
@@ -345,14 +353,16 @@ class TestSafetyFeatures:
                 source_type="snapshot",
                 source_id=initial_snapshot.snapshot_id,
                 target_type="snapshot",
-                target_id=second_snapshot.snapshot_id
+                target_id=second_snapshot.snapshot_id,
             )
             assert diff_between_snapshots.success
             # Total changes may be 0 if snapshots are identical
             assert diff_between_snapshots.details["total_changes"] >= 0
 
         # Step 11: Restore to initial version (like git checkout)
-        restore_result = manage_snapshots(workflow_doc, "restore", snapshot_id=initial_snapshot.snapshot_id)
+        restore_result = manage_snapshots(
+            workflow_doc, "restore", snapshot_id=initial_snapshot.snapshot_id
+        )
         assert restore_result.success
         assert restore_result.details["files_restored"] >= 1
 
@@ -361,7 +371,7 @@ class TestSafetyFeatures:
             document_name=workflow_doc,
             source_type="snapshot",
             source_id=initial_snapshot.snapshot_id,
-            target_type="current"
+            target_type="current",
         )
         assert post_restore_diff.success
         # After restoration, there should be no differences with the initial snapshot
@@ -389,7 +399,9 @@ class TestSafetyFeatures:
         # Test 1: Content freshness with various scenarios
 
         # Non-existent document
-        freshness = check_content_status("nonexistent", "test.md", include_history=False)
+        freshness = check_content_status(
+            "nonexistent", "test.md", include_history=False
+        )
         assert isinstance(freshness, ContentFreshnessStatus)
         assert not freshness.is_fresh
         assert freshness.safety_status == "conflict"
@@ -460,7 +472,9 @@ class TestSafetyFeatures:
         assert write_result.success
 
         # Step 3: Writer creates a checkpoint snapshot
-        checkpoint = manage_snapshots(doc_name, "create", message="First draft complete")
+        checkpoint = manage_snapshots(
+            doc_name, "create", message="First draft complete"
+        )
         assert checkpoint.success
 
         # Step 4: Writer makes significant changes
@@ -476,7 +490,9 @@ class TestSafetyFeatures:
         assert snapshots.total_snapshots >= 1
 
         # Step 6: Restore to the checkpoint (safety in action)
-        restore_result = manage_snapshots(doc_name, "restore", snapshot_id=snapshots.snapshots[0].snapshot_id)
+        restore_result = manage_snapshots(
+            doc_name, "restore", snapshot_id=snapshots.snapshots[0].snapshot_id
+        )
         assert restore_result.success
         assert restore_result.details["files_restored"] >= 1
 

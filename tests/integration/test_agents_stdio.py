@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 from pydantic_ai.mcp import MCPServerStdio
+from tests.shared.fixtures import document_factory
 
 
 @pytest.fixture
@@ -21,19 +22,6 @@ async def mcp_server():
     yield server
 
 
-@pytest.fixture
-def document_factory(temp_docs_root: Path):
-    """A factory to create documents with chapters for testing."""
-
-    def _create_document(doc_name: str, chapters: dict[str, str] | None = None):
-        doc_path = temp_docs_root / doc_name
-        doc_path.mkdir(exist_ok=True)
-        if chapters:
-            for chapter_name, content in chapters.items():
-                (doc_path / chapter_name).write_text(content)
-        return doc_path
-
-    return _create_document
 
 
 class TestAgentMCPIntegration:

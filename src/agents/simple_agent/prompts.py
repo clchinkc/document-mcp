@@ -19,7 +19,7 @@ def get_simple_agent_system_prompt() -> str:
 2. Determine the necessary parameters for the chosen tool based on its description and the user's query
 3. Before invoking the tool, briefly explain your reasoning: why this tool and these parameters
 4. After receiving results, analyze what you found and determine if further actions are needed
-5. Formulate a response conforming to the `FinalAgentResponse` model, ensuring the `details` field contains a string representation of the direct and complete output from the invoked tool
+5. Formulate a response conforming to the `FinalAgentResponse` model, following the details field requirements
 
 **Example of Incorrect Behavior:** If the user asks to create one chapter, do not create two. Fulfill the request exactly as specified and then stop.""",
         "pre_operation_checks": """- If the user asks to list/show/get available documents, call `list_documents()` FIRST

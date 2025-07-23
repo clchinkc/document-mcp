@@ -12,7 +12,7 @@ import pytest
 
 from src.agents.react_agent.main import run_react_agent_with_metrics
 from src.agents.simple_agent.main import initialize_agent_and_mcp_server
-from src.agents.simple_agent.main import process_single_user_query_with_metrics
+from src.agents.simple_agent.main import process_single_user_query
 from tests.evaluation.llm_evaluation_layer import enhance_test_metrics
 
 
@@ -47,7 +47,7 @@ class TestNaturalIntegration:
                 (
                     response,
                     performance_metrics,
-                ) = await process_single_user_query_with_metrics(agent, query)
+                ) = await process_single_user_query(agent, query, collect_metrics=True)
 
                 # Standard performance metrics work as always
                 assert performance_metrics.execution_time > 0
@@ -147,7 +147,7 @@ class TestNaturalIntegration:
                 (
                     response,
                     performance_metrics,
-                ) = await process_single_user_query_with_metrics(agent, query)
+                ) = await process_single_user_query(agent, query, collect_metrics=True)
 
                 # Performance metrics still work
                 assert performance_metrics.execution_time > 0
@@ -200,7 +200,7 @@ class TestNaturalIntegration:
                 (
                     simple_response,
                     simple_metrics,
-                ) = await process_single_user_query_with_metrics(agent, query)
+                ) = await process_single_user_query(agent, query, collect_metrics=True)
 
                 simple_enhanced = await enhance_test_metrics(
                     simple_metrics,
@@ -260,8 +260,8 @@ async def demo_clean_architecture():
         agent, mcp_server = await initialize_agent_and_mcp_server()
 
         async with agent.run_mcp_servers():
-            response, metrics = await process_single_user_query_with_metrics(
-                agent, query
+            response, metrics = await process_single_user_query(
+                agent, query, collect_metrics=True
             )
 
         print("\n🤖 Agent Results (Core):")

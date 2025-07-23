@@ -35,13 +35,8 @@ from .models import SnapshotsList
 from .models import StatisticsReport
 from .utils.file_operations import DOCS_ROOT_PATH
 
-# Import metrics functionality for the metrics endpoint
-try:
-    from .metrics_config import METRICS_ENABLED
-
-    METRICS_AVAILABLE = True
-except ImportError:
-    METRICS_AVAILABLE = False
+# Import metrics functionality
+from .metrics_config import METRICS_ENABLED
 
 # Import tool registration functions from modular architecture
 from .tools import register_batch_tools
@@ -51,24 +46,18 @@ from .tools import register_document_tools
 from .tools import register_paragraph_tools
 from .tools import register_safety_tools
 
-# Note: This module only provides the MCP server itself.
-# For client access to MCP tools, use document_mcp.mcp_client instead.
-
-# Note: Tool functions are registered via register_*_tools functions and are accessible as MCP tools
-# The functions are not directly importable as they are defined inside the registration functions
-
-# No helper function imports needed - tools use them directly
-
 # --- Configuration ---
 # Each "document" will be a subdirectory within DOCS_ROOT_DIR.
 # Chapters will be .md files within their respective document subdirectory.
 # Default for production
 _DEFAULT_DOCS_ROOT = ".documents_storage"
 
+# Load environment variables from .env file
+load_dotenv()
+
 # Check if running under pytest. If so, allow override via .env for test isolation.
 # In production, this is not used and the path is fixed.
 if "PYTEST_CURRENT_TEST" in os.environ:
-    load_dotenv()
     DOCS_ROOT_DIR_NAME = os.environ.get("DOCUMENT_ROOT_DIR", _DEFAULT_DOCS_ROOT)
 else:
     DOCS_ROOT_DIR_NAME = _DEFAULT_DOCS_ROOT
@@ -167,16 +156,6 @@ __all__ = [
     # No internal batch helpers - use batch.registry.execute_batch_operation
 ]
 
-# --- Internal Helper Functions ---
-# These are used internally by the MCP tools and batch operations
-
-
-# Use execute_batch_operation from batch.registry - no duplicate implementation needed
-
-
-# Dependency resolution is handled by helpers.py - remove duplicate function
-
-
 # --- Main Server Execution ---
 def main():
     """Run the main entry point for the server with argument parsing."""
@@ -209,15 +188,10 @@ def main():
     print(f"Serving tools for root directory: {DOCS_ROOT_PATH.resolve()}")
 
     # Show metrics status
-    if METRICS_AVAILABLE:
-        try:
-            from .metrics_config import METRICS_ENABLED
-
-            status = "enabled" if METRICS_ENABLED else "disabled"
-            print(f"Metrics: {status}")
-        except ImportError:
-            print("Metrics: available but not configured")
-    else:
+    try:
+        status = "enabled" if METRICS_ENABLED else "disabled"
+        print(f"Metrics: {status}")
+    except (ImportError, NameError):
         print("Metrics: not available (install prometheus-client)")
 
     if args.transport == "stdio":

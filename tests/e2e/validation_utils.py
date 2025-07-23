@@ -40,6 +40,21 @@ class DocumentSystemValidator:
         )
         return doc_path
 
+    def document_exists(self, doc_name: str) -> bool:
+        """Check if a document exists without raising an assertion error.
+        
+        Args:
+            doc_name: Name of the document to check
+            
+        Returns:
+            True if the document exists, False otherwise
+        """
+        try:
+            doc_path = self.docs_root / doc_name
+            return doc_path.exists() and doc_path.is_dir()
+        except Exception:
+            return False
+
     def assert_document_not_exists(self, doc_name: str) -> None:
         """Assert that a document directory does not exist.
 
@@ -76,6 +91,25 @@ class DocumentSystemValidator:
             f"Chapter path '{chapter_path}' exists but is not a file"
         )
         return chapter_path
+
+    def chapter_exists(self, doc_name: str, chapter_name: str) -> bool:
+        """Check if a chapter file exists without raising an assertion error.
+        
+        Args:
+            doc_name: Name of the document containing the chapter
+            chapter_name: Name of the chapter file (e.g., '01-intro.md')
+            
+        Returns:
+            True if the chapter exists, False otherwise
+        """
+        try:
+            doc_path = self.docs_root / doc_name
+            if not doc_path.exists() or not doc_path.is_dir():
+                return False
+            chapter_path = doc_path / chapter_name
+            return chapter_path.exists() and chapter_path.is_file()
+        except Exception:
+            return False
 
     def assert_chapter_not_exists(self, doc_name: str, chapter_name: str) -> None:
         """Assert that a chapter file does not exist.

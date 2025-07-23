@@ -1,5 +1,4 @@
-"""Main entry point for the prompt optimizer package.
-"""
+"""Main entry point for the prompt optimizer package."""
 
 import asyncio
 

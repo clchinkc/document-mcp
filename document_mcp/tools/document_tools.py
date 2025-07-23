@@ -87,6 +87,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
         docs_info = []
         # Use runtime environment variable check for test compatibility
         import os
+
         docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR", str(DOCS_ROOT_PATH))
         root_path = Path(docs_root_name)
 

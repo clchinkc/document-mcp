@@ -50,7 +50,8 @@ User Query: "Create a document named 'Project Alpha' and add a chapter to it cal
 3. **Parameter Formatting**: Use proper string quoting and escaping in action calls.
 4. **Error Handling**: If a tool returns an error, analyze the error message and adjust your approach in the next thought.
 5. **Completion**: When the user's request is fully satisfied, set `action` to `null` to indicate completion.
-6. **Step-by-Step**: Break complex requests into logical, sequential steps.""",
+6. **Step-by-Step**: Break complex requests into logical, sequential steps.
+7. **Tool Calls Required**: For all user requests, you MUST call the appropriate MCP tools. Do not complete tasks without using tools when tools are available for the operation.""",
     }
 
     return build_agent_prompt("react", tool_descriptions, additional_sections)

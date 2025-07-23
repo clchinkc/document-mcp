@@ -191,9 +191,7 @@ def calculate_argument_size(args: tuple, kwargs: dict) -> int:
         return len(args_str.encode("utf-8")) + len(kwargs_str.encode("utf-8"))
 
 
-def record_tool_call_start(
-    tool_name: str, args: tuple, kwargs: dict
-) -> float | None:
+def record_tool_call_start(tool_name: str, args: tuple, kwargs: dict) -> float | None:
     """Record the start of a tool call and return start time for duration calculation."""
     if not is_metrics_enabled():
         return None
@@ -255,9 +253,7 @@ def record_tool_call_success(
         print(f"Warning: Failed to record tool call success metrics: {e}")
 
 
-def record_tool_call_error(
-    tool_name: str, start_time: float | None, error: Exception
-):
+def record_tool_call_error(tool_name: str, start_time: float | None, error: Exception):
     """Record a failed tool call."""
     if not is_metrics_enabled():
         return

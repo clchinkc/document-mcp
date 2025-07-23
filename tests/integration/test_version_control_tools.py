@@ -12,27 +12,9 @@ from document_mcp.mcp_client import check_content_status
 from document_mcp.mcp_client import delete_document
 from document_mcp.mcp_client import diff_content
 from document_mcp.mcp_client import manage_snapshots  # Version control tools
+from tests.shared.fixtures import document_factory
 
 
-@pytest.fixture
-def document_factory(temp_docs_root: Path):
-    """A factory to create documents with chapters for testing."""
-    created_docs = []
-
-    def _create_document(doc_name: str, chapters: dict[str, str] = None):
-        doc_path = temp_docs_root / doc_name
-        doc_path.mkdir(exist_ok=True)
-        created_docs.append(doc_name)
-        if chapters:
-            for chapter_name, content in chapters.items():
-                (doc_path / chapter_name).write_text(content)
-        return doc_path
-
-    try:
-        yield _create_document
-    finally:
-        for doc_name in created_docs:
-            delete_document(doc_name)
 
 
 class TestManageSnapshots:
@@ -278,4 +260,4 @@ class TestDiffContent:
 
         # Should handle gracefully when snapshot IDs are missing
         # Implementation may vary based on how it handles missing IDs
-        assert hasattr(result, 'success')
+        assert hasattr(result, "success")

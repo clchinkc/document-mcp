@@ -37,6 +37,7 @@ def auto_snapshot(operation_name: str):
 
                     # Import locally to avoid circular imports
                     from ..tools.safety_tools import _create_snapshot
+
                     _create_snapshot(document_name, message, auto_cleanup=True)
                 except Exception as e:
                     # Log warning but don't fail the operation
@@ -51,6 +52,7 @@ def auto_snapshot(operation_name: str):
             return func(*args, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -121,7 +123,7 @@ def check_file_freshness(func):
         result = func(*args, **original_kwargs)
 
         # Re-add safety info to result if needed for enhance_operation_result
-        if hasattr(result, '__dict__') or isinstance(result, dict):
+        if hasattr(result, "__dict__") or isinstance(result, dict):
             kwargs["_safety_info"] = safety_info
 
         return result
@@ -137,7 +139,7 @@ def enhance_operation_result(func):
         result = func(*args, **kwargs)
 
         # Enhance result with safety information if successful
-        if result and hasattr(result, 'success') and result.success:
+        if result and hasattr(result, "success") and result.success:
             safety_info = kwargs.get("_safety_info")
 
             # Add safety info to result
@@ -152,7 +154,7 @@ def enhance_operation_result(func):
 
             # Add warnings if safety info has them
             if safety_info and hasattr(safety_info, "recommendations"):
-                if not hasattr(result, 'warnings'):
+                if not hasattr(result, "warnings"):
                     result.warnings = []
                 if safety_info.safety_status == "warning":
                     result.warnings.append(
@@ -190,17 +192,23 @@ def _extract_operation_parameters(args, kwargs):
         force_write = kwargs["force_write"]
 
     # Handle positional arguments based on function signature
-    if len(args) == 5:  # write_chapter_content: (doc, chapter, content, last_known_modified, force_write)
+    if (
+        len(args) == 5
+    ):  # write_chapter_content: (doc, chapter, content, last_known_modified, force_write)
         if last_known_modified is None:
             last_known_modified = args[3]
         if not force_write:
             force_write = args[4] if args[4] is not None else False
-    elif len(args) == 6:  # replace_paragraph: (doc, chapter, idx, content, last_known_modified, force_write)
+    elif (
+        len(args) == 6
+    ):  # replace_paragraph: (doc, chapter, idx, content, last_known_modified, force_write)
         if last_known_modified is None:
             last_known_modified = args[4]
         if not force_write:
             force_write = args[5] if args[5] is not None else False
-    elif len(args) == 4:  # write_chapter_content without force_write: (doc, chapter, content, last_known_modified)
+    elif (
+        len(args) == 4
+    ):  # write_chapter_content without force_write: (doc, chapter, content, last_known_modified)
         if last_known_modified is None:
             last_known_modified = args[3]
 
@@ -214,8 +222,8 @@ def _parse_timestamp(timestamp_str: str | None) -> datetime.datetime | None:
 
     try:
         # Handle ISO format with Z suffix
-        if timestamp_str.endswith('Z'):
-            timestamp_str = timestamp_str[:-1] + '+00:00'
+        if timestamp_str.endswith("Z"):
+            timestamp_str = timestamp_str[:-1] + "+00:00"
 
         dt = datetime.datetime.fromisoformat(timestamp_str)
 

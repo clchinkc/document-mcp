@@ -121,8 +121,7 @@ class TestAutomaticSnapshotSystemIntegration:
                 snap
                 for snap in snapshots_after.snapshots
                 if snap.message
-                and "Auto-snapshot before write_chapter_content"
-                in snap.message
+                and "Auto-snapshot before write_chapter_content" in snap.message
             ]
 
             assert len(auto_snapshots) >= 1, (
@@ -131,9 +130,7 @@ class TestAutomaticSnapshotSystemIntegration:
 
             # Verify the snapshot message
             auto_snapshot = auto_snapshots[0]
-            assert (
-                "Auto-snapshot before write_chapter_content" in auto_snapshot.message
-            )
+            assert "Auto-snapshot before write_chapter_content" in auto_snapshot.message
 
         finally:
             delete_document(doc_name)

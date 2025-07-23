@@ -17,9 +17,7 @@ class OperationStatus(BaseModel):
 
     success: bool
     message: str
-    details: dict[str, Any] | None = (
-        None  # For extra info, e.g., created entity name
-    )
+    details: dict[str, Any] | None = None  # For extra info, e.g., created entity name
     # Safety fields (optional for backward compatibility)
     safety_info: Any | None = None
     snapshot_created: str | None = None
@@ -216,3 +214,50 @@ class SnapshotsList(BaseModel):
     snapshots: list[SnapshotInfo]
     total_snapshots: int
     total_size_bytes: int
+
+
+# === Semantic Search Models ===
+
+
+class SemanticSearchResult(BaseModel):
+    """Semantic search result with similarity scoring."""
+
+    document_name: str
+    chapter_name: str
+    paragraph_index: int  # Zero-indexed within chapter
+    content: str
+    similarity_score: float
+    context_snippet: str | None = None  # Surrounding text for context
+
+
+class SemanticSearchResponse(BaseModel):
+    """Response wrapper for semantic search operations."""
+
+    document_name: str
+    scope: str  # "document" or "chapter"
+    query_text: str
+    results: list[SemanticSearchResult]
+    total_results: int
+    execution_time_ms: float
+
+
+# === Embedding Cache Models ===
+
+
+class EmbeddingCacheEntry(BaseModel):
+    """Single paragraph embedding cache entry."""
+    
+    content_hash: str              # MD5 of paragraph content
+    paragraph_index: int           # Index within chapter
+    model_version: str             # "models/text-embedding-004"
+    created_at: datetime.datetime  # When embedding was generated
+    file_modified_time: datetime.datetime  # Source file modification time
+
+
+class ChapterEmbeddingManifest(BaseModel):
+    """Manifest for chapter embedding cache."""
+    
+    chapter_name: str
+    total_paragraphs: int
+    cache_entries: list[EmbeddingCacheEntry]
+    last_updated: datetime.datetime

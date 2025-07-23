@@ -256,6 +256,21 @@ class ToolDescriptionManager:
                 category="Scope-based Content Access",
                 planner_signature="get_statistics(document_name: str, scope: str = 'document', chapter_name: str = None)",
             ),
+            ToolDescription(
+                name="find_similar_text",
+                description="Semantic text search with scope-based targeting and similarity scoring. Use scope='document' to search entire document, scope='chapter' to search specific chapter. Returns contextually similar content based on meaning rather than exact matches.",
+                parameters={
+                    "document_name": "str",
+                    "query_text": "str",
+                    "scope": "str",
+                    "chapter_name": "Optional[str]",
+                    "similarity_threshold": "float",
+                    "max_results": "int",
+                },
+                example='find_similar_text(document_name="My Book", query_text="character development themes", scope="document", similarity_threshold=0.7)',
+                category="Scope-based Content Access",
+                planner_signature="find_similar_text(document_name: str, query_text: str, scope: str = 'document', chapter_name: str = None, similarity_threshold: float = 0.7, max_results: int = 10)",
+            ),
             # Version Control Tools (3 tools replacing 6)
             ToolDescription(
                 name="manage_snapshots",

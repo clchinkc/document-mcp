@@ -358,11 +358,11 @@ class TestBatchOperations:
         # In unit tests, the global registry starts empty because tools aren't imported
         # Let's test the registry functionality by manually registering operations
         registry = get_batch_registry()
-        
+
         # Register test operations
         registry.register_operation("create_document", "create_document")
         registry.register_operation("read_content", "read_content")
-        
+
         registered_ops = registry.get_batchable_operations()
 
         # These operations should now be in the registry
@@ -397,7 +397,9 @@ class TestBatchOperations:
         registry.register_operation("missing_function_op", "nonexistent_function")
 
         # Mock the global registry function as used within execute_batch_operation
-        mock_get_registry = mocker.patch("document_mcp.batch.global_registry.get_batch_registry")
+        mock_get_registry = mocker.patch(
+            "document_mcp.batch.global_registry.get_batch_registry"
+        )
         mock_get_registry.return_value = registry
 
         # Mock the mcp_client module to simulate missing function

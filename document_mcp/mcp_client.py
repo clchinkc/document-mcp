@@ -7,17 +7,18 @@ without the complexity of the internal server implementation.
 All functions in this module correspond directly to registered MCP tools.
 """
 
-
 # Import the MCP server to access registered tools
 from .doc_tool_server import mcp_server
 
 
 def _get_mcp_tool(tool_name: str):
     """Get a registered MCP tool function by name."""
-    if hasattr(mcp_server, '_tool_manager') and hasattr(mcp_server._tool_manager, '_tools'):
+    if hasattr(mcp_server, "_tool_manager") and hasattr(
+        mcp_server._tool_manager, "_tools"
+    ):
         if tool_name in mcp_server._tool_manager._tools:
             tool = mcp_server._tool_manager._tools[tool_name]
-            if hasattr(tool, 'fn'):
+            if hasattr(tool, "fn"):
                 return tool.fn
     raise RuntimeError(f"MCP tool '{tool_name}' not found or not properly registered")
 
@@ -49,8 +50,13 @@ def create_chapter(document_name: str, chapter_name: str, initial_content: str =
     return _get_mcp_tool("create_chapter")(document_name, chapter_name, initial_content)
 
 
-def write_chapter_content(document_name: str, chapter_name: str, new_content: str,
-                         last_known_modified: str | None = None, force_write: bool = False):
+def write_chapter_content(
+    document_name: str,
+    chapter_name: str,
+    new_content: str,
+    last_known_modified: str | None = None,
+    force_write: bool = False,
+):
     """Write/update the content of a chapter."""
     return _get_mcp_tool("write_chapter_content")(
         document_name, chapter_name, new_content, last_known_modified, force_write
@@ -70,91 +76,190 @@ def list_chapters(document_name: str):
 # Paragraph management tools
 def read_paragraph_content(document_name: str, chapter_name: str, paragraph_index: int):
     """Read the content of a specific paragraph."""
-    return _get_mcp_tool("read_paragraph_content")(document_name, chapter_name, paragraph_index)
+    return _get_mcp_tool("read_paragraph_content")(
+        document_name, chapter_name, paragraph_index
+    )
 
 
-def replace_paragraph(document_name: str, chapter_name: str, paragraph_index: int, new_content: str,
-                     last_known_modified: str | None = None, force_write: bool = False):
+def replace_paragraph(
+    document_name: str,
+    chapter_name: str,
+    paragraph_index: int,
+    new_content: str,
+    last_known_modified: str | None = None,
+    force_write: bool = False,
+):
     """Replace content of a specific paragraph."""
-    return _get_mcp_tool("replace_paragraph")(document_name, chapter_name, paragraph_index, new_content, last_known_modified, force_write)
+    return _get_mcp_tool("replace_paragraph")(
+        document_name,
+        chapter_name,
+        paragraph_index,
+        new_content,
+        last_known_modified,
+        force_write,
+    )
 
 
-def insert_paragraph_before(document_name: str, chapter_name: str, paragraph_index: int, new_content: str):
+def insert_paragraph_before(
+    document_name: str, chapter_name: str, paragraph_index: int, new_content: str
+):
     """Insert paragraph before specified index."""
-    return _get_mcp_tool("insert_paragraph_before")(document_name, chapter_name, paragraph_index, new_content)
+    return _get_mcp_tool("insert_paragraph_before")(
+        document_name, chapter_name, paragraph_index, new_content
+    )
 
 
-def insert_paragraph_after(document_name: str, chapter_name: str, paragraph_index: int, new_content: str):
+def insert_paragraph_after(
+    document_name: str, chapter_name: str, paragraph_index: int, new_content: str
+):
     """Insert paragraph after specified index."""
-    return _get_mcp_tool("insert_paragraph_after")(document_name, chapter_name, paragraph_index, new_content)
+    return _get_mcp_tool("insert_paragraph_after")(
+        document_name, chapter_name, paragraph_index, new_content
+    )
 
 
 def delete_paragraph(document_name: str, chapter_name: str, paragraph_index: int):
     """Delete a specific paragraph."""
-    return _get_mcp_tool("delete_paragraph")(document_name, chapter_name, paragraph_index)
+    return _get_mcp_tool("delete_paragraph")(
+        document_name, chapter_name, paragraph_index
+    )
 
 
-def append_paragraph_to_chapter(document_name: str, chapter_name: str, new_content: str):
+def append_paragraph_to_chapter(
+    document_name: str, chapter_name: str, new_content: str
+):
     """Add paragraph to end of chapter."""
-    return _get_mcp_tool("append_paragraph_to_chapter")(document_name, chapter_name, new_content)
+    return _get_mcp_tool("append_paragraph_to_chapter")(
+        document_name, chapter_name, new_content
+    )
 
 
-def move_paragraph_before(document_name: str, chapter_name: str, source_index: int, target_index: int):
+def move_paragraph_before(
+    document_name: str, chapter_name: str, source_index: int, target_index: int
+):
     """Move paragraph to before another paragraph."""
-    return _get_mcp_tool("move_paragraph_before")(document_name, chapter_name, source_index, target_index)
+    return _get_mcp_tool("move_paragraph_before")(
+        document_name, chapter_name, source_index, target_index
+    )
 
 
 def move_paragraph_to_end(document_name: str, chapter_name: str, paragraph_index: int):
     """Move paragraph to end of chapter."""
-    return _get_mcp_tool("move_paragraph_to_end")(document_name, chapter_name, paragraph_index)
+    return _get_mcp_tool("move_paragraph_to_end")(
+        document_name, chapter_name, paragraph_index
+    )
 
 
 # Unified content tools (scope-based)
-def read_content(document_name: str, scope: str = "document", chapter_name: str | None = None,
-                paragraph_index: int | None = None):
+def read_content(
+    document_name: str,
+    scope: str = "document",
+    chapter_name: str | None = None,
+    paragraph_index: int | None = None,
+):
     """Unified content reading with scope-based targeting."""
-    return _get_mcp_tool("read_content")(document_name, scope, chapter_name, paragraph_index)
+    return _get_mcp_tool("read_content")(
+        document_name, scope, chapter_name, paragraph_index
+    )
 
 
-def find_text(document_name: str, search_text: str, scope: str = "document",
-             chapter_name: str | None = None, case_sensitive: bool = False):
+def find_text(
+    document_name: str,
+    search_text: str,
+    scope: str = "document",
+    chapter_name: str | None = None,
+    case_sensitive: bool = False,
+):
     """Unified text search with scope-based targeting."""
-    return _get_mcp_tool("find_text")(document_name, search_text, scope, chapter_name, case_sensitive)
+    return _get_mcp_tool("find_text")(
+        document_name, search_text, scope, chapter_name, case_sensitive
+    )
 
 
-def replace_text(document_name: str, find_text: str, replace_text: str, scope: str = "document",
-                chapter_name: str | None = None):
+def replace_text(
+    document_name: str,
+    find_text: str,
+    replace_text: str,
+    scope: str = "document",
+    chapter_name: str | None = None,
+):
     """Unified text replacement with scope-based targeting."""
-    return _get_mcp_tool("replace_text")(document_name, find_text, replace_text, scope, chapter_name)
+    return _get_mcp_tool("replace_text")(
+        document_name, find_text, replace_text, scope, chapter_name
+    )
 
 
-def get_statistics(document_name: str, scope: str = "document", chapter_name: str | None = None):
+def get_statistics(
+    document_name: str, scope: str = "document", chapter_name: str | None = None
+):
     """Unified statistics collection with scope-based targeting."""
     return _get_mcp_tool("get_statistics")(document_name, scope, chapter_name)
 
 
+def find_similar_text(
+    document_name: str,
+    query_text: str,
+    scope: str = "document",
+    chapter_name: str | None = None,
+    similarity_threshold: float = 0.7,
+    max_results: int = 10,
+):
+    """Semantic text search with scope-based targeting and similarity scoring."""
+    return _get_mcp_tool("find_similar_text")(
+        document_name,
+        query_text,
+        scope,
+        chapter_name,
+        similarity_threshold,
+        max_results,
+    )
+
+
 # Safety and version control tools
-def manage_snapshots(document_name: str, action: str, snapshot_id: str | None = None,
-                    message: str | None = None, auto_cleanup: bool = True):
+def manage_snapshots(
+    document_name: str,
+    action: str,
+    snapshot_id: str | None = None,
+    message: str | None = None,
+    auto_cleanup: bool = True,
+):
     """Unified snapshot management tool."""
-    return _get_mcp_tool("manage_snapshots")(document_name, action, snapshot_id, message, auto_cleanup)
+    return _get_mcp_tool("manage_snapshots")(
+        document_name, action, snapshot_id, message, auto_cleanup
+    )
 
 
-def check_content_status(document_name: str, chapter_name: str | None = None,
-                        include_history: bool = False, time_window: str = "24h",
-                        last_known_modified: str | None = None):
+def check_content_status(
+    document_name: str,
+    chapter_name: str | None = None,
+    include_history: bool = False,
+    time_window: str = "24h",
+    last_known_modified: str | None = None,
+):
     """Unified content status and modification history checker."""
     return _get_mcp_tool("check_content_status")(
         document_name, chapter_name, include_history, time_window, last_known_modified
     )
 
 
-def diff_content(document_name: str, source_type: str = "snapshot", source_id: str | None = None,
-                target_type: str = "current", target_id: str | None = None,
-                output_format: str = "unified", chapter_name: str | None = None):
+def diff_content(
+    document_name: str,
+    source_type: str = "snapshot",
+    source_id: str | None = None,
+    target_type: str = "current",
+    target_id: str | None = None,
+    output_format: str = "unified",
+    chapter_name: str | None = None,
+):
     """Unified content comparison and diff generation tool."""
     return _get_mcp_tool("diff_content")(
-        document_name, source_type, source_id, target_type, target_id, output_format, chapter_name
+        document_name,
+        source_type,
+        source_id,
+        target_type,
+        target_id,
+        output_format,
+        chapter_name,
     )
 
 
@@ -202,6 +307,7 @@ __all__ = [
     "find_text",
     "replace_text",
     "get_statistics",
+    "find_similar_text",
     # Safety and version control
     "manage_snapshots",
     "check_content_status",

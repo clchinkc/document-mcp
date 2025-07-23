@@ -54,7 +54,11 @@ class CodeQualityManager:
 
         try:
             result = subprocess.run(
-                cmd, cwd=self.root_dir, capture_output=not self.verbose, text=True, env=env
+                cmd,
+                cwd=self.root_dir,
+                capture_output=not self.verbose,
+                text=True,
+                env=env,
             )
 
             if result.returncode == 0:

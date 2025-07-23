@@ -15,20 +15,9 @@ from document_mcp.mcp_client import insert_paragraph_before
 from document_mcp.mcp_client import move_paragraph_before
 from document_mcp.mcp_client import move_paragraph_to_end
 from document_mcp.mcp_client import replace_paragraph
+from tests.shared.fixtures import document_factory
 
 
-@pytest.fixture
-def document_factory(temp_docs_root: Path, clean_documents):
-    """A factory to create documents for testing with proper isolation."""
-
-    def _create_document(doc_name: str, chapters: dict[str, str] = None):
-        doc_path = temp_docs_root / doc_name
-        doc_path.mkdir(exist_ok=True)
-        if chapters:
-            for chapter_name, content in chapters.items():
-                (doc_path / chapter_name).write_text(content, encoding="utf-8")
-
-    return _create_document
 
 
 class TestReplaceParagraph:
