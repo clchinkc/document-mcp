@@ -24,7 +24,7 @@ class TestSafetyFeatures:
         status_result = check_content_status(
             document_name="nonexistent_doc",
             chapter_name="test.md",
-            include_history=False
+            include_history=False,
         )
         # The MCP tool should return ContentFreshnessStatus when include_history=False
         assert isinstance(status_result, ContentFreshnessStatus)
@@ -37,10 +37,7 @@ class TestSafetyFeatures:
         from document_mcp.models import ModificationHistory
 
         # Test with non-existent document
-        history = check_content_status(
-            document_name="nonexistent_doc",
-            include_history=True
-        )
+        history = check_content_status(document_name="nonexistent_doc", include_history=True)
         # The MCP tool should return ModificationHistory when include_history=True and no chapter specified
         assert isinstance(history, ModificationHistory)
         assert history.total_modifications == 0
@@ -52,10 +49,7 @@ class TestSafetyFeatures:
         from document_mcp.models import SnapshotsList
 
         # Test with non-existent document
-        snapshots = manage_snapshots(
-            document_name="nonexistent_doc",
-            action="list"
-        )
+        snapshots = manage_snapshots(document_name="nonexistent_doc", action="list")
         assert isinstance(snapshots, SnapshotsList)
         assert snapshots.total_snapshots == 0
         assert snapshots.document_name == "nonexistent_doc"
@@ -102,9 +96,7 @@ class TestSafetyFeatures:
         assert chapter_result.success
 
         # Write initial content
-        write_result = write_chapter_content(
-            "snapshot_test", "chapter1.md", "Initial content"
-        )
+        write_result = write_chapter_content("snapshot_test", "chapter1.md", "Initial content")
         assert write_result.success
 
         # Create snapshot
@@ -116,9 +108,7 @@ class TestSafetyFeatures:
         assert snapshots.total_snapshots >= 1
 
         # Make changes
-        replace_result = replace_paragraph(
-            "snapshot_test", "chapter1.md", 0, "Modified content"
-        )
+        replace_result = replace_paragraph("snapshot_test", "chapter1.md", 0, "Modified content")
         assert replace_result.success
 
         # Test diff
@@ -127,7 +117,7 @@ class TestSafetyFeatures:
                 document_name="snapshot_test",
                 source_type="snapshot",
                 source_id=snapshots.snapshots[0].snapshot_id,
-                target_type="current"
+                target_type="current",
             )
             assert diff_result.success
             assert diff_result.details["total_changes"] >= 1
@@ -135,7 +125,9 @@ class TestSafetyFeatures:
         # Test restore
         if snapshots.total_snapshots > 0:
             restore_result = manage_snapshots(
-                "snapshot_test", "restore", snapshot_id=snapshots.snapshots[0].snapshot_id
+                "snapshot_test",
+                "restore",
+                snapshot_id=snapshots.snapshots[0].snapshot_id,
             )
             assert restore_result.success
             assert restore_result.details["files_restored"] >= 1
@@ -160,7 +152,7 @@ class TestSafetyFeatures:
             document_name="invalid_doc",
             source_type="snapshot",
             source_id="invalid_snapshot",
-            target_type="current"
+            target_type="current",
         )
         assert not result.success
         assert "not found" in result.message
@@ -196,15 +188,11 @@ class TestSafetyFeatures:
             ),
             (
                 "replace_paragraph",
-                lambda: replace_paragraph(
-                    "api_consistency_test", "test.md", 0, "Updated first paragraph"
-                ),
+                lambda: replace_paragraph("api_consistency_test", "test.md", 0, "Updated first paragraph"),
             ),
             (
                 "insert_paragraph_before",
-                lambda: insert_paragraph_before(
-                    "api_consistency_test", "test.md", 0, "New first paragraph"
-                ),
+                lambda: insert_paragraph_before("api_consistency_test", "test.md", 0, "New first paragraph"),
             ),
             (
                 "delete_paragraph",
@@ -241,9 +229,7 @@ class TestSafetyFeatures:
         assert chapter_result.success
 
         # Write initial content and check safety features
-        write_result = write_chapter_content(
-            "middleware_test", "test.md", "Test content with safety"
-        )
+        write_result = write_chapter_content("middleware_test", "test.md", "Test content with safety")
         assert write_result.success
 
         # Verify automatic snapshot creation
@@ -255,9 +241,7 @@ class TestSafetyFeatures:
         assert hasattr(history, "total_modifications")
 
         # Make another change and verify incremental tracking
-        replace_result = replace_paragraph(
-            "middleware_test", "test.md", 0, "Updated content with safety"
-        )
+        replace_result = replace_paragraph("middleware_test", "test.md", 0, "Updated content with safety")
         assert replace_result.success
 
         # Check that another snapshot was created (micro-snapshot)
@@ -289,9 +273,7 @@ class TestSafetyFeatures:
 
         # Step 2: Write initial content with automatic safety features
         initial_content = "Chapter 1\n\nThis is the first paragraph of our story."
-        write_result = write_chapter_content(
-            workflow_doc, "chapter1.md", initial_content
-        )
+        write_result = write_chapter_content(workflow_doc, "chapter1.md", initial_content)
         assert write_result.success
 
         # Verify safety features were automatically applied
@@ -309,9 +291,7 @@ class TestSafetyFeatures:
 
         # Step 5: Make changes to the story
         updated_content = "This is the updated first paragraph with new plot elements."
-        replace_result = replace_paragraph(
-            workflow_doc, "chapter1.md", 1, updated_content
-        )
+        replace_result = replace_paragraph(workflow_doc, "chapter1.md", 1, updated_content)
         assert replace_result.success
 
         # Step 6: Check content freshness (simulating external changes check)
@@ -323,7 +303,7 @@ class TestSafetyFeatures:
             document_name=workflow_doc,
             source_type="snapshot",
             source_id=initial_snapshot.snapshot_id,
-            target_type="current"
+            target_type="current",
         )
         assert diff_result.success
         assert diff_result.details["total_changes"] >= 1
@@ -345,7 +325,7 @@ class TestSafetyFeatures:
                 source_type="snapshot",
                 source_id=initial_snapshot.snapshot_id,
                 target_type="snapshot",
-                target_id=second_snapshot.snapshot_id
+                target_id=second_snapshot.snapshot_id,
             )
             assert diff_between_snapshots.success
             # Total changes may be 0 if snapshots are identical
@@ -361,7 +341,7 @@ class TestSafetyFeatures:
             document_name=workflow_doc,
             source_type="snapshot",
             source_id=initial_snapshot.snapshot_id,
-            target_type="current"
+            target_type="current",
         )
         assert post_restore_diff.success
         # After restoration, there should be no differences with the initial snapshot
@@ -369,9 +349,7 @@ class TestSafetyFeatures:
 
         # Step 13: Verify modification history is accessible
         final_history = check_content_status(workflow_doc, include_history=True)
-        assert hasattr(
-            final_history, "total_modifications"
-        )  # History tracking is available
+        assert hasattr(final_history, "total_modifications")  # History tracking is available
 
     def test_comprehensive_safety_validation(self, temp_docs_root):
         """Test comprehensive safety validation across all scenarios."""

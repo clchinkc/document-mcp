@@ -4,7 +4,11 @@ This module provides unified content access tools that work across different
 scopes (document, chapter, paragraph) with a consistent interface.
 """
 
-from typing import Any
+import os
+import time
+
+import google.generativeai as genai
+import numpy as np
 
 from ..batch import register_batchable_operation
 from ..helpers import _count_words
@@ -20,10 +24,15 @@ from ..helpers import validate_search_query
 from ..logger_config import ErrorCategory
 from ..logger_config import log_mcp_call
 from ..logger_config import log_structured_error
+from ..models import ChapterContent
+from ..models import FullDocumentContent
 from ..models import OperationStatus
 from ..models import ParagraphDetail
+from ..models import SemanticSearchResponse
+from ..models import SemanticSearchResult
 from ..models import StatisticsReport
 from ..utils.decorators import auto_snapshot
+from ..utils.embedding_cache import EmbeddingCache
 
 
 def register_content_tools(mcp_server):
@@ -37,7 +46,7 @@ def register_content_tools(mcp_server):
         scope: str = "document",  # "document", "chapter", "paragraph"
         chapter_name: str | None = None,
         paragraph_index: int | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> FullDocumentContent | ChapterContent | ParagraphDetail | None:
         """Unified content reading with scope-based targeting.
 
         This tool consolidates three separate reading operations into a single, scope-based
@@ -234,7 +243,10 @@ def register_content_tools(mcp_server):
                         log_structured_error(
                             category=ErrorCategory.WARNING,
                             message=f"Error reading chapter {chapter_file.name}: {str(e)}",
-                            context={"document_name": document_name, "chapter_file": str(chapter_file)},
+                            context={
+                                "document_name": document_name,
+                                "chapter_file": str(chapter_file),
+                            },
                             operation="read_content",
                         )
                         continue
@@ -312,7 +324,7 @@ def register_content_tools(mcp_server):
         scope: str = "document",  # "document", "chapter"
         chapter_name: str | None = None,
         case_sensitive: bool = False,
-    ) -> list[dict[str, Any]] | None:
+    ) -> list[ParagraphDetail] | None:
         """Unified text search with scope-based targeting.
 
         This tool consolidates document and chapter text search into a single interface,
@@ -425,15 +437,11 @@ def register_content_tools(mcp_server):
         # Scope-based dispatch to helper functions
         try:
             if scope == "document":
-                result = _find_text_in_document(
-                    document_name, search_text, case_sensitive
-                )
+                result = _find_text_in_document(document_name, search_text, case_sensitive)
                 return result if result else []
 
             elif scope == "chapter":
-                result = _find_text_in_chapter(
-                    document_name, chapter_name, search_text, case_sensitive
-                )
+                result = _find_text_in_chapter(document_name, chapter_name, search_text, case_sensitive)
                 return result if result else []
 
         except Exception as e:
@@ -460,7 +468,7 @@ def register_content_tools(mcp_server):
         replace_text: str,
         scope: str = "document",  # "document", "chapter"
         chapter_name: str | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> OperationStatus | None:
         """Unified text replacement with scope-based targeting.
 
         This tool consolidates document and chapter text replacement into a single interface,
@@ -611,7 +619,7 @@ def register_content_tools(mcp_server):
         document_name: str,
         scope: str = "document",  # "document", "chapter"
         chapter_name: str | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> StatisticsReport | None:
         """Unified statistics collection with scope-based targeting.
 
         This tool consolidates document and chapter statistics into a single interface,
@@ -711,11 +719,12 @@ def register_content_tools(mcp_server):
                 if result:
                     # For chapter scope, create new StatisticsReport without chapter_count
                     from ..models import StatisticsReport
+
                     return StatisticsReport(
                         scope=result.scope,
                         word_count=result.word_count,
                         paragraph_count=result.paragraph_count,
-                        chapter_count=None  # Exclude chapter_count for chapter scope
+                        chapter_count=None,  # Exclude chapter_count for chapter scope
                     )
                 return None
 
@@ -729,6 +738,207 @@ def register_content_tools(mcp_server):
                     "chapter_name": chapter_name,
                 },
                 operation="get_statistics",
+            )
+            return None
+
+    @mcp_server.tool()
+    @register_batchable_operation("find_similar_text")
+    @log_mcp_call
+    def find_similar_text(
+        document_name: str,
+        query_text: str,
+        scope: str = "document",  # "document", "chapter"
+        chapter_name: str | None = None,
+        similarity_threshold: float = 0.7,
+        max_results: int = 10,
+    ) -> SemanticSearchResponse | None:
+        """Semantic text search with scope-based targeting and similarity scoring.
+
+        This tool uses embedding-based semantic search to find content similar in meaning
+        to the query text, rather than exact string matching. It provides configurable
+        similarity thresholds and result limits for precise control over search results.
+
+        Parameters:
+            document_name (str): Name of the document to search within
+            query_text (str): Text query to find semantically similar content for
+            scope (str): Search scope determining where to search:
+                - "document": Search across entire document (all chapters)
+                - "chapter": Search within specific chapter only
+            chapter_name (Optional[str]): Required for "chapter" scope.
+                Must be valid .md filename (e.g., "01-introduction.md")
+            similarity_threshold (float): Minimum similarity score (0.0-1.0) for results (default: 0.7)
+            max_results (int): Maximum number of results to return (default: 10)
+
+        Returns:
+            Optional[Dict[str, Any]]: Semantic search response with scored results, None if error.
+            Contains query metadata, execution time, and list of semantically similar content.
+
+            Response structure:
+            - document_name (str): Name of the searched document
+            - scope (str): Search scope used ("document" or "chapter")
+            - query_text (str): Original query text
+            - results (List[SemanticSearchResult]): Sorted list of similar content
+            - total_results (int): Number of results returned
+            - execution_time_ms (float): Time taken to complete the search
+
+            Each result in results contains:
+            - document_name (str): Name of the parent document
+            - chapter_name (str): Name of the chapter containing the match
+            - paragraph_index (int): Zero-indexed position within the chapter
+            - content (str): Full text content of the matching paragraph
+            - similarity_score (float): Semantic similarity score (0.0-1.0)
+            - context_snippet (Optional[str]): Surrounding text for context
+
+        Example Usage:
+            ```json
+            // Search entire document for themes
+            {
+                "name": "find_similar_text",
+                "arguments": {
+                    "document_name": "My Book",
+                    "query_text": "character development themes",
+                    "scope": "document",
+                    "similarity_threshold": 0.7,
+                    "max_results": 5
+                }
+            }
+
+            // Search specific chapter for concepts
+            {
+                "name": "find_similar_text",
+                "arguments": {
+                    "document_name": "My Book",
+                    "query_text": "introduction to key concepts",
+                    "scope": "chapter",
+                    "chapter_name": "01-intro.md",
+                    "similarity_threshold": 0.6
+                }
+            }
+            ```
+        """
+        start_time = time.time()
+
+        # Validate document name
+        is_valid_doc, doc_error = validate_document_name(document_name)
+        if not is_valid_doc:
+            log_structured_error(
+                category=ErrorCategory.ERROR,
+                message=f"Invalid document name: {doc_error}",
+                context={"document_name": document_name, "scope": scope},
+                operation="find_similar_text",
+            )
+            return None
+
+        # Validate query text
+        is_valid_query, query_error = validate_search_query(query_text)
+        if not is_valid_query:
+            log_structured_error(
+                category=ErrorCategory.ERROR,
+                message=f"Invalid query text: {query_error}",
+                context={
+                    "document_name": document_name,
+                    "query_text": query_text,
+                    "scope": scope,
+                },
+                operation="find_similar_text",
+            )
+            return None
+
+        # Validate similarity threshold
+        if not (0.0 <= similarity_threshold <= 1.0):
+            log_structured_error(
+                category=ErrorCategory.ERROR,
+                message=f"Invalid similarity threshold: {similarity_threshold}. Must be between 0.0 and 1.0",
+                context={
+                    "document_name": document_name,
+                    "similarity_threshold": similarity_threshold,
+                    "scope": scope,
+                },
+                operation="find_similar_text",
+            )
+            return None
+
+        # Validate max_results
+        if max_results <= 0:
+            log_structured_error(
+                category=ErrorCategory.ERROR,
+                message=f"Invalid max_results: {max_results}. Must be greater than 0",
+                context={
+                    "document_name": document_name,
+                    "max_results": max_results,
+                    "scope": scope,
+                },
+                operation="find_similar_text",
+            )
+            return None
+
+        # Validate scope-specific parameters
+        if scope == "chapter":
+            if not chapter_name:
+                log_structured_error(
+                    category=ErrorCategory.ERROR,
+                    message="chapter_name required for chapter scope",
+                    context={"document_name": document_name, "scope": scope},
+                    operation="find_similar_text",
+                )
+                return None
+            is_valid_chapter, chapter_error = validate_chapter_name(chapter_name)
+            if not is_valid_chapter:
+                log_structured_error(
+                    category=ErrorCategory.ERROR,
+                    message=f"Invalid chapter name: {chapter_error}",
+                    context={
+                        "document_name": document_name,
+                        "chapter_name": chapter_name,
+                        "scope": scope,
+                    },
+                    operation="find_similar_text",
+                )
+                return None
+        elif scope != "document":
+            log_structured_error(
+                category=ErrorCategory.ERROR,
+                message=f"Invalid scope: {scope}. Must be 'document' or 'chapter'",
+                context={"document_name": document_name, "scope": scope},
+                operation="find_similar_text",
+            )
+            return None
+
+        # Perform semantic search
+        try:
+            results = _perform_semantic_search(
+                document_name=document_name,
+                query_text=query_text,
+                scope=scope,
+                chapter_name=chapter_name,
+                similarity_threshold=similarity_threshold,
+                max_results=max_results,
+            )
+
+            execution_time_ms = (time.time() - start_time) * 1000
+
+            response = SemanticSearchResponse(
+                document_name=document_name,
+                scope=scope,
+                query_text=query_text,
+                results=results or [],
+                total_results=len(results or []),
+                execution_time_ms=execution_time_ms,
+            )
+
+            return response
+
+        except Exception as e:
+            log_structured_error(
+                category=ErrorCategory.ERROR,
+                message=f"Error performing semantic search: {str(e)}",
+                context={
+                    "document_name": document_name,
+                    "scope": scope,
+                    "query_text": query_text,
+                    "chapter_name": chapter_name,
+                },
+                operation="find_similar_text",
             )
             return None
 
@@ -790,10 +1000,7 @@ def _replace_text_in_document(
     """Replace all occurrences of text throughout all chapters of a document."""
     doc_path = _get_document_path(document_name)
     if not doc_path.exists():
-        return OperationStatus(
-            success=False,
-            message=f"Document '{document_name}' not found."
-        )
+        return OperationStatus(success=False, message=f"Document '{document_name}' not found.")
 
     chapter_files = _get_ordered_chapter_files(document_name)
     total_replacements = 0
@@ -806,7 +1013,7 @@ def _replace_text_in_document(
     return OperationStatus(
         success=True,
         message=f"Replaced {total_replacements} occurrences of '{text_to_find}' with '{replacement_text}' in document '{document_name}'",
-        details={"total_occurrences_replaced": total_replacements}
+        details={"total_occurrences_replaced": total_replacements},
     )
 
 
@@ -818,7 +1025,7 @@ def _replace_text_in_chapter(
     if not chapter_path.exists():
         return OperationStatus(
             success=False,
-            message=f"Chapter '{chapter_name}' not found in document '{document_name}'"
+            message=f"Chapter '{chapter_name}' not found in document '{document_name}'",
         )
 
     try:
@@ -831,12 +1038,12 @@ def _replace_text_in_chapter(
         return OperationStatus(
             success=True,
             message=f"Replaced {replacements_made} occurrences of '{text_to_find}' in chapter '{chapter_name}'",
-            details={"occurrences_replaced": replacements_made}
+            details={"occurrences_replaced": replacements_made},
         )
     except Exception as e:
         return OperationStatus(
             success=False,
-            message=f"Error replacing text in chapter '{chapter_name}': {str(e)}"
+            message=f"Error replacing text in chapter '{chapter_name}': {str(e)}",
         )
 
 
@@ -883,6 +1090,276 @@ def _get_chapter_statistics(document_name: str, chapter_name: str) -> Statistics
             word_count=_count_words(content),
             paragraph_count=len(paragraphs),
         )
+    except Exception:
+        return None
+
+
+def _perform_semantic_search(
+    document_name: str,
+    query_text: str,
+    scope: str,
+    chapter_name: str | None,
+    similarity_threshold: float,
+    max_results: int,
+) -> list[SemanticSearchResult]:
+    """Perform semantic search using Google Gemini embeddings with caching."""
+    # Check for API key
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        log_structured_error(
+            category=ErrorCategory.ERROR,
+            message="GEMINI_API_KEY environment variable not set",
+            context={"document_name": document_name, "scope": scope},
+            operation="find_similar_text",
+        )
+        return []
+
+    try:
+        # Initialize cache and configure Gemini API
+        model = "models/text-embedding-004"
+        cache = EmbeddingCache(model_version=model)
+        genai.configure(api_key=api_key)
+
+        # Collect paragraphs and organize by chapter
+        chapters_data = {}  # chapter_name -> {"paragraphs": [...], "content": {...}}
+        all_paragraphs_data = []
+
+        if scope == "document":
+            # Search across all chapters
+            doc_path = _get_document_path(document_name)
+            if not doc_path.exists():
+                return []
+
+            chapter_files = _get_ordered_chapter_files(document_name)
+            for chapter_file in chapter_files:
+                try:
+                    content = chapter_file.read_text(encoding="utf-8")
+                    paragraphs = _split_into_paragraphs(content)
+                    chapter_paragraphs = []
+
+                    for i, paragraph in enumerate(paragraphs):
+                        if paragraph.strip():  # Skip empty paragraphs
+                            paragraph_data = {
+                                "document_name": document_name,
+                                "chapter_name": chapter_file.name,
+                                "paragraph_index": i,
+                                "content": paragraph,
+                            }
+                            chapter_paragraphs.append(paragraph_data)
+                            all_paragraphs_data.append(paragraph_data)
+
+                    if chapter_paragraphs:
+                        chapters_data[chapter_file.name] = {
+                            "paragraphs": chapter_paragraphs,
+                            "content": {p["paragraph_index"]: p["content"] for p in chapter_paragraphs},
+                        }
+
+                except Exception:
+                    continue
+
+        elif scope == "chapter":
+            # Search within specific chapter
+            chapter_path = _get_chapter_path(document_name, chapter_name)
+            if not chapter_path.exists():
+                return []
+
+            try:
+                content = chapter_path.read_text(encoding="utf-8")
+                paragraphs = _split_into_paragraphs(content)
+                chapter_paragraphs = []
+
+                for i, paragraph in enumerate(paragraphs):
+                    if paragraph.strip():  # Skip empty paragraphs
+                        paragraph_data = {
+                            "document_name": document_name,
+                            "chapter_name": chapter_name,
+                            "paragraph_index": i,
+                            "content": paragraph,
+                        }
+                        chapter_paragraphs.append(paragraph_data)
+                        all_paragraphs_data.append(paragraph_data)
+
+                if chapter_paragraphs:
+                    chapters_data[chapter_name] = {
+                        "paragraphs": chapter_paragraphs,
+                        "content": {p["paragraph_index"]: p["content"] for p in chapter_paragraphs},
+                    }
+
+            except Exception:
+                return []
+
+        if not all_paragraphs_data:
+            return []
+
+        # Load cached embeddings and identify what needs to be embedded
+        all_paragraph_embeddings = {}  # (chapter_name, paragraph_index) -> embedding
+        paragraphs_to_embed = []  # Paragraphs that need new embeddings
+        chapters_to_cache = {}  # chapter_name -> {paragraph_index: embedding}
+
+        for chapter_name, chapter_data in chapters_data.items():
+            # Try to load cached embeddings for this chapter
+            cached_embeddings = cache.get_chapter_embeddings(document_name, chapter_name)
+
+            chapter_needs_caching = {}
+            for paragraph_data in chapter_data["paragraphs"]:
+                paragraph_index = paragraph_data["paragraph_index"]
+
+                if paragraph_index in cached_embeddings:
+                    # Use cached embedding
+                    all_paragraph_embeddings[(chapter_name, paragraph_index)] = cached_embeddings[
+                        paragraph_index
+                    ]
+                else:
+                    # Need to embed this paragraph
+                    paragraphs_to_embed.append(paragraph_data)
+                    chapter_needs_caching[paragraph_index] = paragraph_data["content"]
+
+            if chapter_needs_caching:
+                chapters_to_cache[chapter_name] = chapter_needs_caching
+
+        # Prepare content for embedding (query + uncached paragraphs)
+        texts_to_embed = [query_text] + [p["content"] for p in paragraphs_to_embed]
+
+        # Get embeddings from Gemini (only for uncached content)
+        if len(texts_to_embed) > 1:  # If there are paragraphs to embed
+            response = genai.embed_content(
+                model=model,
+                content=texts_to_embed,
+                task_type="retrieval_document",
+            )
+
+            embeddings = response["embedding"]
+            query_embedding = np.array(embeddings[0])
+            new_paragraph_embeddings = [np.array(emb) for emb in embeddings[1:]]
+
+            # Store new embeddings and prepare for caching
+            for i, paragraph_data in enumerate(paragraphs_to_embed):
+                chapter_name = paragraph_data["chapter_name"]
+                paragraph_index = paragraph_data["paragraph_index"]
+                embedding = new_paragraph_embeddings[i]
+
+                # Add to our working set
+                all_paragraph_embeddings[(chapter_name, paragraph_index)] = embedding
+
+                # Prepare for caching
+                if chapter_name not in chapters_to_cache:
+                    chapters_to_cache[chapter_name] = {}
+                chapters_to_cache[chapter_name][paragraph_index] = embedding
+
+        else:
+            # Only need query embedding
+            response = genai.embed_content(
+                model=model,
+                content=[query_text],
+                task_type="retrieval_document",
+            )
+            query_embedding = np.array(response["embedding"][0])
+
+        # Cache new embeddings by chapter
+        for chapter_name, embeddings_to_cache in chapters_to_cache.items():
+            if embeddings_to_cache and isinstance(list(embeddings_to_cache.values())[0], np.ndarray):
+                # Convert embeddings dict to the format expected by cache
+                paragraph_embeddings = {
+                    idx: emb for idx, emb in embeddings_to_cache.items() if isinstance(emb, np.ndarray)
+                }
+                paragraph_contents = chapters_data[chapter_name]["content"]
+
+                cache.store_chapter_embeddings(
+                    document_name,
+                    chapter_name,
+                    paragraph_embeddings,
+                    paragraph_contents,
+                )
+
+        # Calculate cosine similarities
+        similarities = []
+        for i, paragraph_data in enumerate(all_paragraphs_data):
+            chapter_name = paragraph_data["chapter_name"]
+            paragraph_index = paragraph_data["paragraph_index"]
+
+            if (chapter_name, paragraph_index) in all_paragraph_embeddings:
+                paragraph_embedding = all_paragraph_embeddings[(chapter_name, paragraph_index)]
+
+                # Cosine similarity using numpy
+                dot_product = np.dot(query_embedding, paragraph_embedding)
+                query_norm = np.linalg.norm(query_embedding)
+                paragraph_norm = np.linalg.norm(paragraph_embedding)
+                similarity = dot_product / (query_norm * paragraph_norm)
+
+                if similarity >= similarity_threshold:
+                    similarities.append((i, similarity))
+
+        # Sort by similarity score (highest first)
+        similarities.sort(key=lambda x: x[1], reverse=True)
+
+        # Limit results
+        similarities = similarities[:max_results]
+
+        # Build results
+        results = []
+        for idx, similarity_score in similarities:
+            paragraph_data = all_paragraphs_data[idx]
+
+            # Generate context snippet (surrounding paragraphs)
+            context_snippet = _generate_context_snippet(paragraph_data["content"], all_paragraphs_data, idx)
+
+            result = SemanticSearchResult(
+                document_name=paragraph_data["document_name"],
+                chapter_name=paragraph_data["chapter_name"],
+                paragraph_index=paragraph_data["paragraph_index"],
+                content=paragraph_data["content"],
+                similarity_score=float(similarity_score),
+                context_snippet=context_snippet,
+            )
+            results.append(result)
+
+        return results
+
+    except Exception as e:
+        log_structured_error(
+            category=ErrorCategory.ERROR,
+            message=f"Error in semantic search implementation: {str(e)}",
+            context={
+                "document_name": document_name,
+                "scope": scope,
+                "query_text": query_text,
+            },
+            operation="find_similar_text",
+        )
+        return []
+
+
+def _generate_context_snippet(
+    target_content: str, all_paragraphs: list[dict], target_index: int
+) -> str | None:
+    """Generate context snippet with surrounding paragraphs."""
+    try:
+        # Get previous and next paragraphs from the same chapter
+        target_chapter = all_paragraphs[target_index]["chapter_name"]
+        chapter_paragraphs = [p for p in all_paragraphs if p["chapter_name"] == target_chapter]
+
+        # Find the target paragraph within the chapter
+        target_para_idx = None
+        for i, p in enumerate(chapter_paragraphs):
+            if p["content"] == target_content:
+                target_para_idx = i
+                break
+
+        if target_para_idx is None:
+            return None
+
+        # Get surrounding context (previous and next paragraph if available)
+        context_parts = []
+
+        if target_para_idx > 0:
+            context_parts.append(f"...{chapter_paragraphs[target_para_idx - 1]['content'][:100]}...")
+
+        context_parts.append(f"[MATCH] {target_content}")
+
+        if target_para_idx < len(chapter_paragraphs) - 1:
+            context_parts.append(f"...{chapter_paragraphs[target_para_idx + 1]['content'][:100]}...")
+
+        return " ".join(context_parts)
     except Exception:
         return None
 

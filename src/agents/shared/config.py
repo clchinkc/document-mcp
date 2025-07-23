@@ -11,8 +11,18 @@ from pydantic_settings import BaseSettings
 
 # --- Shared Constants ---
 MCP_SERVER_CMD = ["python3", "-m", "document_mcp.doc_tool_server", "stdio"]
-DEFAULT_TIMEOUT = 60.0
-MAX_RETRIES = 3
+
+# Timeout configuration - use shorter timeouts in test environments
+import os
+
+if "PYTEST_CURRENT_TEST" in os.environ or "DOCUMENT_ROOT_DIR" in os.environ:
+    # Test environment: shorter timeouts to prevent hanging
+    DEFAULT_TIMEOUT = 30.0
+    MAX_RETRIES = 2
+else:
+    # Production environment: longer timeouts for reliability
+    DEFAULT_TIMEOUT = 60.0
+    MAX_RETRIES = 3
 
 
 class AgentSettings(BaseSettings):
@@ -20,27 +30,17 @@ class AgentSettings(BaseSettings):
 
     # API Keys
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
-    gemini_api_key: str | None = Field(
-        default=None, description="Google Gemini API key"
-    )
+    gemini_api_key: str | None = Field(default=None, description="Google Gemini API key")
 
     # Model Names
-    openai_model_name: str = Field(
-        default="gpt-4.1-mini", description="OpenAI model name"
-    )
-    gemini_model_name: str = Field(
-        default="gemini-2.5-flash", description="Gemini model name"
-    )
+    openai_model_name: str = Field(default="gpt-4.1-mini", description="OpenAI model name")
+    gemini_model_name: str = Field(default="gemini-2.5-flash", description="Gemini model name")
 
     # Document Root
-    document_root_dir: str | None = Field(
-        default=None, description="Document storage root directory"
-    )
+    document_root_dir: str | None = Field(default=None, description="Document storage root directory")
 
     # Test Mode
-    pytest_current_test: str | None = Field(
-        default=None, description="Test mode indicator"
-    )
+    pytest_current_test: str | None = Field(default=None, description="Test mode indicator")
 
     model_config = {
         "env_file": ".env",
@@ -89,6 +89,36 @@ def get_settings() -> AgentSettings:
     """Get the validated settings instance."""
     load_dotenv()  # Load .env file
     return AgentSettings()
+
+
+def prepare_mcp_server_environment() -> dict[str, str]:
+    """Prepare environment variables for MCP server subprocess.
+
+    This ensures that API keys from .env file are properly passed to the
+    MCP server subprocess, which runs in a separate process.
+
+    Returns:
+        dict: Environment variables for MCP server subprocess
+    """
+    import os
+
+    # Load settings to get API keys from .env file
+    settings = get_settings()
+
+    # Start with current environment
+    server_env = {**os.environ}
+
+    # Add API keys from settings if available
+    if settings.gemini_api_key:
+        server_env["GEMINI_API_KEY"] = settings.gemini_api_key
+    if settings.openai_api_key:
+        server_env["OPENAI_API_KEY"] = settings.openai_api_key
+
+    # Add test mode flag if DOCUMENT_ROOT_DIR is set (for test environments)
+    if "DOCUMENT_ROOT_DIR" in os.environ:
+        server_env["PYTEST_CURRENT_TEST"] = "1"
+
+    return server_env
 
 
 async def load_llm_config():

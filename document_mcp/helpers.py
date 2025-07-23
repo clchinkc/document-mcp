@@ -6,6 +6,7 @@ It provides validation, text processing, file operations, and other utility func
 
 import datetime
 import difflib
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -30,10 +31,10 @@ DOCUMENT_SUMMARY_FILE = "_SUMMARY.md"
 
 
 # --- Input Validation Helpers ---
-# Note: Validation functions are imported from utils.validation
 
 
 # --- Diff Generation Helper ---
+
 
 def _generate_content_diff(
     original_content: str, new_content: str, filename: str = "chapter"
@@ -72,12 +73,14 @@ def _generate_content_diff(
 
 # --- Path and File Operations ---
 
+
 def _get_document_path(document_name: str) -> Path:
     """Return the full path for a given document name."""
     # Use environment variable if available for test isolation
-    import os
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR", str(DOCS_ROOT_PATH))
+
+    # Check for custom document root directory (for testing or configuration)
+    docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR")
+    if docs_root_name:
         root_path = Path(docs_root_name)
         return root_path / document_name
     return DOCS_ROOT_PATH / document_name
@@ -117,16 +120,13 @@ def _get_ordered_chapter_files(document_name: str) -> list[Path]:
     # For now, simple alphanumeric sort of .md files.
     # Future: could read CHAPTER_MANIFEST_FILE for explicit order.
     chapter_files = sorted(
-        [
-            f
-            for f in doc_path.iterdir()
-            if f.is_file() and _is_valid_chapter_filename(f.name)
-        ]
+        [f for f in doc_path.iterdir() if f.is_file() and _is_valid_chapter_filename(f.name)]
     )
     return chapter_files
 
 
 # --- Text Processing ---
+
 
 def _split_into_paragraphs(text: str) -> list[str]:
     """Split text into a list of paragraphs.
@@ -149,9 +149,8 @@ def _count_words(text: str) -> int:
 
 # --- Chapter Content Operations ---
 
-def _read_chapter_content_details(
-    document_name: str, chapter_file_path: Path
-) -> ChapterContent | None:
+
+def _read_chapter_content_details(document_name: str, chapter_file_path: Path) -> ChapterContent | None:
     """Read the content and metadata of a chapter from its file path."""
     if not chapter_file_path.is_file():
         return None
@@ -166,9 +165,7 @@ def _read_chapter_content_details(
             content=content,
             word_count=word_count,
             paragraph_count=len(paragraphs),
-            last_modified=datetime.datetime.fromtimestamp(
-                stat.st_mtime, tz=datetime.timezone.utc
-            ),
+            last_modified=datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc),
         )
     except Exception as e:
         log_structured_error(
@@ -185,9 +182,7 @@ def _read_chapter_content_details(
         return None
 
 
-def _get_chapter_metadata(
-    document_name: str, chapter_file_path: Path
-) -> ChapterMetadata | None:
+def _get_chapter_metadata(document_name: str, chapter_file_path: Path) -> ChapterMetadata | None:
     """Generate metadata for a chapter from its file path.
 
     This helper reads chapter content to calculate word and paragraph counts
@@ -196,9 +191,7 @@ def _get_chapter_metadata(
     if not chapter_file_path.is_file():
         return None
     try:
-        content = chapter_file_path.read_text(
-            encoding="utf-8"
-        )  # Read to count words/paragraphs
+        content = chapter_file_path.read_text(encoding="utf-8")  # Read to count words/paragraphs
         paragraphs = _split_into_paragraphs(content)
         word_count = _count_words(content)
         stat = chapter_file_path.stat()
@@ -206,9 +199,7 @@ def _get_chapter_metadata(
             chapter_name=chapter_file_path.name,
             word_count=word_count,
             paragraph_count=len(paragraphs),
-            last_modified=datetime.datetime.fromtimestamp(
-                stat.st_mtime, tz=datetime.timezone.utc
-            ),
+            last_modified=datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc),
             # title can be added later if we parse H1 from content
         )
     except Exception as e:
@@ -228,6 +219,7 @@ def _get_chapter_metadata(
 
 # --- Additional Path Operations ---
 
+
 def _get_snapshots_path(document_name: str) -> Path:
     """Return the path to the snapshots directory for a document."""
     doc_path = _get_document_path(document_name)
@@ -238,6 +230,18 @@ def _get_modification_history_path(document_name: str) -> Path:
     """Return the path to the modification history file for a document."""
     doc_path = _get_document_path(document_name)
     return doc_path / ".mod_history.json"
+
+
+def _get_embeddings_path(document_name: str) -> Path:
+    """Return the path to the embeddings cache directory for a document."""
+    doc_path = _get_document_path(document_name)
+    return doc_path / ".embeddings"
+
+
+def _get_chapter_embeddings_path(document_name: str, chapter_name: str) -> Path:
+    """Return the path to chapter-specific embeddings directory."""
+    embeddings_path = _get_embeddings_path(document_name)
+    return embeddings_path / chapter_name
 
 
 def _resolve_operation_dependencies(
@@ -291,39 +295,3 @@ def _resolve_operation_dependencies(
         for op in ready:
             remaining.remove(op)
     return resolved
-
-
-# Export all helper functions
-__all__ = [
-    # Constants
-    "DOCUMENT_SUMMARY_FILE",
-
-    # Validation functions
-    "validate_document_name",
-    "validate_chapter_name",
-    "validate_content",
-    "validate_paragraph_index",
-    "validate_search_query",
-
-    # Diff generation
-    "_generate_content_diff",
-
-    # Path operations
-    "_get_document_path",
-    "_get_chapter_path",
-    "_get_snapshots_path",
-    "_get_modification_history_path",
-    "_is_valid_chapter_filename",
-    "_get_ordered_chapter_files",
-
-    # Text processing
-    "_split_into_paragraphs",
-    "_count_words",
-
-    # Chapter operations
-    "_read_chapter_content_details",
-    "_get_chapter_metadata",
-
-    # Batch operations
-    "_resolve_operation_dependencies",
-]

@@ -84,9 +84,7 @@ def validate_api_configuration() -> bool:
         )
         return False
 
-    print(
-        f"Using {settings.active_provider.upper()} with model: {settings.active_model}"
-    )
+    print(f"Using {settings.active_provider.upper()} with model: {settings.active_model}")
     return True
 
 

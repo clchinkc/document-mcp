@@ -80,9 +80,7 @@ class TestScopeBasedToolsDataValidation:
         result = read_content(document_name="Test Doc", scope="invalid_scope")
         assert result is None
 
-        result = find_text(
-            document_name="Test Doc", search_text="test", scope="invalid_scope"
-        )
+        result = find_text(document_name="Test Doc", search_text="test", scope="invalid_scope")
         assert result is None
 
         # Test with special characters (should be handled gracefully)
@@ -95,11 +93,9 @@ class TestScopeBasedToolsDataValidation:
         assert result is None or isinstance(result, dict)
 
         # Special characters in search - should handle without errors
-        result = find_text(
-            document_name="Test Doc", search_text="!@#$%^&*()", scope="document"
-        )
+        result = find_text(document_name="Test Doc", search_text="!@#$%^&*()", scope="document")
         # Should either return None, empty list (no matches), or handle gracefully
-        assert result is None or isinstance(result, (dict, list))
+        assert result is None or isinstance(result, dict | list)
 
     def test_scope_based_tools_parameter_validation_edge_cases(self):
         """Test parameter validation for complex edge cases."""
@@ -189,16 +185,12 @@ class TestScopeBasedToolsDataValidation:
         # Very long search text
         long_search = "search " * 1000
         try:
-            find_text(
-                document_name="Test Doc", search_text=long_search, scope="document"
-            )
+            find_text(document_name="Test Doc", search_text=long_search, scope="document")
         except FileNotFoundError:
             # Expected when document doesn't exist
             pass
         except Exception as e:
             # Should handle gracefully
             assert (
-                "too long" in str(e).lower()
-                or "invalid" in str(e).lower()
-                or "not found" in str(e).lower()
+                "too long" in str(e).lower() or "invalid" in str(e).lower() or "not found" in str(e).lower()
             )

@@ -37,6 +37,7 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.42b0",
     "opentelemetry-instrumentation-requests>=0.42b0",
     "aiohttp>=3.9.5",
+    "numpy>=1.24.0",
 ]
 
 [project.optional-dependencies]
@@ -67,7 +68,7 @@ document_mcp = ["*.ini"]
 
 # Ruff configuration
 [tool.ruff]
-line-length = 88
+line-length = 110
 target-version = "py310"
 
 [tool.ruff.lint]

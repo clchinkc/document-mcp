@@ -16,9 +16,7 @@ def test_simple_action(parser):
 
 
 def test_action_with_multiple_args(parser):
-    action_string = (
-        'create_chapter(document_name="My Book", chapter_name="01-introduction.md")'
-    )
+    action_string = 'create_chapter(document_name="My Book", chapter_name="01-introduction.md")'
     tool_name, kwargs = parser.parse(action_string)
     assert tool_name == "create_chapter"
     assert kwargs == {"document_name": "My Book", "chapter_name": "01-introduction.md"}

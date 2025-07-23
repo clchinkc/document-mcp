@@ -1,4 +1,4 @@
-"""Document Management Tools
+"""Document Management Tools.
 
 This module contains MCP tools for managing document collections:
 - list_documents: List all available document collections
@@ -87,6 +87,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
         docs_info = []
         # Use runtime environment variable check for test compatibility
         import os
+
         docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR", str(DOCS_ROOT_PATH))
         root_path = Path(docs_root_name)
 
@@ -139,10 +140,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
                         total_paragraph_count=doc_total_paragraph_count,
                         last_modified=(
                             latest_mod_time
-                            if latest_mod_time
-                            != datetime.datetime.min.replace(
-                                tzinfo=datetime.timezone.utc
-                            )
+                            if latest_mod_time != datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
                             else datetime.datetime.fromtimestamp(
                                 doc_dir.stat().st_mtime, tz=datetime.timezone.utc
                             )
@@ -328,9 +326,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
 
         doc_path = _get_document_path(document_name)
         if doc_path.exists():
-            return OperationStatus(
-                success=False, message=f"Document '{document_name}' already exists."
-            )
+            return OperationStatus(success=False, message=f"Document '{document_name}' already exists.")
         try:
             doc_path.mkdir(parents=True, exist_ok=False)
             return OperationStatus(
@@ -339,9 +335,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
                 details={"document_name": document_name},
             )
         except Exception as e:
-            return OperationStatus(
-                success=False, message=f"Error creating document '{document_name}': {e}"
-            )
+            return OperationStatus(success=False, message=f"Error creating document '{document_name}': {e}")
 
     @mcp_server.tool()
     @log_mcp_call
@@ -392,9 +386,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
         """
         doc_path = _get_document_path(document_name)
         if not doc_path.is_dir():
-            return OperationStatus(
-                success=False, message=f"Document '{document_name}' not found."
-            )
+            return OperationStatus(success=False, message=f"Document '{document_name}' not found.")
         try:
             shutil.rmtree(doc_path)
             return OperationStatus(
@@ -402,9 +394,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
                 message=f"Document '{document_name}' and its contents deleted successfully.",
             )
         except Exception as e:
-            return OperationStatus(
-                success=False, message=f"Error deleting document '{document_name}': {e}"
-            )
+            return OperationStatus(success=False, message=f"Error deleting document '{document_name}': {e}")
 
 
 # Helper functions are now imported from centralized helpers module

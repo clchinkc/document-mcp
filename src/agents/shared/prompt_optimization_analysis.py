@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tool Description Optimization Analysis
+"""Tool Description Optimization Analysis.
 
 This script analyzes the token reduction achieved by extracting hardcoded tool descriptions
 and using dynamic generation with different formats.
@@ -64,9 +64,7 @@ def analyze_agent_prompt_sizes():
         char_count = len(prompt)
         token_count = estimate_tokens(prompt)
         format_used = (
-            "Compact"
-            if agent_name == "Simple"
-            else ("Planner" if agent_name == "Planner" else "Full")
+            "Compact" if agent_name == "Simple" else ("Planner" if agent_name == "Planner" else "Full")
         )
         print(f"{agent_name:<12} {char_count:<12} {token_count:<12} {format_used:<15}")
 
@@ -87,9 +85,7 @@ def demonstrate_format_differences():
         content = tool_manager.get_tool_descriptions_text(format_type)
         preview = content[:200] + "..." if len(content) > 200 else content
         print(preview)
-        print(
-            f"Total length: {len(content)} chars, ~{estimate_tokens(content)} tokens\n"
-        )
+        print(f"Total length: {len(content)} chars, ~{estimate_tokens(content)} tokens\n")
 
 
 def calculate_optimization_impact():

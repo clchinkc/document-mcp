@@ -4,10 +4,6 @@ This module tests the atomic paragraph manipulation tools that were added
 to replace the non-atomic modify_paragraph_content function.
 """
 
-from pathlib import Path
-
-import pytest
-
 from document_mcp.mcp_client import append_paragraph_to_chapter
 from document_mcp.mcp_client import delete_paragraph
 from document_mcp.mcp_client import insert_paragraph_after
@@ -15,20 +11,6 @@ from document_mcp.mcp_client import insert_paragraph_before
 from document_mcp.mcp_client import move_paragraph_before
 from document_mcp.mcp_client import move_paragraph_to_end
 from document_mcp.mcp_client import replace_paragraph
-
-
-@pytest.fixture
-def document_factory(temp_docs_root: Path, clean_documents):
-    """A factory to create documents for testing with proper isolation."""
-
-    def _create_document(doc_name: str, chapters: dict[str, str] = None):
-        doc_path = temp_docs_root / doc_name
-        doc_path.mkdir(exist_ok=True)
-        if chapters:
-            for chapter_name, content in chapters.items():
-                (doc_path / chapter_name).write_text(content, encoding="utf-8")
-
-    return _create_document
 
 
 class TestReplaceParagraph:
@@ -71,26 +53,17 @@ class TestReplaceParagraph:
         result = replace_paragraph("", "test.md", 0, "content")
         assert result.success is False
         # Safety system catches this before validation, expecting safety error
-        assert (
-            "Document name cannot be empty" in result.message
-            or "Safety check failed" in result.message
-        )
+        assert "Document name cannot be empty" in result.message or "Safety check failed" in result.message
 
         result = replace_paragraph("doc", "invalid", 0, "content")
         assert result.success is False
         # Either validation error or safety error is acceptable
-        assert (
-            "must end with .md" in result.message
-            or "Safety check failed" in result.message
-        )
+        assert "must end with .md" in result.message or "Safety check failed" in result.message
 
         result = replace_paragraph("doc", "test.md", -1, "content")
         assert result.success is False
         # Either validation error or safety error is acceptable
-        assert (
-            "cannot be negative" in result.message
-            or "Safety check failed" in result.message
-        )
+        assert "cannot be negative" in result.message or "Safety check failed" in result.message
 
 
 class TestInsertParagraphBefore:
@@ -101,9 +74,7 @@ class TestInsertParagraphBefore:
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
 
-        document_factory(
-            doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."}
-        )
+        document_factory(doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."})
 
         # Insert before the second paragraph (index 1)
         new_content = "This is inserted before the second paragraph."
@@ -139,9 +110,7 @@ class TestInsertParagraphAfter:
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
 
-        document_factory(
-            doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."}
-        )
+        document_factory(doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."})
 
         # Insert after the first paragraph (index 0)
         new_content = "This is inserted after the first paragraph."
@@ -259,9 +228,7 @@ class TestMoveParagraphBefore:
 
         document_factory(
             doc_name,
-            {
-                chapter_name: "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.\n\nFourth paragraph."
-            },
+            {chapter_name: "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.\n\nFourth paragraph."},
         )
 
         # Move paragraph 3 (index 2) before paragraph 1 (index 0)
@@ -277,9 +244,7 @@ class TestMoveParagraphBefore:
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
 
-        document_factory(
-            doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."}
-        )
+        document_factory(doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."})
 
         result = move_paragraph_before(doc_name, chapter_name, 1, 1)
 
@@ -291,9 +256,7 @@ class TestMoveParagraphBefore:
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
 
-        document_factory(
-            doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."}
-        )
+        document_factory(doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."})
 
         result = move_paragraph_before(doc_name, chapter_name, 5, 0)
 
@@ -326,9 +289,7 @@ class TestMoveParagraphToEnd:
         """Test moving paragraph that's already at the end."""
         doc_name = "test_doc"
         chapter_name = "test_chapter.md"
-        document_factory(
-            doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."}
-        )
+        document_factory(doc_name, {chapter_name: "First paragraph.\n\nSecond paragraph."})
 
         # Move last paragraph (index 1) to end (should be no-op)
         result = move_paragraph_to_end(doc_name, chapter_name, 1)

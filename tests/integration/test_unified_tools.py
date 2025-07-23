@@ -1,35 +1,12 @@
 """Integration tests for unified tools in the Document MCP tool server."""
 
-from pathlib import Path
-
 import pytest
 
-from document_mcp.mcp_client import delete_document
+from document_mcp.mcp_client import find_similar_text
 from document_mcp.mcp_client import find_text
 from document_mcp.mcp_client import get_statistics
 from document_mcp.mcp_client import read_content
 from document_mcp.mcp_client import replace_text
-
-
-@pytest.fixture
-def document_factory(temp_docs_root: Path):
-    """A factory to create documents with chapters for testing."""
-    created_docs = []
-
-    def _create_document(doc_name: str, chapters: dict[str, str] = None):
-        doc_path = temp_docs_root / doc_name
-        doc_path.mkdir(exist_ok=True)
-        created_docs.append(doc_name)
-        if chapters:
-            for chapter_name, content in chapters.items():
-                (doc_path / chapter_name).write_text(content)
-        return doc_path
-
-    try:
-        yield _create_document
-    finally:
-        for doc_name in created_docs:
-            delete_document(doc_name)
 
 
 class TestUnifiedReadContent:
@@ -79,9 +56,7 @@ class TestUnifiedReadContent:
         }
         document_factory(doc_name, chapters)
 
-        result = read_content(
-            doc_name, scope="paragraph", chapter_name="test.md", paragraph_index=1
-        )
+        result = read_content(doc_name, scope="paragraph", chapter_name="test.md", paragraph_index=1)
 
         assert result is not None
         assert result.document_name == doc_name
@@ -97,9 +72,7 @@ class TestUnifiedReadContent:
         result = read_content(doc_name, scope="invalid_scope")
         assert result is None
 
-    def test_read_content_missing_chapter_name_for_chapter_scope(
-        self, document_factory
-    ):
+    def test_read_content_missing_chapter_name_for_chapter_scope(self, document_factory):
         """Test read_content chapter scope without chapter_name."""
         doc_name = "test_missing_chapter"
         document_factory(doc_name, {"test.md": "Content"})
@@ -107,9 +80,7 @@ class TestUnifiedReadContent:
         result = read_content(doc_name, scope="chapter")
         assert result is None
 
-    def test_read_content_missing_parameters_for_paragraph_scope(
-        self, document_factory
-    ):
+    def test_read_content_missing_parameters_for_paragraph_scope(self, document_factory):
         """Test read_content paragraph scope without required parameters."""
         doc_name = "test_missing_params"
         document_factory(doc_name, {"test.md": "Content"})
@@ -134,9 +105,7 @@ class TestUnifiedTools:
         }
         document_factory(doc_name, chapters)
 
-        results = find_text(
-            doc_name, "important", scope="document", case_sensitive=False
-        )
+        results = find_text(doc_name, "important", scope="document", case_sensitive=False)
 
         assert results is not None
         assert len(results) == 2
@@ -266,4 +235,142 @@ class TestUnifiedTools:
         assert result is None
 
         result = get_statistics(doc_name, scope="chapter")
+        assert result is None
+
+
+class TestSemanticSearchIntegration:
+    """Integration tests for semantic search functionality."""
+
+    @pytest.mark.skipif(
+        not pytest.importorskip("google.generativeai", reason="google-generativeai not available")
+        or not pytest.importorskip("numpy", reason="numpy not available"),
+        reason="Dependencies not available for semantic search",
+    )
+    def test_find_similar_text_document_scope_mocked(self, document_factory, mocker):
+        """Test semantic search with document scope using mocked API."""
+        # Mock the API key and response
+        mocker.patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
+        mock_genai = mocker.patch("document_mcp.tools.content_tools.genai")
+        mock_genai.embed_content.return_value = {
+            "embedding": [
+                [1.0, 0.0, 0.0],  # Query embedding
+                [0.9, 0.1, 0.0],  # High similarity paragraph
+                [0.1, 0.9, 0.0],  # Low similarity paragraph
+            ]
+        }
+
+        doc_name = "test_semantic_doc"
+        chapters = {
+            "ch1.md": "This paragraph discusses artificial intelligence and machine learning concepts.",
+            "ch2.md": "This chapter covers database design and optimization techniques.",
+        }
+        document_factory(doc_name, chapters)
+
+        result = find_similar_text(
+            doc_name,
+            "AI and ML technologies",
+            scope="document",
+            similarity_threshold=0.7,
+            max_results=5,
+        )
+
+        assert result is not None
+        assert result.document_name == doc_name
+        assert result.scope == "document"
+        assert result.query_text == "AI and ML technologies"
+        assert len(result.results) >= 1
+        assert result.total_results >= 1
+        assert result.execution_time_ms > 0
+
+        # Check first result
+        first_result = result.results[0]
+        assert first_result.document_name == doc_name
+        assert first_result.chapter_name in ["ch1.md", "ch2.md"]
+        assert first_result.similarity_score >= 0.7
+        assert first_result.content != ""
+
+    @pytest.mark.skipif(
+        not pytest.importorskip("google.generativeai", reason="google-generativeai not available")
+        or not pytest.importorskip("numpy", reason="numpy not available"),
+        reason="Dependencies not available for semantic search",
+    )
+    def test_find_similar_text_chapter_scope_mocked(self, document_factory, mocker):
+        """Test semantic search with chapter scope using mocked API."""
+        # Mock the API key and response
+        mocker.patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
+        mock_genai = mocker.patch("document_mcp.tools.content_tools.genai")
+        mock_genai.embed_content.return_value = {
+            "embedding": [
+                [1.0, 0.0, 0.0],  # Query embedding
+                [0.8, 0.2, 0.0],  # Matching paragraph
+            ]
+        }
+
+        doc_name = "test_semantic_chapter"
+        chapters = {
+            "target.md": "Database normalization is a crucial aspect of database design.",
+            "other.md": "Machine learning algorithms require large datasets.",
+        }
+        document_factory(doc_name, chapters)
+
+        result = find_similar_text(
+            doc_name,
+            "database design principles",
+            scope="chapter",
+            chapter_name="target.md",
+            similarity_threshold=0.6,
+        )
+
+        assert result is not None
+        assert result.scope == "chapter"
+        assert len(result.results) >= 1
+        assert all(r.chapter_name == "target.md" for r in result.results)
+
+    def test_find_similar_text_no_api_key(self, document_factory, mocker):
+        """Test semantic search fails gracefully without API key."""
+        # Remove API key from environment
+        mocker.patch.dict("os.environ", {}, clear=True)
+
+        doc_name = "test_no_api_key"
+        chapters = {"ch1.md": "Some content"}
+        document_factory(doc_name, chapters)
+
+        result = find_similar_text(doc_name, "query text")
+
+        assert result is not None
+        assert result.total_results == 0
+        assert len(result.results) == 0
+
+    def test_find_similar_text_missing_parameters(self, document_factory):
+        """Test semantic search with missing required parameters."""
+        doc_name = "test_missing_params"
+        document_factory(doc_name, {"test.md": "Content"})
+
+        # Missing chapter_name for chapter scope
+        result = find_similar_text(doc_name, "test query", scope="chapter")
+        assert result is None
+
+    def test_find_similar_text_invalid_threshold(self, document_factory):
+        """Test semantic search with invalid similarity threshold."""
+        doc_name = "test_invalid_threshold"
+        document_factory(doc_name, {"test.md": "Content"})
+
+        # Invalid threshold > 1.0
+        result = find_similar_text(doc_name, "test query", similarity_threshold=1.5)
+        assert result is None
+
+        # Invalid threshold < 0.0
+        result = find_similar_text(doc_name, "test query", similarity_threshold=-0.1)
+        assert result is None
+
+    def test_find_similar_text_invalid_max_results(self, document_factory):
+        """Test semantic search with invalid max_results."""
+        doc_name = "test_invalid_max"
+        document_factory(doc_name, {"test.md": "Content"})
+
+        # Invalid max_results <= 0
+        result = find_similar_text(doc_name, "test query", max_results=0)
+        assert result is None
+
+        result = find_similar_text(doc_name, "test query", max_results=-1)
         assert result is None

@@ -1,8 +1,8 @@
 import asyncio
 import logging
-import os
 import sys
 import time
+from typing import Any
 
 from pydantic import BaseModel
 from pydantic_ai import Agent
@@ -14,11 +14,9 @@ from src.agents.shared.error_handling import RetryManager
 from src.agents.shared.performance_metrics import AgentPerformanceMetrics
 from src.agents.shared.performance_metrics import PerformanceMetricsCollector
 
-# Suppress verbose HTTP logging from requests/urllib3
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("httpcore").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("requests").setLevel(logging.WARNING)
+# Suppress verbose HTTP logging
+for logger_name in ["httpx", "httpcore", "urllib3", "requests"]:
+    logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
 from src.agents.shared.cli import handle_config_check
@@ -30,17 +28,58 @@ from src.agents.shared.config import MCP_SERVER_CMD
 from src.agents.shared.config import load_llm_config
 from src.agents.simple_agent.prompts import get_simple_agent_system_prompt
 
+# --- MCP Tool Response Extraction ---
+
+
+def extract_mcp_tool_responses(agent_result: AgentRunResult) -> dict[str, Any]:
+    """Extract MCP tool responses from agent execution result.
+
+    Uses the same working pattern as the ReAct Agent to ensure consistency.
+    """
+    tool_responses = {}
+
+    if hasattr(agent_result, "all_messages"):
+        messages = agent_result.all_messages()
+
+        for message in messages:
+            if hasattr(message, "parts"):
+                for part in message.parts:
+                    # Check for tool returns (ToolReturnPart) - same pattern as ReAct Agent
+                    if (
+                        hasattr(part, "tool_name")
+                        and hasattr(part, "content")
+                        and type(part).__name__ == "ToolReturnPart"
+                    ):
+                        tool_name = part.tool_name
+                        tool_content = part.content
+
+                        # Store the actual MCP tool response data
+                        if isinstance(tool_content, list):
+                            tool_responses[tool_name] = {"documents": tool_content}
+                        elif isinstance(tool_content, dict):
+                            tool_responses[tool_name] = tool_content
+                        else:
+                            tool_responses[tool_name] = {"content": tool_content}
+
+    return tool_responses
+
+
 # --- Agent Response Model (for Pydantic AI Agent's structured output) ---
 # Using imported models from the server to ensure compatibility
 
 
-class FinalAgentResponse(BaseModel):
-    """Defines the final structured output expected from the Pydantic AI agent."""
+class LLMOnlyResponse(BaseModel):
+    """Defines what the LLM should generate - only the summary field."""
 
     summary: str
-    details: str | None = (
-        None  # Use string instead of Dict to avoid Gemini additionalProperties limitation
-    )
+    error_message: str | None = None
+
+
+class FinalAgentResponse(BaseModel):
+    """Defines the final structured output returned to users."""
+
+    summary: str
+    details: str | None = None  # Programmatically populated with MCP tool responses
     error_message: str | None = None
 
 
@@ -52,9 +91,7 @@ class FinalAgentResponse(BaseModel):
 _retry_manager = RetryManager()
 
 
-async def initialize_agent_and_mcp_server() -> tuple[
-    Agent[FinalAgentResponse], MCPServerStdio
-]:
+async def initialize_agent_and_mcp_server() -> tuple[Agent[LLMOnlyResponse], MCPServerStdio]:
     """Initializes the Pydantic AI agent and its MCP server configuration."""
     try:
         llm = await _retry_manager.execute_with_retry(load_llm_config)
@@ -65,27 +102,22 @@ async def initialize_agent_and_mcp_server() -> tuple[
     # Configuration for stdio transport using shared constant
 
     # Prepare environment for MCP server subprocess
-    server_env = None
-    if "DOCUMENT_ROOT_DIR" in os.environ:
-        server_env = {
-            **os.environ,
-            "PYTEST_CURRENT_TEST": "1",  # Signal to MCP server we're in test mode
-        }
+    from src.agents.shared.config import prepare_mcp_server_environment
+
+    server_env = prepare_mcp_server_environment()
 
     try:
-        mcp_server = MCPServerStdio(
-            command=MCP_SERVER_CMD[0], args=MCP_SERVER_CMD[1:], env=server_env
-        )
+        mcp_server = MCPServerStdio(command=MCP_SERVER_CMD[0], args=MCP_SERVER_CMD[1:], env=server_env)
     except Exception as e:
         print(f"Error creating MCP server: {e}", file=sys.stderr)
         raise RuntimeError("Agent creation failed") from e
 
     try:
-        agent: Agent[FinalAgentResponse] = Agent(
+        agent: Agent[LLMOnlyResponse] = Agent(
             llm,
             mcp_servers=[mcp_server],
             system_prompt=get_simple_agent_system_prompt(),
-            output_type=FinalAgentResponse,
+            output_type=LLMOnlyResponse,
         )
     except Exception as e:
         print(f"Error creating agent: {e}", file=sys.stderr)
@@ -95,47 +127,20 @@ async def initialize_agent_and_mcp_server() -> tuple[
 
 
 async def process_single_user_query(
-    agent: Agent[FinalAgentResponse], user_query: str
-) -> FinalAgentResponse | None:
-    """Processes a single user query using the provided agent and returns the structured response."""
-    try:
+    agent: Agent[LLMOnlyResponse], user_query: str, collect_metrics: bool = False
+) -> FinalAgentResponse | None | tuple[FinalAgentResponse | None, AgentPerformanceMetrics]:
+    """Processes a single user query using the provided agent and returns the structured response.
 
-        async def _run_agent():
-            return await agent.run(user_query)
+    Args:
+        agent: The Pydantic AI agent to run
+        user_query: The user's query string
+        collect_metrics: If True, returns tuple with metrics; if False, returns just response
 
-        # Use RetryManager for robust error handling - let it manage its own timeouts
-        run_result: AgentRunResult[
-            FinalAgentResponse
-        ] = await _retry_manager.execute_with_retry(_run_agent)
-
-        if run_result and run_result.output:
-            return run_result.output
-        elif run_result and run_result.error_message:
-            return FinalAgentResponse(
-                summary=f"Agent error: {run_result.error_message}",
-                details=None,
-                error_message=run_result.error_message,
-            )
-        else:
-            return None
-    except Exception as e:
-        print(f"Error during agent query processing: {e}", file=sys.stderr)
-        return FinalAgentResponse(
-            summary=f"Agent processing failed: {e}",
-            details=None,
-            error_message=str(e),
-        )
-
-
-async def process_single_user_query_with_metrics(
-    agent: Agent[FinalAgentResponse], user_query: str
-) -> tuple[FinalAgentResponse | None, AgentPerformanceMetrics]:
-    """Processes a single user query and returns both response and real performance metrics.
-
-    This function captures actual performance data from the agent execution,
-    replacing hardcoded mock values with real measurements.
+    Returns:
+        If collect_metrics=False: FinalAgentResponse | None
+        If collect_metrics=True: tuple[FinalAgentResponse | None, AgentPerformanceMetrics]
     """
-    start_time = time.time()
+    start_time = time.time() if collect_metrics else None
 
     try:
 
@@ -143,58 +148,80 @@ async def process_single_user_query_with_metrics(
             return await agent.run(user_query)
 
         # Use RetryManager for robust error handling - let it manage its own timeouts
-        run_result: AgentRunResult[
-            FinalAgentResponse
-        ] = await _retry_manager.execute_with_retry(_run_agent)
+        run_result: AgentRunResult[LLMOnlyResponse] = await _retry_manager.execute_with_retry(_run_agent)
 
-        # Collect real performance metrics from the agent result
-        metrics = PerformanceMetricsCollector.collect_from_agent_result(
-            agent_result=run_result,
-            agent_type="simple",
-            execution_start_time=start_time,
-        )
+        # Collect metrics if requested
+        metrics = None
+        if collect_metrics:
+            metrics = PerformanceMetricsCollector.collect_from_agent_result(
+                agent_result=run_result,
+                agent_type="simple",
+                execution_start_time=start_time,
+            )
 
-        # Process the response
         if run_result and run_result.output:
-            response = run_result.output
-            metrics.success = True
-            if hasattr(response, "model_dump"):
-                metrics.response_data = response.model_dump()
-            return response, metrics
+            llm_response = run_result.output
+
+            # Extract MCP tool responses programmatically
+            mcp_tool_responses = extract_mcp_tool_responses(run_result)
+
+            import json
+
+            # Construct final response with LLM summary + programmatic details
+            final_response = FinalAgentResponse(
+                summary=llm_response.summary,
+                details=json.dumps(mcp_tool_responses) if mcp_tool_responses else None,
+                error_message=llm_response.error_message,
+            )
+
+            if collect_metrics:
+                metrics.success = True
+                metrics.response_data = final_response.model_dump()
+                return final_response, metrics
+            else:
+                return final_response
+
         elif run_result and run_result.error_message:
-            response = FinalAgentResponse(
+            error_response = FinalAgentResponse(
                 summary=f"Agent error: {run_result.error_message}",
                 details=None,
                 error_message=run_result.error_message,
             )
-            metrics.success = False
-            metrics.error_message = run_result.error_message
-            metrics.response_data = response.model_dump()
-            return response, metrics
+
+            if collect_metrics:
+                metrics.success = False
+                metrics.error_message = run_result.error_message
+                metrics.response_data = error_response.model_dump()
+                return error_response, metrics
+            else:
+                return error_response
         else:
-            # No response case
-            metrics.success = False
-            metrics.error_message = "No response from agent"
-            return None, metrics
+            if collect_metrics:
+                metrics.success = False
+                metrics.error_message = "No response from agent"
+                return None, metrics
+            else:
+                return None
 
     except Exception as e:
-        # Handle execution exceptions
-        metrics = PerformanceMetricsCollector.collect_from_timing_and_response(
-            execution_start_time=start_time,
-            agent_type="simple",
-            response_data={"error": str(e)},
-            success=False,
-            error_message=str(e),
-        )
-
-        response = FinalAgentResponse(
+        print(f"Error during agent query processing: {e}", file=sys.stderr)
+        error_response = FinalAgentResponse(
             summary=f"Agent processing failed: {e}",
             details=None,
             error_message=str(e),
         )
 
-        print(f"Error during agent query processing: {e}", file=sys.stderr)
-        return response, metrics
+        if collect_metrics:
+            error_metrics = PerformanceMetricsCollector.collect_from_timing_and_response(
+                execution_start_time=start_time,
+                agent_type="simple",
+                response_data={"error": str(e)},
+                success=False,
+                error_message=str(e),
+            )
+            return error_response, error_metrics
+        else:
+            return error_response
 
 
 # --- Main Agent Interactive Loop ---
@@ -263,22 +290,14 @@ async def main():
                                 print("Details: [] (Empty list)")
                             else:
                                 item_type = type(final_response.details[0])
-                                print(
-                                    f"\n--- Details (List of {item_type.__name__}) ---"
-                                )
-                                for item_idx, item_detail in enumerate(
-                                    final_response.details
-                                ):
+                                print(f"\n--- Details (List of {item_type.__name__}) ---")
+                                for item_idx, item_detail in enumerate(final_response.details):
                                     print(f"Item {item_idx + 1}:")
-                                    if hasattr(
-                                        item_detail, "model_dump"
-                                    ):  # Check if Pydantic model
+                                    if hasattr(item_detail, "model_dump"):  # Check if Pydantic model
                                         print(item_detail.model_dump(exclude_none=True))
                                     else:
                                         print(item_detail)
-                        elif hasattr(
-                            final_response.details, "model_dump"
-                        ):  # Check if Pydantic model
+                        elif hasattr(final_response.details, "model_dump"):  # Check if Pydantic model
                             print("\n--- Details ---")
                             print(final_response.details.model_dump(exclude_none=True))
                         elif final_response.details is not None:
@@ -291,24 +310,18 @@ async def main():
                     # If final_response is None, process_single_user_query already printed an error to stderr
             else:
                 # No arguments provided, show help
-                parser.print_help()
+                action_parser.print_help()
                 print("\nExample usage:")
-                print(
-                    '  python src/agents/simple_agent.py --query "List all documents"'
-                )
+                print('  python src/agents/simple_agent.py --query "List all documents"')
                 print("  python src/agents/simple_agent.py --interactive")
 
     except KeyboardInterrupt:
-        if (
-            args.interactive or not args.query
-        ):  # Only print this message in interactive mode
+        if args.interactive or not args.query:  # Only print this message in interactive mode
             print("\nUser requested exit. Shutting down...")
     except Exception as e:
         print(f"An unexpected error occurred in the agent: {e}", file=sys.stderr)
     finally:
-        if (
-            args.interactive or not args.query
-        ):  # Only print shutdown message in interactive mode
+        if args.interactive or not args.query:  # Only print shutdown message in interactive mode
             print("Agent has shut down.")
 
 

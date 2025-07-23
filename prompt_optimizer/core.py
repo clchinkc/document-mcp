@@ -12,12 +12,13 @@ from pathlib import Path
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
 
 # Add src to path for agent imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from .evaluation import OptimizationResult
 from .evaluation import PerformanceEvaluator
@@ -27,6 +28,7 @@ class PromptOptimizer:
     """Simplified prompt optimizer that focuses on test-based validation."""
 
     def __init__(self):
+        """Initialize the prompt optimizer."""
         self.project_root = Path(__file__).parent.parent
         self.backup_dir = Path("prompt_backups")
         self.backup_dir.mkdir(exist_ok=True)
@@ -35,19 +37,22 @@ class PromptOptimizer:
         self.agent_files = {
             "simple": "src/agents/simple_agent/prompts.py",
             "react": "src/agents/react_agent/prompts.py",
-            "planner": "src/agents/planner_agent/prompts.py"
+            "planner": "src/agents/planner_agent/prompts.py",
         }
 
     def get_current_prompt(self, agent_type: str) -> str:
         """Get the current prompt content for an agent."""
         if agent_type == "simple":
             from src.agents.simple_agent.prompts import get_simple_agent_system_prompt
+
             return get_simple_agent_system_prompt()
         elif agent_type == "react":
             from src.agents.react_agent.prompts import get_react_system_prompt
+
             return get_react_system_prompt()
         elif agent_type == "planner":
             from src.agents.planner_agent.prompts import get_planner_system_prompt
+
             return get_planner_system_prompt()
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
@@ -84,7 +89,7 @@ class PromptOptimizer:
         templates = {
             "simple": "get_simple_agent_system_prompt",
             "react": "get_react_system_prompt",
-            "planner": "get_planner_system_prompt"
+            "planner": "get_planner_system_prompt",
         }
 
         if agent_type not in templates:
@@ -95,12 +100,12 @@ class PromptOptimizer:
 def {templates[agent_type]}() -> str:
     """Generate the {agent_type} agent system prompt with dynamic tool descriptions."""
     tool_descriptions = get_tool_descriptions_for_agent("{agent_type}")
-    
+
     return f"""{improved_prompt}"""
 '''
 
         try:
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 f.write(file_content)
             return True
         except Exception as e:
@@ -132,12 +137,11 @@ Return ONLY the improved prompt text - no explanations or markdown:"""
 
         try:
             import asyncio
+
             llm = await load_llm_config()
             optimizer_agent = Agent(llm, output_type=str)
 
-            result = await asyncio.wait_for(
-                optimizer_agent.run(optimization_request), timeout=120
-            )
+            result = await asyncio.wait_for(optimizer_agent.run(optimization_request), timeout=120)
 
             improved_prompt = result.output.strip()
             return improved_prompt
@@ -193,7 +197,7 @@ Return ONLY the improved prompt text - no explanations or markdown:"""
                     reason="Failed to apply improved prompt",
                     test_passed=False,
                     token_change=0,
-                    test_count=0
+                    test_count=0,
                 )
 
             # Run evaluation with baseline comparison
@@ -230,5 +234,5 @@ Return ONLY the improved prompt text - no explanations or markdown:"""
                 reason=f"Optimization failed: {e}",
                 test_passed=False,
                 token_change=0,
-                test_count=0
+                test_count=0,
             )

@@ -27,7 +27,7 @@ async def run_single_scenario(runner: AgentTestRunner, scenario: dict, agent_typ
     """Run a single test scenario for a given agent type."""
     try:
         query = scenario["query"]
-        expected_operations = scenario.get("expected_operations", [])
+        scenario.get("expected_operations", [])
 
         # Since we're using real LLM evaluation only, use the unified run_agent_test method
         metrics = await runner.run_agent_test(agent_type, query)
@@ -35,9 +35,7 @@ async def run_single_scenario(runner: AgentTestRunner, scenario: dict, agent_typ
         return metrics
 
     except Exception as e:
-        print(
-            f"Error running scenario '{scenario['name']}' with {agent_type} agent: {e}"
-        )
+        print(f"Error running scenario '{scenario['name']}' with {agent_type} agent: {e}")
         from tests.evaluation.test_agent_performance import AgentPerformanceMetrics
 
         error_metrics = AgentPerformanceMetrics()
@@ -46,9 +44,7 @@ async def run_single_scenario(runner: AgentTestRunner, scenario: dict, agent_typ
         return error_metrics
 
 
-async def run_evaluation_suite(
-    categories: list[str] = None, use_real_llm: bool = False
-):
+async def run_evaluation_suite(categories: list[str] = None, use_real_llm: bool = False):
     """Run the complete evaluation suite."""
     print("=" * 60)
     print("DOCUMENT-MCP AGENT EVALUATION SUITE")
@@ -98,9 +94,7 @@ async def run_evaluation_suite(
 
             # Compare results (for now just Simple vs React, later can expand)
             comparison = compare_agent_performance(simple_metrics, react_metrics)
-            all_results["comparisons"].append(
-                {"scenario": scenario["name"], "comparison": comparison}
-            )
+            all_results["comparisons"].append({"scenario": scenario["name"], "comparison": comparison})
 
             # Print quick summary
             simple_status = "✓" if simple_metrics.success else "✗"
@@ -134,9 +128,7 @@ async def run_evaluation_suite(
 
     # Comparison Report
     print("\n--- AGENT COMPARISON ---")
-    print_comparison_report(
-        all_results["comparisons"], simple_summary, react_summary, planner_summary
-    )
+    print_comparison_report(all_results["comparisons"], simple_summary, react_summary, planner_summary)
 
     # Save results if configured
     if config.save_metrics_to_file:
@@ -164,12 +156,8 @@ def print_comparison_report(
     simple_avg_tokens = simple_summary["average_token_usage"]
     react_avg_tokens = react_summary["average_token_usage"]
     planner_avg_tokens = planner_summary["average_token_usage"]
-    react_token_ratio = (
-        react_avg_tokens / simple_avg_tokens if simple_avg_tokens > 0 else 0
-    )
-    planner_token_ratio = (
-        planner_avg_tokens / simple_avg_tokens if simple_avg_tokens > 0 else 0
-    )
+    react_token_ratio = react_avg_tokens / simple_avg_tokens if simple_avg_tokens > 0 else 0
+    planner_token_ratio = planner_avg_tokens / simple_avg_tokens if simple_avg_tokens > 0 else 0
 
     print("\nToken Usage Comparison:")
     print(f"  Simple Agent Average: {simple_avg_tokens:.1f} tokens")
@@ -183,9 +171,7 @@ def print_comparison_report(
     react_avg_time = react_summary["average_execution_time"]
     planner_avg_time = planner_summary["average_execution_time"]
     react_time_ratio = react_avg_time / simple_avg_time if simple_avg_time > 0 else 0
-    planner_time_ratio = (
-        planner_avg_time / simple_avg_time if simple_avg_time > 0 else 0
-    )
+    planner_time_ratio = planner_avg_time / simple_avg_time if simple_avg_time > 0 else 0
 
     print("\nExecution Time Comparison:")
     print(f"  Simple Agent Average: {simple_avg_time:.2f}s")
@@ -248,9 +234,7 @@ def main():
     """Main entry point for the evaluation runner."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Run document-mcp agent evaluation suite"
-    )
+    parser = argparse.ArgumentParser(description="Run document-mcp agent evaluation suite")
     parser.add_argument(
         "--categories",
         nargs="+",
@@ -262,17 +246,13 @@ def main():
         action="store_true",
         help="Use real LLM instead of mock (requires API keys)",
     )
-    parser.add_argument(
-        "--save-results", action="store_true", help="Save results to JSON file"
-    )
+    parser.add_argument("--save-results", action="store_true", help="Save results to JSON file")
 
     args = parser.parse_args()
 
     # Run the evaluation suite
     try:
-        asyncio.run(
-            run_evaluation_suite(categories=args.categories, use_real_llm=args.real_llm)
-        )
+        asyncio.run(run_evaluation_suite(categories=args.categories, use_real_llm=args.real_llm))
     except KeyboardInterrupt:
         print("\nEvaluation interrupted by user")
         sys.exit(1)

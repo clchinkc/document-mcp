@@ -5,34 +5,12 @@ from pathlib import Path
 import pytest
 
 from document_mcp.mcp_client import append_paragraph_to_chapter
-from document_mcp.mcp_client import delete_document
 from document_mcp.mcp_client import delete_paragraph
 from document_mcp.mcp_client import find_text
 from document_mcp.mcp_client import insert_paragraph_after
 from document_mcp.mcp_client import insert_paragraph_before
 from document_mcp.mcp_client import replace_paragraph
 from document_mcp.mcp_client import replace_text
-
-
-@pytest.fixture
-def document_factory(temp_docs_root: Path):
-    """A factory to create documents with chapters for testing."""
-    created_docs = []
-
-    def _create_document(doc_name: str, chapters: dict[str, str] = None):
-        doc_path = temp_docs_root / doc_name
-        doc_path.mkdir(exist_ok=True)
-        created_docs.append(doc_name)
-        if chapters:
-            for chapter_name, content in chapters.items():
-                (doc_path / chapter_name).write_text(content)
-        return doc_path
-
-    try:
-        yield _create_document
-    finally:
-        for doc_name in created_docs:
-            delete_document(doc_name)
 
 
 @pytest.fixture
@@ -62,9 +40,7 @@ def test_insert_paragraph_before(para_doc, temp_docs_root: Path):
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
-    assert (
-        content == "Paragraph 1.\n\nInserted Paragraph.\n\nParagraph 2.\n\nParagraph 3."
-    )
+    assert content == "Paragraph 1.\n\nInserted Paragraph.\n\nParagraph 2.\n\nParagraph 3."
 
 
 def test_insert_paragraph_after(para_doc, temp_docs_root: Path):
@@ -74,9 +50,7 @@ def test_insert_paragraph_after(para_doc, temp_docs_root: Path):
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
-    assert (
-        content == "Paragraph 1.\n\nParagraph 2.\n\nInserted Paragraph.\n\nParagraph 3."
-    )
+    assert content == "Paragraph 1.\n\nParagraph 2.\n\nInserted Paragraph.\n\nParagraph 3."
 
 
 def test_delete_paragraph(para_doc, temp_docs_root: Path):
@@ -96,9 +70,7 @@ def test_append_paragraph_to_chapter(para_doc, temp_docs_root: Path):
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
-    assert (
-        content == "Paragraph 1.\n\nParagraph 2.\n\nParagraph 3.\n\nAppended Paragraph."
-    )
+    assert content == "Paragraph 1.\n\nParagraph 2.\n\nParagraph 3.\n\nAppended Paragraph."
 
 
 def test_replace_text_in_chapter(document_factory, temp_docs_root: Path):
@@ -108,9 +80,7 @@ def test_replace_text_in_chapter(document_factory, temp_docs_root: Path):
     content = "The old text needs to be replaced. The old text is here."
     document_factory(doc_name, {chapter_name: content})
 
-    result = replace_text(
-        doc_name, "old text", "new text", scope="chapter", chapter_name=chapter_name
-    )
+    result = replace_text(doc_name, "old text", "new text", scope="chapter", chapter_name=chapter_name)
     assert result.success is True
     assert result.details["occurrences_replaced"] == 2
 

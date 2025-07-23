@@ -6,7 +6,6 @@ to validate that agents properly populate the details field with MCP tool result
 
 import json
 import uuid
-from pathlib import Path
 
 import pytest
 from pydantic_ai.mcp import MCPServerStdio
@@ -15,25 +14,8 @@ from pydantic_ai.mcp import MCPServerStdio
 @pytest.fixture
 async def mcp_server():
     """Provide a real MCP server for integration testing."""
-    server = MCPServerStdio(
-        command="python3", args=["-m", "document_mcp.doc_tool_server", "stdio"]
-    )
+    server = MCPServerStdio(command="python3", args=["-m", "document_mcp.doc_tool_server", "stdio"])
     yield server
-
-
-@pytest.fixture
-def document_factory(temp_docs_root: Path):
-    """A factory to create documents with chapters for testing."""
-
-    def _create_document(doc_name: str, chapters: dict[str, str] | None = None):
-        doc_path = temp_docs_root / doc_name
-        doc_path.mkdir(exist_ok=True)
-        if chapters:
-            for chapter_name, content in chapters.items():
-                (doc_path / chapter_name).write_text(content)
-        return doc_path
-
-    return _create_document
 
 
 class TestAgentMCPIntegration:
@@ -48,9 +30,7 @@ class TestAgentMCPIntegration:
 
         async with mcp_server:
             # Test creating document directly via MCP
-            create_result = await mcp_server._client.call_tool(
-                "create_document", {"document_name": doc_name}
-            )
+            create_result = await mcp_server._client.call_tool("create_document", {"document_name": doc_name})
 
             # Parse MCP result - it's a list of TextContent objects with JSON text
             result_text = create_result.content[0].text

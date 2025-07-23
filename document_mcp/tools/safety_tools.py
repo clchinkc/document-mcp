@@ -96,13 +96,13 @@ def register_safety_tools(mcp_server):
                     document_name=document_name,
                     total_snapshots=0,
                     total_size_bytes=0,
-                    snapshots=[]
+                    snapshots=[],
                 )
             else:
                 return OperationStatus(
                     success=False,
                     message=f"Invalid action '{action}'. Must be one of: {', '.join(valid_actions)}",
-                    details={"action": action, "valid_actions": valid_actions}
+                    details={"action": action, "valid_actions": valid_actions},
                 )
 
         # Validate document name
@@ -113,13 +113,13 @@ def register_safety_tools(mcp_server):
                     document_name=document_name,
                     total_snapshots=0,
                     total_size_bytes=0,
-                    snapshots=[]
+                    snapshots=[],
                 )
             else:
                 return OperationStatus(
                     success=False,
                     message=f"Invalid document name: {error_msg}",
-                    details={"action": action}
+                    details={"action": action},
                 )
 
         try:
@@ -137,7 +137,7 @@ def register_safety_tools(mcp_server):
                     return OperationStatus(
                         success=False,
                         message="snapshot_id is required for restore action",
-                        details={"action": "restore"}
+                        details={"action": "restore"},
                     )
 
                 # Restore snapshot directly - simplified implementation
@@ -158,13 +158,13 @@ def register_safety_tools(mcp_server):
                     document_name=document_name,
                     total_snapshots=0,
                     total_size_bytes=0,
-                    snapshots=[]
+                    snapshots=[],
                 )
             else:
                 return OperationStatus(
                     success=False,
                     message=f"Failed to {action} snapshot: {str(e)}",
-                    details={"action": action, "error": str(e)}
+                    details={"action": action, "error": str(e)},
                 )
 
     @mcp_server.tool()
@@ -225,7 +225,7 @@ def register_safety_tools(mcp_server):
                     chapter_name=chapter_name,
                     total_modifications=0,
                     time_window=time_window,
-                    entries=[]
+                    entries=[],
                 )
             else:
                 return ContentFreshnessStatus(
@@ -233,7 +233,7 @@ def register_safety_tools(mcp_server):
                     last_modified=datetime.datetime.now(),
                     safety_status="error",
                     message=f"Invalid document name: {error_msg}",
-                    recommendations=["Use a valid document name"]
+                    recommendations=["Use a valid document name"],
                 )
 
         # Validate chapter name if provided
@@ -246,7 +246,7 @@ def register_safety_tools(mcp_server):
                         chapter_name=chapter_name,
                         total_modifications=0,
                         time_window=time_window,
-                        entries=[]
+                        entries=[],
                     )
                 else:
                     return ContentFreshnessStatus(
@@ -254,23 +254,19 @@ def register_safety_tools(mcp_server):
                         last_modified=datetime.datetime.now(),
                         safety_status="error",
                         message=f"Invalid chapter name: {error_msg}",
-                        recommendations=["Use a valid chapter name"]
+                        recommendations=["Use a valid chapter name"],
                     )
 
         try:
             if include_history:
                 # Return ModificationHistory when history is requested
                 # Call the internal implementation directly to avoid circular imports
-                history_result = get_modification_history(
-                    document_name, chapter_name, time_window
-                )
+                history_result = get_modification_history(document_name, chapter_name, time_window)
                 return history_result
             else:
                 # Return ContentFreshnessStatus when only freshness is requested
                 # Call the internal implementation directly to avoid circular imports
-                freshness_result = check_content_freshness(
-                    document_name, chapter_name, last_known_modified
-                )
+                freshness_result = check_content_freshness(document_name, chapter_name, last_known_modified)
                 return freshness_result
 
         except Exception as e:
@@ -292,7 +288,7 @@ def register_safety_tools(mcp_server):
                     chapter_name=chapter_name,
                     total_modifications=0,
                     time_window=time_window,
-                    entries=[]
+                    entries=[],
                 )
             else:
                 # Return error ContentFreshnessStatus on error
@@ -301,7 +297,7 @@ def register_safety_tools(mcp_server):
                     last_modified=datetime.datetime.now(),
                     safety_status="error",
                     message=f"Failed to check content status: {str(e)}",
-                    recommendations=["Check system logs for details"]
+                    recommendations=["Check system logs for details"],
                 )
 
     @mcp_server.tool()
@@ -363,7 +359,7 @@ def register_safety_tools(mcp_server):
             return OperationStatus(
                 success=False,
                 message=f"Invalid document name: {error_msg}",
-                details={"operation": "diff_content"}
+                details={"operation": "diff_content"},
             )
 
         # Validate chapter name if provided
@@ -373,7 +369,7 @@ def register_safety_tools(mcp_server):
                 return OperationStatus(
                     success=False,
                     message=f"Invalid chapter name: {error_msg}",
-                    details={"operation": "diff_content"}
+                    details={"operation": "diff_content"},
                 )
 
         # Validate source and target types
@@ -382,14 +378,14 @@ def register_safety_tools(mcp_server):
             return OperationStatus(
                 success=False,
                 message=f"Invalid source_type '{source_type}'. Must be one of: {', '.join(valid_types)}",
-                details={"operation": "diff_content"}
+                details={"operation": "diff_content"},
             )
 
         if target_type not in valid_types:
             return OperationStatus(
                 success=False,
                 message=f"Invalid target_type '{target_type}'. Must be one of: {', '.join(valid_types)}",
-                details={"operation": "diff_content"}
+                details={"operation": "diff_content"},
             )
 
         # Validate output format
@@ -398,7 +394,7 @@ def register_safety_tools(mcp_server):
             return OperationStatus(
                 success=False,
                 message=f"Invalid output_format '{output_format}'. Must be one of: {', '.join(valid_formats)}",
-                details={"operation": "diff_content"}
+                details={"operation": "diff_content"},
             )
 
         # Validate required IDs
@@ -406,14 +402,14 @@ def register_safety_tools(mcp_server):
             return OperationStatus(
                 success=False,
                 message=f"source_id is required for source_type '{source_type}'",
-                details={"operation": "diff_content"}
+                details={"operation": "diff_content"},
             )
 
         if target_type in ["snapshot", "file"] and not target_id:
             return OperationStatus(
                 success=False,
                 message=f"target_id is required for target_type '{target_type}'",
-                details={"operation": "diff_content"}
+                details={"operation": "diff_content"},
             )
 
         try:
@@ -435,13 +431,13 @@ def register_safety_tools(mcp_server):
                         "operation": "diff_content",
                         "source_type": source_type,
                         "target_type": target_type,
-                        "total_changes": result.get("statistics", {}).get("lines_added", 0) +
-                                       result.get("statistics", {}).get("lines_removed", 0) +
-                                       result.get("statistics", {}).get("lines_modified", 0),
+                        "total_changes": result.get("statistics", {}).get("lines_added", 0)
+                        + result.get("statistics", {}).get("lines_removed", 0)
+                        + result.get("statistics", {}).get("lines_modified", 0),
                         "diff_text": result.get("diff_text", ""),
                         "summary": result.get("summary", ""),
-                        "files_changed": ["chapter1.md"]
-                    }
+                        "files_changed": ["chapter1.md"],
+                    },
                 )
 
             elif source_type == "snapshot" and target_type == "snapshot":
@@ -461,13 +457,13 @@ def register_safety_tools(mcp_server):
                         "operation": "diff_content",
                         "source_type": source_type,
                         "target_type": target_type,
-                        "total_changes": result.get("statistics", {}).get("lines_added", 0) +
-                                       result.get("statistics", {}).get("lines_removed", 0) +
-                                       result.get("statistics", {}).get("lines_modified", 0),
+                        "total_changes": result.get("statistics", {}).get("lines_added", 0)
+                        + result.get("statistics", {}).get("lines_removed", 0)
+                        + result.get("statistics", {}).get("lines_modified", 0),
                         "diff_text": result.get("diff_text", ""),
                         "summary": result.get("summary", ""),
-                        "files_changed": ["chapter1.md"]
-                    }
+                        "files_changed": ["chapter1.md"],
+                    },
                 )
 
             else:
@@ -480,7 +476,7 @@ def register_safety_tools(mcp_server):
                         "source_type": source_type,
                         "target_type": target_type,
                         "note": "Currently only snapshot-to-current and snapshot-to-snapshot comparisons are supported",
-                    }
+                    },
                 )
 
         except Exception as e:
@@ -499,7 +495,7 @@ def register_safety_tools(mcp_server):
                 details={
                     "operation": "diff_content",
                     "error": str(e),
-                }
+                },
             )
 
 
@@ -525,22 +521,19 @@ def check_content_freshness(
     last_known_dt = None
     if last_known_modified:
         try:
-            last_known_dt = datetime.datetime.fromisoformat(
-                last_known_modified.replace("Z", "+00:00")
-            )
+            last_known_dt = datetime.datetime.fromisoformat(last_known_modified.replace("Z", "+00:00"))
             if last_known_dt.tzinfo:
                 last_known_dt = last_known_dt.replace(tzinfo=None)
         except ValueError:
             from ..models import ContentFreshnessStatus
+
             return ContentFreshnessStatus(
                 is_fresh=False,
                 last_modified=datetime.datetime.now(),
                 safety_status="error",
                 message=f"Invalid timestamp format: {last_known_modified}",
-                recommendations=[
-                    "Use ISO format: YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDTHH:MM:SSZ"
-                ],
-            ).model_dump()
+                recommendations=["Use ISO format: YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDTHH:MM:SSZ"],
+            )
 
     result = check_file_freshness(file_path, last_known_dt)
     return result  # Return ContentFreshnessStatus directly
@@ -555,24 +548,24 @@ def get_modification_history(
     from ..helpers import _get_modification_history_path
     from ..models import ModificationHistory
 
-    history_path = _get_modification_history_path(document_name)
+    _get_modification_history_path(document_name)
 
     # Parse time window
     now = datetime.datetime.now()
     if time_window == "all":
-        cutoff_time = datetime.datetime.min
+        pass
     else:
         try:
             if time_window.endswith("h"):
                 hours = int(time_window[:-1])
-                cutoff_time = now - datetime.timedelta(hours=hours)
+                now - datetime.timedelta(hours=hours)
             elif time_window.endswith("d"):
                 days = int(time_window[:-1])
-                cutoff_time = now - datetime.timedelta(days=days)
+                now - datetime.timedelta(days=days)
             else:
-                cutoff_time = now - datetime.timedelta(hours=24)
+                now - datetime.timedelta(hours=24)
         except ValueError:
-            cutoff_time = now - datetime.timedelta(hours=24)
+            now - datetime.timedelta(hours=24)
 
     # For now, return a basic history structure
     # In production, this would read from actual modification logs
@@ -606,11 +599,7 @@ def _diff_snapshots(
             "message": f"Document '{document_name}' not found",
             "diff_text": "",
             "summary": "Document not found",
-            "statistics": {
-                "lines_added": 0,
-                "lines_removed": 0,
-                "lines_modified": 0
-            }
+            "statistics": {"lines_added": 0, "lines_removed": 0, "lines_modified": 0},
         }
 
     # For testing purposes, simulate realistic diff scenarios
@@ -636,8 +625,8 @@ def _diff_snapshots(
                         "statistics": {
                             "lines_added": 0,
                             "lines_removed": 0,
-                            "lines_modified": 0
-                        }
+                            "lines_modified": 0,
+                        },
                     }
             except:
                 pass  # Ignore errors reading restore marker
@@ -649,11 +638,7 @@ def _diff_snapshots(
             "message": "Diff completed - changes detected",
             "diff_text": "--- snapshot\n+++ current\n@@ -1,1 +1,1 @@\n-Initial content\n+Modified content",
             "summary": "Content has been modified",
-            "statistics": {
-                "lines_added": 1,
-                "lines_removed": 1,
-                "lines_modified": 1
-            }
+            "statistics": {"lines_added": 1, "lines_removed": 1, "lines_modified": 1},
         }
     else:
         # Snapshot to snapshot comparison - simulate no changes for now
@@ -662,16 +647,14 @@ def _diff_snapshots(
             "message": "Diff completed - no changes",
             "diff_text": "",
             "summary": "No differences found",
-            "statistics": {
-                "lines_added": 0,
-                "lines_removed": 0,
-                "lines_modified": 0
-            }
+            "statistics": {"lines_added": 0, "lines_removed": 0, "lines_modified": 0},
         }
 
 
 # Internal snapshot functions
-def _create_snapshot(document_name: str, message: str | None = None, auto_cleanup: bool = True) -> OperationStatus:
+def _create_snapshot(
+    document_name: str, message: str | None = None, auto_cleanup: bool = True
+) -> OperationStatus:
     """Create a snapshot of a document (internal implementation)."""
     import datetime
 
@@ -684,7 +667,7 @@ def _create_snapshot(document_name: str, message: str | None = None, auto_cleanu
         return OperationStatus(
             success=False,
             message=f"Document '{document_name}' not found",
-            details={"action": "create", "document_name": document_name}
+            details={"action": "create", "document_name": document_name},
         )
 
     # Create snapshot directory and minimal snapshot tracking
@@ -698,9 +681,11 @@ def _create_snapshot(document_name: str, message: str | None = None, auto_cleanu
 
     # Create a simple snapshot marker file
     snapshot_file = snapshots_path / f"{snapshot_id}.snapshot"
-    snapshot_file.write_text(f"Snapshot created at {datetime.datetime.now().isoformat()}\n"
-                            f"Message: {message or 'Manual snapshot'}\n"
-                            f"User: {user}\n")
+    snapshot_file.write_text(
+        f"Snapshot created at {datetime.datetime.now().isoformat()}\n"
+        f"Message: {message or 'Manual snapshot'}\n"
+        f"User: {user}\n"
+    )
 
     # Snapshot created successfully
 
@@ -711,8 +696,8 @@ def _create_snapshot(document_name: str, message: str | None = None, auto_cleanu
             "action": "create",
             "snapshot_id": snapshot_id,
             "document_name": document_name,
-            "message": message or "Manual snapshot"
-        }
+            "message": message or "Manual snapshot",
+        },
     )
 
 
@@ -730,7 +715,7 @@ def _list_snapshots(document_name: str) -> SnapshotsList:
             document_name=document_name,
             total_snapshots=0,
             total_size_bytes=0,
-            snapshots=[]
+            snapshots=[],
         )
 
     # Look for snapshot files
@@ -741,7 +726,7 @@ def _list_snapshots(document_name: str) -> SnapshotsList:
             document_name=document_name,
             total_snapshots=0,
             total_size_bytes=0,
-            snapshots=[]
+            snapshots=[],
         )
 
     # Find all snapshot files
@@ -757,7 +742,7 @@ def _list_snapshots(document_name: str) -> SnapshotsList:
         # Read snapshot info
         try:
             content = snapshot_file.read_text()
-            lines = content.strip().split('\n')
+            lines = content.strip().split("\n")
             created_at = None
             message = "Manual snapshot"
 
@@ -774,9 +759,11 @@ def _list_snapshots(document_name: str) -> SnapshotsList:
                 document_name=document_name,
                 chapter_name=None,
                 message=message,
-                created_by=lines[2].split("User: ")[1] if len(lines) > 2 and lines[2].startswith("User: ") else "unknown",
+                created_by=lines[2].split("User: ")[1]
+                if len(lines) > 2 and lines[2].startswith("User: ")
+                else "unknown",
                 file_count=1,
-                size_bytes=size_bytes
+                size_bytes=size_bytes,
             )
             snapshots.append(snapshot_info)
         except Exception:
@@ -790,7 +777,7 @@ def _list_snapshots(document_name: str) -> SnapshotsList:
         document_name=document_name,
         total_snapshots=len(snapshots),
         total_size_bytes=total_size,
-        snapshots=snapshots
+        snapshots=snapshots,
     )
 
 
@@ -803,7 +790,7 @@ def _restore_snapshot(document_name: str, snapshot_id: str) -> OperationStatus:
         return OperationStatus(
             success=False,
             message=f"Document '{document_name}' not found",
-            details={"action": "restore", "document_name": document_name}
+            details={"action": "restore", "document_name": document_name},
         )
 
     # Mark that a restore has been performed for this document
@@ -819,6 +806,6 @@ def _restore_snapshot(document_name: str, snapshot_id: str) -> OperationStatus:
             "action": "restore",
             "snapshot_id": snapshot_id,
             "document_name": document_name,
-            "files_restored": 1
-        }
+            "files_restored": 1,
+        },
     )

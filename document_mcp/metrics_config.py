@@ -58,10 +58,7 @@ def get_resource() -> "Resource":
 def initialize_metrics():
     """Initialize OpenTelemetry metrics with both local Prometheus and remote OTLP export."""
     global meter, tool_calls_counter, tool_duration_histogram, tool_errors_counter
-    global \
-        tool_argument_sizes_histogram, \
-        concurrent_operations_gauge, \
-        server_info_counter
+    global tool_argument_sizes_histogram, concurrent_operations_gauge, server_info_counter
     global prometheus_reader
 
     if not METRICS_ENABLED:
@@ -92,9 +89,7 @@ def initialize_metrics():
             otlp_exporter = OTLPMetricExporter(endpoint=OTEL_ENDPOINT, headers=headers)
 
             # Export every 30 seconds
-            otlp_reader = PeriodicExportingMetricReader(
-                exporter=otlp_exporter, export_interval_millis=30000
-            )
+            otlp_reader = PeriodicExportingMetricReader(exporter=otlp_exporter, export_interval_millis=30000)
             metric_readers.append(otlp_reader)
             print(f"OTLP metrics exporter configured for {OTEL_ENDPOINT}")
 
@@ -191,9 +186,7 @@ def calculate_argument_size(args: tuple, kwargs: dict) -> int:
         return len(args_str.encode("utf-8")) + len(kwargs_str.encode("utf-8"))
 
 
-def record_tool_call_start(
-    tool_name: str, args: tuple, kwargs: dict
-) -> float | None:
+def record_tool_call_start(tool_name: str, args: tuple, kwargs: dict) -> float | None:
     """Record the start of a tool call and return start time for duration calculation."""
     if not is_metrics_enabled():
         return None
@@ -218,9 +211,7 @@ def record_tool_call_start(
     return start_time
 
 
-def record_tool_call_success(
-    tool_name: str, start_time: float | None, result_size: int = 0
-):
+def record_tool_call_success(tool_name: str, start_time: float | None, result_size: int = 0):
     """Record a successful tool call completion."""
     if not is_metrics_enabled() or start_time is None:
         return
@@ -242,9 +233,7 @@ def record_tool_call_success(
         # Record duration
         if tool_duration_histogram:
             duration = time.time() - start_time
-            tool_duration_histogram.record(
-                duration, {"tool_name": tool_name, "status": "success"}
-            )
+            tool_duration_histogram.record(duration, {"tool_name": tool_name, "status": "success"})
 
         # Update concurrent operations
         if concurrent_operations_gauge and operation_id in _active_operations:
@@ -255,9 +244,7 @@ def record_tool_call_success(
         print(f"Warning: Failed to record tool call success metrics: {e}")
 
 
-def record_tool_call_error(
-    tool_name: str, start_time: float | None, error: Exception
-):
+def record_tool_call_error(tool_name: str, start_time: float | None, error: Exception):
     """Record a failed tool call."""
     if not is_metrics_enabled():
         return
@@ -290,16 +277,10 @@ def record_tool_call_error(
         # Record duration even for errors if we have start time
         if tool_duration_histogram and start_time is not None:
             duration = time.time() - start_time
-            tool_duration_histogram.record(
-                duration, {"tool_name": tool_name, "status": "error"}
-            )
+            tool_duration_histogram.record(duration, {"tool_name": tool_name, "status": "error"})
 
         # Update concurrent operations
-        if (
-            concurrent_operations_gauge
-            and operation_id
-            and operation_id in _active_operations
-        ):
+        if concurrent_operations_gauge and operation_id and operation_id in _active_operations:
             concurrent_operations_gauge.add(-1, {"tool_name": tool_name})
             del _active_operations[operation_id]
 

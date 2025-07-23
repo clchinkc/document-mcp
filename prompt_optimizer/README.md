@@ -6,7 +6,7 @@ Automated prompt optimization tool that safely improves agent prompts using perf
 
 - **Safe Optimization**: Conservative changes that preserve all existing functionality
 - **Performance-Based**: Uses real execution metrics to evaluate improvements
-- **Comprehensive Testing**: Validates changes against 105 tests (unit + integration + E2E)
+- **Comprehensive Testing**: Validates changes against 300 tests (unit + integration + E2E + evaluation + metrics)
 - **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
 - **Multi-Agent Support**: Works with Simple, ReAct, and Planner agents
 

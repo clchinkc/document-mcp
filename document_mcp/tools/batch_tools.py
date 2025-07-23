@@ -27,7 +27,7 @@ def register_batch_tools(mcp_server):
         snapshot_before: bool = False,
         continue_on_error: bool = False,
     ) -> dict[str, Any]:
-        """Execute multiple operations as a batch with sequential execution.
+        r"""Execute multiple operations as a batch with sequential execution.
 
         This tool enables atomic execution of multiple document operations with
         automatic rollback on failure through snapshots.
@@ -145,9 +145,7 @@ def register_batch_tools(mcp_server):
                 validation_errors = []
                 for op in sorted_ops:
                     if not _batch_registry.is_valid_operation(op.operation_type):
-                        validation_errors.append(
-                            f"Unknown operation type: {op.operation_type}"
-                        )
+                        validation_errors.append(f"Unknown operation type: {op.operation_type}")
 
                 execution_time = (time.time() - start_time) * 1000
                 if validation_errors:
@@ -178,9 +176,7 @@ def register_batch_tools(mcp_server):
                 # Extract existing documents that will be modified from operations
                 affected_docs = set()
                 for op in sorted_ops:
-                    doc_name = op.target.get("document_name") or op.parameters.get(
-                        "document_name"
-                    )
+                    doc_name = op.target.get("document_name") or op.parameters.get("document_name")
                     if doc_name and op.operation_type != "create_document":
                         # Only snapshot existing documents (skip create_document operations)
                         doc_path = _get_document_path(doc_name)

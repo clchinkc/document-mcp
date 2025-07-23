@@ -53,9 +53,7 @@ class TestScopeBasedToolsBatchIntegration:
         ]
 
         # Execute batch operations
-        response = batch_apply_operations(
-            operations=batch_operations, atomic=True, validate_only=False
-        )
+        response = batch_apply_operations(operations=batch_operations, atomic=True, validate_only=False)
 
         assert response is not None
 
@@ -217,24 +215,18 @@ class TestScopeBasedToolsBatchIntegration:
         ]
 
         # Execute batch with dependencies
-        response = batch_apply_operations(
-            operations=dependent_operations, atomic=True, validate_only=False
-        )
+        response = batch_apply_operations(operations=dependent_operations, atomic=True, validate_only=False)
 
         assert response is not None
 
         # Verify all operations completed successfully
-        final_content = read_content(
-            document_name=document_name, scope="chapter", chapter_name="01-setup.md"
-        )
+        final_content = read_content(document_name=document_name, scope="chapter", chapter_name="01-setup.md")
 
         assert final_content is not None
         # Content should contain "configuration" instead of "setup"
 
     @pytest.mark.asyncio
-    async def test_batch_operations_performance_with_scope_based_tools(
-        self, document_factory
-    ):
+    async def test_batch_operations_performance_with_scope_based_tools(self, document_factory):
         """Test batch operations performance with multiple scope-based tool calls."""
         # Create document with multiple chapters
         document_name = "Performance Test Document"
@@ -281,9 +273,7 @@ class TestScopeBasedToolsBatchIntegration:
         )
 
         # Execute batch operations
-        response = batch_apply_operations(
-            operations=performance_operations, atomic=True, validate_only=False
-        )
+        response = batch_apply_operations(operations=performance_operations, atomic=True, validate_only=False)
 
         assert response is not None
 

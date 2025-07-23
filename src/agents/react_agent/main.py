@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ReAct Document Management Agent
+"""ReAct Document Management Agent.
 
 This module implements a ReAct (Reasoning and Acting) agent that can manage
 structured markdown documents through systematic reasoning and tool execution.
@@ -15,6 +15,8 @@ from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStdio
 from rich.console import Console
 from rich.panel import Panel
+
+from document_mcp import doc_tool_server
 
 # Import the shared error handling module
 from src.agents.react_agent.models import ReActStep
@@ -33,43 +35,10 @@ from src.agents.shared.performance_metrics import AgentPerformanceMetrics
 from src.agents.shared.performance_metrics import MetricsCollectionContext
 from src.agents.shared.performance_metrics import build_response_data
 
-# Remove invalid imports
-# from .react_agent import ReactAgent
-
-
-try:
-    from document_mcp import doc_tool_server
-except ImportError:
-    # Fallback for development/testing without installed package
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-    from document_mcp import doc_tool_server
-
-
 # --- ReAct Execution Loop ---
 
 
-async def execute_mcp_tool_directly(
-    agent: Agent, tool_name: str, kwargs: dict[str, Any]
-) -> str:
-    """Execute an MCP tool directly and return the result as a string."""
-    try:
-        # Use the agent's built-in tool execution mechanism
-        tool_call = (
-            f"{tool_name}({', '.join(f'{k}={repr(v)}' for k, v in kwargs.items())})"
-        )
-        result = await agent.run(
-            f"Use the {tool_name} tool with these parameters: {kwargs}"
-        )
-
-        # Extract the result from the agent response
-        if hasattr(result, "output"):
-            return str(result.output)
-        else:
-            return str(result)
-    except Exception as e:
-        return f"Error executing {tool_name}: {str(e)}"
+# Removed broken execute_mcp_tool_directly function - ReAct agent now uses proper MCP integration
 
 
 async def run_react_agent_with_metrics(
@@ -83,12 +52,9 @@ async def run_react_agent_with_metrics(
     with MetricsCollectionContext("react") as ctx:
         try:
             # Prepare environment for MCP server subprocess
-            server_env = None
-            if "DOCUMENT_ROOT_DIR" in os.environ:
-                server_env = {
-                    **os.environ,
-                    "PYTEST_CURRENT_TEST": "1",
-                }
+            from src.agents.shared.config import prepare_mcp_server_environment
+
+            server_env = prepare_mcp_server_environment()
 
             mcp_server = MCPServerStdio(
                 command="python3",
@@ -149,7 +115,7 @@ async def run_react_loop(
     """Main execution loop for the ReAct agent."""
     console = Console()
     history = []
-    action_parser = ActionParser()
+    action_action_parser = ActionParser()
     agent_results = []  # Capture AgentRunResult objects for token tracking
 
     if conversation_history is None:
@@ -205,9 +171,7 @@ async def run_react_loop(
             while retry_count <= MAX_RETRIES:
                 try:
                     # Run the agent to get the next step
-                    result = await asyncio.wait_for(
-                        agent.run(current_context), timeout=DEFAULT_TIMEOUT
-                    )
+                    result = await asyncio.wait_for(agent.run(current_context), timeout=DEFAULT_TIMEOUT)
                     break  # Success - exit retry loop
 
                 except asyncio.TimeoutError as e:
@@ -233,20 +197,13 @@ async def run_react_loop(
                     agent_results.append(result)
 
                 # Extract the ReActStep from the result
-                if hasattr(result, "output"):
-                    react_step = result.output
-                else:
-                    react_step = result
+                react_step = result.output if hasattr(result, "output") else result
             else:
                 # All retries failed - handle error
                 error_msg = (
-                    str(last_error)
-                    if str(last_error)
-                    else f"{type(last_error).__name__}: No error message"
+                    str(last_error) if str(last_error) else f"{type(last_error).__name__}: No error message"
                 )
-                error_details = (
-                    f"Exception type: {type(last_error).__name__}, Message: {error_msg}"
-                )
+                error_details = f"Exception type: {type(last_error).__name__}, Message: {error_msg}"
                 if retry_count > MAX_RETRIES:
                     error_details += f" (failed after {MAX_RETRIES + 1} attempts)"
 
@@ -268,15 +225,52 @@ async def run_react_loop(
                 "observation": None,
             }
 
-            # If there's an action, execute it
+            # If there's an action, execute it by running the agent with a tool execution prompt
             if react_step.action and react_step.action.strip():
                 try:
-                    # Parse and execute the action
-                    tool_name, kwargs = action_parser.parse(react_step.action)
-                    observation = await execute_mcp_tool_directly(
-                        agent, tool_name, kwargs
-                    )
+                    # Parse the action to extract tool name and parameters
+                    tool_name, kwargs = action_action_parser.parse(react_step.action)
+
+                    # Create a prompt that will cause the agent to call the MCP tool
+                    tool_prompt = f"Call the {tool_name} tool with these exact parameters: {kwargs}"
+
+                    # Run the agent to execute the tool
+                    tool_result = await asyncio.wait_for(agent.run(tool_prompt), timeout=DEFAULT_TIMEOUT)
+
+                    # Extract the actual tool response from the agent result
+                    observation = "Tool execution completed"
+                    tool_response_data = None
+                    if hasattr(tool_result, "all_messages"):
+                        messages = tool_result.all_messages()
+                        # Look for tool execution results in the messages
+                        for message in messages:
+                            if hasattr(message, "parts"):
+                                for part in message.parts:
+                                    # Use the same pattern as Simple Agent for consistency
+                                    if (
+                                        hasattr(part, "tool_name")
+                                        and hasattr(part, "content")
+                                        and type(part).__name__ == "ToolReturnPart"
+                                    ):
+                                        tool_content = part.content
+
+                                        # Store the actual MCP tool response data using Simple Agent pattern
+                                        if isinstance(tool_content, list):
+                                            tool_response_data = {"documents": tool_content}
+                                        elif isinstance(tool_content, dict):
+                                            tool_response_data = tool_content
+                                        else:
+                                            tool_response_data = {"content": tool_content}
+
+                                        observation = str(tool_response_data)
+                                        break
+
+                    # Store the structured tool response for later extraction
+                    step_data["tool_response_data"] = tool_response_data
+                    step_data["tool_name"] = tool_name
+
                     step_data["observation"] = observation
+
                 except Exception as e:
                     step_data["observation"] = f"Error executing action: {str(e)}"
             else:
@@ -316,11 +310,7 @@ async def run_react_loop(
         if not history:  # Only add error if no history exists yet
             history.append({"step": 1, "error": str(e)})
 
-    final_thought = (
-        history[-1].get("thought", "No final thought.")
-        if history
-        else "No steps completed."
-    )
+    final_thought = history[-1].get("thought", "No final thought.") if history else "No steps completed."
     console.print(
         Panel(
             f"ReAct loop finished.\n[bold]Final Thought:[/bold] {final_thought}",
@@ -354,16 +344,11 @@ async def main():
         print("=" * 60)
 
         # Prepare environment for MCP server subprocess
-        server_env = None
-        if "DOCUMENT_ROOT_DIR" in os.environ:
-            server_env = {
-                **os.environ,
-                "PYTEST_CURRENT_TEST": "1",  # Signal to MCP server we're in test mode
-            }
+        from src.agents.shared.config import prepare_mcp_server_environment
 
-        mcp_server = MCPServerStdio(
-            command=MCP_SERVER_CMD[0], args=MCP_SERVER_CMD[1:], env=server_env
-        )
+        server_env = prepare_mcp_server_environment()
+
+        mcp_server = MCPServerStdio(command=MCP_SERVER_CMD[0], args=MCP_SERVER_CMD[1:], env=server_env)
         # Create agent directly (no caching needed for E2E tests)
         llm = await load_llm_config()
         agent = Agent(
@@ -424,12 +409,9 @@ async def main():
 
         try:
             # Prepare environment for MCP server subprocess
-            server_env = None
-            if "DOCUMENT_ROOT_DIR" in os.environ:
-                server_env = {
-                    **os.environ,
-                    "PYTEST_CURRENT_TEST": "1",  # Signal to MCP server we're in test mode
-                }
+            from src.agents.shared.config import prepare_mcp_server_environment
+
+            server_env = prepare_mcp_server_environment()
 
             mcp_server = MCPServerStdio(
                 command="python3",
@@ -445,9 +427,7 @@ async def main():
                 output_type=ReActStep,
             )
             async with mcp_server:
-                history, _ = await run_react_loop(
-                    agent, mcp_server, args.query, args.max_steps
-                )
+                history, _ = await run_react_loop(agent, mcp_server, args.query, args.max_steps)
 
             # Display summary
             print("\nExecution Summary:")
@@ -468,9 +448,7 @@ async def main():
             if history:
                 final_step = history[-1]
                 if final_step["action"] is None:
-                    execution_summary = (
-                        f"Successfully completed task in {len(history)} steps"
-                    )
+                    execution_summary = f"Successfully completed task in {len(history)} steps"
                 else:
                     execution_summary = f"Execution incomplete after {len(history)} steps (max steps reached)"
 
@@ -482,10 +460,11 @@ async def main():
                     log_entries.append(f"Step {h['step']}: {h['thought']}")
                 execution_log = "\n".join(log_entries)
 
-            # Format structured details
-            details = []
+            # Format structured details - collect MCP tool responses
+            mcp_tool_responses = {}
+            execution_steps = []
             if history:
-                details = [
+                execution_steps = [
                     {
                         "step": h["step"],
                         "thought": h["thought"],
@@ -495,9 +474,19 @@ async def main():
                     for h in history
                 ]
 
+                # Extract MCP tool responses for details field from structured data
+                for h in history:
+                    # Use the structured tool response data we stored during execution
+                    if h.get("tool_response_data") and h.get("tool_name"):
+                        tool_name = h["tool_name"]
+                        tool_response = h["tool_response_data"]
+                        response_key = f"{tool_name}_response"
+                        mcp_tool_responses[response_key] = tool_response
+
             json_output = AgentResponseFormatter.format_react_agent_response(
                 summary=execution_summary,
-                steps_executed=details,
+                mcp_tool_responses=mcp_tool_responses,
+                steps_executed=execution_steps,
                 execution_log=execution_log,
                 max_steps=args.max_steps,
             )
@@ -515,6 +504,7 @@ async def main():
 
             json_output = AgentResponseFormatter.format_react_agent_response(
                 summary=f"Error during execution: {e}",
+                mcp_tool_responses={},
                 steps_executed=[],
                 execution_log="",
                 max_steps=args.max_steps,
@@ -527,11 +517,12 @@ async def main():
 
     else:
         # No query provided, show help
+        import argparse
+
+        parser = argparse.ArgumentParser(description="ReAct Agent")
         parser.print_help()
         print("\nExample usage:")
-        print(
-            '  python src/agents/react_agent/main.py --query "Create a document called My Story"'
-        )
+        print('  python src/agents/react_agent/main.py --query "Create a document called My Story"')
         print("  python src/agents/react_agent/main.py --interactive")
 
 

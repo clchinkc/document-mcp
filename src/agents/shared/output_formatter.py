@@ -49,9 +49,7 @@ class AgentResponseFormatter:
         return json.dumps(response, indent=2, ensure_ascii=False)
 
     @staticmethod
-    def format_simple_agent_response(
-        summary: str, details: Any, error_message: str | None = None
-    ) -> str:
+    def format_simple_agent_response(summary: str, details: Any, error_message: str | None = None) -> str:
         """Format response for simple agent with minimal metadata.
 
         Args:
@@ -72,6 +70,7 @@ class AgentResponseFormatter:
     @staticmethod
     def format_react_agent_response(
         summary: str,
+        mcp_tool_responses: dict[str, Any],
         steps_executed: list[dict[str, Any]],
         execution_log: str,
         max_steps: int,
@@ -81,21 +80,30 @@ class AgentResponseFormatter:
 
         Args:
             summary: Human-readable summary of execution
+            mcp_tool_responses: MCP tool responses for the details field (structured data)
             steps_executed: List of execution steps with thoughts/actions/observations
             execution_log: Formatted log of agent's reasoning
             max_steps: Maximum steps configured for the agent
             error_message: Optional error message
 
         Returns:
-            JSON string formatted for ReAct agent
+            JSON string formatted for ReAct agent following architectural principles:
+            - summary: LLM-generated human-readable description
+            - details: Structured data from MCP tool responses
         """
+        # Use MCP tool responses for details field (architectural requirement)
+        # Execution steps are available in metadata for debugging/analysis
         return AgentResponseFormatter.format_as_json(
             agent_type="react",
             summary=summary,
-            details=steps_executed,
+            details=mcp_tool_responses,
             execution_log=execution_log,
             error_message=error_message,
-            metadata={"steps_executed": len(steps_executed), "max_steps": max_steps},
+            metadata={
+                "steps_executed": len(steps_executed),
+                "max_steps": max_steps,
+                "execution_steps": steps_executed,  # ReAct steps moved to metadata
+            },
         )
 
     @staticmethod

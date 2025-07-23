@@ -34,6 +34,7 @@ class ToolDescriptionManager:
     """Manages tool descriptions for dynamic prompt generation across all agents."""
 
     def __init__(self):
+        """Initialize the tool description registry."""
         self._tools = self._initialize_tools()
 
     def _initialize_tools(self) -> list[ToolDescription]:
@@ -256,6 +257,21 @@ class ToolDescriptionManager:
                 category="Scope-based Content Access",
                 planner_signature="get_statistics(document_name: str, scope: str = 'document', chapter_name: str = None)",
             ),
+            ToolDescription(
+                name="find_similar_text",
+                description="Semantic text search with scope-based targeting and similarity scoring. Use scope='document' to search entire document, scope='chapter' to search specific chapter. Returns contextually similar content based on meaning rather than exact matches.",
+                parameters={
+                    "document_name": "str",
+                    "query_text": "str",
+                    "scope": "str",
+                    "chapter_name": "Optional[str]",
+                    "similarity_threshold": "float",
+                    "max_results": "int",
+                },
+                example='find_similar_text(document_name="My Book", query_text="character development themes", scope="document", similarity_threshold=0.7)',
+                category="Scope-based Content Access",
+                planner_signature="find_similar_text(document_name: str, query_text: str, scope: str = 'document', chapter_name: str = None, similarity_threshold: float = 0.7, max_results: int = 10)",
+            ),
             # Version Control Tools (3 tools replacing 6)
             ToolDescription(
                 name="manage_snapshots",
@@ -305,17 +321,17 @@ class ToolDescriptionManager:
             ToolDescription(
                 name="batch_apply_operations",
                 description="""Execute multiple document operations atomically with comprehensive safety and rollback.
-    
+
 INTELLIGENCE FEATURES:
 • Automatic dependency resolution - operations execute in correct order regardless of definition order
 • Smart conflict detection - prevents contradictory operations (e.g., delete then modify same content)
-• Automatic snapshot creation - every batch gets a restoration checkpoint  
+• Automatic snapshot creation - every batch gets a restoration checkpoint
 • Granular rollback - failed batches automatically restore to pre-execution state
 • User modification tracking - all changes attributed and logged for easy restoration
 
 WHEN TO USE BATCHES:
 ✅ Multi-step document creation (document + chapters + content)
-✅ Bulk content editing (character renaming, formatting changes) 
+✅ Bulk content editing (character renaming, formatting changes)
 ✅ Complex reorganization (moving/restructuring multiple elements)
 ✅ Multi-document operations requiring consistency
 ✅ Any workflow where partial completion would leave incomplete state
@@ -343,7 +359,7 @@ WHEN TO USE INDIVIDUAL OPERATIONS:
             "operation_id": "create_doc"
         },
         {
-            "operation_type": "create_chapter", 
+            "operation_type": "create_chapter",
             "target": {"document_name": "Science Fiction Novel"},
             "parameters": {
                 "chapter_name": "01-introduction.md",
@@ -371,9 +387,7 @@ WHEN TO USE INDIVIDUAL OPERATIONS:
             categories[tool.category].append(tool)
         return categories
 
-    def get_tool_descriptions_text(
-        self, format_type: ToolFormat = ToolFormat.FULL
-    ) -> str:
+    def get_tool_descriptions_text(self, format_type: ToolFormat = ToolFormat.FULL) -> str:
         """Generate tool descriptions text for prompt inclusion."""
         if format_type == ToolFormat.COMPACT:
             return self._generate_compact_format()
@@ -426,7 +440,7 @@ WHEN TO USE INDIVIDUAL OPERATIONS:
 
     def get_category_count(self) -> int:
         """Get number of tool categories."""
-        return len(set(tool.category for tool in self._tools))
+        return len({tool.category for tool in self._tools})
 
     def get_token_estimate(self, format_type: ToolFormat = ToolFormat.FULL) -> int:
         """Estimate token count for tool descriptions (rough approximation)."""

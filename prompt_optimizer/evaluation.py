@@ -1,6 +1,6 @@
 """Performance evaluation system for prompt optimization using real agent benchmarks.
 
-This module integrates with the clean evaluation architecture to provide 
+This module integrates with the clean evaluation architecture to provide
 comprehensive prompt performance scoring based on actual task completion,
 enhanced with simple LLM-based qualitative assessment.
 """
@@ -25,6 +25,7 @@ from tests.evaluation.llm_evaluation_layer import enhance_test_metrics
 @dataclass
 class OptimizationResult:
     """Result from prompt optimization evaluation using clean architecture."""
+
     keep_improvement: bool
     reason: str
     test_passed: bool
@@ -47,6 +48,7 @@ class OptimizationResult:
 @dataclass
 class BenchmarkResult:
     """Individual benchmark test result using clean architecture."""
+
     scenario_name: str
     success: bool
     execution_time: float
@@ -62,6 +64,7 @@ class PerformanceEvaluator:
     """Clean evaluator using real agent performance benchmarks with simple LLM assessment."""
 
     def __init__(self, project_root: Path, enable_llm_evaluation: bool = True):
+        """Initialize the performance evaluator."""
         self.project_root = project_root
         self.enable_llm_evaluation = enable_llm_evaluation
 
@@ -77,14 +80,14 @@ class PerformanceEvaluator:
         # Get 5 key scenarios for optimization speed
         scenarios = get_test_scenarios()
         benchmark_scenarios = [
-            s for s in scenarios
-            if s.get("category") in ["basic", "intermediate", "query"]
+            s for s in scenarios if s.get("category") in ["basic", "intermediate", "query"]
         ][:5]
 
         results = []
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             import os
+
             old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
             os.environ["DOCUMENT_ROOT_DIR"] = str(tmp_dir)
 
@@ -97,13 +100,15 @@ class PerformanceEvaluator:
                         if agent_type == "simple":
                             agent, mcp_server = await initialize_agent_and_mcp_server()
                             async with agent.run_mcp_servers():
-                                response, performance_metrics = await process_single_user_query_with_metrics(
-                                    agent, scenario["query"]
-                                )
+                                (
+                                    response,
+                                    performance_metrics,
+                                ) = await process_single_user_query_with_metrics(agent, scenario["query"])
                         elif agent_type == "react":
-                            history, performance_metrics = await run_react_agent_with_metrics(
-                                scenario["query"], max_steps=5
-                            )
+                            (
+                                history,
+                                performance_metrics,
+                            ) = await run_react_agent_with_metrics(scenario["query"], max_steps=5)
                             response = {"summary": str(history[-1]) if history else "No response"}
                         else:
                             raise ValueError(f"Unknown agent type: {agent_type}")
@@ -117,12 +122,21 @@ class PerformanceEvaluator:
 
                         if self.enable_llm_evaluation and performance_metrics.success:
                             try:
-                                response_summary = response.get("summary", "") if isinstance(response, dict) else str(response)
+                                response_summary = (
+                                    response.get("summary", "")
+                                    if isinstance(response, dict)
+                                    else str(response)
+                                )
                                 enhanced_metrics = await enhance_test_metrics(
-                                    performance_metrics, scenario["query"], response_summary
+                                    performance_metrics,
+                                    scenario["query"],
+                                    response_summary,
                                 )
 
-                                if enhanced_metrics.llm_evaluation and enhanced_metrics.llm_evaluation.success:
+                                if (
+                                    enhanced_metrics.llm_evaluation
+                                    and enhanced_metrics.llm_evaluation.success
+                                ):
                                     llm_evaluation = enhanced_metrics.llm_evaluation
                                     quality_score = llm_evaluation.score
                                     print(f"    🎯 LLM Quality Score: {quality_score:.2f}")
@@ -138,7 +152,7 @@ class PerformanceEvaluator:
                             tool_calls_count=performance_metrics.tool_calls_count,
                             performance_score=performance_index,
                             llm_evaluation=llm_evaluation,
-                            quality_score=quality_score
+                            quality_score=quality_score,
                         )
 
                         results.append(result)
@@ -146,11 +160,19 @@ class PerformanceEvaluator:
                         # Log results
                         status = "✅" if result.success else "❌"
                         quality_info = f", Quality: {quality_score:.2f}" if quality_score > 0 else ""
-                        print(f"    {status} Score: {result.performance_score:.2f}, Time: {result.execution_time:.2f}s{quality_info}")
+                        print(
+                            f"    {status} Score: {result.performance_score:.2f}, Time: {result.execution_time:.2f}s{quality_info}"
+                        )
 
                     except Exception as e:
                         print(f"    ❌ Scenario failed: {e}")
-                        results.append(BenchmarkResult(scenario_name=scenario["name"], success=False, execution_time=0.0))
+                        results.append(
+                            BenchmarkResult(
+                                scenario_name=scenario["name"],
+                                success=False,
+                                execution_time=0.0,
+                            )
+                        )
 
             finally:
                 # Restore environment
@@ -160,7 +182,6 @@ class PerformanceEvaluator:
                     os.environ.pop("DOCUMENT_ROOT_DIR", None)
 
         return results
-
 
     def _calculate_performance_index(self, metrics) -> float:
         """Calculate simple performance index: success / (time + tokens/100)."""
@@ -196,7 +217,8 @@ class PerformanceEvaluator:
             "success_rate": len(successful_results) / len(benchmark_results),
             "avg_time": sum(r.execution_time for r in successful_results) / len(successful_results),
             "avg_tokens": sum(r.token_usage or 0 for r in successful_results) / len(successful_results),
-            "avg_performance_index": sum(r.performance_score for r in successful_results) / len(successful_results)
+            "avg_performance_index": sum(r.performance_score for r in successful_results)
+            / len(successful_results),
         }
 
         # Add LLM evaluation metrics if available
@@ -220,11 +242,18 @@ class PerformanceEvaluator:
         """Run unit/integration/e2e tests to ensure functionality."""
         print("🧪 Running functionality tests...")
 
-        cmd = [sys.executable, "-m", "pytest", "tests/unit/", "tests/integration/", "tests/e2e/", "--tb=short"]
+        cmd = [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/unit/",
+            "tests/integration/",
+            "tests/e2e/",
+            "--tb=short",
+        ]
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True,
-                                    cwd=self.project_root, timeout=600)
+            result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.project_root, timeout=600)
 
             passed = result.returncode == 0
             test_count = self._count_tests(result.stdout)
@@ -244,16 +273,21 @@ class PerformanceEvaluator:
 
     def _count_tests(self, output: str) -> int:
         """Extract test count from pytest output."""
-        for line in reversed(output.split('\n')):
-            if 'passed' in line:
+        for line in reversed(output.split("\n")):
+            if "passed" in line:
                 words = line.split()
                 for i, word in enumerate(words):
-                    if word == 'passed' and i > 0 and words[i-1].isdigit():
-                        return int(words[i-1])
+                    if word == "passed" and i > 0 and words[i - 1].isdigit():
+                        return int(words[i - 1])
         return 0
 
-    async def evaluate_change(self, agent_type: str, baseline_tokens: int,
-                            improved_tokens: int, baseline_metrics: dict = None) -> OptimizationResult:
+    async def evaluate_change(
+        self,
+        agent_type: str,
+        baseline_tokens: int,
+        improved_tokens: int,
+        baseline_metrics: dict = None,
+    ) -> OptimizationResult:
         """Comprehensive evaluation using functionality tests, performance benchmarks, and LLM assessment."""
         token_change = baseline_tokens - improved_tokens  # Positive = reduction
 
@@ -272,11 +306,13 @@ class PerformanceEvaluator:
                 scenario_results={},
                 benchmark_comparison={},
                 llm_evaluation_score=0.0,
-                llm_evaluation_feedback="Tests failed - no LLM evaluation performed"
+                llm_evaluation_feedback="Tests failed - no LLM evaluation performed",
             )
 
         # Step 2: Run performance benchmarks with LLM evaluation
-        print(f"\n🏆 Step 2: Performance Benchmarking{'with LLM Evaluation' if self.enable_llm_evaluation else ''}")
+        print(
+            f"\n🏆 Step 2: Performance Benchmarking{'with LLM Evaluation' if self.enable_llm_evaluation else ''}"
+        )
         benchmark_results = await self.run_performance_benchmarks(agent_type)
 
         # Enhanced performance evaluation with LLM metrics
@@ -300,7 +336,7 @@ class PerformanceEvaluator:
                 "token_usage": r.token_usage,
                 "quality_score": r.quality_score,
                 "combined_score": self._calculate_combined_score(r.performance_score, r.quality_score),
-                "llm_feedback": r.llm_evaluation.feedback if r.llm_evaluation else ""
+                "llm_feedback": r.llm_evaluation.feedback if r.llm_evaluation else "",
             }
             for r in benchmark_results
         }
@@ -311,7 +347,9 @@ class PerformanceEvaluator:
             keep = False
         elif not baseline_metrics:  # No baseline to compare against
             if self.enable_llm_evaluation:
-                reason = f"No baseline - accepting if all tests pass (combined score: {avg_combined_score:.2f})"
+                reason = (
+                    f"No baseline - accepting if all tests pass (combined score: {avg_combined_score:.2f})"
+                )
             else:
                 reason = f"No baseline - accepting if all tests pass (performance index: {avg_performance_index:.2f})"
             keep = True
@@ -326,10 +364,14 @@ class PerformanceEvaluator:
                 metric_name = "performance index"
 
             if current_score > baseline_score:
-                reason = f"{metric_name.title()} improved: {current_score:.2f} > {baseline_score:.2f} (baseline)"
+                reason = (
+                    f"{metric_name.title()} improved: {current_score:.2f} > {baseline_score:.2f} (baseline)"
+                )
                 keep = True
             else:
-                reason = f"{metric_name.title()} declined: {current_score:.2f} <= {baseline_score:.2f} (baseline)"
+                reason = (
+                    f"{metric_name.title()} declined: {current_score:.2f} <= {baseline_score:.2f} (baseline)"
+                )
                 keep = False
 
         # Enhanced performance comparison metrics
@@ -338,16 +380,18 @@ class PerformanceEvaluator:
             "avg_performance_index": avg_performance_index,
             "avg_time": avg_time,
             "avg_tokens": avg_tokens,
-            "baseline_comparison": baseline_metrics
+            "baseline_comparison": baseline_metrics,
         }
 
         # Add LLM evaluation metrics if available
         if self.enable_llm_evaluation:
-            benchmark_comparison.update({
-                "avg_quality_score": avg_quality_score,
-                "avg_combined_score": avg_combined_score,
-                "llm_evaluation_enabled": True
-            })
+            benchmark_comparison.update(
+                {
+                    "avg_quality_score": avg_quality_score,
+                    "avg_combined_score": avg_combined_score,
+                    "llm_evaluation_enabled": True,
+                }
+            )
 
         # Enhanced reporting
         print("\n📊 PERFORMANCE EVALUATION:")
@@ -384,7 +428,7 @@ class PerformanceEvaluator:
             scenario_results=scenario_results,
             benchmark_comparison=benchmark_comparison,
             llm_evaluation_score=avg_quality_score,
-            llm_evaluation_feedback=llm_feedback
+            llm_evaluation_feedback=llm_feedback,
         )
 
     def _generate_llm_evaluation_feedback(self, benchmark_results: list[BenchmarkResult]) -> str:
@@ -413,12 +457,10 @@ class PerformanceEvaluator:
         # Add feedback summary
         if feedback_entries:
             feedback_parts.append("Sample feedback:")
-            for i, feedback in enumerate(feedback_entries[:3]):  # Show first 3
+            for _i, feedback in enumerate(feedback_entries[:3]):  # Show first 3
                 feedback_parts.append(f"  - {feedback[:100]}{'...' if len(feedback) > 100 else ''}")
 
             if len(feedback_entries) > 3:
                 feedback_parts.append(f"  ... and {len(feedback_entries) - 3} more evaluations")
 
         return "\n".join(feedback_parts)
-
-

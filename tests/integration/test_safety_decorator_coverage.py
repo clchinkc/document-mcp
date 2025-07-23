@@ -119,9 +119,7 @@ class TestSafetyDecoratorCoverage:
 
             # Simulate external file modification
             time.sleep(1.1)  # Ensure timestamp difference > 1 second (safety tolerance)
-            doc_path.write_text(
-                "Externally modified first paragraph\n\nExternally modified second paragraph"
-            )
+            doc_path.write_text("Externally modified first paragraph\n\nExternally modified second paragraph")
             new_mtime = doc_path.stat().st_mtime
 
             # Verify file was actually modified
@@ -230,9 +228,7 @@ class TestSafetyDecoratorCoverage:
             assert result5.success is True
 
             # Test delete operation
-            result6 = delete_paragraph(
-                document_name=doc_name, chapter_name=chapter_name, paragraph_index=0
-            )
+            result6 = delete_paragraph(document_name=doc_name, chapter_name=chapter_name, paragraph_index=0)
             assert result6.success is True
 
         finally:

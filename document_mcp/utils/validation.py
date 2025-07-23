@@ -23,11 +23,7 @@ CHAPTER_MANIFEST_FILE = "_manifest.json"
 
 def validate_document_name(document_name: str) -> tuple[bool, str]:
     """Validate document name input."""
-    if (
-        not document_name
-        or not isinstance(document_name, str)
-        or not document_name.strip()
-    ):
+    if not document_name or not isinstance(document_name, str) or not document_name.strip():
         return False, "Document name cannot be empty"
     if len(document_name) > MAX_DOCUMENT_NAME_LENGTH:
         return (
@@ -43,11 +39,7 @@ def validate_document_name(document_name: str) -> tuple[bool, str]:
 
 def validate_chapter_name(chapter_name: str) -> tuple[bool, str]:
     """Validate chapter name input."""
-    if (
-        not chapter_name
-        or not isinstance(chapter_name, str)
-        or not chapter_name.strip()
-    ):
+    if not chapter_name or not isinstance(chapter_name, str) or not chapter_name.strip():
         return False, "Chapter name cannot be empty"
     if len(chapter_name) > MAX_CHAPTER_NAME_LENGTH:
         return (

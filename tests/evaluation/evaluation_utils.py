@@ -23,11 +23,7 @@ class TokenUsageMetrics:
     total_tokens: int = 0
 
     def __post_init__(self):
-        if (
-            self.total_tokens == 0
-            and self.prompt_tokens > 0
-            and self.completion_tokens > 0
-        ):
+        if self.total_tokens == 0 and self.prompt_tokens > 0 and self.completion_tokens > 0:
             self.total_tokens = self.prompt_tokens + self.completion_tokens
 
 
@@ -46,9 +42,7 @@ class EvaluationAssertions:
     """Specialized assertions for evaluation tests focusing on structured data and LLM evaluation."""
 
     @staticmethod
-    def assert_details_field_structure(
-        response: dict[str, Any], expected_operation: str
-    ):
+    def assert_details_field_structure(response: dict[str, Any], expected_operation: str):
         """Assert that the details field contains expected operation structure."""
         assert "details" in response, "Response must contain 'details' field"
 
@@ -59,9 +53,7 @@ class EvaluationAssertions:
             except json.JSONDecodeError:
                 raise AssertionError(f"Details field contains invalid JSON: {details}")
 
-        assert isinstance(details, dict), (
-            f"Details must be a dictionary, got {type(details)}"
-        )
+        assert isinstance(details, dict), f"Details must be a dictionary, got {type(details)}"
         assert "operation" in details, "Details must contain 'operation' field"
         assert details["operation"] == expected_operation, (
             f"Expected operation '{expected_operation}', got '{details['operation']}'"
@@ -84,9 +76,7 @@ class EvaluationAssertions:
         )
 
     @staticmethod
-    def assert_file_system_state(
-        validator: DocumentSystemValidator, expected_changes: dict[str, Any]
-    ):
+    def assert_file_system_state(validator: DocumentSystemValidator, expected_changes: dict[str, Any]):
         """Assert that file system state matches expected changes."""
         for change_type, change_data in expected_changes.items():
             if change_type == "documents_created":
@@ -101,9 +91,7 @@ class EvaluationAssertions:
                     validator.assert_document_not_exists(doc_name)
             elif change_type == "content_contains":
                 for (doc_name, chapter_name), content in change_data.items():
-                    validator.assert_chapter_content_contains(
-                        doc_name, chapter_name, content
-                    )
+                    validator.assert_chapter_content_contains(doc_name, chapter_name, content)
 
     @staticmethod
     def assert_token_efficiency(agent_type: str, operation: str, token_count: int):
@@ -129,8 +117,7 @@ class EvaluationAssertions:
         if agent_type in baselines and operation in baselines[agent_type]:
             max_tokens = baselines[agent_type][operation]
             assert token_count <= max_tokens, (
-                f"{agent_type} agent used {token_count} tokens for {operation}, "
-                f"expected <= {max_tokens}"
+                f"{agent_type} agent used {token_count} tokens for {operation}, expected <= {max_tokens}"
             )
 
     @staticmethod
@@ -140,9 +127,7 @@ class EvaluationAssertions:
             assert enhanced_metrics.llm_evaluation.score >= min_score, (
                 f"LLM quality score {enhanced_metrics.llm_evaluation.score:.2f} below minimum {min_score}"
             )
-            assert enhanced_metrics.llm_evaluation.feedback != "", (
-                "Should provide feedback"
-            )
+            assert enhanced_metrics.llm_evaluation.feedback != "", "Should provide feedback"
         # If LLM evaluation is disabled or failed, test still passes (graceful degradation)
 
     @staticmethod
@@ -156,9 +141,7 @@ class EvaluationAssertions:
     ):
         """Assert that combined score meets threshold and is calculated correctly."""
         # Verify calculation
-        expected_combined = (performance_weight * performance_score) + (
-            quality_weight * quality_score
-        )
+        expected_combined = (performance_weight * performance_score) + (quality_weight * quality_score)
         assert abs(combined_score - expected_combined) < 0.01, (
             f"Combined score {combined_score:.3f} doesn't match expected {expected_combined:.3f}"
         )
@@ -192,15 +175,14 @@ class EvaluationAssertions:
             for i in range(len(ranked_responses) - 1):
                 current_score = ranked_responses[i]["overall_score"]
                 next_score = ranked_responses[i + 1]["overall_score"]
-                assert current_score >= next_score, (
-                    "Ranking should be in descending order"
-                )
+                assert current_score >= next_score, "Ranking should be in descending order"
 
 
 class PerformanceTracker:
     """Context manager for tracking performance metrics during test execution."""
 
     def __init__(self):
+        """Initialize the test runner."""
         self.start_time: float | None = None
         self.end_time: float | None = None
         self.tool_calls: list[ToolCallMetrics] = []
@@ -254,9 +236,7 @@ class PerformanceTracker:
             total_tokens=total_tokens or (prompt_tokens + completion_tokens),
         )
 
-    def take_file_system_snapshot(
-        self, validator: DocumentSystemValidator, snapshot_type: str
-    ):
+    def take_file_system_snapshot(self, validator: DocumentSystemValidator, snapshot_type: str):
         """Take a snapshot of the file system state."""
         snapshot = {
             "timestamp": time.time(),
@@ -281,12 +261,8 @@ class PerformanceTracker:
         after = self.file_system_snapshot_after
 
         changes = {
-            "documents_created": list(
-                set(after["documents"]) - set(before["documents"])
-            ),
-            "documents_deleted": list(
-                set(before["documents"]) - set(after["documents"])
-            ),
+            "documents_created": list(set(after["documents"]) - set(before["documents"])),
+            "documents_deleted": list(set(before["documents"]) - set(after["documents"])),
             "chapters_created": {},
             "chapters_deleted": {},
         }
@@ -384,14 +360,12 @@ def compare_agent_performance(
         "token_efficiency": {
             "simple": metrics_simple.token_usage or 0,
             "react": metrics_react.token_usage or 0,
-            "ratio": (metrics_react.token_usage or 0)
-            / max(metrics_simple.token_usage or 1, 1),
+            "ratio": (metrics_react.token_usage or 0) / max(metrics_simple.token_usage or 1, 1),
         },
         "speed_comparison": {
             "simple": metrics_simple.execution_time,
             "react": metrics_react.execution_time,
-            "ratio": metrics_react.execution_time
-            / max(metrics_simple.execution_time, 0.001),
+            "ratio": metrics_react.execution_time / max(metrics_simple.execution_time, 0.001),
         },
         "success_rate": {
             "simple": metrics_simple.success,
@@ -401,8 +375,7 @@ def compare_agent_performance(
         "tool_usage": {
             "simple": metrics_simple.tool_calls_count,
             "react": metrics_react.tool_calls_count,
-            "difference": metrics_react.tool_calls_count
-            - metrics_simple.tool_calls_count,
+            "difference": metrics_react.tool_calls_count - metrics_simple.tool_calls_count,
         },
     }
 
@@ -420,18 +393,12 @@ def generate_performance_summary(
         "total_tests": len(metrics_list),
         "successful_tests": len(successful_tests),
         "failed_tests": len(failed_tests),
-        "success_rate": (
-            len(successful_tests) / len(metrics_list) if metrics_list else 0
-        ),
+        "success_rate": (len(successful_tests) / len(metrics_list) if metrics_list else 0),
         "average_execution_time": (
-            sum(m.execution_time for m in metrics_list) / len(metrics_list)
-            if metrics_list
-            else 0
+            sum(m.execution_time for m in metrics_list) / len(metrics_list) if metrics_list else 0
         ),
         "average_token_usage": (
-            sum(m.token_usage or 0 for m in metrics_list) / len(metrics_list)
-            if metrics_list
-            else 0
+            sum(m.token_usage or 0 for m in metrics_list) / len(metrics_list) if metrics_list else 0
         ),
         "total_token_usage": sum(m.token_usage or 0 for m in metrics_list),
         "total_execution_time": sum(m.execution_time for m in metrics_list),
@@ -442,9 +409,7 @@ def generate_performance_summary(
         },
         "token_efficiency_buckets": {
             "efficient": len([m for m in metrics_list if (m.token_usage or 0) < 200]),
-            "moderate": len(
-                [m for m in metrics_list if 200 <= (m.token_usage or 0) < 500]
-            ),
+            "moderate": len([m for m in metrics_list if 200 <= (m.token_usage or 0) < 500]),
             "heavy": len([m for m in metrics_list if (m.token_usage or 0) >= 500]),
         },
     }
@@ -454,19 +419,14 @@ def generate_performance_summary(
         # Extract LLM evaluation metrics from enhanced metrics (using clean architecture)
         llm_evaluations = []
         for m in metrics_list:
-            if (
-                hasattr(m, "llm_evaluation")
-                and m.llm_evaluation
-                and m.llm_evaluation.success
-            ):
+            if hasattr(m, "llm_evaluation") and m.llm_evaluation and m.llm_evaluation.success:
                 llm_evaluations.append(m.llm_evaluation)
 
         if llm_evaluations:
             summary["llm_evaluation"] = {
                 "total_evaluations": len(llm_evaluations),
                 "successful_evaluations": len(llm_evaluations),
-                "average_quality_score": sum(e.score for e in llm_evaluations)
-                / len(llm_evaluations),
+                "average_quality_score": sum(e.score for e in llm_evaluations) / len(llm_evaluations),
                 "quality_distribution": {
                     "high": len([e for e in llm_evaluations if e.score >= 0.8]),
                     "medium": len([e for e in llm_evaluations if 0.6 <= e.score < 0.8]),
@@ -482,14 +442,11 @@ def generate_performance_summary(
 
             if combined_scores:
                 summary["combined_scoring"] = {
-                    "average_combined_score": sum(combined_scores)
-                    / len(combined_scores),
+                    "average_combined_score": sum(combined_scores) / len(combined_scores),
                     "combined_distribution": {
                         "excellent": len([s for s in combined_scores if s >= 0.8]),
                         "good": len([s for s in combined_scores if 0.6 <= s < 0.8]),
-                        "needs_improvement": len(
-                            [s for s in combined_scores if s < 0.6]
-                        ),
+                        "needs_improvement": len([s for s in combined_scores if s < 0.6]),
                     },
                 }
 

@@ -16,6 +16,7 @@ class BatchExecutor:
     """Simple executor for batch operations with basic conflict detection."""
 
     def __init__(self):
+        """Initialize the batch executor with operation categorization."""
         # Operations that modify content and cannot run on the same resource
         self._write_operations = {
             "create_document",
@@ -97,9 +98,7 @@ class BatchExecutor:
                     if successful_operations > 0:
                         if snapshot_id:
                             # Use snapshot-based rollback for existing documents
-                            rollback_performed = self._perform_snapshot_rollback(
-                                snapshot_id
-                            )
+                            rollback_performed = self._perform_snapshot_rollback(snapshot_id)
                         else:
                             # Use manual rollback for new document creation
                             rollback_performed = self._perform_manual_rollback(
@@ -141,18 +140,14 @@ class BatchExecutor:
 
         for op in operations:
             # Determine resource being accessed - check both target and parameters
-            doc_name = op.target.get("document_name") or op.parameters.get(
-                "document_name"
-            )
+            doc_name = op.target.get("document_name") or op.parameters.get("document_name")
             if doc_name:
                 if doc_name not in document_operations:
                     document_operations[doc_name] = []
                 document_operations[doc_name].append(op)
 
                 # Also track chapter-level operations
-                chapter_name = op.target.get("chapter_name") or op.parameters.get(
-                    "chapter_name"
-                )
+                chapter_name = op.target.get("chapter_name") or op.parameters.get("chapter_name")
                 if chapter_name:
                     chapter_key = f"{doc_name}::{chapter_name}"
                     if chapter_key not in chapter_operations:
@@ -161,9 +156,7 @@ class BatchExecutor:
 
         # Check for write-write conflicts on same document
         for doc_name, doc_ops in document_operations.items():
-            write_ops = [
-                op for op in doc_ops if op.operation_type in self._write_operations
-            ]
+            write_ops = [op for op in doc_ops if op.operation_type in self._write_operations]
             if len(write_ops) > 1:
                 conflicts.append(
                     ConflictInfo(
@@ -176,9 +169,7 @@ class BatchExecutor:
 
         # Check for write-write conflicts on same chapter
         for chapter_key, chapter_ops in chapter_operations.items():
-            write_ops = [
-                op for op in chapter_ops if op.operation_type in self._write_operations
-            ]
+            write_ops = [op for op in chapter_ops if op.operation_type in self._write_operations]
             if len(write_ops) > 1:
                 # Check if operations have dependencies that would resolve the conflict
                 has_dependencies = any(op.depends_on for op in write_ops)
@@ -276,14 +267,10 @@ class BatchExecutor:
     def _get_operation_resource(self, operation: BatchOperation) -> str:
         """Get the resource identifier for an operation."""
         # Check both target and parameters for document_name
-        doc_name = operation.target.get("document_name") or operation.parameters.get(
-            "document_name"
-        )
+        doc_name = operation.target.get("document_name") or operation.parameters.get("document_name")
         if doc_name:
             # Check both target and parameters for chapter_name
-            chapter_name = operation.target.get(
-                "chapter_name"
-            ) or operation.parameters.get("chapter_name")
+            chapter_name = operation.target.get("chapter_name") or operation.parameters.get("chapter_name")
             if chapter_name:
                 return f"{doc_name}::{chapter_name}"
             return doc_name

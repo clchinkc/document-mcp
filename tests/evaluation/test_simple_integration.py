@@ -12,7 +12,7 @@ import pytest
 
 from src.agents.react_agent.main import run_react_agent_with_metrics
 from src.agents.simple_agent.main import initialize_agent_and_mcp_server
-from src.agents.simple_agent.main import process_single_user_query_with_metrics
+from src.agents.simple_agent.main import process_single_user_query
 from tests.evaluation.llm_evaluation_layer import enhance_test_metrics
 
 
@@ -47,7 +47,7 @@ class TestNaturalIntegration:
                 (
                     response,
                     performance_metrics,
-                ) = await process_single_user_query_with_metrics(agent, query)
+                ) = await process_single_user_query(agent, query, collect_metrics=True)
 
                 # Standard performance metrics work as always
                 assert performance_metrics.execution_time > 0
@@ -55,24 +55,17 @@ class TestNaturalIntegration:
 
                 # Enhance with LLM evaluation for testing (optional)
                 response_summary = response.summary if response else "No response"
-                enhanced_metrics = await enhance_test_metrics(
-                    performance_metrics, query, response_summary
-                )
+                enhanced_metrics = await enhance_test_metrics(performance_metrics, query, response_summary)
 
                 # Show combined results
                 print(f"\n{enhanced_metrics.report()}")
 
                 # Assertions work on both layers
                 assert enhanced_metrics.performance.execution_time > 0
-                if (
-                    enhanced_metrics.llm_evaluation
-                    and enhanced_metrics.llm_evaluation.success
-                ):
+                if enhanced_metrics.llm_evaluation and enhanced_metrics.llm_evaluation.success:
                     assert 0.0 <= enhanced_metrics.llm_evaluation.score <= 1.0
                     assert enhanced_metrics.combined_score > 0.0
-                    print(
-                        f"✅ LLM evaluation successful: {enhanced_metrics.llm_evaluation.score:.2f}"
-                    )
+                    print(f"✅ LLM evaluation successful: {enhanced_metrics.llm_evaluation.score:.2f}")
                 else:
                     print("ℹ️  LLM evaluation skipped")
 
@@ -95,9 +88,7 @@ class TestNaturalIntegration:
             query = "List all documents in the system"
 
             # Run react agent normally - gets standard performance metrics
-            history, performance_metrics = await run_react_agent_with_metrics(
-                query, max_steps=3
-            )
+            history, performance_metrics = await run_react_agent_with_metrics(query, max_steps=3)
 
             # Standard performance metrics work as always
             assert performance_metrics.execution_time > 0
@@ -105,9 +96,7 @@ class TestNaturalIntegration:
 
             # Enhance with LLM evaluation for testing (optional)
             response_summary = str(history[-1]) if history else "No response"
-            enhanced_metrics = await enhance_test_metrics(
-                performance_metrics, query, response_summary
-            )
+            enhanced_metrics = await enhance_test_metrics(performance_metrics, query, response_summary)
 
             # Show results
             print(f"\n{enhanced_metrics.report()}")
@@ -115,9 +104,7 @@ class TestNaturalIntegration:
             # Both layers work independently
             assert enhanced_metrics.performance.agent_type == "react"
             if enhanced_metrics.llm_evaluation:
-                print(
-                    f"✅ React agent LLM evaluation: {enhanced_metrics.llm_evaluation.score:.2f}"
-                )
+                print(f"✅ React agent LLM evaluation: {enhanced_metrics.llm_evaluation.score:.2f}")
 
         finally:
             if old_doc_root:
@@ -147,7 +134,7 @@ class TestNaturalIntegration:
                 (
                     response,
                     performance_metrics,
-                ) = await process_single_user_query_with_metrics(agent, query)
+                ) = await process_single_user_query(agent, query, collect_metrics=True)
 
                 # Performance metrics still work
                 assert performance_metrics.execution_time > 0
@@ -155,18 +142,13 @@ class TestNaturalIntegration:
 
                 # Try to enhance (will skip LLM evaluation)
                 response_summary = response.summary if response else "No response"
-                enhanced_metrics = await enhance_test_metrics(
-                    performance_metrics, query, response_summary
-                )
+                enhanced_metrics = await enhance_test_metrics(performance_metrics, query, response_summary)
 
                 # Show it works without LLM evaluation
                 print(f"\n{enhanced_metrics.report()}")
 
                 # Should not have LLM evaluation
-                assert (
-                    enhanced_metrics.llm_evaluation is None
-                    or not enhanced_metrics.llm_evaluation.success
-                )
+                assert enhanced_metrics.llm_evaluation is None or not enhanced_metrics.llm_evaluation.success
                 assert enhanced_metrics.combined_score == 0.0
 
                 print("✅ Everything works perfectly without LLM evaluation")
@@ -200,7 +182,7 @@ class TestNaturalIntegration:
                 (
                     simple_response,
                     simple_metrics,
-                ) = await process_single_user_query_with_metrics(agent, query)
+                ) = await process_single_user_query(agent, query, collect_metrics=True)
 
                 simple_enhanced = await enhance_test_metrics(
                     simple_metrics,
@@ -209,9 +191,7 @@ class TestNaturalIntegration:
                 )
 
             # Test react agent
-            react_history, react_metrics = await run_react_agent_with_metrics(
-                query, max_steps=3
-            )
+            react_history, react_metrics = await run_react_agent_with_metrics(query, max_steps=3)
             react_enhanced = await enhance_test_metrics(
                 react_metrics, query, str(react_history[-1]) if react_history else ""
             )
@@ -260,9 +240,7 @@ async def demo_clean_architecture():
         agent, mcp_server = await initialize_agent_and_mcp_server()
 
         async with agent.run_mcp_servers():
-            response, metrics = await process_single_user_query_with_metrics(
-                agent, query
-            )
+            response, metrics = await process_single_user_query(agent, query, collect_metrics=True)
 
         print("\n🤖 Agent Results (Core):")
         print(f"   Success: {metrics.success}")
@@ -270,9 +248,7 @@ async def demo_clean_architecture():
         print(f"   Tokens: {metrics.token_usage}")
 
         # 2. Test layer optionally enhances with LLM evaluation
-        enhanced = await enhance_test_metrics(
-            metrics, query, response.summary if response else ""
-        )
+        enhanced = await enhance_test_metrics(metrics, query, response.summary if response else "")
 
         print("\n🧪 Test Enhancement (Optional):")
         if enhanced.llm_evaluation and enhanced.llm_evaluation.success:
