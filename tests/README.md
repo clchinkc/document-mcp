@@ -155,6 +155,21 @@ The GitHub workflow runs:
 uv run pytest tests/unit/ tests/integration/ tests/e2e/ --timeout=600
 ```
 
+### Development Infrastructure Testing
+Additional testing tools for development infrastructure:
+```bash
+# Test production metrics system
+python3 scripts/development/metrics/test_production.py
+
+# Test development telemetry infrastructure
+python3 scripts/development/telemetry/scripts/test.py
+
+# Start development telemetry for Grafana Cloud testing
+scripts/development/telemetry/scripts/start.sh
+```
+
+These tools test the **automatic metrics collection system** that provides anonymous usage analytics to help improve Document MCP for all users.
+
 ## 7. Adding New Tests
 
 1.  **Determine the Type**:

@@ -140,6 +140,30 @@ curl -X POST http://localhost:3001/create_chapter -d '{"document_name": "my-obsi
 *   **AI-Powered Research:** Build and organize a research paper with an AI assistant, with each section as a separate chapter.
 *   **Creative Writing:** Write a multi-chapter novel or screenplay with an AI writing partner, using snapshots to save your progress.
 
+## Anonymous Usage Analytics
+
+Document-MCP includes **automatic, anonymous usage analytics** that help improve the system for all users. This follows industry-standard practices used by npm, VS Code extensions, and Docker.
+
+### What's Collected (Anonymous Only)
+- **Tool usage patterns**: Which MCP tools are used most frequently
+- **Performance metrics**: Real-world execution times across different environments  
+- **Error rates**: Common failure patterns to prioritize fixes
+- **System information**: Service version, environment type
+
+### What's NOT Collected
+- ❌ **No document content** or file names
+- ❌ **No personal information** or user identification
+- ❌ **No file paths** or directory structures
+- ❌ **No reversible tracking** or individual user data
+
+### Privacy Controls
+- **Automatic collection**: Enabled by default for community benefit
+- **Easy opt-out**: Set `MCP_METRICS_ENABLED=false` to disable completely
+- **Transparent**: All collection documented and open-source
+- **Anonymous**: No way to identify individual users
+
+This data helps prioritize development efforts on the tools and features that matter most to real users.
+
 ## Technical Details
 
 For more detailed information on the available tools, data models, and advanced features like monitoring and logging, please see the [Technical Reference](TECHNICAL_REFERENCE.md).

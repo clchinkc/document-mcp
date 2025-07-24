@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 60s
+remote_write:
+  - url: https://prometheus-prod-37-prod-ap-southeast-1.grafana.net/api/prom/push
+    basic_auth:
+      username: 2576609
+      password: glc_eyJvIjoiMTQ5MDY5MCIsIm4iOiJzdGFjay0xMzI2MTg3LWludGVncmF0aW9uLWRvY3VtZW50LW1jcCIsImsiOiJmM1hZZTQ1d2VWSTlEMVMxaUs1NlNOODgiLCJtIjp7InIiOiJwcm9kLWFwLXNvdXRoZWFzdC0xIn19
+scrape_configs:
+  # Document MCP application metrics
+  - job_name: document-mcp  
+    scrape_interval: 5s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["localhost:8000"]
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'mcp_.*'
+        action: keep
+  
+  # Prometheus itself (optional)
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

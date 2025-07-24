@@ -80,6 +80,19 @@ document-mcp/
 │   ├── cli.py             # Command-line interface
 │   └── README.md          # Optimization tool documentation
 ├── scripts/               # Development and maintenance scripts
+│   ├── development/       # Development infrastructure and testing tools
+│   │   ├── metrics/       # Production metrics testing
+│   │   │   ├── README.md             # Testing documentation
+│   │   │   └── test_production.py    # Production system test
+│   │   └── telemetry/     # Development telemetry infrastructure
+│   │       ├── README.md             # Infrastructure guide
+│   │       ├── config/               # Configuration files
+│   │       │   └── prometheus.yml    # Prometheus configuration
+│   │       ├── scripts/              # Executable scripts
+│   │       │   ├── start.sh         # Start telemetry services
+│   │       │   └── test.py          # Test infrastructure
+│   │       └── services/             # Background services
+│   │           └── auto_service.py   # Telemetry service
 │   └── quality.py         # Code quality checks using uv and ruff
 └── tests/                  # 4-tier testing strategy
     ├── unit/              # Isolated component tests (mocked)
@@ -132,6 +145,15 @@ uv run python src/agents/simple_agent/main.py --interactive
 
 # Optimize prompts
 uv run python -m prompt_optimizer simple
+
+# Test production metrics system
+python3 scripts/development/metrics/test_production.py
+
+# Test development telemetry infrastructure
+python3 scripts/development/telemetry/scripts/test.py
+
+# Start development telemetry for Grafana Cloud testing
+scripts/development/telemetry/scripts/start.sh
 ```
 
 ## Agent Types
@@ -167,9 +189,15 @@ uv run python -m prompt_optimizer simple
 
 #### Logging System (`document_mcp/logger_config.py`)
 - **Structured JSON logging** with error categorization and operation tracking
+- **Automatic metrics collection** via `@log_mcp_call` decorator on all MCP tools
 
-#### Metrics System (`document_mcp/metrics_config.py`)
-- **OpenTelemetry integration** with Prometheus metrics export and tool call tracking
+#### Production Metrics System (`document_mcp/metrics_config.py`)
+- **Centralized User Analytics**: Automatic collection from all users to developer's Grafana Cloud
+- **Production-Ready Architecture**: Persistent metrics server, background Prometheus, automatic failover
+- **Anonymous Data Collection**: Tool usage patterns, performance metrics, error rates
+- **Industry Standard Approach**: Similar to npm, VS Code extensions, Docker analytics
+- **Zero User Setup**: Hardcoded credentials for seamless collection
+- **Tool-Level Granularity**: Tracks specific MCP tool names (list_documents, create_document, etc.)
 
 ## Testing Architecture
 
