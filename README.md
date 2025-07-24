@@ -87,6 +87,11 @@ uv run python src/agents/react_agent/main.py --interactive
 uv run python -m prompt_optimizer simple     # Optimize specific agent
 uv run python -m prompt_optimizer all        # Optimize all agents
 optimize-prompts simple                # Using installed CLI command
+
+# Development infrastructure testing
+python3 scripts/development/metrics/test_production.py           # Test production metrics
+python3 scripts/development/telemetry/scripts/test.py           # Test telemetry infrastructure
+scripts/development/telemetry/scripts/start.sh                  # Start development telemetry
 ```
 
 ### Environment Configuration

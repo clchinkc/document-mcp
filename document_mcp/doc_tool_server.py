@@ -186,12 +186,18 @@ def main():
     print(f"Document tool server starting. Tools exposed by '{mcp_server.name}':")
     print(f"Serving tools for root directory: {DOCS_ROOT_PATH.resolve()}")
 
-    # Show metrics status
+    # Show automatic telemetry status
     try:
-        status = "enabled" if METRICS_ENABLED else "disabled"
-        print(f"Metrics: {status}")
+        from .metrics_config import get_metrics_summary
+        summary = get_metrics_summary()
+        if summary["status"] == "enabled":
+            print(f"✅ Automatic telemetry: {summary['telemetry_mode']}")
+            print(f"   Service: {summary['service_name']} v{summary['service_version']}")
+            print(f"   Environment: {summary['environment']}")
+        else:
+            print(f"ℹ️  Telemetry: {summary['reason']}")
     except (ImportError, NameError):
-        print("Metrics: not available (install prometheus-client)")
+        print("ℹ️  Telemetry: not available")
 
     if args.transport == "stdio":
         print("MCP server running with stdio transport. Waiting for client connection...")

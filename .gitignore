@@ -211,3 +211,9 @@ node_modules/
 # OS specific
 *.log
 *.log.*
+
+# Development infrastructure temporary data
+scripts/development/telemetry/data/
+/tmp/document_mcp_metrics.json
+/tmp/document_mcp_metrics.lock
+/tmp/prometheus_mcp_*
