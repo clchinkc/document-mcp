@@ -22,9 +22,9 @@ from ..helpers import _get_document_path
 from ..helpers import _get_ordered_chapter_files
 from ..helpers import _is_valid_chapter_filename
 from ..helpers import _split_into_paragraphs
-from ..helpers import validate_chapter_name
-from ..helpers import validate_content
-from ..helpers import validate_document_name
+from ..utils.validation import validate_chapter_name
+from ..utils.validation import validate_content
+from ..utils.validation import validate_document_name
 from ..logger_config import log_mcp_call
 from ..models import ChapterContent
 from ..models import ChapterMetadata

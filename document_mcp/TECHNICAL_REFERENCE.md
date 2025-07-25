@@ -4,7 +4,14 @@ This document provides detailed technical information about the Document-MCP ser
 
 ## MCP Tools Reference
 
-The server exposes 24 MCP tools organized in 6 functional categories via the Model Context Protocol:
+The server exposes 24 MCP tools organized in 6 functional categories via the Model Context Protocol. All tools include comprehensive error handling, structured logging, and automatic safety features.
+
+**Key Features:**
+- 🛡️ **Universal Safety**: Automatic snapshots for all write operations
+- 📊 **Structured Logging**: Comprehensive operation tracking with OpenTelemetry
+- 🎯 **Scope-Based Operations**: Unified API for document/chapter/paragraph operations
+- ⚡ **Batch Processing**: Atomic multi-operation execution with rollback
+- 🔍 **Semantic Search**: AI-powered content discovery with embedding cache
 
 ### Document Tools (4 tools)
 

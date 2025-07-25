@@ -1,29 +1,31 @@
 #!/usr/bin/env python3
 """Simple script to test metrics collection and Grafana Cloud connectivity."""
 
-import sys
 import time
+
 import requests
-from document_mcp.metrics_config import (
-    initialize_metrics, record_tool_call_success, 
-    GRAFANA_CLOUD_PROMETHEUS_ENDPOINT, GRAFANA_CLOUD_TOKEN, 
-    GRAFANA_CLOUD_METRICS_USER_ID
-)
+
+from document_mcp.metrics_config import GRAFANA_CLOUD_METRICS_USER_ID
+from document_mcp.metrics_config import GRAFANA_CLOUD_PROMETHEUS_ENDPOINT
+from document_mcp.metrics_config import GRAFANA_CLOUD_TOKEN
+from document_mcp.metrics_config import initialize_metrics
+from document_mcp.metrics_config import record_tool_call_success
+
 
 def test_metrics():
     """Test metrics generation and Grafana connectivity."""
     print("🧪 Testing Document MCP metrics collection...")
-    
+
     # Initialize metrics
     print("📊 Initializing metrics...")
     initialize_metrics()
-    
+
     # Test recording some metrics
     print("📈 Recording test metrics...")
     for i in range(3):
         record_tool_call_success("test_tool", time.time(), 100)
         time.sleep(1)
-    
+
     # Test local metrics endpoint
     print("🔍 Testing local metrics endpoint...")
     try:
@@ -31,40 +33,39 @@ def test_metrics():
         if response.status_code == 200:
             print(f"✅ Local metrics endpoint working: {len(response.text)} bytes")
             # Show first few lines
-            lines = response.text.split('\n')[:10]
+            lines = response.text.split("\n")[:10]
             for line in lines[:5]:
-                if line.strip() and not line.startswith('#'):
+                if line.strip() and not line.startswith("#"):
                     print(f"   📊 {line}")
         else:
             print(f"❌ Local metrics endpoint failed: {response.status_code}")
     except Exception as e:
         print(f"❌ Local metrics endpoint error: {e}")
-    
+
     # Test Grafana Cloud connectivity
     print("🌐 Testing Grafana Cloud connectivity...")
     try:
         import base64
+
         auth_string = f"{GRAFANA_CLOUD_METRICS_USER_ID}:{GRAFANA_CLOUD_TOKEN}"
         auth_b64 = base64.b64encode(auth_string.encode()).decode()
-        
+
         # Simple health check (GET request to see if endpoint is reachable)
-        headers = {
-            'Authorization': f'Basic {auth_b64}',
-            'User-Agent': 'document-mcp-test/1.0.0'
-        }
-        
-        test_url = GRAFANA_CLOUD_PROMETHEUS_ENDPOINT.replace('/api/prom/push', '/api/prom/api/v1/labels')
+        headers = {"Authorization": f"Basic {auth_b64}", "User-Agent": "document-mcp-test/1.0.0"}
+
+        test_url = GRAFANA_CLOUD_PROMETHEUS_ENDPOINT.replace("/api/prom/push", "/api/prom/api/v1/labels")
         response = requests.get(test_url, headers=headers, timeout=10)
-        
+
         if response.status_code in [200, 401, 403]:  # 401/403 means endpoint is reachable
             print(f"✅ Grafana Cloud endpoint reachable: {response.status_code}")
         else:
             print(f"⚠️ Grafana Cloud response: {response.status_code} - {response.text[:200]}")
-            
+
     except Exception as e:
         print(f"❌ Grafana Cloud connectivity error: {e}")
-    
+
     print("✅ Metrics test complete!")
+
 
 if __name__ == "__main__":
     test_metrics()

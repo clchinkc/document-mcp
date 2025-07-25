@@ -23,9 +23,7 @@ from document_mcp.mcp_client import insert_paragraph_before
 from document_mcp.mcp_client import move_paragraph_before
 from document_mcp.mcp_client import move_paragraph_to_end
 from document_mcp.mcp_client import replace_paragraph
-from document_mcp.mcp_client import (
-    write_chapter_content,  # Functions with safety decorators
-)
+from document_mcp.mcp_client import write_chapter_content  # Functions with safety decorators
 
 
 class TestSafetyDecoratorCoverage:

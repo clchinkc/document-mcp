@@ -189,6 +189,7 @@ def main():
     # Show automatic telemetry status
     try:
         from .metrics_config import get_metrics_summary
+
         summary = get_metrics_summary()
         if summary["status"] == "enabled":
             print(f"✅ Automatic telemetry: {summary['telemetry_mode']}")

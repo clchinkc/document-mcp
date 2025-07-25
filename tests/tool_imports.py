@@ -10,10 +10,10 @@ from document_mcp.helpers import _get_modification_history_path
 from document_mcp.helpers import _get_snapshots_path
 
 # Import validation functions for unit testing
-from document_mcp.helpers import validate_chapter_name
-from document_mcp.helpers import validate_document_name
-from document_mcp.helpers import validate_paragraph_index
-from document_mcp.helpers import validate_search_query
+from document_mcp.utils.validation import validate_chapter_name
+from document_mcp.utils.validation import validate_document_name
+from document_mcp.utils.validation import validate_paragraph_index
+from document_mcp.utils.validation import validate_search_query
 from document_mcp.mcp_client import find_text
 from document_mcp.mcp_client import get_statistics
 from document_mcp.mcp_client import read_content

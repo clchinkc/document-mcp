@@ -10,28 +10,73 @@ Document MCP exists to **complement and diversify the predominantly STEM-oriente
 
 ## 🚀 Quick Start
 
+### Installation
 
-### Step-by-Step Setup
+**PyPI Installation (Recommended):**
+```bash
+# Simple one-command install
+pip install document-mcp
 
+# Verify installation
+document-mcp --version
+```
+
+**Development Setup:**
 ```bash
 # Install uv package manager (if not already installed)
 # macOS/Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
 # Windows: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
-# Install project with development dependencies
+# Clone and install with development dependencies
+git clone https://github.com/clchinkc/document-mcp.git
+cd document-mcp
 uv sync
+
+# Install with development dependencies (includes testing tools)
+uv pip install ".[dev]"
+```
+
+**Dependencies Information:**
+- **Core Runtime**: The package includes all necessary dependencies for normal operation
+- **Development Dependencies**: Additional tools for testing and development are available via `pip install ".[dev]"`:
+  - `pytest`, `pytest-asyncio`, `pytest-cov` - Testing framework
+  - `ruff`, `mypy` - Code quality and type checking  
+  - `memory-profiler`, `psutil` - Performance monitoring
+  - `twine` - Package validation and publishing
 
 # Alternative: Traditional virtual environment setup
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-uv pip install -e ".[dev]"
+pip install -e ".[dev]"
+```
 
-# Set up environment variables
-# Create a `.env` file with your API key according to `.env.example`
+### Configuration
+
+```bash
+# Create .env file with your API key
+echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
+# OR for Google Gemini:
+echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env
 
 # Verify your setup
 python3 src/agents/simple_agent/main.py --check-config
 ```
+
+### Quick Test
+
+```bash
+# Start MCP server (in one terminal)
+# If installed via PyPI:
+document-mcp stdio
+
+# If using development setup:  
+python3 -m document_mcp.doc_tool_server stdio
+
+# Test basic functionality (in another terminal)  
+python3 -c "from document_mcp import __version__; print(f'Document MCP v{__version__} ready')"
+```
+
+**📖 [Complete Manual Testing Guide](docs/manual_testing.md)** - Step-by-step workflows for creative writing, editing, and document management
 
 ## 🛠️ Development
 
@@ -115,7 +160,7 @@ Document MCP provides a structured way to manage large documents composed of mul
     - **Planner Agent**: Strategic planning with execution for complex task decomposition.
 - **🚀 Prompt Optimizer**: Automated prompt optimization with performance benchmarking and real LLM evaluation.
 - **📊 Observability**: Structured logging with OpenTelemetry and Prometheus metrics.
-- **✅ Robust Testing**: 4-tier testing strategy (unit, integration, E2E, evaluation).
+- **✅ Robust Testing**: 3-tier testing strategy (unit, integration, E2E, evaluation).
 - **🔄 Version Control Friendly**: Plain Markdown files work great with Git.
 
 ### Document Organization
@@ -182,7 +227,7 @@ document-mcp/
 │   ├── core.py            # Main PromptOptimizer class
 │   ├── evaluation.py      # Performance evaluation system
 │   └── cli.py             # Command-line interface
-└── tests/                  # 4-tier testing strategy
+└── tests/                  # 3-tier testing strategy
     ├── unit/              # Isolated component tests (mocked)
     ├── integration/       # Agent-server tests (real MCP, mocked LLM)
     ├── e2e/               # Full system tests (real APIs)
@@ -242,7 +287,7 @@ python3 -m prompt_optimizer all
 **Key Features:**
 - **Safe Optimization**: Conservative changes that preserve all existing functionality
 - **Performance-Based**: Uses real execution metrics to evaluate improvements
-- **Comprehensive Testing**: Validates changes against 300 tests (unit + integration + E2E + evaluation + metrics)
+- **Comprehensive Testing**: Validates changes against 296 tests (unit + integration + E2E + evaluation)
 - **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
 - **Multi-Agent Support**: Works with Simple, ReAct, and Planner agents
 
@@ -390,12 +435,19 @@ Run through this checklist if you're having issues:
 
 ### Getting Help
 
-If you're still having issues:
+If you're experiencing issues, follow this support hierarchy:
 
-1. **Run the configuration check**: `python src/agents/simple_agent/main.py --check-config`
-2. **Test basic functionality**: `python src/agents/simple_agent/main.py --query "list documents"`
-3. **Review the test suite**: `python scripts/run_pytest.py`
-4. **Check the documentation**: See the Agent Examples section above for detailed agent architecture
+1. **📖 [Check the Manual Testing Guide](docs/manual_testing.md#troubleshooting-guide)** - Comprehensive troubleshooting for common issues
+2. **🔧 Run diagnostics**: `python src/agents/simple_agent/main.py --check-config`
+3. **🧪 Test basic functionality**: `python src/agents/simple_agent/main.py --query "list documents"`
+4. **🔍 Search existing issues**: [GitHub Issues](https://github.com/clchinkc/document-mcp/issues)
+5. **💬 Open a new issue**: Include output from `--check-config` and system details
+
+**Common Solutions:**
+- API key issues → See [Configuration](#configuration) 
+- MCP server connection → Check if `document-mcp stdio` is running
+- Model loading failures → Try different model in `.env`
+- Timeout issues → See [Performance troubleshooting](docs/manual_testing.md#performance-and-load-testing)
 
 ### Testing Strategy
 ```bash
@@ -483,7 +535,7 @@ python scripts/quality.py check --verbose
 - **Import Style**: Black-compatible with isort
 - **Type Hints**: Encouraged for public APIs
 - **Complexity**: Maximum cyclomatic complexity of 10
-- **Test Coverage**: Comprehensive 4-tier testing (300 tests with 100% pass rate)
+- **Test Coverage**: Comprehensive 3-tier testing (296 tests with 100% pass rate)
 
 #### Recommended Workflow
 
@@ -513,14 +565,21 @@ The system provides enterprise-grade reliability with **300 comprehensive tests*
 - **Monitoring & Metrics**: OpenTelemetry and Prometheus integration (6 metrics tests)
 - **Quality Assurance**: Centralized fixtures and comprehensive cleanup validation
 
-**Test Results:** 100% success rate (300/300 tests passing) with execution time under 3.5 minutes
+**Test Results:** 100% success rate (296/296 tests passing) with execution time under 3.5 minutes
 
 The test suite spans unit, integration, and end-to-end categories, ensuring production-ready reliability with proper resource management and state isolation.
 
 ## 📚 Documentation
 
-- **[Package Documentation](document_mcp/README.md)**: MCP server API reference
-- **[API Reference](document_mcp/doc_tool_server.py)**: Complete MCP tools documentation
+### User Guides
+- **📖 [Manual Testing & User Workflows](docs/manual_testing.md)** - Complete guide for creative writing, editing workflows, and troubleshooting
+- **🚀 [Quick Start Examples](#-quick-start)** - Get up and running in minutes
+- **🤖 [Agent Architecture Guide](#-agent-examples-and-tutorials)** - Choose the right agent for your workflow
+
+### Technical Reference  
+- **[Package Documentation](document_mcp/README.md)** - MCP server API reference
+- **[API Reference](document_mcp/doc_tool_server.py)** - Complete MCP tools documentation
+- **[Testing Strategy](tests/README.md)** - 3-tier testing architecture and best practices
 
 ## 🤝 Contributing
 

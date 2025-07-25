@@ -39,75 +39,22 @@ The Document MCP system is a sophisticated document management platform built ar
 ```
 document-mcp/
 ├── document_mcp/           # Core MCP server package
-│   ├── doc_tool_server.py  # Main server with modular tool registrations
-│   ├── models.py           # Pydantic models and data structures
-│   ├── tools/              # Modular tool architecture (24 tools)
-│   │   ├── __init__.py     # Tool registration system
-│   │   ├── document_tools.py    # Document management (4 tools)
-│   │   ├── chapter_tools.py     # Chapter operations (5 tools)
-│   │   ├── paragraph_tools.py   # Paragraph editing (7 tools)
-│   │   ├── content_tools.py     # Unified content access (4 tools)
-│   │   ├── safety_tools.py      # Version control (3 tools)
-│   │   └── batch_tools.py       # Batch operations (1 tool)
-│   ├── utils/              # Utility modules
-│   │   ├── __init__.py     # Utils package initialization
-│   │   ├── validation.py   # Input validation helpers
-│   │   └── file_operations.py # File system utilities
-│   ├── logger_config.py    # Structured logging with OpenTelemetry
-│   ├── metrics_config.py   # Prometheus metrics and monitoring
-│   └── README.md           # Package documentation
+│   ├── doc_tool_server.py  # Main server
+│   ├── models.py           # Pydantic models
+│   ├── tools/              # 24 MCP tools across 6 categories
+│   ├── utils/              # Validation and file operations
+│   └── [logging, metrics]  # OpenTelemetry + Prometheus
 ├── src/agents/             # AI agent implementations
-│   ├── simple_agent/       # Stateless single-turn agent package
-│   │   ├── main.py         # Agent execution logic
-│   │   └── prompts.py      # Dynamic system prompts
+│   ├── simple_agent/       # Stateless single-turn agent
 │   ├── react_agent/        # Stateful multi-turn ReAct agent
-│   │   ├── main.py         # Agent execution logic
-│   │   ├── models.py       # ReAct step models
-│   │   ├── parser.py       # Action parsing logic
-│   │   └── prompts.py      # Dynamic system prompts
-│   └── shared/             # Shared agent utilities
-│       ├── cli.py          # Common CLI functionality
-│       ├── config.py       # Enhanced Pydantic Settings
-│       ├── error_handling.py # Shared error handling
-│       ├── output_formatter.py # JSON output standardization
-│       ├── performance_metrics.py # Performance tracking
-│       ├── prompt_components.py # Reusable prompt components
-│       ├── prompt_optimization_analysis.py # Prompt analysis utilities
-│       └── tool_descriptions.py # Dynamic tool description system
-├── prompt_optimizer/       # Automated prompt optimization tool
-│   ├── core.py            # Main PromptOptimizer class
-│   ├── evaluation.py      # Performance evaluation system
-│   ├── cli.py             # Command-line interface
-│   └── README.md          # Optimization tool documentation
-├── scripts/               # Development and maintenance scripts
-│   ├── development/       # Development infrastructure and testing tools
-│   │   ├── metrics/       # Production metrics testing
-│   │   │   ├── README.md             # Testing documentation
-│   │   │   └── test_production.py    # Production system test
-│   │   └── telemetry/     # Development telemetry infrastructure
-│   │       ├── README.md             # Infrastructure guide
-│   │       ├── config/               # Configuration files
-│   │       │   └── prometheus.yml    # Prometheus configuration
-│   │       ├── scripts/              # Executable scripts
-│   │       │   ├── start.sh         # Start telemetry services
-│   │       │   └── test.py          # Test infrastructure
-│   │       └── services/             # Background services
-│   │           └── auto_service.py   # Telemetry service
-│   └── quality.py         # Code quality checks using uv and ruff
-└── tests/                  # 4-tier testing strategy
-    ├── unit/              # Isolated component tests (mocked)
-    ├── integration/       # Agent-server tests (real MCP, mocked LLM)
-    │   ├── test_document_operations.py # Document CRUD operations
-    │   ├── test_chapter_operations.py  # Chapter management
-    │   ├── test_paragraph_operations.py # Paragraph editing tools
-    │   ├── test_unified_tools.py       # Unified/consolidated tools
-    │   └── test_batch_operations.py    # Batch execution
+│   └── shared/             # Common utilities and tool descriptions
+├── prompt_optimizer/       # Automated prompt optimization
+├── scripts/development/    # Testing and telemetry infrastructure  
+└── tests/                  # 3-tier testing strategy
+    ├── unit/              # Isolated component tests
+    ├── integration/       # Agent-server tests (mocked LLM)
     ├── e2e/               # Full system tests (real APIs)
-    ├── evaluation/        # Performance benchmarking and prompt evaluation
-    ├── shared/            # Shared testing utilities
-    │   ├── __init__.py    # Shared package initialization
-    │   └── fixtures.py    # Centralized pytest fixtures
-    └── README.md          # Testing guidelines and best practices
+    └── evaluation/        # Performance benchmarking
 ```
 
 ## Key Commands
@@ -160,13 +107,15 @@ scripts/development/telemetry/scripts/start.sh
 
 ### Simple Agent (`src/agents/simple_agent/`)
 - **Architecture**: Stateless, single-turn execution
-- **Use Cases**: Discrete operations, quick queries, JSON output, prototyping
 - **Key Features**: Structured output, timeout protection, OpenAI/Gemini support
+- **Ideal for**: Single-step operations, quick queries, JSON output, prototyping, batch workflows
+- **Avoid for**: Operations requiring intermediate reasoning steps
 
 ### ReAct Agent (`src/agents/react_agent/`)
-- **Architecture**: Stateful, multi-turn with ReAct (Reason-Act-Observe) pattern
-- **Use Cases**: Complex workflows, planning, production environments
+- **Architecture**: Stateful, multi-turn with ReAct (Reason-Act-Observe) pattern  
 - **Key Features**: Advanced error handling, circuit breakers, agent caching, rich console output
+- **Ideal for**: Complex workflows, step-by-step planning, production environments
+- **Avoid for**: Simple operations, performance-critical scenarios, structured JSON output requirements
 
 ## Tool Categories (24 MCP Tools)
 
@@ -201,110 +150,34 @@ scripts/development/telemetry/scripts/start.sh
 
 ## Testing Architecture
 
-### 4-Tier Testing Strategy
+### 3-Tier Testing Strategy
 
-#### Tier 1: Unit Tests (`tests/unit/`)
-**Philosophy**: Isolated component testing with complete mocking
-**Coverage**: Individual functions, input validation, error conditions
-**Speed**: Fastest (no external dependencies)
-**LLM Calls**: Zero (fully mocked)
+| Tier | Focus | LLM Calls | Speed | Coverage |
+|------|-------|-----------|-------|----------|
+| **Unit** | Isolated components with complete mocking | Zero | Fastest | Functions, validation, error conditions |
+| **Integration** | Real MCP server, mocked LLM responses | Zero | Medium | Agent-server communication, tool execution |
+| **E2E** | Complete system with real APIs | Real (managed) | Slowest | Full workflows, real AI responses |
+| **Evaluation** | Performance benchmarking | Controlled real | Medium | Standardized scenarios, metrics |
 
-**Key Test Files**:
-- `test_doc_tool_server.py`: Core server function validation
-- `test_simple_agent.py`: Agent logic without external calls  
-- `test_react_agent_*.py`: ReAct components and error handling
-- `test_semantic_search.py`: Semantic search core functionality with mocked API calls
+### Key Testing Requirements
 
-#### Tier 2: Integration Tests (`tests/integration/`)
-**Philosophy**: Real MCP server, mocked LLM responses
-**Coverage**: Agent-server communication, tool execution flows
-**Speed**: Medium (real MCP overhead)
-**LLM Calls**: Zero (mocked responses)
+**Integration Tests**:
+- Use real MCP stdio transport with mocked LLM responses
+- Assert on `details` field content, not LLM-generated `summary`
+- Agent implementations must populate `details` field with structured MCP tool responses
 
-**Key Features**:
-- Real MCP stdio transport testing
-- Agent initialization and configuration
-- Tool execution validation through `details` field assertions
-- Error propagation testing
-- **Test Focus**: Assert on MCP tool results in `details` field, not LLM-generated `summary`
+**E2E Tests**:
+- Use CLI subprocess calls and MCP stdio transport (never import agents/tools directly)
+- Assert on file system state and document operations
+- Include response validation patterns and API key availability checks
 
-**Critical Requirements**:
-- **MUST use mocked LLM responses**: Integration tests should never make real API calls
-- **MUST populate details field**: Agent implementations must extract and structure MCP tool responses
-- **NEVER assert on summary text**: Focus validation on structured data in `details` field
-- **Validate tool execution**: Ensure MCP tools are called correctly and results are captured
+### Testing Infrastructure
 
-#### Tier 3: E2E Tests (`tests/e2e/`)
-**Philosophy**: Complete system testing with real external APIs
-**Coverage**: Full workflows, real AI model responses
-**Speed**: Slowest (external API dependencies)
-**LLM Calls**: Actual API calls (managed with delays and quotas)
+**Fixtures System** (`tests/conftest.py`): Test isolation, MCP client management, mock environments, test data factories
 
-**Critical E2E Testing Requirements**:
-- **MUST use CLI subprocess calls**: Run agents via `run_agent_query("src.agents.simple_agent.main", query)` 
-- **MUST use MCP stdio transport**: Agents communicate with MCP tool server over stdio protocol
-- **NEVER import agent classes directly**: Avoid `from src.agents.simple_agent.main import SimpleDocumentAgent`
-- **NEVER import tools directly**: Avoid importing tools from `document_mcp.doc_tool_server`
-- **Use proper fixtures**: `e2e_docs_dir` and `validator` fixtures from `tests/conftest.py`
-- **Assert on file system state**: Validate actual document/chapter creation, not just LLM responses
+**Shared Framework** (`tests/shared/`): Reusable test patterns, mock factories, cleanup management
 
-**Reliability Features**:
-- Response validation patterns for API variability
-- Graceful degradation for quota exhaustion
-- Enhanced error reporting with file system diagnostics
-- API key availability checking with proper test skipping
-
-**E2E Test Pattern Example**:
-```python
-@pytest.mark.e2e
-@pytest.mark.skipif(not check_api_key_available(), reason="E2E tests require a real API key")
-class TestMyE2EFeature:
-    @pytest.mark.asyncio
-    async def test_feature(self, e2e_docs_dir: Path, validator: DocumentSystemValidator):
-        # Run agent via CLI subprocess (proper E2E pattern)
-        response = await run_agent_query("src.agents.simple_agent.main", "create document 'test'")
-        
-        # Assert on file system state, not LLM response
-        validator.assert_document_exists("test")
-        validator.assert_document_count(1)
-```
-
-#### Tier 4: Evaluation Tests (`tests/evaluation/`)
-**Philosophy**: Performance benchmarking for prompt optimization and agent evaluation
-**Coverage**: Real agent execution on standardized scenarios
-**Speed**: Medium (real LLM calls, managed execution)
-**LLM Calls**: Controlled real API calls for performance measurement
-
-**Key Features**:
-- Standardized benchmark scenarios for consistent evaluation
-- Performance metrics: token usage, execution time, success rates
-- Agent-specific thresholds and performance baselines
-- Integration with prompt optimizer for comprehensive evaluation
-- **Test Focus**: Measure agent performance improvements and prompt effectiveness
-
-### Advanced Testing Infrastructure
-
-#### Fixtures and Utilities (`tests/conftest.py`)
-**Comprehensive fixture system** providing:
-- **Test isolation**: Temporary directories per test
-- **MCP client management**: Automated server startup/shutdown
-- **Mock environments**: Configurable API key simulation  
-- **Test data factories**: Programmatic document creation
-- **Error injection**: Network failure simulation
-
-#### Shared Testing Framework (`tests/shared/`)
-- **Agent base classes**: Reusable test patterns
-- **Mock factories**: Consistent mock object creation
-- **Test data management**: Registry pattern for cleanup
-- **Environment validation**: API key and configuration checks
-
-#### Dynamic Tool Description System (`src/agents/shared/tool_descriptions.py`)
-- **Centralized Tool Management**: Single source of truth for all 24 optimized MCP tools across agents
-- **Format-Specific Generation**: Agents request format optimized for their architecture (Full, Compact, Minimal)
-- **Architecture-Aware Optimization**: Simple agents use compact format, ReAct uses full examples
-- **Scope-based Tool Integration**: Unified descriptions for consolidated scope-based operations
-- **Maintenance Efficiency**: Adding/modifying tools requires updating only one centralized location
-- **Token Optimization**: Format selection enables 5-83% token reduction potential depending on use case
+**Dynamic Tool Descriptions** (`src/agents/shared/tool_descriptions.py`): Centralized tool management with format-specific generation (Full, Compact, Minimal) enabling 5-83% token reduction potential
 
 ## Architecture Decisions and Design Principles
 
@@ -342,16 +215,7 @@ Complex Reasoning → ReAct Agent + batch_apply_operations (reasoning + atomic e
 
 **Key Insight**: Modern LLMs can generate complex batch operations directly, eliminating the need for separate planning phases. Atomic batch operations provide superior reliability compared to sequential tool execution.
 
-### Production Tool Architecture (24 MCP Tools)
-
-- **Document Tools (4 tools)**: Document management and lifecycle operations
-- **Chapter Tools (5 tools)**: Chapter creation, editing, and management
-- **Paragraph Tools (7 tools)**: Atomic paragraph operations with safety protection
-- **Content Tools (5 tools)**: Unified content access, search, replacement, statistics, and semantic search
-- **Safety Tools (3 tools)**: Version control, snapshot management, and diff generation
-- **Batch Tools (1 tool)**: Sequential multi-operation execution with conflict detection
-
-#### Semantic Search Integration
+### Semantic Search Integration
 - **Tool**: `find_similar_text` with scope-based targeting (`document` or `chapter`)
 - **Technology**: Google Gemini embeddings API with cosine similarity matching
 - **Features**: Configurable similarity thresholds, result limiting, context snippets
@@ -386,32 +250,6 @@ Complex Reasoning → ReAct Agent + batch_apply_operations (reasoning + atomic e
 │           ├── paragraph_0.npy
 │           └── manifest.json
 ```
-
-### Agent Selection Guide
-
-#### Simple Agent - When to Use
-✅ **Ideal for**:
-- Single-step document operations
-- Quick queries and information retrieval
-- JSON output requirements
-- Prototyping and development
-- Multi-step workflows using batch operations (atomic execution with single LLM call)
-
-❌ **Avoid for**:
-- Operations requiring intermediate reasoning steps
-- Production environments with complex error recovery needs
-
-#### ReAct Agent - When to Use
-✅ **Ideal for**:
-- Complex workflows requiring reasoning transparency
-- Tasks needing step-by-step planning and validation
-- Production environments with sophisticated error handling
-- Multi-step operations with conditional logic and dependencies
-
-❌ **Avoid for**:
-- Simple single-step operations
-- Performance-critical scenarios (higher overhead)
-- Cases where structured JSON output is required
 
 ### Optimization Opportunities
 
@@ -449,28 +287,15 @@ result = await retry_manager.execute_with_retry(operation)
 
 ## CI/CD and GitHub Actions
 
-The project includes a modern GitHub Actions workflow (`.github/workflows/python-test.yml`) configured for optimal CI/CD performance:
+**CI Configuration** (`.github/workflows/python-test.yml`):
+- Uses `uv` for fast dependency installation, `ruff` for linting, `mypy` for type checking
+- Runs unit, integration, and E2E tests with Python 3.13
+- Requires API keys for E2E tests, uploads coverage to Codecov
 
-### Workflow Features
-- **Uses `uv`**: Ultra-fast dependency installation (10-100x faster than pip)
-- **Uses `ruff`**: Modern code quality checks (linting and formatting)
-- **Includes `mypy`**: Static type checking for enhanced code quality
-- **Runs E2E tests**: Full system validation with real APIs in CI
-- **Excludes evaluation tests**: Optimized for CI speed and reliability
-
-### Test Coverage in CI
 ```bash
-# GitHub Actions runs these tests automatically:
+# Automated test command:
 uv run pytest tests/unit/ tests/integration/ tests/e2e/ --timeout=600
 ```
-
-### Workflow Configuration
-- **Python Version**: 3.13 (latest stable)
-- **API Keys**: Configured for E2E tests via GitHub Secrets
-- **Coverage**: Uploads results to Codecov
-- **Quality Gates**: All checks must pass for PR approval
-
-The workflow provides fast, reliable CI builds while maintaining comprehensive test coverage across unit, integration, and end-to-end scenarios.
 
 ## Common Workflows
 
@@ -593,56 +418,24 @@ def test_agent_logic(mock_complete_test_environment):
     # All external calls mocked
 ```
 
-## E2E Testing Insights & Best Practices
+## E2E Testing Best Practices
 
-### Key Learnings from Test Reliability Improvements
+### Key Insights
+- **Response Validation**: Always validate response objects and use defensive programming with null checks
+- **API Limitations**: External APIs have quota limits and variable response formats - design tests accordingly
+- **Test Focus**: E2E tests validate integration, not production resilience. Keep retry logic in application layer
+- **Debugging**: Log response content, monitor MCP server logs, test incrementally
 
-#### 1. Response Validation Patterns
-- **Defensive Programming**: Always validate response objects before accessing attributes
-- **Safe Content Extraction**: Use `safe_get_response_content()` with fallback defaults
-- **Model Type Validation**: Use `ensure_proper_model_response()` to handle dict-to-model conversion
-- **Null Checks**: Validate response and response.details are not None before proceeding
-- **Error Messages**: Provide descriptive failure messages for debugging
+### Failure Categories
+- **Code Issues**: Agent logic or MCP integration bugs
+- **Infrastructure**: Test setup or environment configuration
+- **External**: API quotas, rate limiting, service availability
 
-#### 2. External API Limitations
-- **Quota Exhaustion**: API services have daily/hourly request limits that affect E2E tests
-- **Response Variability**: External APIs may return None, dict, or proper model responses
-- **Timeout Behavior**: Long-running requests (60+ seconds) often indicate quota/rate limiting
-- **Multi-step Complexity**: React agents may complete tasks in single steps when rate-limited
-
-#### 3. Test Architecture Insights
-- **Layer Separation**: E2E tests should focus on integration, not production-level resilience
-- **Retry Logic**: Production retry logic (RetryManager) should stay in application layer
-- **Test Data Consistency**: Use fixtures that create predictable, reusable test documents
-- **Infrastructure Validation**: 4/8 passing E2E tests still demonstrate functional system integration
-
-#### 4. Debugging Strategies
-- **Response Inspection**: Log actual response content when assertions fail
-- **API Model Identification**: Check which AI model is being used (shown in test output)
-- **MCP Server Logs**: Monitor server.py logs for tool execution patterns
-- **Incremental Testing**: Test individual components before complex workflows
-
-#### 5. Configuration Management
-- **Centralized Constants**: Single point of control for test timing parameters
-- **Environment Awareness**: Different delay requirements for different API providers
-- **Documentation**: Clear comments explaining why delays are necessary
-- **Maintainability**: Easy to adjust timing without code changes throughout the test suite
-
-#### 6. Failure Categorization
-- **Code Issues**: Actual bugs in agent logic or MCP integration
-- **Infrastructure Issues**: Test setup, fixture problems, or environment configuration
-- **External Issues**: API quotas, rate limiting, or service availability
-- **Test Assumptions**: Incorrect expectations about response format or timing
-
-### Recommendations for Future E2E Test Development
-
-1. **Always implement response validation patterns from the start**
-2. **Use centralized timing configuration for any API-dependent operations**
-3. **Design tests to be resilient to external service variability**
-4. **Focus E2E tests on integration verification, not error handling edge cases**
-5. **Document external dependencies and their limitations clearly**
-6. **Consider test execution order and cumulative API usage**
-7. **Implement graceful degradation when external services are unavailable**
+### Development Guidelines
+1. Implement response validation patterns from the start
+2. Use centralized timing configuration for API operations  
+3. Design tests resilient to external service variability
+4. Focus on integration verification, not edge case handling
 
 ## Quality Standards
 
@@ -668,186 +461,58 @@ def test_agent_logic(mock_complete_test_environment):
 
 ## Test Status Summary
 
-### Unit Tests Status: ✅ **PERFECT (100% Pass Rate)**
-- **Total Tests**: 131 tests (includes semantic search and embedding cache tests)
-- **Passing**: 131/131 tests ✅
-- **Failing**: 0 tests ✅
-- **Coverage**: Complete validation of all atomic paragraph tools, semantic search functionality, embedding cache system, helper functions, and input validation.
-- **Performance**: 1.30 seconds execution time
+**Status: PRODUCTION READY - 296/296 tests passing (100%)**
 
-### Integration Tests Status: ✅ **PERFECT (100% Pass Rate)**
-- **Total Tests**: 153 tests (includes embedding cache integration tests)
-- **Passing**: 153/153 tests ✅
-- **Failing**: 0 tests ✅
-- **MCP Server Communication**: All stdio transport tests passing.
-- **Document Tool Server**: Complete tool validation suite passing.
-- **Embedding Cache Integration**: Cache validation and semantic search integration tests passing.
-- **Performance**: 9.39 seconds execution time
+| Test Tier | Tests | Status | Duration | Coverage |
+|-----------|-------|---------|----------|----------|
+| Unit | 131 | 100% | 1.3s | Core tools, validation, semantic search |
+| Integration | 155 | 100% | 17.3s | MCP transport, tool execution |
+| E2E | 6 | 100% | 2.9m | Real APIs, full workflows |
+| Evaluation | 4 | 100% | 27s | Performance benchmarks |
 
-### E2E Tests Status: ✅ **PERFECT (100% Pass Rate)**
-- **Total Tests**: 6 tests
-- **Passing**: 6/6 tests ✅
-- **Failing**: 0 tests ✅
-- **System Functionality**: Both agents execute successfully with real APIs including complete document lifecycle, semantic search, reasoning workflows, safety features, and batch operations.
-- **Performance**: 158.32 seconds (2:38 minutes) execution time with real API calls
-
-### Evaluation Tests Status: ✅ **PERFECT (100% Pass Rate)**
-- **Total Tests**: 4 tests
-- **Passing**: 4/4 tests ✅
-- **Failing**: 0 tests ✅
-- **Coverage**: Performance benchmarking, prompt optimization validation, and agent comparative evaluation.
-- **Performance**: 29.92 seconds execution time with real API calls
-
-### Metrics Tests Status: ✅ **PERFECT (100% Pass Rate)**
-- **Total Tests**: 6 tests
-- **Passing**: 6/6 tests ✅
-- **Failing**: 0 tests ✅
-- **Coverage**: OpenTelemetry integration, Prometheus metrics collection, and tool instrumentation.
-- **Performance**: 0.26 seconds execution time
-
-### Test Infrastructure Achievements: ✅ **COMPLETE SUCCESS**
-- **Standardized Fixtures**: Centralized fixture system with eliminated duplicates across 6 test files
-- **MCP Stdio Transport**: Real server communication validated with proper isolation
-- **API Key Management**: Mock keys for integration, real keys for E2E testing
-- **Clean Architecture**: 4-tier testing strategy with clear separation of concerns
-- **Quality Assurance**: Comprehensive cleanup removing redundant code and improving maintainability
-
-### Current Status: ✅ **PRODUCTION READY**
-- **Unit Tests**: ✅ 131/131 passing (100%) - Complete validation of modular tool architecture including semantic search and embedding cache
-- **Integration Tests**: ✅ 153/153 passing (100%) - All modular tools, automatic snapshot features, and embedding cache integration validated  
-- **E2E Tests**: ✅ 6/6 passing (100%) - Simple and ReAct agents validated with real APIs including semantic search workflows
-- **Metrics Tests**: ✅ 6/6 passing (100%) - All monitoring functionality validated
-- **Evaluation Tests**: ✅ 4/4 passing (100%) - Performance benchmarks validated with real APIs
-- **Total Tests**: ✅ 300/300 tests - Perfect success rate across all system tiers
-
-### **Key Achievements**:
-- ✅ **Modular Architecture**: Full tool categorization with clean separation of concerns across 6 functional modules
-- ✅ **Safety System**: Universal automatic snapshot protection across all 15 edit operations
-- ✅ **Semantic Search**: AI-powered content discovery with scope-based targeting and similarity scoring
-- ✅ **Embedding Cache**: Snapshot-style embedding cache achieving 80-90% API call reduction with content-based invalidation
-- ✅ **Simplified Design**: Essential features only, eliminating architectural over-engineering
-- ✅ **Agent Integration**: Two-agent architecture optimized for different complexity levels
-- ✅ **Testing Excellence**: Comprehensive 4-tier testing strategy with perfect 300/300 test success rate
-- ✅ **Code Quality**: Comprehensive QA cleanup removing redundancies and standardizing fixtures
-- ✅ **Performance Standards**: < 100ms tool operations, < 30s agent responses, < 3.5min test execution
+**Key Features Validated:**
+- Modular architecture with 24 MCP tools across 6 categories
+- Universal snapshot protection system
+- Semantic search with embedding cache (80-90% API reduction)
+- Two-agent architecture (Simple/ReAct) with comprehensive error handling
+- 3-tier testing strategy with standardized fixtures
 
 
 ## Development Best Practices
 
-### Testing Guidelines
-1. **Write unit tests first** for new functionality
-2. **Mock all external dependencies** in unit tests
-3. **Use real MCP server with mocked LLM** in integration tests
-4. **Assert on `details` field content**, not LLM-generated `summary` text
-5. **Focus on file system state and MCP tool results** for validation
-6. **Only use real LLM in E2E tests** for end-to-end workflow validation
-7. **E2E tests MUST use CLI subprocess calls** - never import agents or tools directly
-8. **E2E tests MUST use MCP stdio transport** - agents communicate with MCP server over stdio
-9. **Minimize E2E test scope** to critical user journeys
-10. **Implement proper cleanup** in all test fixtures
+### Testing Strategy
+**Test Hierarchy**: Unit (mocked) → Integration (real MCP, mocked LLM) → E2E (real APIs) → Evaluation (performance benchmarks)
 
-### Critical Testing Requirements for Production Readiness
-- **Details Field Population**: All agent implementations MUST populate the `details` field with structured data from MCP tool responses
-- **Integration Test Mocking**: Integration tests MUST use mocked LLM responses and focus on MCP tool execution validation
-- **E2E Test Focus**: E2E tests should assert on document operations and file system state, not LLM-generated summary text
-- **Evaluation Infrastructure**: Quality tests should evaluate agent system prompts across React Agent, Simple Agent, and future generalized agents
-- **No LLM Text Assertions**: Never assert on specific words or phrases in LLM-generated summary fields
+**Key Requirements**:
+- Assert on `details` field content, not LLM-generated `summary` text
+- E2E tests use CLI subprocess calls and MCP stdio transport  
+- Agent implementations MUST populate `details` field with structured MCP tool responses
+- Maintain 100% test success rate across all 296 tests
 
-### Test Maintenance
-- **Use centralized fixtures** from `tests/shared/fixtures.py` to avoid duplication
-- **Update fixtures** when adding new features
-- **Review and update skip conditions** regularly  
-- **Keep test dependencies up to date**
-- **Maintain 100% test success rate** across all 300 tests
-- **Keep test execution time under 3.5 minutes** (current: 3.32 minutes)
-- **Minimize flaky tests** through proper isolation and cleanup
-- **Maintain clear test output** and structured error reporting
-
-### Common Testing Patterns
-
-#### Testing Async Functions
+### Testing Patterns
 ```python
+# Async testing
 @pytest.mark.asyncio
 async def test_async_function():
     result = await some_async_function()
     assert result == expected
-```
 
-#### Testing with Temporary Files
-```python
-def test_file_operations(tmp_path):
-    test_file = tmp_path / "test.txt"
-    test_file.write_text("content")
-    assert test_file.read_text() == "content"
-```
-
-#### Testing Error Cases
-```python
-def test_error_handling(mocker):
-    mock_func = mocker.patch('module.function')
-    mock_func.side_effect = IOError("Disk error")
-    
-    with pytest.raises(IOError):
-        call_function_that_uses_mock()
-```
-
-#### Testing with Real MCP Server
-```python
-@pytest.mark.asyncio
+# MCP integration testing  
 async def test_mcp_integration(mcp_client):
-    response = await mcp_client.call_tool(
-        "list_documents",
-        {}
-    )
+    response = await mcp_client.call_tool("list_documents", {})
     assert response["documents"] == []
 ```
 
-### Testing Troubleshooting
+### Common Issues & Solutions
+- **Import Errors**: Ensure project root in PYTHONPATH, check circular imports
+- **Fixture Issues**: Verify fixture scope and conftest.py location
+- **E2E Failures**: Check API keys, rate limits, network connectivity
+- **Async Issues**: Use `@pytest.mark.asyncio` decorator, proper await usage
 
-#### Common Issues
-1. **Import Errors**
-   - Ensure project root is in PYTHONPATH
-   - Check for circular imports
-   - Verify package structure
+### Development Guidelines
+**Agent Development**: Start with Simple Agent for prototyping, use ReAct for production. Test prompt changes thoroughly.
 
-2. **Fixture Not Found**
-   - Check fixture scope and availability
-   - Ensure conftest.py is in the right location
-   - Verify fixture names are correct
-
-3. **Async Test Failures**
-   - Use `@pytest.mark.asyncio` decorator
-   - Ensure proper await usage
-   - Check for event loop issues
-
-4. **E2E Test Failures**
-   - Verify API keys are set correctly
-   - Check API rate limits
-   - Ensure network connectivity
-
-#### Contributing to Tests
-When adding new tests:
-1. Follow the existing patterns
-2. Add appropriate fixtures if needed
-3. Update this documentation if adding new patterns
-4. Ensure tests pass locally before submitting PR
-5. Include both positive and negative test cases
-
-### Agent Development
-1. **Start with Simple Agent** for prototyping
-2. **Use ReAct Agent** for production workflows
-3. **Test prompt changes** thoroughly before deployment
-4. **Monitor LLM call costs** in E2E tests
-5. **Implement graceful degradation** for API failures
-
-### Tool Development
-1. **Follow atomic operation principles** for paragraph tools
-2. **Implement comprehensive validation** for all inputs
-3. **Add structured logging** for all operations
-4. **Design for idempotency** where possible
-5. **Test error conditions** explicitly
-6. **Validate architectural value** - ensure new tools solve real problems rather than adding complexity
-7. **Consider batch integration** - design tools to work seamlessly with atomic batch operations
+**Tool Development**: Follow atomic operation principles, implement comprehensive validation, add structured logging, design for idempotency and batch integration.
 
 
 ## Codebase Structure

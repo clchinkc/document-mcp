@@ -20,11 +20,6 @@ from .models import ChapterMetadata
 # Import DOCS_ROOT_PATH from main module to ensure environment variable updates work
 from .utils.file_operations import DOCS_ROOT_PATH
 from .utils.validation import CHAPTER_MANIFEST_FILE
-from .utils.validation import validate_chapter_name
-from .utils.validation import validate_content
-from .utils.validation import validate_document_name
-from .utils.validation import validate_paragraph_index
-from .utils.validation import validate_search_query
 
 # Document-specific constants
 DOCUMENT_SUMMARY_FILE = "_SUMMARY.md"

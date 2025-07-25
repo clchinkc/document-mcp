@@ -17,10 +17,10 @@ from ..helpers import _count_words
 from ..helpers import _get_chapter_path
 from ..helpers import _is_valid_chapter_filename
 from ..helpers import _split_into_paragraphs
-from ..helpers import validate_chapter_name
-from ..helpers import validate_content
-from ..helpers import validate_document_name
-from ..helpers import validate_paragraph_index
+from ..utils.validation import validate_chapter_name
+from ..utils.validation import validate_content
+from ..utils.validation import validate_document_name
+from ..utils.validation import validate_paragraph_index
 from ..logger_config import log_mcp_call
 from ..models import OperationStatus
 from ..models import ParagraphDetail
