@@ -5,6 +5,7 @@ to validate that agents properly populate the details field with MCP tool result
 """
 
 import json
+import sys
 import uuid
 
 import pytest
@@ -14,7 +15,7 @@ from pydantic_ai.mcp import MCPServerStdio
 @pytest.fixture
 async def mcp_server():
     """Provide a real MCP server for integration testing."""
-    server = MCPServerStdio(command="python3", args=["-m", "document_mcp.doc_tool_server", "stdio"])
+    server = MCPServerStdio(command=sys.executable, args=["-m", "document_mcp.doc_tool_server", "stdio"])
     yield server
 
 
