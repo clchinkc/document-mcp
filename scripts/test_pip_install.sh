@@ -46,11 +46,6 @@ if ! command -v document-mcp &> /dev/null; then
     exit 1
 fi
 
-if ! command -v optimize-prompts &> /dev/null; then
-    echo "❌ ERROR: optimize-prompts console script not found"
-    exit 1
-fi
-
 echo "✅ Console scripts installed successfully"
 
 # Test major module imports
@@ -128,29 +123,23 @@ if ! document-mcp --help > /dev/null 2>&1; then
     exit 1
 fi
 
-# Test optimize-prompts help  
-if ! optimize-prompts --help > /dev/null 2>&1; then
-    echo "❌ ERROR: optimize-prompts console script failed"
-    exit 1
-fi
-
 echo "✅ Console scripts work correctly"
 
 # Test package metadata
 echo "📋 Testing package metadata..."
 python3 << 'EOF'
 import document_mcp
-import pkg_resources
+import importlib.metadata
 
 try:
     # Check version is accessible
     version = document_mcp.__version__
     print(f"✅ Package version: {version}")
     
-    # Check package distribution info
-    dist = pkg_resources.get_distribution('document-mcp')
-    print(f"✅ Package name: {dist.project_name}")
-    print(f"✅ Package location: {dist.location}")
+    # Check package distribution info using modern importlib.metadata
+    dist = importlib.metadata.distribution('document-mcp')
+    print(f"✅ Package name: {dist.metadata['Name']}")
+    print(f"✅ Package version: {dist.version}")
     
 except Exception as e:
     print(f"❌ Package metadata error: {e}")

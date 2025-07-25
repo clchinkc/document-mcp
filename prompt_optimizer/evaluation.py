@@ -14,7 +14,7 @@ from pathlib import Path
 
 from src.agents.react_agent.main import run_react_agent_with_metrics
 from src.agents.simple_agent.main import initialize_agent_and_mcp_server
-from src.agents.simple_agent.main import process_single_user_query_with_metrics
+from src.agents.simple_agent.main import process_single_user_query
 
 # Import clean evaluation infrastructure
 from tests.evaluation.config import get_test_scenarios
@@ -103,7 +103,7 @@ class PerformanceEvaluator:
                                 (
                                     response,
                                     performance_metrics,
-                                ) = await process_single_user_query_with_metrics(agent, scenario["query"])
+                                ) = await process_single_user_query(agent, scenario["query"], collect_metrics=True)
                         elif agent_type == "react":
                             (
                                 history,

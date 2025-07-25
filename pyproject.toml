@@ -69,10 +69,19 @@ dev = [
 
 [project.scripts]
 "document-mcp" = "document_mcp.doc_tool_server:main"
-"optimize-prompts" = "prompt_optimizer.cli:main"
 
 [tool.setuptools]
-packages = ["document_mcp", "src", "src.agents", "src.agents.simple_agent", "src.agents.react_agent", "src.agents.shared", "prompt_optimizer"]
+packages = [
+    "document_mcp", 
+    "document_mcp.tools", 
+    "document_mcp.utils", 
+    "document_mcp.batch",
+    "src", 
+    "src.agents", 
+    "src.agents.simple_agent", 
+    "src.agents.react_agent", 
+    "src.agents.shared"
+]
 
 [tool.setuptools.package-data]
 document_mcp = ["*.ini"]

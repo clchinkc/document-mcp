@@ -335,8 +335,8 @@ python3 -m prompt_optimizer react
 # Optimize all agents
 python3 -m prompt_optimizer all
 
-# Use installed CLI command
-optimize-prompts simple
+# Development use within repo only
+uv run python -m prompt_optimizer simple
 ```
 
 **Optimization Features**:
