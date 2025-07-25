@@ -82,7 +82,7 @@ def document_factory(temp_docs_root):
         doc_path.mkdir(exist_ok=True)
         if chapters:
             for chapter_name, content in chapters.items():
-                (doc_path / chapter_name).write_text(content)
+                (doc_path / chapter_name).write_text(content, encoding='utf-8')
         return doc_path
 
     return _create_document
