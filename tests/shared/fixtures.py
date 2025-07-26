@@ -44,7 +44,7 @@ def document_factory(
         created_docs.append(doc_name)
         if chapters:
             for chapter_name, content in chapters.items():
-                (doc_path / chapter_name).write_text(content)
+                (doc_path / chapter_name).write_text(content, encoding='utf-8')
         return doc_path
 
     try:

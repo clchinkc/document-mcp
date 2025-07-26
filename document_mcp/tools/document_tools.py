@@ -18,7 +18,7 @@ from ..helpers import DOCUMENT_SUMMARY_FILE
 from ..helpers import _get_chapter_metadata
 from ..helpers import _get_document_path
 from ..helpers import _get_ordered_chapter_files
-from ..helpers import validate_document_name
+from ..utils.validation import validate_document_name
 from ..logger_config import log_mcp_call
 from ..models import DocumentInfo
 from ..models import DocumentSummary

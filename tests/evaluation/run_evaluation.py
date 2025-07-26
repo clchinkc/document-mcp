@@ -97,9 +97,9 @@ async def run_evaluation_suite(categories: list[str] = None, use_real_llm: bool 
             all_results["comparisons"].append({"scenario": scenario["name"], "comparison": comparison})
 
             # Print quick summary
-            simple_status = "✓" if simple_metrics.success else "✗"
-            react_status = "✓" if react_metrics.success else "✗"
-            planner_status = "✓" if planner_metrics.success else "✗"
+            simple_status = "[OK]" if simple_metrics.success else "[FAIL]"
+            react_status = "[OK]" if react_metrics.success else "[FAIL]"
+            planner_status = "[OK]" if planner_metrics.success else "[FAIL]"
             print(
                 f"  - Results: Simple {simple_status} ({simple_metrics.execution_time:.2f}s), "
                 f"React {react_status} ({react_metrics.execution_time:.2f}s), "

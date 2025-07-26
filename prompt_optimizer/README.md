@@ -27,8 +27,8 @@ python3 -m prompt_optimizer all
 python3 -m prompt_optimizer simple
 python3 -m prompt_optimizer react
 
-# Using installed CLI command (if available)
-optimize-prompts simple
+# Development use within repo only
+uv run python -m prompt_optimizer simple
 ```
 
 ### As Python Package

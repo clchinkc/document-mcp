@@ -10,9 +10,7 @@ from document_mcp.batch.global_registry import get_batch_registry
 from document_mcp.batch.registry import BatchOperationRegistry
 
 # Import batch functions
-from document_mcp.batch.registry import (
-    execute_batch_operation as _execute_batch_operation,
-)
+from document_mcp.batch.registry import execute_batch_operation as _execute_batch_operation
 from document_mcp.helpers import DOCUMENT_SUMMARY_FILE
 from document_mcp.helpers import _count_words
 from document_mcp.helpers import _get_modification_history_path
@@ -20,7 +18,7 @@ from document_mcp.helpers import _get_snapshots_path
 from document_mcp.helpers import _is_valid_chapter_filename
 from document_mcp.helpers import _resolve_operation_dependencies
 from document_mcp.helpers import _split_into_paragraphs
-from document_mcp.helpers import validate_content
+from document_mcp.utils.validation import validate_content
 from document_mcp.models import BatchApplyRequest
 from document_mcp.models import BatchApplyResult
 from document_mcp.models import BatchOperation
@@ -108,7 +106,7 @@ class TestInputValidationHelpers:
         ],
     )
     def testvalidate_document_name(self, name, expected_valid, expected_error_msg):
-        from document_mcp.helpers import validate_document_name
+        from document_mcp.utils.validation import validate_document_name
 
         is_valid, error = validate_document_name(name)
         assert is_valid is expected_valid
@@ -130,7 +128,7 @@ class TestInputValidationHelpers:
         ],
     )
     def testvalidate_chapter_name(self, name, expected_valid, expected_error_msg):
-        from document_mcp.helpers import validate_chapter_name
+        from document_mcp.utils.validation import validate_chapter_name
 
         is_valid, error = validate_chapter_name(name)
         assert is_valid == expected_valid
@@ -160,7 +158,7 @@ class TestInputValidationHelpers:
         ],
     )
     def testvalidate_paragraph_index(self, index, expected_valid, expected_error_msg):
-        from document_mcp.helpers import validate_paragraph_index
+        from document_mcp.utils.validation import validate_paragraph_index
 
         is_valid, error = validate_paragraph_index(index)
         assert is_valid is expected_valid
@@ -176,7 +174,7 @@ class TestInputValidationHelpers:
         ],
     )
     def testvalidate_search_query(self, query, expected_valid, expected_error_msg):
-        from document_mcp.helpers import validate_search_query
+        from document_mcp.utils.validation import validate_search_query
 
         is_valid, error = validate_search_query(query)
         assert is_valid is expected_valid
@@ -190,7 +188,6 @@ class TestSafetyHelperFunctions:
     def test_get_snapshots_path_with_default_root(self):
         """Test snapshots path generation with default DOCS_ROOT_PATH."""
         import os
-        from pathlib import Path
 
         # Test without DOCUMENT_ROOT_DIR environment variable (production behavior)
         old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
@@ -234,7 +231,6 @@ class TestSafetyHelperFunctions:
     def test_get_modification_history_path_with_default_root(self):
         """Test modification history path generation with default DOCS_ROOT_PATH."""
         import os
-        from pathlib import Path
 
         # Test without DOCUMENT_ROOT_DIR environment variable (production behavior)
         old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")

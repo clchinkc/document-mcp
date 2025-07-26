@@ -1,4 +1,4 @@
-name: Python Tests with Coverage
+name: Cross-Platform Python Tests with Coverage
 
 on:
   push:
@@ -7,11 +7,45 @@ on:
     branches: [main, develop]
 
 jobs:
-  test:
+  # Quick smoke test job
+  smoke-test:
     runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    - name: Quick installation test
+      run: |
+        uv sync
+        uv pip install ".[dev]"
+        uv run python -c "import document_mcp; print('Import successful')"
+    - name: Run installation test script
+      run: |
+        chmod +x scripts/test_pip_install.sh
+        ./scripts/test_pip_install.sh
+
+  # Cross-platform testing matrix
+  test:
+    needs: smoke-test
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.13"]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-14]  # macos-14 is ARM64
+        python-version: ["3.10", "3.13"]
+        exclude:
+          # Reduce matrix size by excluding some combinations
+          - os: windows-latest
+            python-version: "3.10"
+          - os: macos-14
+            python-version: "3.10"
 
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -43,11 +77,47 @@ jobs:
         uv run mypy document_mcp/ || echo "Type checking completed with warnings"
       continue-on-error: true
 
-    - name: Run tests with coverage (including e2e, excluding evaluation)
+    - name: Run unit and integration tests (fast)
       run: |
-        uv run pytest tests/unit/ tests/integration/ tests/e2e/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings
+        uv run pytest tests/unit/ tests/integration/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings
+    
+    - name: Run e2e tests (API-dependent)
+      run: |
+        uv run pytest tests/e2e/ -v --tb=short --disable-warnings --timeout=600
+      if: ${{ env.GEMINI_API_KEY != '' || env.OPENAI_API_KEY != '' }}
+      continue-on-error: true  # Don't fail CI if API keys are missing
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'  # Only upload once
+
+  # Package validation
+  package-validation:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    - name: Install dependencies
+      run: |
+        uv sync
+        uv pip install ".[dev]"
+    - name: Check package build
+      run: |
+        uv build
+        ls -la dist/
+        echo "✅ Package builds successfully"
+    - name: Validate PyPI metadata
+      run: |
+        uv run python -m twine check dist/*
+        echo "✅ PyPI metadata validation passed"

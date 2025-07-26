@@ -78,7 +78,7 @@ class PromptOptimizer:
                 return True
             return False
         except Exception as e:
-            print(f"❌ Error restoring prompt: {e}")
+            print(f"[ERROR] Error restoring prompt: {e}")
             return False
 
     def apply_improved_prompt(self, agent_type: str, improved_prompt: str) -> bool:
@@ -109,7 +109,7 @@ def {templates[agent_type]}() -> str:
                 f.write(file_content)
             return True
         except Exception as e:
-            print(f"❌ Error applying prompt: {e}")
+            print(f"[ERROR] Error applying prompt: {e}")
             return False
 
     async def get_llm_optimization(self, agent_type: str, current_prompt: str) -> str:
@@ -150,32 +150,32 @@ Return ONLY the improved prompt text - no explanations or markdown:"""
             raise Exception("LLM request timed out")
         except Exception as e:
             if "api" in str(e).lower() or "key" in str(e).lower():
-                print("💡 Hint: Check your API keys (OPENAI_API_KEY or GEMINI_API_KEY)")
+                print("[INFO] Hint: Check your API keys (OPENAI_API_KEY or GEMINI_API_KEY)")
             raise Exception(f"LLM optimization failed: {e}")
 
     async def get_baseline_metrics(self, agent_type: str) -> dict:
         """Get baseline performance metrics for comparison."""
-        print(f"📊 Getting baseline metrics for {agent_type} agent...")
+        print(f"[DATA] Getting baseline metrics for {agent_type} agent...")
 
         # Run evaluation benchmarks to get baseline
         benchmark_results = await self.evaluator.run_performance_benchmarks(agent_type)
         baseline_metrics = self.evaluator._store_baseline_metrics(benchmark_results)
 
         if not baseline_metrics:
-            print("⚠️ No baseline metrics available")
+            print("[WARN] No baseline metrics available")
 
         return baseline_metrics
 
     async def optimize_agent(self, agent_type: str) -> OptimizationResult:
         """Optimize a single agent's prompt using relative improvement."""
-        print(f"\n🚀 OPTIMIZING {agent_type.upper()} AGENT")
+        print(f"\n[START] OPTIMIZING {agent_type.upper()} AGENT")
         print("=" * 50)
 
         # Get current prompt and metrics
         current_prompt = self.get_current_prompt(agent_type)
         baseline_tokens = len(current_prompt) // 4  # Rough token estimate
 
-        print(f"📊 Baseline: ~{baseline_tokens} tokens")
+        print(f"[DATA] Baseline: ~{baseline_tokens} tokens")
 
         # Get baseline performance metrics
         baseline_metrics = await self.get_baseline_metrics(agent_type)
@@ -208,7 +208,7 @@ Return ONLY the improved prompt text - no explanations or markdown:"""
             print("\n🧠 EVALUATION:")
             print(f"  Performance Index: {result.performance_score:.2f}")
             print(f"  Token Change: {result.token_change:+d}")
-            print(f"  Tests: {'✅' if result.test_passed else '❌'}")
+            print(f"  Tests: {'[OK]' if result.test_passed else '[FAIL]'}")
 
             if result.scenario_results:
                 successful = sum(1 for r in result.scenario_results.values() if r["success"])
@@ -216,16 +216,16 @@ Return ONLY the improved prompt text - no explanations or markdown:"""
                 print(f"  Benchmarks: {successful}/{total}")
 
             if result.keep_improvement:
-                print(f"\n✅ KEEPING: {result.reason}")
+                print(f"\n[OK] KEEPING: {result.reason}")
             else:
-                print(f"\n❌ REJECTING: {result.reason}")
+                print(f"\n[FAIL] REJECTING: {result.reason}")
                 if backup_path:
                     self.restore_prompt(agent_type, backup_path)
 
             return result
 
         except Exception as e:
-            print(f"❌ Optimization failed: {e}")
+            print(f"[ERROR] Optimization failed: {e}")
             if backup_path:
                 self.restore_prompt(agent_type, backup_path)
 

@@ -19,7 +19,7 @@ from opentelemetry.sdk.resources import Resource
 from prometheus_client import CONTENT_TYPE_LATEST
 from prometheus_client import generate_latest
 
-# Automatic Grafana Cloud Configuration (Built-in) - Prometheus Remote Write  
+# Automatic Grafana Cloud Configuration (Built-in) - Prometheus Remote Write
 # Use the correct Grafana Cloud Prometheus metrics endpoint (matching prometheus.yml)
 GRAFANA_CLOUD_PROMETHEUS_ENDPOINT = "https://prometheus-prod-37-prod-ap-southeast-1.grafana.net/api/prom/push"
 GRAFANA_CLOUD_TOKEN = "glc_eyJvIjoiMTQ5MDY5MCIsIm4iOiJzdGFjay0xMzI2MTg3LWludGVncmF0aW9uLWRvY3VtZW50LW1jcCIsImsiOiJmM1hZZTQ1d2VWSTlEMVMxaUs1NlNOODgiLCJtIjp7InIiOiJwcm9kLWFwLXNvdXRoZWFzdC0xIn19"
@@ -30,7 +30,7 @@ GRAFANA_CLOUD_OTLP_ENDPOINT = "https://otlp-gateway-prod-ap-southeast-1.grafana.
 
 # Service Configuration - Updated to match Grafana Cloud setup
 SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "document-mcp")
-SERVICE_NAMESPACE = os.getenv("OTEL_SERVICE_NAMESPACE", "document-mcp-group") 
+SERVICE_NAMESPACE = os.getenv("OTEL_SERVICE_NAMESPACE", "document-mcp-group")
 SERVICE_VERSION = os.getenv("OTEL_SERVICE_VERSION", "1.0.0")
 DEPLOYMENT_ENVIRONMENT = os.getenv("DEPLOYMENT_ENVIRONMENT", "production")
 
@@ -46,6 +46,7 @@ os.environ.setdefault("OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE", "CUMU
 
 # Create proper Basic auth header for Grafana Cloud
 import base64
+
 grafana_auth = base64.b64encode(f"{GRAFANA_CLOUD_METRICS_USER_ID}:{GRAFANA_CLOUD_TOKEN}".encode()).decode()
 OTEL_HEADERS = os.getenv("OTEL_EXPORTER_OTLP_HEADERS", f"Authorization=Basic {grafana_auth}")
 
@@ -57,7 +58,7 @@ if otel_resource_attrs:
         if "=" in attr:
             key, value = attr.strip().split("=", 1)
             RESOURCE_ATTRIBUTES[key] = value
-    
+
     # Override defaults with resource attributes
     SERVICE_NAME = RESOURCE_ATTRIBUTES.get("service.name", SERVICE_NAME)
     DEPLOYMENT_ENVIRONMENT = RESOURCE_ATTRIBUTES.get("deployment.environment", DEPLOYMENT_ENVIRONMENT)
@@ -71,15 +72,18 @@ prometheus_reader = None
 _active_operations = {}
 
 # Prometheus remote write
-import requests
 import threading
-import json
-from prometheus_client import CollectorRegistry, Counter, Histogram, Gauge, push_to_gateway
+
+import requests
+from prometheus_client import CollectorRegistry
+from prometheus_client import Counter
+from prometheus_client import Gauge
+from prometheus_client import Histogram
 
 
 class GrafanaCloudPrometheusExporter:
     """Simple Prometheus metrics exporter for Grafana Cloud using push gateway pattern."""
-    
+
     def __init__(self, user_id: str, api_token: str, interval: int = 30):
         self.user_id = user_id
         self.api_token = api_token
@@ -87,119 +91,122 @@ class GrafanaCloudPrometheusExporter:
         self.registry = CollectorRegistry()
         self.running = False
         self.thread = None
-        
+
         # Create Prometheus metrics
         self.tool_calls = Counter(
-            'mcp_tool_calls_total',
-            'Total number of MCP tool calls',
-            ['tool_name', 'status', 'environment'],
-            registry=self.registry
+            "mcp_tool_calls_total",
+            "Total number of MCP tool calls",
+            ["tool_name", "status", "environment"],
+            registry=self.registry,
         )
-        
+
         self.tool_duration = Histogram(
-            'mcp_tool_duration_seconds',
-            'MCP tool execution time in seconds',
-            ['tool_name', 'status'],
-            registry=self.registry
+            "mcp_tool_duration_seconds",
+            "MCP tool execution time in seconds",
+            ["tool_name", "status"],
+            registry=self.registry,
         )
-        
+
         self.tool_errors = Counter(
-            'mcp_tool_errors_total',
-            'Total number of MCP tool errors',
-            ['tool_name', 'error_type', 'environment'],
-            registry=self.registry
+            "mcp_tool_errors_total",
+            "Total number of MCP tool errors",
+            ["tool_name", "error_type", "environment"],
+            registry=self.registry,
         )
-        
+
         self.concurrent_ops = Gauge(
-            'mcp_concurrent_operations',
-            'Number of concurrent MCP tool operations',
-            ['tool_name'],
-            registry=self.registry
+            "mcp_concurrent_operations",
+            "Number of concurrent MCP tool operations",
+            ["tool_name"],
+            registry=self.registry,
         )
-        
+
         self.server_info = Counter(
-            'mcp_server_startup_total',
-            'Number of MCP server startups',
-            ['version', 'server_type', 'environment'],
-            registry=self.registry
+            "mcp_server_startup_total",
+            "Number of MCP server startups",
+            ["version", "server_type", "environment"],
+            registry=self.registry,
         )
-    
+
     def start(self):
         """Start the background export thread."""
         if not self.running:
             self.running = True
             self.thread = threading.Thread(target=self._export_loop, daemon=True)
             self.thread.start()
-    
+
     def stop(self):
         """Stop the background export thread."""
         self.running = False
         if self.thread:
             self.thread.join(timeout=5)
-    
+
     def _export_loop(self):
         """Background loop to export metrics periodically."""
         import time
+
         while self.running:
             try:
                 self._push_metrics()
             except Exception as e:
                 print(f"Warning: Failed to push metrics to Grafana Cloud: {e}")
-            
+
             # Wait for next export cycle
             for _ in range(self.interval):
                 if not self.running:
                     break
                 time.sleep(1)
-    
+
     def _push_metrics(self):
         """Push metrics to Grafana Cloud using proper remote write protocol."""
         try:
-            # Create proper remote write payload 
+            # Create proper remote write payload
             remote_write_data = self._create_remote_write_payload()
             if not remote_write_data:
                 return  # No data to send
-            
+
             # Prepare authentication and headers
             auth_string = f"{self.user_id}:{self.api_token}"
             auth_b64 = base64.b64encode(auth_string.encode()).decode()
-            
+
             headers = {
-                'Authorization': f'Basic {auth_b64}',
-                'Content-Type': 'application/x-protobuf',
-                'Content-Encoding': 'snappy',
-                'X-Prometheus-Remote-Write-Version': '0.1.0',
-                'User-Agent': 'document-mcp/1.0.0'
+                "Authorization": f"Basic {auth_b64}",
+                "Content-Type": "application/x-protobuf",
+                "Content-Encoding": "snappy",
+                "X-Prometheus-Remote-Write-Version": "0.1.0",
+                "User-Agent": "document-mcp/1.0.0",
             }
-            
+
             # Send to Grafana Cloud
             import requests
+
             response = requests.post(
-                f"https://prometheus-prod-37-prod-ap-southeast-1.grafana.net/api/prom/push",
+                "https://prometheus-prod-37-prod-ap-southeast-1.grafana.net/api/prom/push",
                 data=remote_write_data,
                 headers=headers,
-                timeout=15
+                timeout=15,
             )
-            
+
             # Silent success - don't log anything for users
-            
+
         except Exception:
             pass  # Completely silent failure - telemetry should never disrupt user workflow
-    
+
     def _create_remote_write_payload(self):
         """Create proper Prometheus remote write payload with protobuf + snappy."""
         try:
             import time
+
             import snappy
-            
+
             # Create simple remote write format for basic metrics
             # This is a simplified implementation that sends key metrics in remote write format
-            
+
             current_time_ms = int(time.time() * 1000)
-            
+
             # Collect current metric values
             metrics_data = []
-            
+
             # Add tool calls metric if we have data
             for metric in self.registry._collector_to_names:
                 try:
@@ -209,51 +216,43 @@ class GrafanaCloudPrometheusExporter:
                             metric_name = metric_sample.name
                             metric_value = metric_sample.value
                             metric_labels = metric_sample.labels or {}
-                            
-                            # Convert to simple protobuf-like structure 
+
+                            # Convert to simple protobuf-like structure
                             metric_entry = {
-                                'name': metric_name,
-                                'value': metric_value,
-                                'timestamp_ms': current_time_ms,
-                                'labels': metric_labels
+                                "name": metric_name,
+                                "value": metric_value,
+                                "timestamp_ms": current_time_ms,
+                                "labels": metric_labels,
                             }
                             metrics_data.append(metric_entry)
                 except Exception:
                     continue
-            
+
             if not metrics_data:
                 return None
-            
+
             # Create JSON payload for remote write (simplified implementation)
             # Note: Full protobuf encoding would require prometheus remote write protobuf definitions
             import json
-            json_payload = json.dumps({
-                'timeseries': metrics_data
-            }).encode('utf-8')
-            
+
+            json_payload = json.dumps({"timeseries": metrics_data}).encode("utf-8")
+
             # Compress with snappy
             compressed_payload = snappy.compress(json_payload)
             return compressed_payload
-            
+
         except Exception:
             return None
-    
+
     def _custom_handler(self, url, method, timeout, headers, data):
         """Custom handler for push_to_gateway with proper auth."""
-        import requests
         auth_string = f"{self.user_id}:{self.api_token}"
         auth_b64 = base64.b64encode(auth_string.encode()).decode()
-        
-        headers['Authorization'] = f'Basic {auth_b64}'
-        
-        return requests.request(
-            method=method,
-            url=url,
-            data=data,
-            headers=headers,
-            timeout=timeout
-        )
-    
+
+        headers["Authorization"] = f"Basic {auth_b64}"
+
+        return requests.request(method=method, url=url, data=data, headers=headers, timeout=timeout)
+
     def _encode_remote_write(self, metrics_data):
         """Simple fallback - just return the text data for now."""
         return metrics_data
@@ -266,16 +265,16 @@ _http_server = None
 
 def _start_background_prometheus():
     """Start background Prometheus server for automatic Grafana Cloud forwarding."""
-    import subprocess
-    import threading
-    import tempfile
     import os
     import shutil
-    
+    import subprocess
+    import tempfile
+    import threading
+
     # Check if Prometheus is available
-    if not shutil.which('prometheus'):
+    if not shutil.which("prometheus"):
         raise Exception("Prometheus not found - install with: brew install prometheus")
-    
+
     # Create minimal prometheus config for agent metrics
     prometheus_config = f"""
 global:
@@ -305,31 +304,37 @@ scrape_configs:
         regex: 'mcp_.*'
         action: keep
 """
-    
+
     # Write config to temp file
-    config_fd, config_path = tempfile.mkstemp(suffix='.yml', prefix='prometheus_mcp_')
+    config_fd, config_path = tempfile.mkstemp(suffix=".yml", prefix="prometheus_mcp_")
     try:
-        with os.fdopen(config_fd, 'w') as f:
+        with os.fdopen(config_fd, "w") as f:
             f.write(prometheus_config)
-        
+
         # Start Prometheus in background
         def run_prometheus():
             try:
                 # Create temp data dir
-                data_dir = tempfile.mkdtemp(prefix='prometheus_mcp_data_')
-                
-                subprocess.run([
-                    'prometheus',
-                    '--config.file', config_path,
-                    '--storage.tsdb.path', data_dir,
-                    '--web.listen-address', ':0',  # Random port
-                    '--log.level', 'error',  # Minimal logging
-                    '--storage.tsdb.retention.time', '1h',  # Minimal retention
-                    '--web.enable-lifecycle'
-                ], 
-                stdout=subprocess.DEVNULL, 
-                stderr=subprocess.DEVNULL,
-                timeout=3600  # 1 hour max
+                data_dir = tempfile.mkdtemp(prefix="prometheus_mcp_data_")
+
+                subprocess.run(
+                    [
+                        "prometheus",
+                        "--config.file",
+                        config_path,
+                        "--storage.tsdb.path",
+                        data_dir,
+                        "--web.listen-address",
+                        ":0",  # Random port
+                        "--log.level",
+                        "error",  # Minimal logging
+                        "--storage.tsdb.retention.time",
+                        "1h",  # Minimal retention
+                        "--web.enable-lifecycle",
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=3600,  # 1 hour max
                 )
             except Exception:
                 pass  # Silent failure
@@ -340,15 +345,16 @@ scrape_configs:
                     shutil.rmtree(data_dir, ignore_errors=True)
                 except:
                     pass
-        
+
         # Start in daemon thread
         prometheus_thread = threading.Thread(target=run_prometheus, daemon=True)
         prometheus_thread.start()
-        
+
         # Give it a moment to start
         import time
+
         time.sleep(1)
-        
+
     except Exception as e:
         try:
             os.unlink(config_path)
@@ -359,12 +365,11 @@ scrape_configs:
 
 def _start_persistent_metrics_server():
     """Start persistent metrics server that survives agent exits."""
+    import os
     import subprocess
     import tempfile
-    import os
-    import json
     import time
-    
+
     # Create persistent metrics server script
     metrics_server_script = '''
 import json
@@ -449,16 +454,16 @@ server = HTTPServer(('localhost', 8000), MetricsHandler)
 print("Persistent metrics server started on :8000")
 server.serve_forever()
 '''
-    
+
     # Check if persistent server is already running
     lock_file = "/tmp/document_mcp_metrics.lock"
     if os.path.exists(lock_file):
         try:
-            with open(lock_file, 'r') as f:
+            with open(lock_file) as f:
                 pid = int(f.read().strip())
             # Check if process is still running
             os.kill(pid, 0)
-            print(f"   📊 Persistent metrics server already running (PID {pid})")
+            print(f"   [METRICS] Persistent metrics server already running (PID {pid})")
             return
         except (OSError, ValueError):
             # Lock file exists but process is dead
@@ -466,28 +471,27 @@ server.serve_forever()
                 os.unlink(lock_file)
             except:
                 pass
-    
+
     # Write server script to temp file
-    script_fd, script_path = tempfile.mkstemp(suffix='.py', prefix='metrics_server_')
+    script_fd, script_path = tempfile.mkstemp(suffix=".py", prefix="metrics_server_")
     try:
-        with os.fdopen(script_fd, 'w') as f:
+        with os.fdopen(script_fd, "w") as f:
             f.write(metrics_server_script)
-        
+
         # Start persistent server
-        subprocess.Popen([
-            'python3', script_path
-        ], 
-        stdout=subprocess.DEVNULL, 
-        stderr=subprocess.DEVNULL,
-        start_new_session=True  # Detach from parent
+        subprocess.Popen(
+            ["python3", script_path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,  # Detach from parent
         )
-        
+
         # Give it time to start
         time.sleep(1)
-        print(f"   📊 Started persistent metrics server on :8000")
-        
+        print("   [METRICS] Started persistent metrics server on :8000")
+
     except Exception as e:
-        print(f"   ⚠️  Could not start persistent metrics server: {e}")
+        print(f"   [WARN] Could not start persistent metrics server: {e}")
     finally:
         try:
             os.unlink(script_path)
@@ -502,65 +506,63 @@ def _start_prometheus_http_server_with_retry():
 
 def _write_metrics_to_persistent_storage(tool_name: str, status: str, start_time: float = None):
     """Write metrics to persistent storage for the persistent server."""
+    import fcntl
     import json
     import os
     import time
-    import fcntl
-    
+
     metrics_file = "/tmp/document_mcp_metrics.json"
-    
+
     try:
         # Calculate duration if available
         duration = None
         if start_time:
             duration = time.time() - start_time
-        
+
         # Prepare new metrics
         new_metrics = {
-            'tool_calls': [{
-                'labels': {
-                    'tool_name': tool_name,
-                    'status': status,
-                    'environment': DEPLOYMENT_ENVIRONMENT
-                },
-                'value': 1
-            }],
-            'tool_durations': []
+            "tool_calls": [
+                {
+                    "labels": {
+                        "tool_name": tool_name,
+                        "status": status,
+                        "environment": DEPLOYMENT_ENVIRONMENT,
+                    },
+                    "value": 1,
+                }
+            ],
+            "tool_durations": [],
         }
-        
+
         if duration is not None:
-            new_metrics['tool_durations'].append({
-                'labels': {
-                    'tool_name': tool_name,
-                    'status': status
-                },
-                'value': duration
-            })
-        
+            new_metrics["tool_durations"].append(
+                {"labels": {"tool_name": tool_name, "status": status}, "value": duration}
+            )
+
         # Atomically update metrics file
-        temp_file = metrics_file + '.tmp'
-        with open(temp_file, 'w') as f:
+        temp_file = metrics_file + ".tmp"
+        with open(temp_file, "w") as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-            
+
             # Load existing metrics
-            existing_metrics = {'tool_calls': [], 'tool_durations': []}
+            existing_metrics = {"tool_calls": [], "tool_durations": []}
             if os.path.exists(metrics_file):
                 try:
-                    with open(metrics_file, 'r') as existing_f:
+                    with open(metrics_file) as existing_f:
                         existing_metrics = json.load(existing_f)
                 except:
                     pass
-            
+
             # Merge metrics
-            existing_metrics['tool_calls'].extend(new_metrics['tool_calls'])
-            existing_metrics['tool_durations'].extend(new_metrics['tool_durations'])
-            
+            existing_metrics["tool_calls"].extend(new_metrics["tool_calls"])
+            existing_metrics["tool_durations"].extend(new_metrics["tool_durations"])
+
             # Write merged metrics
             json.dump(existing_metrics, f)
-        
+
         # Atomic move
         os.rename(temp_file, metrics_file)
-        
+
     except Exception:
         pass  # Silent failure for telemetry
 
@@ -577,10 +579,10 @@ def get_resource() -> "Resource":
         "telemetry.sdk.name": "opentelemetry",
         "telemetry.sdk.language": "python",
     }
-    
+
     # Add any additional attributes from OTEL_RESOURCE_ATTRIBUTES
     resource_attributes.update(RESOURCE_ATTRIBUTES)
-    
+
     return Resource.create(resource_attributes)
 
 
@@ -602,45 +604,45 @@ def initialize_metrics():
         # Always add Prometheus reader for local /metrics endpoint (for Prometheus scraping)
         prometheus_reader = PrometheusMetricReader()
         metric_readers.append(prometheus_reader)
-        
+
         # Start HTTP server for Prometheus scraping (with retry)
         _start_prometheus_http_server_with_retry()
 
         # Primary path: Use OpenTelemetry Collector with Prometheus remote write
         local_collector_endpoint = "http://localhost:4317"
-        
+
         try:
             # Test if local collector is available
             import requests
+
             health_response = requests.get("http://localhost:13133", timeout=1)
             collector_available = True
         except:
             collector_available = False
-        
+
         if collector_available:
             # Use local collector which now uses Prometheus remote write to Grafana Cloud
-            otlp_exporter = OTLPMetricExporter(
-                endpoint=local_collector_endpoint
-            )
-            
-            otlp_reader = PeriodicExportingMetricReader(
-                exporter=otlp_exporter, 
-                export_interval_millis=30000
-            )
+            otlp_exporter = OTLPMetricExporter(endpoint=local_collector_endpoint)
+
+            otlp_reader = PeriodicExportingMetricReader(exporter=otlp_exporter, export_interval_millis=30000)
             metric_readers.append(otlp_reader)
-            print("   ✅ Using OpenTelemetry Collector → Prometheus remote write → Grafana Cloud")
+            print("   [OK] Using OpenTelemetry Collector -> Prometheus remote write -> Grafana Cloud")
         else:
-            print("   ⚠️  OpenTelemetry Collector not available")
-            print("   📝 Start collector: Install OpenTelemetry Collector if needed for advanced telemetry routing")
-            
+            print("   [WARN] OpenTelemetry Collector not available")
+            print(
+                "   [NOTE] Start collector: Install OpenTelemetry Collector if needed for advanced telemetry routing"
+            )
+
             # Auto-start background Prometheus for immediate Grafana Cloud delivery
             # This uses the same proven approach as run_telemetry.sh but automatic
             try:
                 _start_background_prometheus()
-                print("   📡 Auto-telemetry: Background Prometheus → Grafana Cloud")
-            except Exception as prometheus_error:
-                print(f"   📊 Local metrics: Available at :8000/metrics")
-                print(f"   💡 Full telemetry: Run scripts/development/telemetry/scripts/start.sh for Grafana Cloud")
+                print("   [AUTO] Auto-telemetry: Background Prometheus -> Grafana Cloud")
+            except Exception:
+                print("   [METRICS] Local metrics: Available at :8000/metrics")
+                print(
+                    "   [NOTE] Full telemetry: Run scripts/development/telemetry/scripts/start.sh for Grafana Cloud"
+                )
 
         # Create meter provider
         meter_provider = MeterProvider(resource=resource, metric_readers=metric_readers)
@@ -656,17 +658,15 @@ def initialize_metrics():
 
         # Record initialization
         if tool_calls_counter:
-            tool_calls_counter.add(1, {
-                "tool_name": "telemetry_init",
-                "status": "success", 
-                "environment": DEPLOYMENT_ENVIRONMENT
-            })
+            tool_calls_counter.add(
+                1, {"tool_name": "telemetry_init", "status": "success", "environment": DEPLOYMENT_ENVIRONMENT}
+            )
 
-        print(f"✅ Document MCP telemetry active for Prometheus scraping")
+        print("[OK] Document MCP telemetry active for Prometheus scraping")
         print(f"   Service: {SERVICE_NAME} v{SERVICE_VERSION}")
         print(f"   Environment: {DEPLOYMENT_ENVIRONMENT}")
-        print(f"   🎯 Architecture: Prometheus scrapes → Remote write → Grafana Cloud")
-        print(f"   📊 Metrics endpoint: http://localhost:8000/metrics")
+        print("   [ARCH] Architecture: Prometheus scrapes -> Remote write -> Grafana Cloud")
+        print("   [METRICS] Metrics endpoint: http://localhost:8000/metrics")
 
         # Initialize automatic instrumentation if available
         try:
@@ -725,13 +725,11 @@ def record_tool_call_success(tool_name: str, start_time: float | None, result_si
         return
 
     try:
-        # Primary: Record in OpenTelemetry counter (goes to collector → Grafana Cloud)
+        # Primary: Record in OpenTelemetry counter (goes to collector -> Grafana Cloud)
         if tool_calls_counter:
-            tool_calls_counter.add(1, {
-                "tool_name": tool_name,
-                "status": "success",
-                "environment": DEPLOYMENT_ENVIRONMENT
-            })
+            tool_calls_counter.add(
+                1, {"tool_name": tool_name, "status": "success", "environment": DEPLOYMENT_ENVIRONMENT}
+            )
 
         # Write to persistent storage for the persistent metrics server
         _write_metrics_to_persistent_storage(tool_name, "success", start_time)
@@ -752,13 +750,11 @@ def record_tool_call_error(tool_name: str, start_time: float | None, error: Exce
         return
 
     try:
-        # Primary: Record in OpenTelemetry counter (goes to collector → Grafana Cloud)
+        # Primary: Record in OpenTelemetry counter (goes to collector -> Grafana Cloud)
         if tool_calls_counter:
-            tool_calls_counter.add(1, {
-                "tool_name": tool_name,
-                "status": "error",
-                "environment": DEPLOYMENT_ENVIRONMENT
-            })
+            tool_calls_counter.add(
+                1, {"tool_name": tool_name, "status": "error", "environment": DEPLOYMENT_ENVIRONMENT}
+            )
 
         # Write to persistent storage for the persistent metrics server
         _write_metrics_to_persistent_storage(tool_name, "error", start_time)

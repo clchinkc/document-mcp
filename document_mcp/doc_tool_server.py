@@ -189,15 +189,16 @@ def main():
     # Show automatic telemetry status
     try:
         from .metrics_config import get_metrics_summary
+
         summary = get_metrics_summary()
         if summary["status"] == "enabled":
-            print(f"✅ Automatic telemetry: {summary['telemetry_mode']}")
+            print(f"[OK] Automatic telemetry: {summary['telemetry_mode']}")
             print(f"   Service: {summary['service_name']} v{summary['service_version']}")
             print(f"   Environment: {summary['environment']}")
         else:
-            print(f"ℹ️  Telemetry: {summary['reason']}")
+            print(f"[INFO] Telemetry: {summary['reason']}")
     except (ImportError, NameError):
-        print("ℹ️  Telemetry: not available")
+        print("[INFO] Telemetry: not available")
 
     if args.transport == "stdio":
         print("MCP server running with stdio transport. Waiting for client connection...")

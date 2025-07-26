@@ -113,7 +113,7 @@ class TestEmbeddingCacheIntegration:
 
             # Create actual chapter file (needed for cache validation)
             chapter_path = doc_path / self.test_chapter
-            chapter_path.write_text("Sample content for testing")
+            chapter_path.write_text("Sample content for testing", encoding='utf-8')
 
             # Mock document path to return our temp directory
             mock_doc_path.return_value = doc_path
@@ -187,7 +187,7 @@ class TestEmbeddingCacheIntegration:
             doc_path = Path(temp_dir) / self.test_document
             doc_path.mkdir()
             chapter_path = doc_path / self.test_chapter
-            chapter_path.write_text("Original content")
+            chapter_path.write_text("Original content", encoding='utf-8')
 
             # Mock document path to return our temp directory
             mock_doc_path.return_value = doc_path
@@ -222,7 +222,7 @@ class TestEmbeddingCacheIntegration:
             import time
 
             time.sleep(0.2)  # Ensure newer timestamp (increased for reliability)
-            chapter_path.write_text("Modified content")
+            chapter_path.write_text("Modified content", encoding='utf-8')
 
             # Mock embedding response for new content
             mock_genai.embed_content.return_value = {
@@ -261,7 +261,7 @@ class TestEmbeddingCacheIntegration:
             doc_path = Path(temp_dir) / self.test_document
             doc_path.mkdir()
             chapter_path = doc_path / self.test_chapter
-            chapter_path.write_text("Test content")
+            chapter_path.write_text("Test content", encoding='utf-8')
 
             cache1.store_chapter_embeddings(
                 self.test_document, self.test_chapter, test_embeddings, test_contents
@@ -284,7 +284,7 @@ class TestEmbeddingCacheIntegration:
             doc_path = Path(temp_dir) / self.test_document
             doc_path.mkdir()
             chapter_path = doc_path / self.test_chapter
-            chapter_path.write_text("Test content")
+            chapter_path.write_text("Test content", encoding='utf-8')
 
             # Store embeddings with first model version
             cache_v1 = EmbeddingCache("models/text-embedding-003")

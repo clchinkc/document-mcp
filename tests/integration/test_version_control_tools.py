@@ -62,7 +62,7 @@ class TestManageSnapshots:
 
         # Modify content
         doc_path = document_factory(doc_name)
-        (doc_path / "chapter1.md").write_text("# Chapter 1\n\nModified content.")
+        (doc_path / "chapter1.md").write_text("# Chapter 1\n\nModified content.", encoding='utf-8')
 
         # Restore snapshot
         result = manage_snapshots(document_name=doc_name, action="restore", snapshot_id=snapshot_id)
@@ -165,7 +165,7 @@ class TestDiffContent:
 
         # Modify content
         doc_path = document_factory(doc_name)
-        (doc_path / "chapter1.md").write_text("# Chapter 1\n\nModified content.")
+        (doc_path / "chapter1.md").write_text("# Chapter 1\n\nModified content.", encoding='utf-8')
 
         # Create second snapshot
         snap2_result = manage_snapshots(document_name=doc_name, action="create", message="Second snapshot")

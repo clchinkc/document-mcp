@@ -105,11 +105,11 @@ def calculate_optimization_impact():
     minimal_savings = ((full_tokens - minimal_tokens) / full_tokens) * 100
 
     print("Achievements:")
-    print(f"✅ Extracted {tool_manager.get_tool_count()} hardcoded tool descriptions")
-    print(f"✅ Created {tool_manager.get_category_count()} tool categories")
-    print("✅ Implemented dynamic prompt generation")
-    print("✅ Enabled format-specific optimization")
-    print("✅ Maintained backward compatibility")
+    print(f"[OK] Extracted {tool_manager.get_tool_count()} hardcoded tool descriptions")
+    print(f"[OK] Created {tool_manager.get_category_count()} tool categories")
+    print("[OK] Implemented dynamic prompt generation")
+    print("[OK] Enabled format-specific optimization")
+    print("[OK] Maintained backward compatibility")
 
     print("\nOptimization Potential:")
     print(f"• Compact format: {compact_savings:.1f}% token reduction")

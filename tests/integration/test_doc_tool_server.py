@@ -106,7 +106,7 @@ def test_read_document_summary(document_factory):
     doc_name = "summary_doc"
     summary_content = "# Summary\n\nThis is the summary."
     doc_path = document_factory(doc_name)
-    (doc_path / "_SUMMARY.md").write_text(summary_content)
+    (doc_path / "_SUMMARY.md").write_text(summary_content, encoding='utf-8')
 
     result = read_document_summary(doc_name)
     assert result is not None

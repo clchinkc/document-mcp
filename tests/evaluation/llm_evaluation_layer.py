@@ -181,21 +181,21 @@ class EnhancedTestMetrics:
     def report(self) -> str:
         """Generate simple test report."""
         lines = [
-            "📊 Test Results:",
-            f"   ⏱️  Time: {self.performance.execution_time:.2f}s",
-            f"   🪙 Tokens: {self.performance.token_usage}",
-            f"   ✅ Success: {self.performance.success}",
+            "[DATA] Test Results:",
+            f"   [TIME] Time: {self.performance.execution_time:.2f}s",
+            f"   [TOKENS] Tokens: {self.performance.token_usage}",
+            f"   [OK] Success: {self.performance.success}",
         ]
 
         if self.llm_evaluation and self.llm_evaluation.success:
             lines.extend(
                 [
-                    f"   🎯 Quality: {self.llm_evaluation.score:.2f}/1.0",
-                    f"   💬 Feedback: {self.llm_evaluation.feedback}",
+                    f"   [TARGET] Quality: {self.llm_evaluation.score:.2f}/1.0",
+                    f"   [FEEDBACK] Feedback: {self.llm_evaluation.feedback}",
                 ]
             )
         else:
-            lines.append("   🎯 Quality: Not evaluated")
+            lines.append("   [TARGET] Quality: Not evaluated")
 
         if self.combined_score > 0:
             lines.append(f"   🏆 Combined: {self.combined_score:.2f}/1.0")

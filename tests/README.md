@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document outlines the testing strategy, structure, and best practices for the Document MCP project. A robust testing culture is crucial for maintaining code quality, preventing regressions, and enabling confident refactoring. Our test suite is organized into four main categories—Unit, Integration, End-to-End (E2E), and Evaluation—each serving a distinct purpose.
+This document outlines the testing strategy, structure, and best practices for the Document MCP project. A robust testing culture is crucial for maintaining code quality, preventing regressions, and enabling confident refactoring. Our test suite is organized into three main categories—Unit, Integration, End-to-End (E2E), and Evaluation—each serving a distinct purpose.
 
 **Special focus on Safety Features**: The testing framework includes comprehensive validation of the write-safety system, automatic micro-snapshots, version control operations, and modification history tracking to ensure zero content loss.
 

@@ -16,11 +16,11 @@ from ..helpers import _get_chapter_path
 from ..helpers import _get_document_path
 from ..helpers import _get_ordered_chapter_files
 from ..helpers import _split_into_paragraphs
-from ..helpers import validate_chapter_name
-from ..helpers import validate_content
-from ..helpers import validate_document_name
-from ..helpers import validate_paragraph_index
-from ..helpers import validate_search_query
+from ..utils.validation import validate_chapter_name
+from ..utils.validation import validate_content
+from ..utils.validation import validate_document_name
+from ..utils.validation import validate_paragraph_index
+from ..utils.validation import validate_search_query
 from ..logger_config import ErrorCategory
 from ..logger_config import log_mcp_call
 from ..logger_config import log_structured_error
