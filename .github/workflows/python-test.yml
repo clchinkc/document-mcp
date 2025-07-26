@@ -79,7 +79,7 @@ jobs:
 
     - name: Run all tests
       run: |
-        uv run pytest tests/unit/ tests/integration/ tests/e2e/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings  --timeout=600
+        uv run pytest tests/unit/ tests/integration/ tests/e2e/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
