@@ -10,11 +10,11 @@ import requests
 
 
 def test_metrics():
-    print("🧪 Testing MCP Tool Calls Metrics Fix")
+    print("[TEST] Testing MCP Tool Calls Metrics Fix")
     print("=" * 50)
 
     # Start the telemetry service
-    print("🚀 Starting telemetry service...")
+    print("[START] Starting telemetry service...")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     service_path = os.path.join(script_dir, "../services/auto_service.py")
     process = subprocess.Popen(
@@ -27,33 +27,33 @@ def test_metrics():
         time.sleep(10)
 
         # Test metrics endpoint
-        print("📊 Testing metrics endpoint...")
+        print("[DATA] Testing metrics endpoint...")
         try:
             response = requests.get("http://localhost:8000/metrics", timeout=5)
             if response.status_code == 200:
                 metrics_text = response.text
                 tool_calls_count = metrics_text.count("mcp_tool_calls_total")
 
-                print(f"✅ Metrics endpoint working: {tool_calls_count} mcp_tool_calls_total metrics found")
+                print(f"[OK] Metrics endpoint working: {tool_calls_count} mcp_tool_calls_total metrics found")
 
                 # Show sample metrics
                 for line in metrics_text.split("\n"):
                     if "mcp_tool_calls_total{" in line:
-                        print(f"📈 {line}")
+                        print(f"[GRAPH] {line}")
                         break
 
                 if tool_calls_count > 0:
-                    print("🎉 SUCCESS: mcp_tool_calls_total metrics are being generated!")
+                    print("[SUCCESS] SUCCESS: mcp_tool_calls_total metrics are being generated!")
                     return True
                 else:
-                    print("❌ FAIL: No mcp_tool_calls_total metrics found")
+                    print("[FAIL] FAIL: No mcp_tool_calls_total metrics found")
                     return False
             else:
-                print(f"❌ Metrics endpoint returned {response.status_code}")
+                print(f"[ERROR] Metrics endpoint returned {response.status_code}")
                 return False
 
         except Exception as e:
-            print(f"❌ Error accessing metrics endpoint: {e}")
+            print(f"[ERROR] Error accessing metrics endpoint: {e}")
             return False
 
     finally:
@@ -73,9 +73,9 @@ def test_metrics():
 if __name__ == "__main__":
     success = test_metrics()
     if success:
-        print("\n✅ Test PASSED - Metrics fix working correctly!")
-        print("🚀 You can now run: ./start_telemetry.sh")
+        print("\n[OK] Test PASSED - Metrics fix working correctly!")
+        print("[START] You can now run: ./start_telemetry.sh")
     else:
-        print("\n❌ Test FAILED - Check the output above for issues")
+        print("\n[FAIL] Test FAILED - Check the output above for issues")
 
     sys.exit(0 if success else 1)

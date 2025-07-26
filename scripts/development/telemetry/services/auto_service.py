@@ -80,7 +80,7 @@ class AutoTelemetryService:
             "batch_operations",
         ]
 
-        print("🚀 Document MCP Auto Telemetry Service Initialized")
+        print("[START] Document MCP Auto Telemetry Service Initialized")
 
     def start_metrics_server(self):
         """Start HTTP server for Prometheus scraping."""
@@ -99,12 +99,12 @@ class AutoTelemetryService:
                         slf.end_headers()
                         slf.wfile.write(metrics_data)
                         # Debug log
-                        print(f"📊 Metrics endpoint served {len(metrics_data)} bytes")
+                        print(f"[DATA] Metrics endpoint served {len(metrics_data)} bytes")
                     except Exception as e:
                         slf.send_response(500)
                         slf.end_headers()
                         slf.wfile.write(f"Error: {e}".encode())
-                        print(f"❌ Metrics endpoint error: {e}")
+                        print(f"[ERROR] Metrics endpoint error: {e}")
                 elif slf.path == "/debug":
                     try:
                         metrics_data = generate_latest(self.registry).decode("utf-8")
@@ -137,10 +137,10 @@ Raw metrics:
 
         try:
             self.metrics_server = HTTPServer(("localhost", 8000), handler_factory)
-            print("✅ Metrics HTTP server started on localhost:8000")
+            print("[OK] Metrics HTTP server started on localhost:8000")
             self.metrics_server.serve_forever()
         except Exception as e:
-            print(f"❌ Failed to start metrics server: {e}")
+            print(f"[ERROR] Failed to start metrics server: {e}")
 
     def start_prometheus(self):
         """Start Prometheus with the configured prometheus.yml."""
@@ -149,7 +149,7 @@ Raw metrics:
             script_dir = os.path.dirname(os.path.abspath(__file__))
             prometheus_config = os.path.join(script_dir, "../config/prometheus.yml")
             if not os.path.exists(prometheus_config):
-                print(f"❌ Prometheus config not found: {prometheus_config}")
+                print(f"[ERROR] Prometheus config not found: {prometheus_config}")
                 return False
 
             # Start Prometheus
@@ -165,36 +165,36 @@ Raw metrics:
                 text=True,
             )
 
-            print("✅ Prometheus started")
+            print("[OK] Prometheus started")
 
             # Wait a bit for startup
             time.sleep(3)
 
             # Check if process is still running
             if self.prometheus_process.poll() is None:
-                print("✅ Prometheus running successfully")
+                print("[OK] Prometheus running successfully")
                 return True
             else:
-                print("❌ Prometheus failed to start")
+                print("[ERROR] Prometheus failed to start")
                 return False
 
         except Exception as e:
-            print(f"❌ Failed to start Prometheus: {e}")
+            print(f"[ERROR] Failed to start Prometheus: {e}")
             return False
 
     def generate_realistic_metrics(self):
         """Continuously generate realistic MCP tool metrics."""
-        print("🎯 Starting continuous metric generation...")
+        print("[TARGET] Starting continuous metric generation...")
 
         # Record server startup immediately
         try:
             self.server_info.labels(version="1.0.0", environment="production").inc()
-            print("✅ Server startup metric recorded")
+            print("[OK] Server startup metric recorded")
         except Exception as e:
-            print(f"❌ Error recording server startup: {e}")
+            print(f"[ERROR] Error recording server startup: {e}")
 
         # Generate initial metrics burst for immediate visibility
-        print("🚀 Generating initial metrics burst...")
+        print("[START] Generating initial metrics burst...")
         for i in range(5):
             try:
                 tool = random.choice(self.mcp_tools)
@@ -210,14 +210,14 @@ Raw metrics:
                 self.concurrent_ops.labels(tool_name=tool).set(concurrent)
 
                 timestamp = datetime.now().strftime("%H:%M:%S")
-                print(f"📊 {timestamp} | {tool} ({status}) | {duration:.2f}s [BURST]")
+                print(f"[DATA] {timestamp} | {tool} ({status}) | {duration:.2f}s [BURST]")
 
             except Exception as e:
-                print(f"❌ Error in initial burst: {e}")
+                print(f"[ERROR] Error in initial burst: {e}")
 
             time.sleep(1)  # Quick burst
 
-        print("🔄 Starting regular metric generation...")
+        print("[LOOP] Starting regular metric generation...")
 
         while self.running:
             try:
@@ -242,22 +242,22 @@ Raw metrics:
 
                     # Log activity
                     timestamp = datetime.now().strftime("%H:%M:%S")
-                    print(f"📊 {timestamp} | {tool} ({status}) | {duration:.2f}s")
+                    print(f"[DATA] {timestamp} | {tool} ({status}) | {duration:.2f}s")
 
                 except Exception as metric_error:
-                    print(f"❌ Error recording metrics for {tool}: {metric_error}")
+                    print(f"[ERROR] Error recording metrics for {tool}: {metric_error}")
 
                 # Wait between operations (5-15 seconds)
                 time.sleep(random.uniform(5, 15))
 
             except Exception as e:
-                print(f"❌ Error generating metrics: {e}")
+                print(f"[ERROR] Error generating metrics: {e}")
                 time.sleep(5)
 
     def start(self):
         """Start all services."""
         self.running = True
-        print("🚀 Starting Auto Telemetry Service...")
+        print("[START] Starting Auto Telemetry Service...")
 
         # Start metrics server in background thread
         metrics_thread = threading.Thread(target=self.start_metrics_server, daemon=True)
@@ -268,18 +268,18 @@ Raw metrics:
 
         # Start Prometheus
         if not self.start_prometheus():
-            print("❌ Failed to start Prometheus - exiting")
+            print("[ERROR] Failed to start Prometheus - exiting")
             return False
 
         # Start metric generation in background thread
         self.metrics_thread = threading.Thread(target=self.generate_realistic_metrics, daemon=True)
         self.metrics_thread.start()
 
-        print("✅ All services started successfully!")
-        print("📊 Metrics being generated and pushed to Grafana Cloud every 5 seconds")
-        print("🌐 Prometheus UI: http://localhost:9090")
-        print("📈 Metrics endpoint: http://localhost:8000/metrics")
-        print("🔄 Press Ctrl+C to stop")
+        print("[OK] All services started successfully!")
+        print("[DATA] Metrics being generated and pushed to Grafana Cloud every 5 seconds")
+        print("[WEB] Prometheus UI: http://localhost:9090")
+        print("[GRAPH] Metrics endpoint: http://localhost:8000/metrics")
+        print("[LOOP] Press Ctrl+C to stop")
 
         return True
 
@@ -293,7 +293,7 @@ Raw metrics:
             try:
                 self.prometheus_process.terminate()
                 self.prometheus_process.wait(timeout=5)
-                print("✅ Prometheus stopped")
+                print("[OK] Prometheus stopped")
             except:
                 self.prometheus_process.kill()
                 print("🔥 Prometheus force killed")
@@ -302,15 +302,15 @@ Raw metrics:
         if self.metrics_server:
             try:
                 self.metrics_server.shutdown()
-                print("✅ Metrics server stopped")
+                print("[OK] Metrics server stopped")
             except:
                 pass
 
-        print("✅ All services stopped")
+        print("[OK] All services stopped")
 
     def run_test(self, duration=120):
         """Run a test for specified duration."""
-        print(f"🧪 Running {duration} second test...")
+        print(f"[TEST] Running {duration} second test...")
 
         if not self.start():
             return False
@@ -319,7 +319,7 @@ Raw metrics:
             # Run for specified duration
             time.sleep(duration)
 
-            print("\n📊 Test completed - checking results...")
+            print("\n[DATA] Test completed - checking results...")
 
             # Test metrics endpoint
             import requests
@@ -328,11 +328,11 @@ Raw metrics:
                 response = requests.get("http://localhost:8000/metrics", timeout=5)
                 if response.status_code == 200:
                     mcp_metrics = response.text.count("mcp_tool_calls_total")
-                    print(f"✅ Metrics endpoint: {mcp_metrics} series available")
+                    print(f"[OK] Metrics endpoint: {mcp_metrics} series available")
                 else:
-                    print(f"❌ Metrics endpoint error: {response.status_code}")
+                    print(f"[ERROR] Metrics endpoint error: {response.status_code}")
             except:
-                print("❌ Could not access metrics endpoint")
+                print("[ERROR] Could not access metrics endpoint")
 
             # Test Prometheus targets
             try:
@@ -341,16 +341,16 @@ Raw metrics:
                     data = response.json()
                     targets = data.get("data", {}).get("activeTargets", [])
                     up_targets = [t for t in targets if t.get("health") == "up"]
-                    print(f"✅ Prometheus targets: {len(up_targets)} up, {len(targets)} total")
+                    print(f"[OK] Prometheus targets: {len(up_targets)} up, {len(targets)} total")
                 else:
-                    print(f"❌ Prometheus targets error: {response.status_code}")
+                    print(f"[ERROR] Prometheus targets error: {response.status_code}")
             except:
-                print("❌ Could not check Prometheus targets")
+                print("[ERROR] Could not check Prometheus targets")
 
             return True
 
         except KeyboardInterrupt:
-            print("\n⚠️  Test interrupted by user")
+            print("\n[WARN] Test interrupted by user")
             return True
         finally:
             self.stop()

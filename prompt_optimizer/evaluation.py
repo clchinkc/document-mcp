@@ -69,9 +69,9 @@ class PerformanceEvaluator:
         self.enable_llm_evaluation = enable_llm_evaluation
 
         if self.enable_llm_evaluation:
-            print("✅ LLM evaluation enabled (using clean architecture)")
+            print("[OK] LLM evaluation enabled (using clean architecture)")
         else:
-            print("ℹ️  LLM evaluation disabled")
+            print("[INFO] LLM evaluation disabled")
 
     async def run_performance_benchmarks(self, agent_type: str) -> list[BenchmarkResult]:
         """Run performance benchmarks using clean architecture with optional LLM evaluation."""
@@ -139,10 +139,10 @@ class PerformanceEvaluator:
                                 ):
                                     llm_evaluation = enhanced_metrics.llm_evaluation
                                     quality_score = llm_evaluation.score
-                                    print(f"    🎯 LLM Quality Score: {quality_score:.2f}")
+                                    print(f"    [TARGET] LLM Quality Score: {quality_score:.2f}")
 
                             except Exception as e:
-                                print(f"    ⚠️ LLM evaluation failed: {e}")
+                                print(f"    [WARN] LLM evaluation failed: {e}")
 
                         result = BenchmarkResult(
                             scenario_name=scenario["name"],
@@ -158,14 +158,14 @@ class PerformanceEvaluator:
                         results.append(result)
 
                         # Log results
-                        status = "✅" if result.success else "❌"
+                        status = "[OK]" if result.success else "[FAIL]"
                         quality_info = f", Quality: {quality_score:.2f}" if quality_score > 0 else ""
                         print(
                             f"    {status} Score: {result.performance_score:.2f}, Time: {result.execution_time:.2f}s{quality_info}"
                         )
 
                     except Exception as e:
-                        print(f"    ❌ Scenario failed: {e}")
+                        print(f"    [ERROR] Scenario failed: {e}")
                         results.append(
                             BenchmarkResult(
                                 scenario_name=scenario["name"],
@@ -240,7 +240,7 @@ class PerformanceEvaluator:
 
     def run_unit_tests(self) -> dict:
         """Run unit/integration/e2e tests to ensure functionality."""
-        print("🧪 Running functionality tests...")
+        print("[TEST] Running functionality tests...")
 
         cmd = [
             sys.executable,
@@ -259,7 +259,7 @@ class PerformanceEvaluator:
             test_count = self._count_tests(result.stdout)
 
             if not passed:
-                print(f"❌ Tests failed ({test_count} tests)")
+                print(f"[FAIL] Tests failed ({test_count} tests)")
                 print("Error:", result.stderr[-500:])
 
             return {"passed": passed, "test_count": test_count, "duration": time.time()}
@@ -268,7 +268,7 @@ class PerformanceEvaluator:
             print("⏰ Tests timed out after 10 minutes")
             return {"passed": False, "test_count": 0, "duration": 600}
         except Exception as e:
-            print(f"❌ Error running tests: {e}")
+            print(f"[ERROR] Error running tests: {e}")
             return {"passed": False, "test_count": 0, "duration": 0}
 
     def _count_tests(self, output: str) -> int:
@@ -394,7 +394,7 @@ class PerformanceEvaluator:
             )
 
         # Enhanced reporting
-        print("\n📊 PERFORMANCE EVALUATION:")
+        print("\n[DATA] PERFORMANCE EVALUATION:")
         print(f"  Success Rate: {success_rate:.1%}")
         print(f"  Avg Performance Index: {avg_performance_index:.2f}")
         print(f"  Avg Time: {avg_time:.2f}s")

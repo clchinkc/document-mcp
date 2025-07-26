@@ -27,14 +27,14 @@ class CodeQualityManager:
     def _check_venv(self) -> bool:
         """Check if venv exists and is activated."""
         if not self.venv_path.exists():
-            print("❌ Virtual environment 'venv' not found. Please create it first:")
+            print("[ERROR] Virtual environment 'venv' not found. Please create it first:")
             print("   python3 -m venv venv")
             print("   source venv/bin/activate  # On Windows: venv\\Scripts\\activate")
             return False
 
         # Check if we're in the virtual environment
         if sys.prefix == sys.base_prefix:
-            print("❌ Virtual environment not activated. Please activate it first:")
+            print("[ERROR] Virtual environment not activated. Please activate it first:")
             print("   source venv/bin/activate  # On Windows: venv\\Scripts\\activate")
             return False
 
@@ -46,7 +46,7 @@ class CodeQualityManager:
             return False
 
         if self.verbose:
-            print(f"🔧 {description}")
+            print(f"[TOOL] {description}")
             print(f"   Command: {' '.join(cmd)}")
 
         # Set environment variable to tell uv to use the active environment
@@ -64,10 +64,10 @@ class CodeQualityManager:
 
             if result.returncode == 0:
                 if self.verbose:
-                    print(f"✅ {description} - SUCCESS")
+                    print(f"[OK] {description} - SUCCESS")
                 return True
             else:
-                print(f"❌ {description} - FAILED")
+                print(f"[FAIL] {description} - FAILED")
                 if not self.verbose and result.stdout:
                     print(result.stdout)
                 if not self.verbose and result.stderr:
@@ -75,7 +75,7 @@ class CodeQualityManager:
                 return False
 
         except FileNotFoundError:
-            print(f"❌ {description} - Tool not found. Installing...")
+            print(f"[ERROR] {description} - Tool not found. Installing...")
             self._install_missing_tools()
             return False
 
@@ -112,7 +112,7 @@ class CodeQualityManager:
 
     def fix_code(self) -> bool:
         """Apply automatic fixes with ruff."""
-        print("🔧 Applying automatic fixes...")
+        print("[TOOL] Applying automatic fixes...")
 
         # Ruff can fix many issues automatically
         return self._run_command(
@@ -122,7 +122,7 @@ class CodeQualityManager:
 
     def lint_code(self) -> bool:
         """Run ruff linting."""
-        print("🔍 Running ruff linting...")
+        print("[CHECK] Running ruff linting...")
 
         return self._run_command(["uv", "run", "ruff", "check"] + self.target_dirs, "Ruff linting")
 
@@ -143,7 +143,7 @@ class CodeQualityManager:
 
     def check_all(self) -> bool:
         """Run all code quality checks (linting, type checking, and docstring validation)."""
-        print("🚀 Running code quality checks...")
+        print("[START] Running code quality checks...")
 
         results = []
 
@@ -156,9 +156,9 @@ class CodeQualityManager:
         success = all(results)
 
         if success:
-            print("🎉 All code quality checks passed!")
+            print("[SUCCESS] All code quality checks passed!")
         else:
-            print("⚠️  Some code quality checks failed")
+            print("[WARN] Some code quality checks failed")
 
         print("\nNote: Run 'python scripts/run_pytest.py' to execute tests")
 
@@ -180,10 +180,10 @@ class CodeQualityManager:
             print("=" * 50)
 
             if not step_func():
-                print(f"❌ Failed at step: {description}")
+                print(f"[ERROR] Failed at step: {description}")
                 return False
 
-        print("\n🎉 FULL quality pass completed successfully!")
+        print("\n[SUCCESS] FULL quality pass completed successfully!")
         print("Note: Run 'python scripts/run_pytest.py' to execute tests")
         return True
 

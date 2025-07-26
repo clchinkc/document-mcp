@@ -65,9 +65,9 @@ class TestNaturalIntegration:
                 if enhanced_metrics.llm_evaluation and enhanced_metrics.llm_evaluation.success:
                     assert 0.0 <= enhanced_metrics.llm_evaluation.score <= 1.0
                     assert enhanced_metrics.combined_score > 0.0
-                    print(f"✅ LLM evaluation successful: {enhanced_metrics.llm_evaluation.score:.2f}")
+                    print(f"[OK] LLM evaluation successful: {enhanced_metrics.llm_evaluation.score:.2f}")
                 else:
-                    print("ℹ️  LLM evaluation skipped")
+                    print("[INFO] LLM evaluation skipped")
 
         finally:
             # Restore environment
@@ -104,7 +104,7 @@ class TestNaturalIntegration:
             # Both layers work independently
             assert enhanced_metrics.performance.agent_type == "react"
             if enhanced_metrics.llm_evaluation:
-                print(f"✅ React agent LLM evaluation: {enhanced_metrics.llm_evaluation.score:.2f}")
+                print(f"[OK] React agent LLM evaluation: {enhanced_metrics.llm_evaluation.score:.2f}")
 
         finally:
             if old_doc_root:
@@ -151,7 +151,7 @@ class TestNaturalIntegration:
                 assert enhanced_metrics.llm_evaluation is None or not enhanced_metrics.llm_evaluation.success
                 assert enhanced_metrics.combined_score == 0.0
 
-                print("✅ Everything works perfectly without LLM evaluation")
+                print("[OK] Everything works perfectly without LLM evaluation")
 
         finally:
             if old_doc_root:
@@ -224,7 +224,7 @@ class TestNaturalIntegration:
 # Simple demo
 async def demo_clean_architecture():
     """Demo the clean separation between agents and test evaluation."""
-    print("🏗️  Clean Architecture Demo")
+    print("[ARCH] Clean Architecture Demo")
     print("=" * 40)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -234,7 +234,7 @@ async def demo_clean_architecture():
 
         query = "Create a document called 'architecture_demo'"
 
-        print(f"📝 Query: {query}")
+        print(f"[NOTE] Query: {query}")
 
         # 1. Agent runs normally (no LLM evaluation)
         agent, mcp_server = await initialize_agent_and_mcp_server()
@@ -250,7 +250,7 @@ async def demo_clean_architecture():
         # 2. Test layer optionally enhances with LLM evaluation
         enhanced = await enhance_test_metrics(metrics, query, response.summary if response else "")
 
-        print("\n🧪 Test Enhancement (Optional):")
+        print("\n[TEST] Test Enhancement (Optional):")
         if enhanced.llm_evaluation and enhanced.llm_evaluation.success:
             print(f"   Quality: {enhanced.llm_evaluation.score:.2f}/1.0")
             print(f"   Feedback: {enhanced.llm_evaluation.feedback}")

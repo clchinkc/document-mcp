@@ -54,10 +54,10 @@ def handle_config_check() -> None:
     """Handle the --check-config flag by displaying API configuration status."""
     settings = get_settings()
     print("=== API Configuration Status ===")
-    print(f"OpenAI configured: {'✓' if settings.openai_configured else '✗'}")
+    print(f"OpenAI configured: {'[OK]' if settings.openai_configured else '[X]'}")
     if settings.openai_configured:
         print(f"  Model: {settings.openai_model_name}")
-    print(f"Gemini configured: {'✓' if settings.gemini_configured else '✗'}")
+    print(f"Gemini configured: {'[OK]' if settings.gemini_configured else '[X]'}")
     if settings.gemini_configured:
         print(f"  Model: {settings.gemini_model_name}")
     print()

@@ -14,36 +14,36 @@ from document_mcp.metrics_config import record_tool_call_success
 
 def test_metrics():
     """Test metrics generation and Grafana connectivity."""
-    print("🧪 Testing Document MCP metrics collection...")
+    print("[TEST] Testing Document MCP metrics collection...")
 
     # Initialize metrics
-    print("📊 Initializing metrics...")
+    print("[DATA] Initializing metrics...")
     initialize_metrics()
 
     # Test recording some metrics
-    print("📈 Recording test metrics...")
+    print("[GRAPH] Recording test metrics...")
     for i in range(3):
         record_tool_call_success("test_tool", time.time(), 100)
         time.sleep(1)
 
     # Test local metrics endpoint
-    print("🔍 Testing local metrics endpoint...")
+    print("[CHECK] Testing local metrics endpoint...")
     try:
         response = requests.get("http://localhost:8000/metrics", timeout=5)
         if response.status_code == 200:
-            print(f"✅ Local metrics endpoint working: {len(response.text)} bytes")
+            print(f"[OK] Local metrics endpoint working: {len(response.text)} bytes")
             # Show first few lines
             lines = response.text.split("\n")[:10]
             for line in lines[:5]:
                 if line.strip() and not line.startswith("#"):
-                    print(f"   📊 {line}")
+                    print(f"   [DATA] {line}")
         else:
-            print(f"❌ Local metrics endpoint failed: {response.status_code}")
+            print(f"[ERROR] Local metrics endpoint failed: {response.status_code}")
     except Exception as e:
-        print(f"❌ Local metrics endpoint error: {e}")
+        print(f"[ERROR] Local metrics endpoint error: {e}")
 
     # Test Grafana Cloud connectivity
-    print("🌐 Testing Grafana Cloud connectivity...")
+    print("[WEB] Testing Grafana Cloud connectivity...")
     try:
         import base64
 
@@ -57,14 +57,14 @@ def test_metrics():
         response = requests.get(test_url, headers=headers, timeout=10)
 
         if response.status_code in [200, 401, 403]:  # 401/403 means endpoint is reachable
-            print(f"✅ Grafana Cloud endpoint reachable: {response.status_code}")
+            print(f"[OK] Grafana Cloud endpoint reachable: {response.status_code}")
         else:
-            print(f"⚠️ Grafana Cloud response: {response.status_code} - {response.text[:200]}")
+            print(f"[WARN] Grafana Cloud response: {response.status_code} - {response.text[:200]}")
 
     except Exception as e:
-        print(f"❌ Grafana Cloud connectivity error: {e}")
+        print(f"[ERROR] Grafana Cloud connectivity error: {e}")
 
-    print("✅ Metrics test complete!")
+    print("[OK] Metrics test complete!")
 
 
 if __name__ == "__main__":

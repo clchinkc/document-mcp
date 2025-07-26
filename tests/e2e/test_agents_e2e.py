@@ -349,11 +349,11 @@ class TestReactAgentE2E:
 
         # Check for ReAct-specific execution log
         if "execution_log" in response:
-            print("✅ ReAct agent execution log present")
+            print("[OK] ReAct agent execution log present")
 
         assert response.get("error_message") is None, "ReAct agent should not have errors"
 
-        print("✅ ReAct agent reasoning workflow verified")
+        print("[OK] ReAct agent reasoning workflow verified")
 
 
 @pytest.mark.e2e
@@ -408,7 +408,7 @@ class TestSafetyAndVersionControlE2E:
             assert snapshot_data.get("success") is True, "Snapshot creation should succeed"
             assert "snapshot_id" in snapshot_data.get("details", {}), "Should have snapshot ID"
 
-        print("✅ Safety features workflow verified (actual snapshot creation)")
+        print("[OK] Safety features workflow verified (actual snapshot creation)")
         print("   - Document and content creation")
         print("   - Snapshot creation for version control")
         print("   - Safety mechanism validation")
@@ -463,7 +463,7 @@ class TestBatchOperationsE2E:
         assert chapter1_response.get("error_message") is None, "First chapter creation should succeed"
         assert chapter2_response.get("error_message") is None, "Second chapter creation should succeed"
 
-        print("✅ Batch operations capability verified (Sequential multi-step workflow)")
+        print("[OK] Batch operations capability verified (Sequential multi-step workflow)")
         print("   - Document creation")
         print("   - Multiple chapter creation with content")
         print("   - Coordinated sequential operation execution")
@@ -543,7 +543,7 @@ class TestIntegratedWorkflowE2E:
         # Validate final state
         validator.assert_chapter_exists(doc_name, "03-setup.md")
 
-        print("✅ Comprehensive feature integration workflow verified")
+        print("[OK] Comprehensive feature integration workflow verified")
         print("   - Content creation and structuring")
         print("   - Semantic search for content analysis")
         print("   - Safety snapshots for version control")

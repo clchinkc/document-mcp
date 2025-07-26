@@ -330,17 +330,17 @@ INTELLIGENCE FEATURES:
 • User modification tracking - all changes attributed and logged for easy restoration
 
 WHEN TO USE BATCHES:
-✅ Multi-step document creation (document + chapters + content)
-✅ Bulk content editing (character renaming, formatting changes)
-✅ Complex reorganization (moving/restructuring multiple elements)
-✅ Multi-document operations requiring consistency
-✅ Any workflow where partial completion would leave incomplete state
+[OK] Multi-step document creation (document + chapters + content)
+[OK] Bulk content editing (character renaming, formatting changes)
+[OK] Complex reorganization (moving/restructuring multiple elements)
+[OK] Multi-document operations requiring consistency
+[OK] Any workflow where partial completion would leave incomplete state
 
 WHEN TO USE INDIVIDUAL OPERATIONS:
-❌ Single, simple edits (one paragraph change)
-❌ Exploratory operations where you need to observe results
-❌ Trial-and-error workflows requiring intermediate feedback
-❌ Operations that depend on external input or validation""",
+[X] Single, simple edits (one paragraph change)
+[X] Exploratory operations where you need to observe results
+[X] Trial-and-error workflows requiring intermediate feedback
+[X] Operations that depend on external input or validation""",
                 parameters={
                     "operations": "List[Dict] - List of operations, each with: operation_type (str), target (Dict), parameters (Dict), order (int), operation_id (str), depends_on (List[str], optional)",
                     "atomic": "bool - True: all succeed or all rollback (recommended for most use cases)",

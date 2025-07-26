@@ -9,7 +9,7 @@ from .core import PromptOptimizer
 
 def print_help():
     """Print usage information."""
-    print("🚀 Prompt Optimizer")
+    print("[START] Prompt Optimizer")
     print("=" * 20)
     print("\nUSAGE: python3 -m prompt_optimizer [AGENT]")
     print("\nAGENTS: simple, react, planner, all")
@@ -21,14 +21,14 @@ def print_help():
 def print_summary(results: dict, duration: float):
     """Print optimization summary."""
     print(f"\n{'=' * 40}")
-    print("📊 SUMMARY")
+    print("[DATA] SUMMARY")
     print("=" * 40)
 
     improved = sum(1 for r in results.values() if r.keep_improvement)
     total_tokens = sum(r.token_change for r in results.values() if r.keep_improvement)
 
     for agent, result in results.items():
-        status = "✅" if result.keep_improvement else "❌"
+        status = "[OK]" if result.keep_improvement else "[FAIL]"
         print(f"{agent:>8}: {status} {result.reason}")
         if result.keep_improvement:
             print(f"          Tokens: {result.token_change:+d}")
@@ -45,7 +45,7 @@ async def main():
         print_help()
         return
 
-    print("🚀 Prompt Optimizer")
+    print("[START] Prompt Optimizer")
     print("=" * 20)
 
     agent_arg = sys.argv[1].lower()
@@ -56,7 +56,7 @@ async def main():
     elif agent_arg in ["simple", "react", "planner"]:
         agents = [agent_arg]
     else:
-        print(f"❌ Unknown agent: {agent_arg}")
+        print(f"[ERROR] Unknown agent: {agent_arg}")
         print_help()
         return
 
@@ -69,7 +69,7 @@ async def main():
         try:
             results[agent] = await optimizer.optimize_agent(agent)
         except Exception as e:
-            print(f"❌ Failed to optimize {agent}: {e}")
+            print(f"[ERROR] Failed to optimize {agent}: {e}")
             from .evaluation import OptimizationResult
 
             results[agent] = OptimizationResult(
@@ -88,8 +88,8 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n⚠️ Interrupted by user")
+        print("\n[WARN] Interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n💥 Error: {e}")
+        print(f"\n[ERROR] Error: {e}")
         sys.exit(1)

@@ -463,7 +463,7 @@ server.serve_forever()
                 pid = int(f.read().strip())
             # Check if process is still running
             os.kill(pid, 0)
-            print(f"   📊 Persistent metrics server already running (PID {pid})")
+            print(f"   [METRICS] Persistent metrics server already running (PID {pid})")
             return
         except (OSError, ValueError):
             # Lock file exists but process is dead
@@ -488,10 +488,10 @@ server.serve_forever()
 
         # Give it time to start
         time.sleep(1)
-        print("   📊 Started persistent metrics server on :8000")
+        print("   [METRICS] Started persistent metrics server on :8000")
 
     except Exception as e:
-        print(f"   ⚠️  Could not start persistent metrics server: {e}")
+        print(f"   [WARN] Could not start persistent metrics server: {e}")
     finally:
         try:
             os.unlink(script_path)
@@ -626,22 +626,22 @@ def initialize_metrics():
 
             otlp_reader = PeriodicExportingMetricReader(exporter=otlp_exporter, export_interval_millis=30000)
             metric_readers.append(otlp_reader)
-            print("   ✅ Using OpenTelemetry Collector → Prometheus remote write → Grafana Cloud")
+            print("   [OK] Using OpenTelemetry Collector -> Prometheus remote write -> Grafana Cloud")
         else:
-            print("   ⚠️  OpenTelemetry Collector not available")
+            print("   [WARN] OpenTelemetry Collector not available")
             print(
-                "   📝 Start collector: Install OpenTelemetry Collector if needed for advanced telemetry routing"
+                "   [NOTE] Start collector: Install OpenTelemetry Collector if needed for advanced telemetry routing"
             )
 
             # Auto-start background Prometheus for immediate Grafana Cloud delivery
             # This uses the same proven approach as run_telemetry.sh but automatic
             try:
                 _start_background_prometheus()
-                print("   📡 Auto-telemetry: Background Prometheus → Grafana Cloud")
+                print("   [AUTO] Auto-telemetry: Background Prometheus -> Grafana Cloud")
             except Exception:
-                print("   📊 Local metrics: Available at :8000/metrics")
+                print("   [METRICS] Local metrics: Available at :8000/metrics")
                 print(
-                    "   💡 Full telemetry: Run scripts/development/telemetry/scripts/start.sh for Grafana Cloud"
+                    "   [NOTE] Full telemetry: Run scripts/development/telemetry/scripts/start.sh for Grafana Cloud"
                 )
 
         # Create meter provider
@@ -662,11 +662,11 @@ def initialize_metrics():
                 1, {"tool_name": "telemetry_init", "status": "success", "environment": DEPLOYMENT_ENVIRONMENT}
             )
 
-        print("✅ Document MCP telemetry active for Prometheus scraping")
+        print("[OK] Document MCP telemetry active for Prometheus scraping")
         print(f"   Service: {SERVICE_NAME} v{SERVICE_VERSION}")
         print(f"   Environment: {DEPLOYMENT_ENVIRONMENT}")
-        print("   🎯 Architecture: Prometheus scrapes → Remote write → Grafana Cloud")
-        print("   📊 Metrics endpoint: http://localhost:8000/metrics")
+        print("   [ARCH] Architecture: Prometheus scrapes -> Remote write -> Grafana Cloud")
+        print("   [METRICS] Metrics endpoint: http://localhost:8000/metrics")
 
         # Initialize automatic instrumentation if available
         try:
@@ -725,7 +725,7 @@ def record_tool_call_success(tool_name: str, start_time: float | None, result_si
         return
 
     try:
-        # Primary: Record in OpenTelemetry counter (goes to collector → Grafana Cloud)
+        # Primary: Record in OpenTelemetry counter (goes to collector -> Grafana Cloud)
         if tool_calls_counter:
             tool_calls_counter.add(
                 1, {"tool_name": tool_name, "status": "success", "environment": DEPLOYMENT_ENVIRONMENT}
@@ -750,7 +750,7 @@ def record_tool_call_error(tool_name: str, start_time: float | None, error: Exce
         return
 
     try:
-        # Primary: Record in OpenTelemetry counter (goes to collector → Grafana Cloud)
+        # Primary: Record in OpenTelemetry counter (goes to collector -> Grafana Cloud)
         if tool_calls_counter:
             tool_calls_counter.add(
                 1, {"tool_name": tool_name, "status": "error", "environment": DEPLOYMENT_ENVIRONMENT}

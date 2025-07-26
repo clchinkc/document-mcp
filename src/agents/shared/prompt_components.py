@@ -147,17 +147,17 @@ Use batch_apply_operations when you need to perform multiple related operations 
 - Tracks user modifications (easy restoration later)
 
 **WHEN TO USE BATCHES:**
-✅ Multi-step document creation (document + chapters + content)
-✅ Bulk content editing (character renaming, formatting changes)
-✅ Complex reorganization (moving/restructuring multiple elements)
-✅ Multi-document operations requiring consistency
-✅ Any workflow where partial completion would leave incomplete state
+[OK] Multi-step document creation (document + chapters + content)
+[OK] Bulk content editing (character renaming, formatting changes)
+[OK] Complex reorganization (moving/restructuring multiple elements)
+[OK] Multi-document operations requiring consistency
+[OK] Any workflow where partial completion would leave incomplete state
 
 **WHEN TO USE INDIVIDUAL OPERATIONS:**
-❌ Single, simple edits (one paragraph change)
-❌ Exploratory operations where you need to observe results
-❌ Trial-and-error workflows requiring intermediate feedback
-❌ Operations that depend on external input or validation
+[X] Single, simple edits (one paragraph change)
+[X] Exploratory operations where you need to observe results
+[X] Trial-and-error workflows requiring intermediate feedback
+[X] Operations that depend on external input or validation
 
 **VALIDATION STRATEGY:**
 Always validate complex batches first with validate_only=True before execution."""
