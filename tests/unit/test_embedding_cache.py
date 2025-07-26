@@ -67,7 +67,7 @@ class TestEmbeddingCache:
 
             # Create a source file that's newer
             source_file = Path(temp_dir) / "source.md"
-            source_file.write_text("content", encoding='utf-8')
+            source_file.write_text("content", encoding="utf-8")
             mock_chapter_path.return_value = source_file
 
             # Create manifest file that's older
@@ -79,7 +79,7 @@ class TestEmbeddingCache:
                 cache_entries=[],
                 last_updated=old_time,
             )
-            manifest_path.write_text(manifest.model_dump_json(), encoding='utf-8')
+            manifest_path.write_text(manifest.model_dump_json(), encoding="utf-8")
 
             result = self.cache.get_chapter_embeddings(self.test_document, self.test_chapter)
             assert result == {}
@@ -99,7 +99,7 @@ class TestEmbeddingCache:
 
             # Create a source file
             source_file = Path(temp_dir) / "source.md"
-            source_file.write_text("content", encoding='utf-8')
+            source_file.write_text("content", encoding="utf-8")
             mock_chapter_path.return_value = source_file
 
             # Wait a moment to ensure proper timing
@@ -131,7 +131,7 @@ class TestEmbeddingCache:
                 cache_entries=cache_entries,
                 last_updated=new_time,
             )
-            manifest_path.write_text(manifest.model_dump_json(), encoding='utf-8')
+            manifest_path.write_text(manifest.model_dump_json(), encoding="utf-8")
 
             result = self.cache.get_chapter_embeddings(self.test_document, self.test_chapter)
 
@@ -153,7 +153,7 @@ class TestEmbeddingCache:
 
             # Mock source file
             source_file = Path(temp_dir) / "source.md"
-            source_file.write_text("content", encoding='utf-8')
+            source_file.write_text("content", encoding="utf-8")
             mock_chapter_path.return_value = source_file
 
             # Store embeddings
@@ -202,9 +202,9 @@ class TestEmbeddingCache:
             mock_embeddings_path.return_value = chapter_dir
 
             # Create some cache files
-            (chapter_dir / "manifest.json").write_text("{}", encoding='utf-8')
-            (chapter_dir / "paragraph_0.emb").write_text("fake embedding", encoding='utf-8')
-            (chapter_dir / "paragraph_1.emb").write_text("fake embedding", encoding='utf-8')
+            (chapter_dir / "manifest.json").write_text("{}", encoding="utf-8")
+            (chapter_dir / "paragraph_0.emb").write_text("fake embedding", encoding="utf-8")
+            (chapter_dir / "paragraph_1.emb").write_text("fake embedding", encoding="utf-8")
 
             assert chapter_dir.exists()
             assert len(list(chapter_dir.iterdir())) == 3
@@ -227,13 +227,13 @@ class TestEmbeddingCache:
             # Create chapter directories with files
             chapter1_dir = embeddings_dir / "chapter1.md"
             chapter1_dir.mkdir()
-            (chapter1_dir / "manifest.json").write_text("{}", encoding='utf-8')
-            (chapter1_dir / "paragraph_0.emb").write_text("fake", encoding='utf-8')
+            (chapter1_dir / "manifest.json").write_text("{}", encoding="utf-8")
+            (chapter1_dir / "paragraph_0.emb").write_text("fake", encoding="utf-8")
 
             chapter2_dir = embeddings_dir / "chapter2.md"
             chapter2_dir.mkdir()
-            (chapter2_dir / "manifest.json").write_text("{}", encoding='utf-8')
-            (chapter2_dir / "paragraph_0.emb").write_text("fake", encoding='utf-8')
+            (chapter2_dir / "manifest.json").write_text("{}", encoding="utf-8")
+            (chapter2_dir / "paragraph_0.emb").write_text("fake", encoding="utf-8")
 
             assert embeddings_dir.exists()
             assert len(list(embeddings_dir.iterdir())) == 2
@@ -256,7 +256,7 @@ class TestEmbeddingCache:
 
             # Create source file
             source_file = Path(temp_dir) / "source.md"
-            source_file.write_text("content", encoding='utf-8')
+            source_file.write_text("content", encoding="utf-8")
             mock_chapter_path.return_value = source_file
 
             # Test 1: No manifest file
@@ -271,14 +271,14 @@ class TestEmbeddingCache:
                 cache_entries=[],
                 last_updated=future_time,
             )
-            manifest_path.write_text(manifest.model_dump_json(), encoding='utf-8')
+            manifest_path.write_text(manifest.model_dump_json(), encoding="utf-8")
 
             assert self.cache._is_cache_valid(self.test_document, self.test_chapter)
 
             # Test 3: Manifest older than source (invalid)
             past_time = datetime.datetime.now() - datetime.timedelta(hours=1)
             manifest.last_updated = past_time
-            manifest_path.write_text(manifest.model_dump_json(), encoding='utf-8')
+            manifest_path.write_text(manifest.model_dump_json(), encoding="utf-8")
 
             assert not self.cache._is_cache_valid(self.test_document, self.test_chapter)
 

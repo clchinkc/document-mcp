@@ -56,7 +56,7 @@ class TestSafetyDecoratorCoverage:
 
             # Simulate external file modification
             time.sleep(1.1)  # Ensure timestamp difference > 1 second (safety tolerance)
-            doc_path.write_text("Externally modified content", encoding='utf-8')
+            doc_path.write_text("Externally modified content", encoding="utf-8")
             new_mtime = doc_path.stat().st_mtime
 
             # Verify file was actually modified
@@ -117,7 +117,10 @@ class TestSafetyDecoratorCoverage:
 
             # Simulate external file modification
             time.sleep(1.1)  # Ensure timestamp difference > 1 second (safety tolerance)
-            doc_path.write_text("Externally modified first paragraph\n\nExternally modified second paragraph", encoding='utf-8')
+            doc_path.write_text(
+                "Externally modified first paragraph\n\nExternally modified second paragraph",
+                encoding="utf-8",
+            )
             new_mtime = doc_path.stat().st_mtime
 
             # Verify file was actually modified
@@ -179,7 +182,7 @@ class TestSafetyDecoratorCoverage:
             time.sleep(0.1)
             doc_path.write_text(
                 "Externally modified first paragraph\n\nExternally modified second paragraph\n\nThird paragraph",
-                encoding='utf-8'
+                encoding="utf-8",
             )
 
             # These operations should succeed despite external modification

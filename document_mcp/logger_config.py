@@ -258,7 +258,7 @@ def log_mcp_call(func):
                             result_size = len(result.encode("utf-8"))
                         else:
                             result_size = len(str(result))
-                    except:
+                    except Exception:
                         result_size = 0
 
                     record_tool_call_success(func_name, start_time, result_size)

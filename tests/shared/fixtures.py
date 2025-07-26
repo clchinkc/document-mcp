@@ -44,7 +44,7 @@ def document_factory(
         created_docs.append(doc_name)
         if chapters:
             for chapter_name, content in chapters.items():
-                (doc_path / chapter_name).write_text(content, encoding='utf-8')
+                (doc_path / chapter_name).write_text(content, encoding="utf-8")
         return doc_path
 
     try:
@@ -137,15 +137,3 @@ def search_test_content() -> dict[str, str]:
         "chapter3.md": "No special terms in this chapter content.",
     }
 
-
-# Compatibility fixtures for backward compatibility during transition
-@pytest.fixture
-def document_test_data(sample_document_content):
-    """Backward compatibility alias for sample_document_content."""
-    return sample_document_content
-
-
-@pytest.fixture
-def test_document_factory(document_factory):
-    """Backward compatibility alias for document_factory."""
-    return document_factory

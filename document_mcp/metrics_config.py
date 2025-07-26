@@ -1,3 +1,4 @@
+import atexit
 import json
 import os
 import socket
@@ -67,6 +68,7 @@ if otel_resource_attrs:
 meter = None
 tool_calls_counter = None
 prometheus_reader = None
+otlp_reader = None
 
 # Global state for tracking
 _active_operations = {}
@@ -437,13 +439,45 @@ class MetricsHandler(BaseHTTPRequestHandler):
 
 def cleanup_handler(signum, frame):
     try:
+        # Clean up gRPC connections
+        global otlp_reader, prometheus_reader
+        if otlp_reader:
+            try:
+                otlp_reader.shutdown()
+            except:
+                pass
+        if prometheus_reader:
+            try:
+                prometheus_reader.shutdown()
+            except:
+                pass
+        
+        # Clean up lock file
         os.unlink(LOCK_FILE)
     except:
         pass
     sys.exit(0)
 
+def graceful_shutdown():
+    """Graceful shutdown for atexit."""
+    try:
+        global otlp_reader, prometheus_reader
+        if otlp_reader:
+            try:
+                otlp_reader.shutdown()
+            except:
+                pass
+        if prometheus_reader:
+            try:
+                prometheus_reader.shutdown()
+            except:
+                pass
+    except:
+        pass
+
 signal.signal(signal.SIGTERM, cleanup_handler)
 signal.signal(signal.SIGINT, cleanup_handler)
+atexit.register(graceful_shutdown)
 
 # Create lock file
 with open(LOCK_FILE, 'w') as f:
@@ -588,7 +622,7 @@ def get_resource() -> "Resource":
 
 def initialize_metrics():
     """Initialize automatic telemetry with Prometheus scraping endpoint for Grafana Cloud."""
-    global meter, tool_calls_counter, prometheus_reader
+    global meter, tool_calls_counter, prometheus_reader, otlp_reader
 
     if not METRICS_ENABLED:
         print("Document MCP telemetry disabled")

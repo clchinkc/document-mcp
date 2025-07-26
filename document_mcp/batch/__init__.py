@@ -16,6 +16,7 @@ The system focuses on:
 """
 
 from .executor import BatchExecutor
+from .models import BatchApplyRequest
 from .models import BatchApplyResult
 from .models import BatchOperation
 from .models import ConflictInfo
@@ -26,6 +27,7 @@ from .registry import register_batchable_operation
 
 __all__ = [
     # Models
+    "BatchApplyRequest",
     "BatchOperation",
     "OperationResult",
     "BatchApplyResult",

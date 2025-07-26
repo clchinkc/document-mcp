@@ -205,7 +205,7 @@ class TestSimpleAgentE2E:
         # 3. Add Summary File
         doc_path = e2e_docs_dir / doc_name
         summary_file = doc_path / "_SUMMARY.md"
-        summary_file.write_text(summary_content, encoding='utf-8')
+        summary_file.write_text(summary_content, encoding="utf-8")
 
         # 4. Test Summary-First Workflow
         summary_query = f"Tell me about the document '{doc_name}'"

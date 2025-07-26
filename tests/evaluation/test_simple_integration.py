@@ -70,6 +70,7 @@ class TestNaturalIntegration:
                     print("[INFO] LLM evaluation skipped")
 
         finally:
+            
             # Restore environment
             if old_doc_root:
                 os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
@@ -107,6 +108,7 @@ class TestNaturalIntegration:
                 print(f"[OK] React agent LLM evaluation: {enhanced_metrics.llm_evaluation.score:.2f}")
 
         finally:
+            
             if old_doc_root:
                 os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
             else:
@@ -154,6 +156,7 @@ class TestNaturalIntegration:
                 print("[OK] Everything works perfectly without LLM evaluation")
 
         finally:
+            
             if old_doc_root:
                 os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
             else:
@@ -215,6 +218,7 @@ class TestNaturalIntegration:
             assert react_enhanced.performance.execution_time > 0
 
         finally:
+            
             if old_doc_root:
                 os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
             else:

@@ -155,7 +155,7 @@ class BatchExecutor:
                     chapter_operations[chapter_key].append(op)
 
         # Check for write-write conflicts on same document
-        for doc_name, doc_ops in document_operations.items():
+        for _doc_name, doc_ops in document_operations.items():
             write_ops = [op for op in doc_ops if op.operation_type in self._write_operations]
             if len(write_ops) > 1:
                 conflicts.append(
@@ -168,7 +168,7 @@ class BatchExecutor:
                 )
 
         # Check for write-write conflicts on same chapter
-        for chapter_key, chapter_ops in chapter_operations.items():
+        for _chapter_key, chapter_ops in chapter_operations.items():
             write_ops = [op for op in chapter_ops if op.operation_type in self._write_operations]
             if len(write_ops) > 1:
                 # Check if operations have dependencies that would resolve the conflict
@@ -249,9 +249,7 @@ class BatchExecutor:
                         if doc_name:
                             delete_document(doc_name)
 
-                elif operation_type == "create_chapter":
-                    # Extract document and chapter names from result
-                    if result.result and isinstance(result.result, dict):
+                elif operation_type == "create_chapter" and result.result and isinstance(result.result, dict):
                         details = result.result.get("details", {})
                         doc_name = details.get("document_name")
                         chapter_name = details.get("chapter_name")

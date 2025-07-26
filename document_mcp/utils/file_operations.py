@@ -7,18 +7,13 @@ used throughout the system.
 import os
 from pathlib import Path
 
+from ..config import get_settings
+
 # === Configuration ===
 
-_DEFAULT_DOCS_ROOT = ".documents_storage"
-
-# Initialize document root path from environment or default
-try:
-    DOCS_ROOT_DIR_NAME = os.environ.get("DOCUMENT_ROOT_DIR", _DEFAULT_DOCS_ROOT)
-except Exception:
-    DOCS_ROOT_DIR_NAME = _DEFAULT_DOCS_ROOT
-
-DOCS_ROOT_PATH = Path(DOCS_ROOT_DIR_NAME)
-DOCS_ROOT_PATH.mkdir(parents=True, exist_ok=True)  # Ensure the root directory exists
+# Get centralized settings
+settings = get_settings()
+DOCS_ROOT_PATH = settings.document_root_path
 
 
 # === Path Utilities ===
@@ -26,10 +21,7 @@ DOCS_ROOT_PATH.mkdir(parents=True, exist_ok=True)  # Ensure the root directory e
 
 def get_document_path(document_name: str) -> Path:
     """Return the full path for a given document name."""
-    # Check environment variable at runtime for test compatibility
-    docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR", _DEFAULT_DOCS_ROOT)
-    root_path = Path(docs_root_name)
-    return root_path / document_name
+    return DOCS_ROOT_PATH / document_name
 
 
 def get_chapter_path(document_name: str, chapter_filename: str) -> Path:

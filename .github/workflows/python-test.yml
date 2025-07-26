@@ -77,15 +77,9 @@ jobs:
         uv run mypy document_mcp/ || echo "Type checking completed with warnings"
       continue-on-error: true
 
-    - name: Run unit and integration tests (fast)
+    - name: Run all tests
       run: |
-        uv run pytest tests/unit/ tests/integration/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings
-    
-    - name: Run e2e tests (API-dependent)
-      run: |
-        uv run pytest tests/e2e/ -v --tb=short --disable-warnings --timeout=600
-      if: ${{ env.GEMINI_API_KEY != '' || env.OPENAI_API_KEY != '' }}
-      continue-on-error: true  # Don't fail CI if API keys are missing
+        uv run pytest tests/unit/ tests/integration/ tests/e2e/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings  --timeout=600
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5

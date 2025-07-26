@@ -1,94 +1,25 @@
-"""Shared configuration for agents using Pydantic Settings for validation."""
+"""Shared configuration for agents using centralized configuration."""
 
-from typing import Literal
 
-from dotenv import load_dotenv
-from pydantic import Field
-from pydantic import model_validator
 from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.models.openai import OpenAIModel
-from pydantic_settings import BaseSettings
 
-# --- Shared Constants ---
-MCP_SERVER_CMD = ["python3", "-m", "document_mcp.doc_tool_server", "stdio"]
+from document_mcp.config import get_settings
 
-# Timeout configuration - use shorter timeouts in test environments
-import os
+# Get centralized settings
+settings = get_settings()
 
-if "PYTEST_CURRENT_TEST" in os.environ or "DOCUMENT_ROOT_DIR" in os.environ:
-    # Test environment: shorter timeouts to prevent hanging
-    DEFAULT_TIMEOUT = 30.0
-    MAX_RETRIES = 2
-else:
-    # Production environment: longer timeouts for reliability
-    DEFAULT_TIMEOUT = 60.0
-    MAX_RETRIES = 3
+# Shared constants from centralized config
+MCP_SERVER_CMD = settings.mcp_server_cmd
+DEFAULT_TIMEOUT = settings.default_timeout
+MAX_RETRIES = settings.max_retries
 
 
-class AgentSettings(BaseSettings):
-    """Pydantic Settings model for agent configuration with validation."""
+AgentSettings = type(settings)
 
-    # API Keys
-    openai_api_key: str | None = Field(default=None, description="OpenAI API key")
-    gemini_api_key: str | None = Field(default=None, description="Google Gemini API key")
-
-    # Model Names
-    openai_model_name: str = Field(default="gpt-4.1-mini", description="OpenAI model name")
-    gemini_model_name: str = Field(default="gemini-2.5-flash", description="Gemini model name")
-
-    # Document Root
-    document_root_dir: str | None = Field(default=None, description="Document storage root directory")
-
-    # Test Mode
-    pytest_current_test: str | None = Field(default=None, description="Test mode indicator")
-
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "case_sensitive": False,
-    }
-
-    @model_validator(mode="after")
-    def validate_api_keys(self):
-        """Ensure at least one API key is provided."""
-        if not self.openai_api_key and not self.gemini_api_key:
-            # Don't raise error during initialization - let the application handle it
-            pass
-        return self
-
-    @property
-    def openai_configured(self) -> bool:
-        """Check if OpenAI is properly configured."""
-        return bool(self.openai_api_key and self.openai_api_key.strip())
-
-    @property
-    def gemini_configured(self) -> bool:
-        """Check if Gemini is properly configured."""
-        return bool(self.gemini_api_key and self.gemini_api_key.strip())
-
-    @property
-    def active_provider(self) -> Literal["openai", "gemini"] | None:
-        """Get the active provider (OpenAI takes precedence)."""
-        if self.openai_configured:
-            return "openai"
-        elif self.gemini_configured:
-            return "gemini"
-        return None
-
-    @property
-    def active_model(self) -> str | None:
-        """Get the active model name."""
-        if self.active_provider == "openai":
-            return self.openai_model_name
-        elif self.active_provider == "gemini":
-            return self.gemini_model_name
-        return None
-
-
-def get_settings() -> AgentSettings:
-    """Get the validated settings instance."""
-    load_dotenv()  # Load .env file
-    return AgentSettings()
+def get_agent_settings():
+    """Get the centralized settings instance."""
+    return settings
 
 
 def prepare_mcp_server_environment() -> dict[str, str]:
@@ -100,31 +31,11 @@ def prepare_mcp_server_environment() -> dict[str, str]:
     Returns:
         dict: Environment variables for MCP server subprocess
     """
-    import os
-
-    # Load settings to get API keys from .env file
-    settings = get_settings()
-
-    # Start with current environment
-    server_env = {**os.environ}
-
-    # Add API keys from settings if available
-    if settings.gemini_api_key:
-        server_env["GEMINI_API_KEY"] = settings.gemini_api_key
-    if settings.openai_api_key:
-        server_env["OPENAI_API_KEY"] = settings.openai_api_key
-
-    # Add test mode flag if DOCUMENT_ROOT_DIR is set (for test environments)
-    if "DOCUMENT_ROOT_DIR" in os.environ:
-        server_env["PYTEST_CURRENT_TEST"] = "1"
-
-    return server_env
+    return settings.get_mcp_server_environment()
 
 
 async def load_llm_config():
     """Load and configure the LLM model based on available environment variables."""
-    settings = get_settings()
-
     if settings.active_provider == "openai":
         print(f"Using OpenAI model: {settings.active_model}")
         return OpenAIModel(model_name=settings.active_model)

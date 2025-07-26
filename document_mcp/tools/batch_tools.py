@@ -7,12 +7,12 @@ multiple document operations atomically.
 import time
 from typing import Any
 
+from ..batch import BatchApplyResult
 from ..batch import BatchExecutor
 from ..batch import BatchOperation
 from ..logger_config import ErrorCategory
 from ..logger_config import log_mcp_call
 from ..logger_config import log_structured_error
-from ..models import BatchApplyResult
 
 
 def register_batch_tools(mcp_server):

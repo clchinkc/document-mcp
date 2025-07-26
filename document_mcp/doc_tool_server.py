@@ -12,16 +12,19 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
 
-from dotenv import load_dotenv
 from mcp.server import FastMCP
-
-# Import metrics functionality
-from .metrics_config import METRICS_ENABLED
 
 # Local imports for safe operation handling
 # Import models
-from .models import BatchApplyResult
-from .models import BatchOperation
+from .batch import BatchApplyResult
+from .batch import BatchOperation
+from .batch import OperationResult
+
+# Import configuration
+from .config import get_settings
+
+# Import metrics functionality
+from .metrics_config import METRICS_ENABLED
 from .models import ChapterContent
 from .models import ChapterMetadata
 from .models import ContentFreshnessStatus
@@ -30,7 +33,6 @@ from .models import DocumentSummary
 from .models import FullDocumentContent
 from .models import ModificationHistory
 from .models import ModificationHistoryEntry
-from .models import OperationResult
 from .models import OperationStatus
 from .models import ParagraphDetail
 from .models import SnapshotInfo
@@ -47,24 +49,8 @@ from .tools import register_safety_tools
 from .utils.file_operations import DOCS_ROOT_PATH
 
 # --- Configuration ---
-# Each "document" will be a subdirectory within DOCS_ROOT_DIR.
-# Chapters will be .md files within their respective document subdirectory.
-# Default for production
-_DEFAULT_DOCS_ROOT = ".documents_storage"
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Check if running under pytest. If so, allow override via .env for test isolation.
-# In production, this is not used and the path is fixed.
-if "PYTEST_CURRENT_TEST" in os.environ:
-    DOCS_ROOT_DIR_NAME = os.environ.get("DOCUMENT_ROOT_DIR", _DEFAULT_DOCS_ROOT)
-else:
-    DOCS_ROOT_DIR_NAME = _DEFAULT_DOCS_ROOT
-
-# Use DOCS_ROOT_PATH from utils.file_operations to avoid duplication
-# Ensure the root directory exists
-DOCS_ROOT_PATH.mkdir(parents=True, exist_ok=True)
+# Get centralized settings
+settings = get_settings()
 
 # HTTP SSE server configuration
 DEFAULT_HOST = "localhost"

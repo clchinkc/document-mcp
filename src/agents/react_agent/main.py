@@ -38,7 +38,6 @@ from src.agents.shared.performance_metrics import build_response_data
 # --- ReAct Execution Loop ---
 
 
-# Removed broken execute_mcp_tool_directly function - ReAct agent now uses proper MCP integration
 
 
 async def run_react_agent_with_metrics(

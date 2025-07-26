@@ -11,9 +11,9 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .batch import BatchOperation
 from .logger_config import ErrorCategory
 from .logger_config import log_structured_error
-from .models import BatchOperation
 from .models import ChapterContent
 from .models import ChapterMetadata
 
@@ -95,9 +95,7 @@ def _is_valid_chapter_filename(filename: str) -> bool:
     """
     if not filename.lower().endswith(".md"):
         return False
-    if filename == CHAPTER_MANIFEST_FILE:
-        return False
-    if filename == DOCUMENT_SUMMARY_FILE:  # Exclude document summary file
+    if filename in (CHAPTER_MANIFEST_FILE, DOCUMENT_SUMMARY_FILE):
         return False
     return True
 

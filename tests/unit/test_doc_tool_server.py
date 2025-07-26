@@ -4,6 +4,10 @@ import datetime
 
 import pytest
 
+from document_mcp.batch import BatchApplyRequest
+from document_mcp.batch import BatchApplyResult
+from document_mcp.batch import BatchOperation
+from document_mcp.batch import OperationResult
 from document_mcp.batch.global_registry import get_batch_registry
 
 # Import batch registry directly from batch module
@@ -18,17 +22,13 @@ from document_mcp.helpers import _get_snapshots_path
 from document_mcp.helpers import _is_valid_chapter_filename
 from document_mcp.helpers import _resolve_operation_dependencies
 from document_mcp.helpers import _split_into_paragraphs
-from document_mcp.utils.validation import validate_content
-from document_mcp.models import BatchApplyRequest
-from document_mcp.models import BatchApplyResult
-from document_mcp.models import BatchOperation
-from document_mcp.models import OperationResult
 
 # Import constants and models
 from document_mcp.utils.validation import CHAPTER_MANIFEST_FILE
 
 # Import helper functions
 from document_mcp.utils.validation import check_file_freshness as _check_file_freshness
+from document_mcp.utils.validation import validate_content
 
 
 class TestHelperFunctions:
@@ -348,14 +348,14 @@ class TestBatchOperations:
             success=True,
             operation_id="test_op_1",
             operation_type="create_document",
-            result_data={"message": "Document created successfully"},
+            result={"message": "Document created successfully"},
             execution_time_ms=150.0,
         )
 
         assert result.success is True
         assert result.operation_id == "test_op_1"
         assert result.operation_type == "create_document"
-        assert result.result_data["message"] == "Document created successfully"
+        assert result.result["message"] == "Document created successfully"
         assert result.error is None
         assert result.execution_time_ms == 150.0
 
@@ -371,7 +371,7 @@ class TestBatchOperations:
 
         assert result.success is False
         assert result.error == "Document not found"
-        assert result.result_data is None
+        assert result.result is None
 
     def test_batch_apply_result_model(self):
         """Test creating BatchApplyResult model."""
@@ -399,7 +399,7 @@ class TestBatchOperations:
         assert batch_result.failed_operations == 0
         assert len(batch_result.operation_results) == 1
         assert batch_result.rollback_performed is False
-        assert batch_result.snapshot_id is None
+        assert batch_result.error_summary is None
 
     def test_batch_operation_registry_creation(self):
         """Test creating a new BatchOperationRegistry."""

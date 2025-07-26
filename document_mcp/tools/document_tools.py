@@ -18,13 +18,13 @@ from ..helpers import DOCUMENT_SUMMARY_FILE
 from ..helpers import _get_chapter_metadata
 from ..helpers import _get_document_path
 from ..helpers import _get_ordered_chapter_files
-from ..utils.validation import validate_document_name
 from ..logger_config import log_mcp_call
 from ..models import DocumentInfo
 from ..models import DocumentSummary
 from ..models import OperationStatus
 from ..utils.decorators import auto_snapshot
 from ..utils.file_operations import DOCS_ROOT_PATH
+from ..utils.validation import validate_document_name
 
 
 def register_document_tools(mcp_server: FastMCP) -> None:
