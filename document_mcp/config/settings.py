@@ -197,6 +197,12 @@ def get_settings() -> Settings:
     if _settings is None:
         load_dotenv()  # Load .env file
         _settings = Settings()
+    else:
+        # In test environment, refresh document root if changed
+        if "DOCUMENT_ROOT_DIR" in os.environ:
+            current_root = os.environ["DOCUMENT_ROOT_DIR"]
+            if _settings.document_root_dir != current_root:
+                _settings.document_root_dir = current_root
     return _settings
 
 

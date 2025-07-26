@@ -49,6 +49,8 @@ async def run_agent_query(agent_module: str, query: str, timeout: int = 300) -> 
         env = os.environ.copy()
         if "DOCUMENT_ROOT_DIR" in env:
             env["PYTEST_CURRENT_TEST"] = "1"
+            doc_root = env["DOCUMENT_ROOT_DIR"]
+            env["DOCUMENT_ROOT_DIR"] = str(Path(doc_root).resolve())
 
         # Add API keys from .env file for E2E tests
         # This ensures the subprocess has access to API keys
