@@ -183,6 +183,11 @@ class Settings(BaseSettings):
             server_env["PYTEST_CURRENT_TEST"] = "1"
             if self.document_root_dir != ".documents_storage":
                 server_env["DOCUMENT_ROOT_DIR"] = self.document_root_dir
+        
+        # Ensure DOCUMENT_ROOT_DIR is always passed if set in environment
+        # This handles E2E test cases where the subprocess needs the correct root
+        if "DOCUMENT_ROOT_DIR" in os.environ:
+            server_env["DOCUMENT_ROOT_DIR"] = os.environ["DOCUMENT_ROOT_DIR"]
 
         return server_env
 
