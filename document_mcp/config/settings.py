@@ -135,7 +135,7 @@ class Settings(BaseSettings):
     @property
     def document_root_path(self) -> Path:
         """Get the document root path as a Path object."""
-        path = Path(self.document_root_dir)
+        path = Path(self.document_root_dir).resolve()
         path.mkdir(parents=True, exist_ok=True)
         return path
 

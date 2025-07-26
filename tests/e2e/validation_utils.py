@@ -31,7 +31,18 @@ class DocumentSystemValidator:
         Raises:
             AssertionError: If document directory doesn't exist
         """
+        import time
+
         doc_path = self.docs_root / doc_name
+
+        # Add retry mechanism for Windows CI timing issues
+        max_retries = 5
+        for attempt in range(max_retries):
+            if doc_path.exists():
+                break
+            if attempt < max_retries - 1:
+                time.sleep(0.1)  # Brief delay before retry
+
         assert doc_path.exists(), f"Document directory '{doc_name}' does not exist at {doc_path}"
         assert doc_path.is_dir(), f"Document path '{doc_path}' exists but is not a directory"
         return doc_path
