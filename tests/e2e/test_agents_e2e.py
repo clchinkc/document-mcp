@@ -151,9 +151,12 @@ async def e2e_docs_dir():
     """Provide a clean temporary directory for E2E document operations."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
-        os.environ["DOCUMENT_ROOT_DIR"] = tmp_dir
+        # Use resolved path to match what settings.py does with .resolve()
+        # This ensures consistency between test setup and actual document creation
+        resolved_tmp_dir = str(Path(tmp_dir).resolve())
+        os.environ["DOCUMENT_ROOT_DIR"] = resolved_tmp_dir
         try:
-            yield Path(tmp_dir)
+            yield Path(resolved_tmp_dir)
         finally:
             if old_doc_root:
                 os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
