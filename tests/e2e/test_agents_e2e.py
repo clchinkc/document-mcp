@@ -49,6 +49,7 @@ async def run_agent_query(agent_module: str, query: str, timeout: int = 300) -> 
         env = os.environ.copy()
         if "DOCUMENT_ROOT_DIR" in env:
             env["PYTEST_CURRENT_TEST"] = "1"
+            # Don't double-resolve the path - it's already resolved in e2e_docs_dir fixture
 
         # Add API keys from .env file for E2E tests
         # This ensures the subprocess has access to API keys
@@ -149,9 +150,12 @@ async def e2e_docs_dir():
     """Provide a clean temporary directory for E2E document operations."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
-        os.environ["DOCUMENT_ROOT_DIR"] = tmp_dir
+        # Use resolved path to match what settings.py does with .resolve()
+        # This ensures consistency between test setup and actual document creation
+        resolved_tmp_dir = str(Path(tmp_dir).resolve())
+        os.environ["DOCUMENT_ROOT_DIR"] = resolved_tmp_dir
         try:
-            yield Path(tmp_dir)
+            yield Path(resolved_tmp_dir)
         finally:
             if old_doc_root:
                 os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
@@ -205,7 +209,7 @@ class TestSimpleAgentE2E:
         # 3. Add Summary File
         doc_path = e2e_docs_dir / doc_name
         summary_file = doc_path / "_SUMMARY.md"
-        summary_file.write_text(summary_content, encoding='utf-8')
+        summary_file.write_text(summary_content, encoding="utf-8")
 
         # 4. Test Summary-First Workflow
         summary_query = f"Tell me about the document '{doc_name}'"

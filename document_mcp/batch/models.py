@@ -11,6 +11,17 @@ from pydantic import BaseModel
 from pydantic import Field
 
 
+class BatchApplyRequest(BaseModel):
+    """Batch execution request."""
+
+    operations: list[dict[str, Any]]  # Will be converted to BatchOperation objects
+    atomic: bool = True  # All succeed or all fail
+    validate_only: bool = False  # Dry-run mode
+    snapshot_before: bool = False  # Auto-snapshot before execution
+    continue_on_error: bool = False  # Continue despite individual failures
+    execution_mode: str = "sequential"  # sequential, parallel_safe
+
+
 class BatchOperation(BaseModel):
     """Represents a single operation within a batch.
 

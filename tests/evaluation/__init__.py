@@ -38,7 +38,7 @@ from .evaluation_utils import generate_performance_summary
 # Use simple test enhancement from llm_evaluation_layer.py instead.
 
 __all__ = [
-    # Utility classes (kept for backwards compatibility)
+    # Utility classes
     "TokenUsageMetrics",
     "ToolCallMetrics",
     "EvaluationAssertions",

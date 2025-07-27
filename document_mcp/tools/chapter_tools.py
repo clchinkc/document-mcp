@@ -22,9 +22,6 @@ from ..helpers import _get_document_path
 from ..helpers import _get_ordered_chapter_files
 from ..helpers import _is_valid_chapter_filename
 from ..helpers import _split_into_paragraphs
-from ..utils.validation import validate_chapter_name
-from ..utils.validation import validate_content
-from ..utils.validation import validate_document_name
 from ..logger_config import log_mcp_call
 from ..models import ChapterContent
 from ..models import ChapterMetadata
@@ -32,6 +29,9 @@ from ..models import OperationStatus
 from ..utils.decorators import auto_snapshot
 from ..utils.decorators import safety_enhanced_write_operation
 from ..utils.validation import CHAPTER_MANIFEST_FILE
+from ..utils.validation import validate_chapter_name
+from ..utils.validation import validate_content
+from ..utils.validation import validate_document_name
 
 # Note: All helper functions are imported from helpers module above
 

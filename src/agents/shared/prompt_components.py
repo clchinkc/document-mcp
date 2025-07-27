@@ -46,7 +46,7 @@ If users need to access past versions of their documents, they can use the snaps
 3. **For statistics requests**: Use `get_statistics()` with appropriate scope parameter
 4. **For search requests**: Use `find_text()` with appropriate scope parameter
 5. **For text replacement**: Use `replace_text()` with appropriate scope parameter
-6. **Before writing to document/chapter**: Read current content first using `read_content()` to ensure safe modification"""
+6. **Before writing to document/chapter**: Read current content first using `read_content()` to ensure safe operations"""
 
     @staticmethod
     def get_details_field_requirements() -> str:
@@ -83,7 +83,7 @@ If users need to access past versions of their documents, they can use the snaps
     def get_operation_safety_rules() -> str:
         """Safety rules for document operations."""
         return """**OPERATION SAFETY RULES:**
-- **Before writing to a document/chapter, you must read its current content first** to ensure safe modification
+- **Before writing to a document/chapter, you must read its current content first** to ensure safe operations
 - Verify a target document exists before any further per-document operation
 - For operations across all documents, enumerate with `list_documents()` prior to acting on each
 - Use atomic operations and consider using batch operations for complex multi-step workflows"""
@@ -144,7 +144,7 @@ Use batch_apply_operations when you need to perform multiple related operations 
 - Resolves operation dependencies (you can define operations in any order)
 - Creates restoration snapshots (automatic rollback on failure)
 - Validates entire batch before execution (catches errors early)
-- Tracks user modifications (easy restoration later)
+- Tracks user operations (easy restoration later)
 
 **WHEN TO USE BATCHES:**
 [OK] Multi-step document creation (document + chapters + content)

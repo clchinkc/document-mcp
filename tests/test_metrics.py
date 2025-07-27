@@ -63,7 +63,7 @@ def test_metrics_initialization_from_script():
         assert isinstance(summary, dict)
         assert "service_name" in summary
         assert "environment" in summary
-        assert "otlp_endpoint" in summary
+        assert "grafana_cloud_endpoint" in summary
         assert "prometheus_enabled" in summary
 
 

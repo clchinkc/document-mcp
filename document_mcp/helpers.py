@@ -11,9 +11,9 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .batch import BatchOperation
 from .logger_config import ErrorCategory
 from .logger_config import log_structured_error
-from .models import BatchOperation
 from .models import ChapterContent
 from .models import ChapterMetadata
 
@@ -71,14 +71,26 @@ def _generate_content_diff(
 
 def _get_document_path(document_name: str) -> Path:
     """Return the full path for a given document name."""
-    # Use environment variable if available for test isolation
-
-    # Check for custom document root directory (for testing or configuration)
-    docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR")
-    if docs_root_name:
-        root_path = Path(docs_root_name)
-        return root_path / document_name
-    return DOCS_ROOT_PATH / document_name
+    # Use centralized settings system which handles environment variables 
+    # and path resolution consistently across the codebase
+    from .config import get_settings
+    import os
+    
+    # Debug: Show environment variables and path resolution
+    doc_root_env = os.environ.get("DOCUMENT_ROOT_DIR")
+    print(f"[PATH_DEBUG] _get_document_path called for '{document_name}'")
+    print(f"[PATH_DEBUG] DOCUMENT_ROOT_DIR env var: {doc_root_env}")
+    
+    settings = get_settings()
+    print(f"[PATH_DEBUG] Settings document_root_dir: {settings.document_root_dir}")
+    
+    root_path = settings.document_root_path
+    print(f"[PATH_DEBUG] Resolved document_root_path: {root_path}")
+    
+    final_path = root_path / document_name
+    print(f"[PATH_DEBUG] Final document path: {final_path}")
+    
+    return final_path
 
 
 def _get_chapter_path(document_name: str, chapter_filename: str) -> Path:
@@ -95,9 +107,7 @@ def _is_valid_chapter_filename(filename: str) -> bool:
     """
     if not filename.lower().endswith(".md"):
         return False
-    if filename == CHAPTER_MANIFEST_FILE:
-        return False
-    if filename == DOCUMENT_SUMMARY_FILE:  # Exclude document summary file
+    if filename in (CHAPTER_MANIFEST_FILE, DOCUMENT_SUMMARY_FILE):
         return False
     return True
 

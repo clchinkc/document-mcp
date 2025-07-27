@@ -289,7 +289,7 @@ class ToolDescriptionManager:
             ),
             ToolDescription(
                 name="check_content_status",
-                description="Content status checker: freshness validation with optional modification history",
+                description="Content status checker: freshness validation with optional history tracking",
                 parameters={
                     "document_name": "str",
                     "chapter_name": "str",
@@ -327,7 +327,7 @@ INTELLIGENCE FEATURES:
 • Smart conflict detection - prevents contradictory operations (e.g., delete then modify same content)
 • Automatic snapshot creation - every batch gets a restoration checkpoint
 • Granular rollback - failed batches automatically restore to pre-execution state
-• User modification tracking - all changes attributed and logged for easy restoration
+• User operation tracking - all changes attributed and logged for easy restoration
 
 WHEN TO USE BATCHES:
 [OK] Multi-step document creation (document + chapters + content)

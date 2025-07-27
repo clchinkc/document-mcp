@@ -685,7 +685,7 @@ def _create_snapshot(
         f"Snapshot created at {datetime.datetime.now().isoformat()}\n"
         f"Message: {message or 'Manual snapshot'}\n"
         f"User: {user}\n",
-        encoding='utf-8'
+        encoding="utf-8",
     )
 
     # Snapshot created successfully
@@ -797,7 +797,7 @@ def _restore_snapshot(document_name: str, snapshot_id: str) -> OperationStatus:
     # Mark that a restore has been performed for this document
     # This is used by _diff_snapshots to simulate post-restore behavior
     restore_marker_path = doc_path / ".restore_marker"
-    restore_marker_path.write_text(f"restored_to:{snapshot_id}", encoding='utf-8')
+    restore_marker_path.write_text(f"restored_to:{snapshot_id}", encoding="utf-8")
 
     # Simple implementation - return success without actual restoration
     return OperationStatus(

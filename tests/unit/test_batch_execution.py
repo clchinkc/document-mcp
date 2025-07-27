@@ -38,11 +38,12 @@ class TestBatchOperation:
         """Test BatchOperation with default values."""
         operation = BatchOperation(
             operation_type="read_content",
-            parameters={"document_name": "test"},
+            target={"document_name": "test"},
+            parameters={"scope": "document"},
             order=0,
             operation_id="read_op",
         )
-        assert operation.target == {}
+        assert operation.target == {"document_name": "test"}
         assert operation.depends_on is None
 
 

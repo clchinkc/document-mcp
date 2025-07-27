@@ -1,13 +1,20 @@
 """Shared Error Handling Utilities for Agents.
 
 This module provides common classes for error classification and retry logic
-that can be used across different agent implementations.
+that can be used across different agent implementations. It integrates with
+the centralized error handling framework.
 """
 
 import asyncio
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+
+from document_mcp.error_handler import ErrorContext
+from document_mcp.error_handler import create_error_response as create_mcp_error_response
+from document_mcp.exceptions import AgentConfigurationError
+from document_mcp.exceptions import AgentError
+from document_mcp.exceptions import LLMError
 
 # --- Error Classification and Retry Configuration ---
 
@@ -286,8 +293,38 @@ def create_error_response(
     Returns:
         Standardized error response dictionary
     """
+    # Create a compatible error for the centralized system
+    if error_type in ["auth", "authentication"]:
+        error = AgentConfigurationError("agent", summary, details=details or {})
+    elif error_type in ["llm", "model", "generation"]:
+        error = LLMError("unknown", "unknown", summary, details=details or {})
+    else:
+        error = AgentError("agent", summary, details=details or {})
+
+    # Use centralized error response creation with standardized format
+    mcp_response = create_mcp_error_response(error)
+
     return {
         "summary": summary,
-        "details": details,
+        "details": mcp_response["details"],
         "error_message": error_type,
     }
+
+
+def create_agent_error_context(operation_name: str, agent_type: str = "unknown") -> ErrorContext:
+    """Create an error context for agent operations.
+    
+    Args:
+        operation_name: Name of the operation
+        agent_type: Type of agent performing the operation
+    
+    Returns:
+        ErrorContext configured for agent operations
+    """
+    return ErrorContext(
+        operation_name=operation_name,
+        agent_type=agent_type,
+        log_start=True,
+        log_success=True,
+        raise_on_error=True,
+    )

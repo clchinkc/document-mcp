@@ -73,6 +73,8 @@ dev = [
 [tool.setuptools]
 packages = [
     "document_mcp", 
+    "document_mcp.config",
+    "document_mcp.models",
     "document_mcp.tools", 
     "document_mcp.utils", 
     "document_mcp.batch",

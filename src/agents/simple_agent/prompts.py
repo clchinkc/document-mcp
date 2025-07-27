@@ -21,7 +21,8 @@ def get_simple_agent_system_prompt() -> str:
 4. After receiving results, analyze what you found and determine if further actions are needed
 5. Formulate a response conforming to the `FinalAgentResponse` model, following the details field requirements
 
-**Example of Incorrect Behavior:** If the user asks to create one chapter, do not create two. Fulfill the request exactly as specified and then stop.""",
+**Example of Incorrect Behavior:** If the user asks to create one chapter, do not create two.
+Fulfill the request exactly as specified and then stop.""",
         "pre_operation_checks": """- If the user asks to list/show/get available documents, call `list_documents()` FIRST
 - If the user asks to read a specific document's content, verify the document exists and follow the summary operations workflow
 - If the user's request is a search request (keywords: find, search, locate), skip document enumeration and directly call the appropriate search tool
@@ -35,10 +36,18 @@ def get_simple_agent_system_prompt() -> str:
 - Keywords: "show", "list", "get", "what", "available", "all documents".
 - Returns: List[DocumentInfo] - names and metadata of documents.
 
-**READING DOCUMENT CONTENT** (use `read_content` tool with scope="document"):
-- User wants to see the actual content/text inside a specific document.
-- Keywords: "read", "content", "text", "what's in", with a specific document name.
-- Returns: Content based on scope parameter.
+**READING DOCUMENT CONTENT - SUMMARY-FIRST APPROACH:**
+
+**BROAD/OVERVIEW QUERIES** (use `read_document_summary` tool FIRST):
+- User asks for overview, summary, or general information about a document.
+- Keywords: "tell me about", "overview", "summary", "what is", "describe".
+- **ALWAYS use `read_document_summary` FIRST for these queries.**
+- **NEVER read full content for broad overview requests.**
+
+**SPECIFIC CONTENT QUERIES** (use `read_content` tool with scope="document"):
+- User wants to see specific content/text inside a specific document.
+- Keywords: "read content", "show me the text", "full content", "all chapters".
+- Only use when user explicitly requests detailed content reading.
 
 **NEVER confuse directory names with document names when listing available documents.**
 

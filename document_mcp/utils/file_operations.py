@@ -7,18 +7,41 @@ used throughout the system.
 import os
 from pathlib import Path
 
+from ..config import get_settings
+
 # === Configuration ===
 
-_DEFAULT_DOCS_ROOT = ".documents_storage"
+# === Dynamic Document Root ===
 
-# Initialize document root path from environment or default
-try:
-    DOCS_ROOT_DIR_NAME = os.environ.get("DOCUMENT_ROOT_DIR", _DEFAULT_DOCS_ROOT)
-except Exception:
-    DOCS_ROOT_DIR_NAME = _DEFAULT_DOCS_ROOT
+def get_docs_root_path():
+    """Get the document root path dynamically from current settings.
+    
+    This ensures that environment variable changes (like in tests) 
+    are properly reflected, rather than caching the path at module level.
+    """
+    settings = get_settings()
+    return settings.document_root_path
 
-DOCS_ROOT_PATH = Path(DOCS_ROOT_DIR_NAME)
-DOCS_ROOT_PATH.mkdir(parents=True, exist_ok=True)  # Ensure the root directory exists
+# For backward compatibility, provide DOCS_ROOT_PATH as a property
+# that dynamically resolves to the current document root
+class _DocsRootPath:
+    def __getattr__(self, name):
+        # Delegate all Path operations to the dynamic root path
+        return getattr(get_docs_root_path(), name)
+    
+    def __truediv__(self, other):
+        return get_docs_root_path() / other
+    
+    def __str__(self):
+        return str(get_docs_root_path())
+    
+    def __repr__(self):
+        return repr(get_docs_root_path())
+    
+    def resolve(self):
+        return get_docs_root_path().resolve()
+
+DOCS_ROOT_PATH = _DocsRootPath()
 
 
 # === Path Utilities ===
@@ -26,10 +49,7 @@ DOCS_ROOT_PATH.mkdir(parents=True, exist_ok=True)  # Ensure the root directory e
 
 def get_document_path(document_name: str) -> Path:
     """Return the full path for a given document name."""
-    # Check environment variable at runtime for test compatibility
-    docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR", _DEFAULT_DOCS_ROOT)
-    root_path = Path(docs_root_name)
-    return root_path / document_name
+    return DOCS_ROOT_PATH / document_name
 
 
 def get_chapter_path(document_name: str, chapter_filename: str) -> Path:

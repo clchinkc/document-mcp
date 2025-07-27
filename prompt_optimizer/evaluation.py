@@ -103,7 +103,9 @@ class PerformanceEvaluator:
                                 (
                                     response,
                                     performance_metrics,
-                                ) = await process_single_user_query(agent, scenario["query"], collect_metrics=True)
+                                ) = await process_single_user_query(
+                                    agent, scenario["query"], collect_metrics=True
+                                )
                         elif agent_type == "react":
                             (
                                 history,

@@ -18,13 +18,13 @@ from ..helpers import DOCUMENT_SUMMARY_FILE
 from ..helpers import _get_chapter_metadata
 from ..helpers import _get_document_path
 from ..helpers import _get_ordered_chapter_files
-from ..utils.validation import validate_document_name
 from ..logger_config import log_mcp_call
 from ..models import DocumentInfo
 from ..models import DocumentSummary
 from ..models import OperationStatus
 from ..utils.decorators import auto_snapshot
 from ..utils.file_operations import DOCS_ROOT_PATH
+from ..utils.validation import validate_document_name
 
 
 def register_document_tools(mcp_server: FastMCP) -> None:
@@ -319,14 +319,19 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             }
             ```
         """
+        # Debug: Track if create_document tool is called
+        print(f"[CREATE_DOC_DEBUG] create_document tool called with name: '{document_name}'")
+        
         # Validate input
         is_valid, error_msg = validate_document_name(document_name)
         if not is_valid:
             return OperationStatus(success=False, message=error_msg)
 
         doc_path = _get_document_path(document_name)
+        
         if doc_path.exists():
             return OperationStatus(success=False, message=f"Document '{document_name}' already exists.")
+        
         try:
             doc_path.mkdir(parents=True, exist_ok=False)
             return OperationStatus(
