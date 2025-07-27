@@ -883,5 +883,9 @@ def instrument_tool(func):
     return wrapper
 
 
-# Initialize metrics on module import
-initialize_metrics()
+# Only initialize metrics if explicitly enabled and not in test environment
+# This prevents automatic metrics collection during testing or CI
+if METRICS_ENABLED and not is_test_environment():
+    initialize_metrics()
+else:
+    print(f"[METRICS] Metrics initialization skipped (enabled={METRICS_ENABLED}, test_env={is_test_environment()})")
