@@ -50,6 +50,11 @@ def is_test_environment():
 default_metrics_enabled = "false" if is_test_environment() else "true"
 METRICS_ENABLED = os.getenv("MCP_METRICS_ENABLED", default_metrics_enabled).lower() == "true"
 
+# Auto-shutdown configuration
+INACTIVITY_TIMEOUT = int(os.getenv("MCP_METRICS_INACTIVITY_TIMEOUT", "300"))  # 5 minutes default
+_last_activity_time = time.time()
+_shutdown_timer = None
+
 # Debug: Log metrics status for debugging
 if is_test_environment():
     print(f"[METRICS_DEBUG] Test environment detected, metrics disabled by default")
@@ -89,6 +94,7 @@ otlp_reader = None
 
 # Global state for tracking
 _active_operations = {}
+_metrics_shutdown = False
 
 # Prometheus remote write
 import threading
@@ -623,6 +629,54 @@ def _write_metrics_to_persistent_storage(tool_name: str, status: str, start_time
         pass  # Silent failure for telemetry
 
 
+def _update_activity():
+    """Update the last activity timestamp and reset shutdown timer."""
+    global _last_activity_time, _shutdown_timer
+    _last_activity_time = time.time()
+    
+    # Cancel existing shutdown timer
+    if _shutdown_timer:
+        _shutdown_timer.cancel()
+    
+    # Set new shutdown timer
+    _shutdown_timer = threading.Timer(INACTIVITY_TIMEOUT, _auto_shutdown_metrics)
+    _shutdown_timer.daemon = True
+    _shutdown_timer.start()
+
+
+def _auto_shutdown_metrics():
+    """Automatically shutdown metrics collection after inactivity timeout."""
+    global _metrics_shutdown
+    if _metrics_shutdown:
+        return
+        
+    print(f"[METRICS] Auto-shutdown triggered after {INACTIVITY_TIMEOUT}s of inactivity")
+    _metrics_shutdown = True
+    
+    # Stop background processes
+    try:
+        # Stop persistent metrics server
+        lock_file = "/tmp/document_mcp_metrics.lock"
+        if os.path.exists(lock_file):
+            try:
+                with open(lock_file) as f:
+                    pid = int(f.read().strip())
+                os.kill(pid, 15)  # SIGTERM
+                print(f"[METRICS] Stopped persistent metrics server (PID {pid})")
+            except (OSError, ValueError):
+                pass
+    except Exception as e:
+        print(f"[METRICS] Warning: Could not stop persistent server: {e}")
+    
+    # Stop Prometheus processes (they should auto-exit due to retention time)
+    try:
+        import subprocess
+        subprocess.run(["pkill", "-f", "prometheus.*mcp"], capture_output=True)
+        print(f"[METRICS] Stopped background Prometheus processes")
+    except Exception as e:
+        print(f"[METRICS] Warning: Could not stop Prometheus processes: {e}")
+
+
 def get_resource() -> "Resource":
     """Create OpenTelemetry resource with service information."""
     # Start with base attributes matching Grafana Cloud expected format
@@ -721,11 +775,15 @@ def initialize_metrics():
                 1, {"tool_name": "telemetry_init", "status": "success", "environment": DEPLOYMENT_ENVIRONMENT}
             )
 
+        # Start auto-shutdown timer
+        _update_activity()
+
         print("[OK] Document MCP telemetry active for Prometheus scraping")
         print(f"   Service: {SERVICE_NAME} v{SERVICE_VERSION}")
         print(f"   Environment: {DEPLOYMENT_ENVIRONMENT}")
         print("   [ARCH] Architecture: Prometheus scrapes -> Remote write -> Grafana Cloud")
         print("   [METRICS] Metrics endpoint: http://localhost:8000/metrics")
+        print(f"   [AUTO-SHUTDOWN] Will auto-shutdown after {INACTIVITY_TIMEOUT}s of inactivity")
 
         # Initialize automatic instrumentation if available
         try:
@@ -763,9 +821,12 @@ def calculate_argument_size(args: tuple, kwargs: dict) -> int:
 
 def record_tool_call_start(tool_name: str, args: tuple, kwargs: dict) -> float | None:
     """Record the start of a tool call and return start time for duration calculation."""
-    if not is_metrics_enabled():
+    if not is_metrics_enabled() or _metrics_shutdown:
         return None
 
+    # Update activity timestamp and reset shutdown timer
+    _update_activity()
+    
     start_time = time.time()
     operation_id = f"{tool_name}_{start_time}"
 
@@ -780,7 +841,7 @@ def record_tool_call_start(tool_name: str, args: tuple, kwargs: dict) -> float |
 
 def record_tool_call_success(tool_name: str, start_time: float | None, result_size: int = 0):
     """Record a successful tool call completion."""
-    if not is_metrics_enabled():
+    if not is_metrics_enabled() or _metrics_shutdown:
         return
 
     try:
@@ -805,7 +866,7 @@ def record_tool_call_success(tool_name: str, start_time: float | None, result_si
 
 def record_tool_call_error(tool_name: str, start_time: float | None, error: Exception):
     """Record a failed tool call."""
-    if not is_metrics_enabled():
+    if not is_metrics_enabled() or _metrics_shutdown:
         return
 
     try:
@@ -842,6 +903,17 @@ def get_metrics_export() -> tuple[str, str]:
         return error_msg, "text/plain"
 
 
+def shutdown_metrics():
+    """Manually shutdown metrics collection and background processes."""
+    global _metrics_shutdown
+    if _metrics_shutdown:
+        print("[METRICS] Metrics already shut down")
+        return
+        
+    print("[METRICS] Manual shutdown initiated")
+    _auto_shutdown_metrics()
+
+
 def get_metrics_summary() -> dict[str, Any]:
     """Get a summary of current metrics for debugging/monitoring."""
     if not is_metrics_enabled():
@@ -850,8 +922,12 @@ def get_metrics_summary() -> dict[str, Any]:
             "reason": "Telemetry disabled via MCP_METRICS_ENABLED=false",
         }
 
+    status = "shutdown" if _metrics_shutdown else "active"
+    time_since_activity = time.time() - _last_activity_time
+    time_until_shutdown = max(0, INACTIVITY_TIMEOUT - time_since_activity)
+
     return {
-        "status": "enabled",
+        "status": status,
         "service_name": SERVICE_NAME,
         "service_version": SERVICE_VERSION,
         "environment": DEPLOYMENT_ENVIRONMENT,
@@ -859,7 +935,10 @@ def get_metrics_summary() -> dict[str, Any]:
         "export_interval_seconds": 30,
         "active_operations": len(_active_operations),
         "prometheus_enabled": prometheus_reader is not None,
-        "telemetry_mode": "automatic_grafana_cloud",
+        "telemetry_mode": "automatic_grafana_cloud_with_auto_shutdown",
+        "inactivity_timeout": INACTIVITY_TIMEOUT,
+        "time_since_last_activity": time_since_activity,
+        "time_until_auto_shutdown": time_until_shutdown,
     }
 
 
