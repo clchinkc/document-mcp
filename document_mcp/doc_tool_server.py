@@ -211,12 +211,16 @@ def main():
         from .metrics_config import get_metrics_summary
 
         summary = get_metrics_summary()
-        if summary["status"] == "enabled":
-            print(f"[OK] Automatic telemetry: {summary['telemetry_mode']}")
+        if summary["status"] in ["active", "enabled"]:
+            print(f"[OK] Automatic telemetry: {summary.get('telemetry_mode', 'active')}")
             print(f"   Service: {summary['service_name']} v{summary['service_version']}")
             print(f"   Environment: {summary['environment']}")
+        elif summary["status"] == "shutdown":
+            print(f"[INFO] Telemetry: shutdown after inactivity")
+        elif summary["status"] == "disabled":
+            print(f"[INFO] Telemetry: {summary.get('reason', 'disabled')}")
         else:
-            print(f"[INFO] Telemetry: {summary['reason']}")
+            print(f"[INFO] Telemetry: {summary['status']}")
     except (ImportError, NameError):
         print("[INFO] Telemetry: not available")
 
