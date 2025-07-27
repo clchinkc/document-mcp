@@ -11,9 +11,37 @@ from ..config import get_settings
 
 # === Configuration ===
 
-# Get centralized settings
-settings = get_settings()
-DOCS_ROOT_PATH = settings.document_root_path
+# === Dynamic Document Root ===
+
+def get_docs_root_path():
+    """Get the document root path dynamically from current settings.
+    
+    This ensures that environment variable changes (like in tests) 
+    are properly reflected, rather than caching the path at module level.
+    """
+    settings = get_settings()
+    return settings.document_root_path
+
+# For backward compatibility, provide DOCS_ROOT_PATH as a property
+# that dynamically resolves to the current document root
+class _DocsRootPath:
+    def __getattr__(self, name):
+        # Delegate all Path operations to the dynamic root path
+        return getattr(get_docs_root_path(), name)
+    
+    def __truediv__(self, other):
+        return get_docs_root_path() / other
+    
+    def __str__(self):
+        return str(get_docs_root_path())
+    
+    def __repr__(self):
+        return repr(get_docs_root_path())
+    
+    def resolve(self):
+        return get_docs_root_path().resolve()
+
+DOCS_ROOT_PATH = _DocsRootPath()
 
 
 # === Path Utilities ===
