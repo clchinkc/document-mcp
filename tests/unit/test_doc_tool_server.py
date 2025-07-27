@@ -195,15 +195,21 @@ class TestSafetyHelperFunctions:
             del os.environ["DOCUMENT_ROOT_DIR"]
 
         try:
+            # Reset settings singleton to pick up environment change
+            from document_mcp.config.settings import reset_settings
+            reset_settings()
+            
             from document_mcp.utils.file_operations import DOCS_ROOT_PATH
 
             result = _get_snapshots_path("test_doc")
-            expected = DOCS_ROOT_PATH / "test_doc" / ".snapshots"
+            expected = (DOCS_ROOT_PATH / "test_doc" / ".snapshots").resolve()
             assert result == expected
         finally:
             # Restore environment
             if old_doc_root:
                 os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
+            # Reset settings again to pick up the restored environment
+            reset_settings()
 
     def test_get_snapshots_path_with_custom_root(self):
         """Test snapshots path generation with custom DOCUMENT_ROOT_DIR."""
@@ -219,7 +225,7 @@ class TestSafetyHelperFunctions:
 
             try:
                 result = _get_snapshots_path("test_doc")
-                expected = Path(temp_dir) / "test_doc" / ".snapshots"
+                expected = (Path(temp_dir) / "test_doc" / ".snapshots").resolve()
                 assert result == expected
             finally:
                 # Restore environment
@@ -238,15 +244,21 @@ class TestSafetyHelperFunctions:
             del os.environ["DOCUMENT_ROOT_DIR"]
 
         try:
+            # Reset settings singleton to pick up environment change
+            from document_mcp.config.settings import reset_settings
+            reset_settings()
+            
             from document_mcp.utils.file_operations import DOCS_ROOT_PATH
 
             result = _get_modification_history_path("test_doc")
-            expected = DOCS_ROOT_PATH / "test_doc" / ".mod_history.json"
+            expected = (DOCS_ROOT_PATH / "test_doc" / ".mod_history.json").resolve()
             assert result == expected
         finally:
             # Restore environment
             if old_doc_root:
                 os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
+            # Reset settings again to pick up the restored environment
+            reset_settings()
 
     def test_get_modification_history_path_with_custom_root(self):
         """Test modification history path generation with custom DOCUMENT_ROOT_DIR."""
@@ -262,7 +274,7 @@ class TestSafetyHelperFunctions:
 
             try:
                 result = _get_modification_history_path("test_doc")
-                expected = Path(temp_dir) / "test_doc" / ".mod_history.json"
+                expected = (Path(temp_dir) / "test_doc" / ".mod_history.json").resolve()
                 assert result == expected
             finally:
                 # Restore environment

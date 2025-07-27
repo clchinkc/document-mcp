@@ -71,14 +71,11 @@ def _generate_content_diff(
 
 def _get_document_path(document_name: str) -> Path:
     """Return the full path for a given document name."""
-    # Use environment variable if available for test isolation
-
-    # Check for custom document root directory (for testing or configuration)
-    docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR")
-    if docs_root_name:
-        root_path = Path(docs_root_name)
-        return root_path / document_name
-    return DOCS_ROOT_PATH / document_name
+    # Use centralized settings system which handles environment variables 
+    # and path resolution consistently across the codebase
+    from .config import get_settings
+    settings = get_settings()
+    return settings.document_root_path / document_name
 
 
 def _get_chapter_path(document_name: str, chapter_filename: str) -> Path:
