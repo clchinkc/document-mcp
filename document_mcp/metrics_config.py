@@ -384,6 +384,11 @@ scrape_configs:
 
 def _start_persistent_metrics_server():
     """Start persistent metrics server that survives agent exits."""
+    # Skip in test environments to prevent data collection
+    if is_test_environment():
+        print(f"[METRICS] Skipping persistent metrics server in test environment")
+        return
+        
     import os
     import subprocess
     import tempfile
@@ -687,8 +692,11 @@ def initialize_metrics():
             # Auto-start background Prometheus for immediate Grafana Cloud delivery
             # This uses the same proven approach as run_telemetry.sh but automatic
             try:
-                _start_background_prometheus()
-                print("   [AUTO] Auto-telemetry: Background Prometheus -> Grafana Cloud")
+                if not is_test_environment():
+                    _start_background_prometheus()
+                    print("   [AUTO] Auto-telemetry: Background Prometheus -> Grafana Cloud")
+                else:
+                    print("   [METRICS] Background Prometheus skipped in test environment")
             except Exception:
                 print("   [METRICS] Local metrics: Available at :8000/metrics")
                 print(

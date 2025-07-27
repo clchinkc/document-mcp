@@ -319,6 +319,9 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             }
             ```
         """
+        # Debug: Track if create_document tool is called
+        print(f"[CREATE_DOC_DEBUG] create_document tool called with name: '{document_name}'")
+        
         # Validate input
         is_valid, error_msg = validate_document_name(document_name)
         if not is_valid:
