@@ -183,6 +183,11 @@ class Settings(BaseSettings):
             server_env["PYTEST_CURRENT_TEST"] = "1"
             if self.document_root_dir != ".documents_storage":
                 server_env["DOCUMENT_ROOT_DIR"] = self.document_root_dir
+        
+        # CRITICAL: Always ensure DOCUMENT_ROOT_DIR is passed if set in environment
+        # This handles the Windows CI issue where environment inheritance fails
+        if "DOCUMENT_ROOT_DIR" in os.environ:
+            server_env["DOCUMENT_ROOT_DIR"] = os.environ["DOCUMENT_ROOT_DIR"]
 
         return server_env
 
