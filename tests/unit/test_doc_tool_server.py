@@ -19,6 +19,8 @@ from document_mcp.helpers import DOCUMENT_SUMMARY_FILE
 from document_mcp.helpers import _count_words
 from document_mcp.helpers import _get_modification_history_path
 from document_mcp.helpers import _get_snapshots_path
+from document_mcp.helpers import _get_summaries_path
+from document_mcp.helpers import _get_summary_file_path
 from document_mcp.helpers import _is_valid_chapter_filename
 from document_mcp.helpers import _resolve_operation_dependencies
 from document_mcp.helpers import _split_into_paragraphs
@@ -197,8 +199,9 @@ class TestSafetyHelperFunctions:
         try:
             # Reset settings singleton to pick up environment change
             from document_mcp.config.settings import reset_settings
+
             reset_settings()
-            
+
             from document_mcp.utils.file_operations import DOCS_ROOT_PATH
 
             result = _get_snapshots_path("test_doc")
@@ -246,8 +249,9 @@ class TestSafetyHelperFunctions:
         try:
             # Reset settings singleton to pick up environment change
             from document_mcp.config.settings import reset_settings
+
             reset_settings()
-            
+
             from document_mcp.utils.file_operations import DOCS_ROOT_PATH
 
             result = _get_modification_history_path("test_doc")
@@ -319,6 +323,100 @@ class TestSafetyHelperFunctions:
         assert not result.is_fresh
         assert result.safety_status == "warning"
         assert "Content was modified" in result.message
+
+
+class TestSummaryHelperFunctions:
+    """Test suite for summary helper functions."""
+
+    def test_get_summaries_path_with_default_root(self):
+        """Test summaries path generation with default DOCS_ROOT_PATH."""
+        import os
+
+        # Test without DOCUMENT_ROOT_DIR environment variable (production behavior)
+        old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
+        if "DOCUMENT_ROOT_DIR" in os.environ:
+            del os.environ["DOCUMENT_ROOT_DIR"]
+
+        try:
+            # Reset settings singleton to pick up environment change
+            from document_mcp.config.settings import reset_settings
+
+            reset_settings()
+
+            from document_mcp.utils.file_operations import DOCS_ROOT_PATH
+
+            result = _get_summaries_path("test_doc")
+            expected = (DOCS_ROOT_PATH / "test_doc" / "summaries").resolve()
+            assert result == expected
+        finally:
+            # Restore environment
+            if old_doc_root:
+                os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
+            # Reset settings again to pick up the restored environment
+            reset_settings()
+
+    def test_get_summaries_path_with_custom_root(self):
+        """Test summaries path generation with custom DOCUMENT_ROOT_DIR."""
+        import os
+        import tempfile
+        from pathlib import Path
+
+        # Test with DOCUMENT_ROOT_DIR environment variable (test isolation behavior)
+        old_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            os.environ["DOCUMENT_ROOT_DIR"] = temp_dir
+
+            try:
+                result = _get_summaries_path("test_doc")
+                expected = (Path(temp_dir) / "test_doc" / "summaries").resolve()
+                assert result == expected
+            finally:
+                # Restore environment
+                if old_doc_root:
+                    os.environ["DOCUMENT_ROOT_DIR"] = old_doc_root
+                else:
+                    if "DOCUMENT_ROOT_DIR" in os.environ:
+                        del os.environ["DOCUMENT_ROOT_DIR"]
+
+    def test_get_summary_file_path_document_scope(self):
+        """Test summary file path generation for document scope."""
+        result = _get_summary_file_path("test_doc", "document", None)
+        assert result.name == "document.md"
+        assert result.parent.name == "summaries"
+
+    def test_get_summary_file_path_chapter_scope(self):
+        """Test summary file path generation for chapter scope."""
+        result = _get_summary_file_path("test_doc", "chapter", "01-intro.md")
+        assert result.name == "chapter-01-intro.md"
+        assert result.parent.name == "summaries"
+
+    def test_get_summary_file_path_section_scope(self):
+        """Test summary file path generation for section scope."""
+        result = _get_summary_file_path("test_doc", "section", "introduction")
+        assert result.name == "section-introduction.md"
+        assert result.parent.name == "summaries"
+
+    def test_get_summary_file_path_chapter_scope_missing_target(self):
+        """Test that chapter scope requires target_name."""
+        import pytest
+
+        with pytest.raises(ValueError, match="target_name is required for chapter scope"):
+            _get_summary_file_path("test_doc", "chapter", None)
+
+    def test_get_summary_file_path_section_scope_missing_target(self):
+        """Test that section scope requires target_name."""
+        import pytest
+
+        with pytest.raises(ValueError, match="target_name is required for section scope"):
+            _get_summary_file_path("test_doc", "section", None)
+
+    def test_get_summary_file_path_invalid_scope(self):
+        """Test that invalid scope raises ValueError."""
+        import pytest
+
+        with pytest.raises(ValueError, match="Invalid scope.*Must be 'document', 'chapter', or 'section'"):
+            _get_summary_file_path("test_doc", "invalid", None)
 
 
 class TestBatchOperations:

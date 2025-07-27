@@ -41,7 +41,7 @@ document-mcp/
 ├── document_mcp/           # Core MCP server package
 │   ├── doc_tool_server.py  # Main server
 │   ├── models.py           # Pydantic models
-│   ├── tools/              # 24 MCP tools across 6 categories
+│   ├── tools/              # 25 MCP tools across 6 categories
 │   ├── utils/              # Validation and file operations
 │   └── [logging, metrics]  # OpenTelemetry + Prometheus
 ├── src/agents/             # AI agent implementations
@@ -117,9 +117,9 @@ scripts/development/telemetry/scripts/start.sh
 - **Ideal for**: Complex workflows, step-by-step planning, production environments
 - **Avoid for**: Simple operations, performance-critical scenarios, structured JSON output requirements
 
-## Tool Categories (24 MCP Tools)
+## Tool Categories (25 MCP Tools)
 
-- **Document Tools (4)**: Document management and lifecycle operations
+- **Document Tools (6)**: Document management, lifecycle operations, and fine-grain summaries
 - **Chapter Tools (5)**: Chapter creation, editing, and management
 - **Paragraph Tools (7)**: Atomic paragraph operations with automatic snapshot protection
 - **Content Tools (5)**: Unified content access, search, replacement, statistics, and semantic search
@@ -130,6 +130,7 @@ scripts/development/telemetry/scripts/start.sh
 
 - **Automatic Snapshot System**: Universal edit operation protection with user tracking across all 15 content-modifying tools
 - **Atomic paragraph operations** (replace, insert, delete, move) with automatic snapshot protection
+- **Fine-grain Summary System**: Organized storage structure with scope-based summaries (document, chapter, section) in dedicated `summaries/` directory
 - **Scope-based content tools** (read, find, replace, statistics, semantic search) with unified document/chapter/paragraph access
 - **Sequential batch processing** with conflict detection, dependency resolution, and atomic rollback capabilities
 - **Semantic Search**: AI-powered content discovery using embeddings for contextual similarity matching
@@ -237,7 +238,10 @@ Complex Reasoning → ReAct Agent + batch_apply_operations (reasoning + atomic e
 ├── document_name/           # Document directory
 │   ├── 01-chapter.md       # Ordered chapter files
 │   ├── 02-chapter.md
-│   ├── _SUMMARY.md         # Optional summary file
+│   ├── summaries/          # Fine-grain summary system
+│   │   ├── document.md     # Document-level summary
+│   │   ├── 01-chapter.md   # Chapter-specific summary
+│   │   └── overview.md     # Section-level summary
 │   ├── .snapshots/         # Automatic snapshots directory
 │   │   ├── snapshot_20250712_150000_create_chapter_clchinkc/
 │   │   └── snapshot_20250712_150030_replace_paragraph_clchinkc/
@@ -461,17 +465,18 @@ def test_agent_logic(mock_complete_test_environment):
 
 ## Test Status Summary
 
-**Status: PRODUCTION READY - 296/296 tests passing (100%)**
+**Status: PRODUCTION READY - 305/305 tests passing (100%)**
 
 | Test Tier | Tests | Status | Duration | Coverage |
 |-----------|-------|---------|----------|----------|
-| Unit | 131 | 100% | 1.3s | Core tools, validation, semantic search |
-| Integration | 155 | 100% | 17.3s | MCP transport, tool execution |
+| Unit | 139 | 100% | 1.4s | Core tools, validation, semantic search, fine-grain summaries |
+| Integration | 160 | 100% | 18.1s | MCP transport, tool execution, summary workflows |
 | E2E | 6 | 100% | 2.9m | Real APIs, full workflows |
 | Evaluation | 4 | 100% | 27s | Performance benchmarks |
 
 **Key Features Validated:**
-- Modular architecture with 24 MCP tools across 6 categories
+- Modular architecture with 25 MCP tools across 6 categories
+- Fine-grain summary system with organized storage structure
 - Universal snapshot protection system
 - Semantic search with embedding cache (80-90% API reduction)
 - Two-agent architecture (Simple/ReAct) with comprehensive error handling

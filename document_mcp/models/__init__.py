@@ -2,7 +2,7 @@
 
 Modern modular architecture with domain-driven design:
 - analysis: Analytics, statistics, and semantic search models
-- batch: Batch operation and execution models  
+- batch: Batch operation and execution models
 - content: Document and chapter content models
 - core: Base operation and status models
 - documents: Document metadata and structure models

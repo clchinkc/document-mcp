@@ -136,4 +136,3 @@ def search_test_content() -> dict[str, str]:
         "chapter2.md": "Another instance of the keyword in different chapter.",
         "chapter3.md": "No special terms in this chapter content.",
     }
-

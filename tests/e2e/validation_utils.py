@@ -41,7 +41,7 @@ class DocumentSystemValidator:
             if doc_path.exists():
                 break
             if attempt < max_retries - 1:
-                time.sleep(0.1)  # Brief delay before retry
+                time.sleep(0.05)  # Brief delay before retry
 
         assert doc_path.exists(), f"Document directory '{doc_name}' does not exist at {doc_path}"
         assert doc_path.is_dir(), f"Document path '{doc_path}' exists but is not a directory"

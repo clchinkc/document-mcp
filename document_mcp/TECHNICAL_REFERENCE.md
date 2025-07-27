@@ -4,7 +4,7 @@ This document provides detailed technical information about the Document-MCP ser
 
 ## MCP Tools Reference
 
-The server exposes 24 MCP tools organized in 6 functional categories via the Model Context Protocol. All tools include comprehensive error handling, structured logging, and automatic safety features.
+The server exposes 25 MCP tools organized in 6 functional categories via the Model Context Protocol. All tools include comprehensive error handling, structured logging, and automatic safety features.
 
 **Key Features:**
 - 🛡️ **Universal Safety**: Automatic snapshots for all write operations
@@ -13,14 +13,16 @@ The server exposes 24 MCP tools organized in 6 functional categories via the Mod
 - ⚡ **Batch Processing**: Atomic multi-operation execution with rollback
 - 🔍 **Semantic Search**: AI-powered content discovery with embedding cache
 
-### Document Tools (4 tools)
+### Document Tools (6 tools)
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
 | `list_documents` | - | Lists all available documents with metadata |
 | `create_document` | `document_name: str` | Creates a new document directory |
 | `delete_document` | `document_name: str` | Deletes a document and all its chapters |
-| `read_document_summary` | `document_name: str` | Retrieve the content of a document's summary file (_SUMMARY.md). |
+| `read_summary` | `document_name: str`, `scope: str = "document"`, `target_name: str \| None = None` | Read summary files with flexible scope (document, chapter, section) |
+| `write_summary` | `document_name: str`, `summary_content: str`, `scope: str = "document"`, `target_name: str \| None = None` | Write or update summary files with flexible scope (document, chapter, section) |
+| `list_summaries` | `document_name: str` | List all available summary files for a document |
 
 ### Chapter Tools (5 tools)
 
@@ -86,6 +88,37 @@ The server uses Pydantic models for structured data exchange:
 - `SnapshotsList`: A list of snapshots for a document
 - `BatchOperation`: A single operation within a batch
 - `BatchApplyResult`: The result of a batch operation
+- `DocumentSummary`: Summary content with scope and target information
+
+## Fine-Grain Summary System
+
+The Document MCP system implements a sophisticated summary management system that supports multiple scopes and organized storage:
+
+### Summary Scopes
+
+- **Document Scope** (`scope="document"`): Overall document summaries stored as `summaries/document.md`
+- **Chapter Scope** (`scope="chapter"`, `target_name="chapter_name"`): Chapter-specific summaries stored as `summaries/{chapter_name}`
+- **Section Scope** (`scope="section"`, `target_name="section_name"`): Thematic summaries stored as `summaries/{section_name}.md`
+
+### Storage Organization
+
+```
+document_name/
+├── 01-chapter.md
+├── 02-chapter.md
+└── summaries/          # Organized summary storage
+    ├── document.md     # Document-level summary
+    ├── 01-chapter.md   # Chapter summary
+    └── overview.md     # Section summary
+```
+
+### Key Features
+
+- **Organized Storage**: Clean separation from content files in dedicated `summaries/` directory
+- **Flexible Scoping**: Support for document, chapter, and section-level summaries
+- **No Legacy Support**: No backward compatibility with old `_SUMMARY.md` files
+- **Batch Integration**: Full support for batch operations and atomic transactions
+- **Safety Features**: Automatic snapshot protection for all summary modifications
 
 ## Requirements
 
@@ -110,7 +143,7 @@ This project uses modern Python development tools for enhanced performance:
 ### Development Commands
 
 ```bash
-# Install dependencies
+# Install dev dependencies
 uv sync --all-extras
 
 # Code quality checks

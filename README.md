@@ -153,7 +153,7 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 - **🛡️ Built-in Safety Features**: Write-safety system, automatic micro-snapshots, and comprehensive version control prevent content loss.
 - **📁 Document Structure**: Organize content as directories with chapter files.
-- **🔧 24 MCP Tools**: Comprehensive document manipulation API organized in 6 functional categories with tools for atomic paragraph operations, content analysis, semantic search, and more.
+- **🔧 25 MCP Tools**: Comprehensive document manipulation API organized in 6 functional categories with tools for atomic paragraph operations, content analysis, semantic search, fine-grain summaries, and more.
 - **🤖 AI Agents**: 
     - **Simple Agent**: Stateless, single-turn execution for discrete operations.
     - **ReAct Agent**: Stateful, multi-turn agent for complex workflows.
@@ -203,9 +203,9 @@ Document MCP includes comprehensive safety features designed to prevent content 
 document-mcp/
 ├── document_mcp/           # Core MCP server package
 │   ├── doc_tool_server.py  # Main server with modular tool registrations
-│   ├── tools/              # Modular tool architecture (24 tools)
+│   ├── tools/              # Modular tool architecture (25 tools)
 │   │   ├── __init__.py     # Tool registration system
-│   │   ├── document_tools.py    # Document management (4 tools)
+│   │   ├── document_tools.py    # Document management (6 tools)
 │   │   ├── chapter_tools.py     # Chapter operations (5 tools)
 │   │   ├── paragraph_tools.py   # Paragraph editing (7 tools)
 │   │   ├── content_tools.py     # Unified content access (5 tools)

@@ -6,7 +6,6 @@ It provides validation, text processing, file operations, and other utility func
 
 import datetime
 import difflib
-import os
 import re
 from pathlib import Path
 from typing import Any
@@ -16,9 +15,6 @@ from .logger_config import ErrorCategory
 from .logger_config import log_structured_error
 from .models import ChapterContent
 from .models import ChapterMetadata
-
-# Import DOCS_ROOT_PATH from main module to ensure environment variable updates work
-from .utils.file_operations import DOCS_ROOT_PATH
 from .utils.validation import CHAPTER_MANIFEST_FILE
 
 # Document-specific constants
@@ -71,25 +67,14 @@ def _generate_content_diff(
 
 def _get_document_path(document_name: str) -> Path:
     """Return the full path for a given document name."""
-    # Use centralized settings system which handles environment variables 
+    # Use centralized settings system which handles environment variables
     # and path resolution consistently across the codebase
     from .config import get_settings
-    import os
-    
-    # Debug: Show environment variables and path resolution
-    doc_root_env = os.environ.get("DOCUMENT_ROOT_DIR")
-    print(f"[PATH_DEBUG] _get_document_path called for '{document_name}'")
-    print(f"[PATH_DEBUG] DOCUMENT_ROOT_DIR env var: {doc_root_env}")
-    
+
     settings = get_settings()
-    print(f"[PATH_DEBUG] Settings document_root_dir: {settings.document_root_dir}")
-    
     root_path = settings.document_root_path
-    print(f"[PATH_DEBUG] Resolved document_root_path: {root_path}")
-    
     final_path = root_path / document_name
-    print(f"[PATH_DEBUG] Final document path: {final_path}")
-    
+
     return final_path
 
 
@@ -107,9 +92,7 @@ def _is_valid_chapter_filename(filename: str) -> bool:
     """
     if not filename.lower().endswith(".md"):
         return False
-    if filename in (CHAPTER_MANIFEST_FILE, DOCUMENT_SUMMARY_FILE):
-        return False
-    return True
+    return filename not in (CHAPTER_MANIFEST_FILE, DOCUMENT_SUMMARY_FILE)
 
 
 def _get_ordered_chapter_files(document_name: str) -> list[Path]:
@@ -124,6 +107,7 @@ def _get_ordered_chapter_files(document_name: str) -> list[Path]:
 
     # For now, simple alphanumeric sort of .md files.
     # Future: could read CHAPTER_MANIFEST_FILE for explicit order.
+    # Exclude files in subdirectories (like summaries/, .snapshots/, .embeddings/)
     chapter_files = sorted(
         [f for f in doc_path.iterdir() if f.is_file() and _is_valid_chapter_filename(f.name)]
     )
@@ -247,6 +231,32 @@ def _get_chapter_embeddings_path(document_name: str, chapter_name: str) -> Path:
     """Return the path to chapter-specific embeddings directory."""
     embeddings_path = _get_embeddings_path(document_name)
     return embeddings_path / chapter_name
+
+
+def _get_summaries_path(document_name: str) -> Path:
+    """Return the path to the summaries directory for a document."""
+    doc_path = _get_document_path(document_name)
+    return doc_path / "summaries"
+
+
+def _get_summary_file_path(document_name: str, scope: str, target_name: str | None) -> Path:
+    """Return the path to a specific summary file based on scope and target."""
+    summaries_path = _get_summaries_path(document_name)
+
+    if scope == "document":
+        return summaries_path / "document.md"
+    elif scope == "chapter":
+        if target_name is None:
+            raise ValueError("target_name is required for chapter scope")
+        # Extract base name from chapter filename for summary filename
+        base_name = target_name.replace(".md", "")
+        return summaries_path / f"chapter-{base_name}.md"
+    elif scope == "section":
+        if target_name is None:
+            raise ValueError("target_name is required for section scope")
+        return summaries_path / f"section-{target_name}.md"
+    else:
+        raise ValueError(f"Invalid scope: {scope}. Must be 'document', 'chapter', or 'section'")
 
 
 def _resolve_operation_dependencies(

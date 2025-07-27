@@ -169,11 +169,12 @@ def main():
 
     # Debug: Show environment variables received by MCP server subprocess
     import os
+
     doc_root_env = os.environ.get("DOCUMENT_ROOT_DIR")
     pytest_env = os.environ.get("PYTEST_CURRENT_TEST")
     print(f"[MCP_SERVER_DEBUG] MCP server received DOCUMENT_ROOT_DIR: {doc_root_env}")
     print(f"[MCP_SERVER_DEBUG] MCP server received PYTEST_CURRENT_TEST: {pytest_env}")
-    
+
     # This print will show the path used by the subprocess
     try:
         root_path = DOCS_ROOT_PATH.resolve()
@@ -184,27 +185,28 @@ def main():
         print(f"[MCP_SERVER_DEBUG] Error resolving DOCS_ROOT_PATH: {e}")
         print(f"Document tool server starting. Tools exposed by '{mcp_server.name}':")
         print(f"Serving tools for root directory: {DOCS_ROOT_PATH}")
-    
+
     # Debug: Show platform and current working directory
-    import platform
     import os
+    import platform
+
     print(f"[MCP_SERVER_DEBUG] Platform: {platform.system()}")
     print(f"[MCP_SERVER_DEBUG] Current working directory: {os.getcwd()}")
     print(f"[MCP_SERVER_DEBUG] Python executable: {os.sys.executable}")
-    
+
     # Check if documents directory will be created in expected location
     if doc_root_env:
         try:
             expected_docs_path = Path(doc_root_env).resolve()
             print(f"[MCP_SERVER_DEBUG] Expected documents path: {expected_docs_path}")
             if expected_docs_path.exists():
-                print(f"[MCP_SERVER_DEBUG] Expected path exists: True")
+                print("[MCP_SERVER_DEBUG] Expected path exists: True")
             else:
-                print(f"[MCP_SERVER_DEBUG] Expected path exists: False - will create")
+                print("[MCP_SERVER_DEBUG] Expected path exists: False - will create")
         except Exception as e:
             print(f"[MCP_SERVER_DEBUG] Error processing expected path {doc_root_env}: {e}")
     else:
-        print(f"[MCP_SERVER_DEBUG] No DOCUMENT_ROOT_DIR env var - using default")
+        print("[MCP_SERVER_DEBUG] No DOCUMENT_ROOT_DIR env var - using default")
 
     # Show automatic telemetry status
     try:
@@ -216,7 +218,7 @@ def main():
             print(f"   Service: {summary['service_name']} v{summary['service_version']}")
             print(f"   Environment: {summary['environment']}")
         elif summary["status"] == "shutdown":
-            print(f"[INFO] Telemetry: shutdown after inactivity")
+            print("[INFO] Telemetry: shutdown after inactivity")
         elif summary["status"] == "disabled":
             print(f"[INFO] Telemetry: {summary.get('reason', 'disabled')}")
         else:

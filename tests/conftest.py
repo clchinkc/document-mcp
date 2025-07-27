@@ -4,12 +4,11 @@ This provides essential fixtures using the new test environment management
 infrastructure for cleaner and more maintainable test setup.
 """
 
-
 import pytest
 from dotenv import load_dotenv
 
-from .shared.test_environment import TemporaryDocumentRoot
 from .shared.test_environment import EnvironmentManager
+from .shared.test_environment import TemporaryDocumentRoot
 from .shared.test_environment import check_api_key_available
 
 # Load environment variables
@@ -19,7 +18,7 @@ load_dotenv()
 @pytest.fixture
 def temp_docs_root():
     """Provide a temporary directory for document storage with environment management.
-    
+
     Uses the new EnvironmentManager for cleaner setup and automatic cleanup.
     """
     env_manager = EnvironmentManager()
@@ -33,6 +32,7 @@ def temp_docs_root():
 @pytest.fixture
 def document_factory(temp_docs_root):
     """Factory for creating test documents."""
+
     def _create_document(doc_name: str, chapters: dict = None):
         doc_path = temp_docs_root / doc_name
         doc_path.mkdir(exist_ok=True)

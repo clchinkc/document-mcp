@@ -56,6 +56,7 @@ def is_test_environment():
         or "DOCUMENT_ROOT_DIR" in os.environ
         or "CI" in os.environ
         or "GITHUB_ACTIONS" in os.environ
+        or "RUNNER_OS" in os.environ  # GitHub Actions runner
     )
 
 
@@ -64,8 +65,8 @@ default_metrics_enabled = "false" if is_test_environment() else "true"
 METRICS_ENABLED = os.getenv("MCP_METRICS_ENABLED", default_metrics_enabled).lower() == "true"
 
 # Auto-shutdown configuration
-# Default 5 minutes - enough time for multiple Prometheus scrapes and remote write
-INACTIVITY_TIMEOUT = int(os.getenv("MCP_METRICS_INACTIVITY_TIMEOUT", "30"))  # 5 minutes default
+# Default 2 minutes - enough time for multiple Prometheus scrapes and remote write
+INACTIVITY_TIMEOUT = int(os.getenv("MCP_METRICS_INACTIVITY_TIMEOUT", "120"))  # 2 minutes default
 _last_activity_time = time.time()
 _shutdown_timer = None
 
@@ -305,11 +306,21 @@ def _start_background_prometheus():
     """Start background Prometheus server for automatic Grafana Cloud forwarding."""
     import os
     import shutil
+    import subprocess
     import threading
 
     # Check if Prometheus is available
     if not shutil.which("prometheus"):
         raise Exception("Prometheus not found - install with: brew install prometheus")
+
+    # Simple check: don't start if any prometheus mcp processes already exist
+    try:
+        result = subprocess.run(["pgrep", "-f", "prometheus.*mcp"], capture_output=True, text=True)
+        if result.returncode == 0:  # Processes found
+            print("   [METRICS] Background Prometheus already running, skipping")
+            return
+    except:
+        pass  # If pgrep fails, continue anyway
 
     # Create minimal prometheus config for agent metrics
     prometheus_config = f"""
@@ -697,15 +708,16 @@ def _auto_shutdown_metrics():
 
         # First try gentle termination with SIGTERM
         result = subprocess.run(["pkill", "-f", "prometheus.*mcp"], capture_output=True)
-        
+
         # Wait a moment for graceful shutdown
         import time
+
         time.sleep(2)
-        
+
         # Check if any are still running and force kill them
         check_result = subprocess.run(["pgrep", "-f", "prometheus.*mcp"], capture_output=True, text=True)
         if check_result.returncode == 0:  # Still running
-            pids = check_result.stdout.strip().split('\n')
+            pids = check_result.stdout.strip().split("\n")
             for pid in pids:
                 if pid.strip():
                     try:
@@ -715,7 +727,7 @@ def _auto_shutdown_metrics():
             print(f"[METRICS] Force-killed {len(pids)} persistent Prometheus processes")
         else:
             print("[METRICS] Background Prometheus processes stopped gracefully")
-            
+
     except Exception as e:
         print(f"[METRICS] Warning: Could not stop Prometheus processes: {e}")
 
@@ -972,6 +984,11 @@ def initialize_metrics():
         # Start auto-shutdown timer
         _update_activity()
 
+        # Register cleanup on process exit
+        import atexit
+
+        atexit.register(shutdown_metrics)
+
         print("[OK] Document MCP telemetry active for Prometheus scraping")
         print(f"   Service: {SERVICE_NAME} v{SERVICE_VERSION}")
         print(f"   Environment: {DEPLOYMENT_ENVIRONMENT}")
@@ -1173,6 +1190,13 @@ def instrument_tool(func):
 # Only initialize metrics if explicitly enabled and not in test environment
 # This prevents automatic metrics collection during testing or CI
 if METRICS_ENABLED and not is_test_environment():
+    # Quick cleanup of any orphaned processes before starting
+    try:
+        subprocess.run(
+            ["pkill", "-f", "prometheus.*mcp.*--storage.tsdb.retention.time.*1h"], capture_output=True
+        )
+    except:
+        pass
     initialize_metrics()
 else:
     print(

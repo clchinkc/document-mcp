@@ -28,15 +28,15 @@ class MockDataFactory:
         document_name: str = "test_doc",
         chapter_count: int = 3,
         word_count: int = 1000,
-        paragraph_count: int = 50
+        paragraph_count: int = 50,
     ) -> DocumentInfo:
         """Create a mock DocumentInfo object."""
         chapters = []
         for i in range(chapter_count):
             chapter = MockDataFactory.create_chapter_metadata(
-                chapter_name=f"chapter_{i+1:02d}.md",
+                chapter_name=f"chapter_{i + 1:02d}.md",
                 word_count=word_count // chapter_count,
-                paragraph_count=paragraph_count // chapter_count
+                paragraph_count=paragraph_count // chapter_count,
             )
             chapters.append(chapter)
 
@@ -47,7 +47,7 @@ class MockDataFactory:
             total_paragraph_count=paragraph_count,
             last_modified=datetime.datetime.now(),
             chapters=chapters,
-            has_summary=False
+            has_summary=False,
         )
 
     @staticmethod
@@ -55,7 +55,7 @@ class MockDataFactory:
         chapter_name: str = "chapter_01.md",
         title: str | None = None,
         word_count: int = 300,
-        paragraph_count: int = 15
+        paragraph_count: int = 15,
     ) -> ChapterMetadata:
         """Create a mock ChapterMetadata object."""
         return ChapterMetadata(
@@ -63,7 +63,7 @@ class MockDataFactory:
             title=title or f"Chapter {chapter_name.split('_')[1].split('.')[0]}",
             word_count=word_count,
             paragraph_count=paragraph_count,
-            last_modified=datetime.datetime.now()
+            last_modified=datetime.datetime.now(),
         )
 
     @staticmethod
@@ -72,13 +72,13 @@ class MockDataFactory:
         chapter_name: str = "chapter_01.md",
         content: str = "# Test Chapter\n\nThis is test content.",
         word_count: int | None = None,
-        paragraph_count: int | None = None
+        paragraph_count: int | None = None,
     ) -> ChapterContent:
         """Create a mock ChapterContent object."""
         if word_count is None:
             word_count = len(content.split())
         if paragraph_count is None:
-            paragraph_count = len([p for p in content.split('\n\n') if p.strip()])
+            paragraph_count = len([p for p in content.split("\n\n") if p.strip()])
 
         return ChapterContent(
             document_name=document_name,
@@ -86,20 +86,19 @@ class MockDataFactory:
             content=content,
             word_count=word_count,
             paragraph_count=paragraph_count,
-            last_modified=datetime.datetime.now()
+            last_modified=datetime.datetime.now(),
         )
 
     @staticmethod
     def create_full_document_content(
-        document_name: str = "test_doc",
-        chapter_contents: list[str] | None = None
+        document_name: str = "test_doc", chapter_contents: list[str] | None = None
     ) -> FullDocumentContent:
         """Create a mock FullDocumentContent object."""
         if chapter_contents is None:
             chapter_contents = [
                 "# Chapter 1\n\nFirst chapter content.",
                 "# Chapter 2\n\nSecond chapter content.",
-                "# Chapter 3\n\nThird chapter content."
+                "# Chapter 3\n\nThird chapter content.",
             ]
 
         chapters = []
@@ -108,9 +107,7 @@ class MockDataFactory:
 
         for i, content in enumerate(chapter_contents):
             chapter = MockDataFactory.create_chapter_content(
-                document_name=document_name,
-                chapter_name=f"chapter_{i+1:02d}.md",
-                content=content
+                document_name=document_name, chapter_name=f"chapter_{i + 1:02d}.md", content=content
             )
             chapters.append(chapter)
             total_words += chapter.word_count
@@ -120,7 +117,7 @@ class MockDataFactory:
             document_name=document_name,
             chapters=chapters,
             total_word_count=total_words,
-            total_paragraph_count=total_paragraphs
+            total_paragraph_count=total_paragraphs,
         )
 
     @staticmethod
@@ -128,14 +125,11 @@ class MockDataFactory:
         scope: str = "document: test_doc",
         word_count: int = 1000,
         paragraph_count: int = 50,
-        chapter_count: int | None = 3
+        chapter_count: int | None = 3,
     ) -> StatisticsReport:
         """Create a mock StatisticsReport object."""
         return StatisticsReport(
-            scope=scope,
-            word_count=word_count,
-            paragraph_count=paragraph_count,
-            chapter_count=chapter_count
+            scope=scope, word_count=word_count, paragraph_count=paragraph_count, chapter_count=chapter_count
         )
 
     @staticmethod
@@ -145,7 +139,7 @@ class MockDataFactory:
         paragraph_index: int = 0,
         content: str = "This is matching content.",
         similarity_score: float = 0.85,
-        context_snippet: str | None = None
+        context_snippet: str | None = None,
     ) -> SemanticSearchResult:
         """Create a mock SemanticSearchResult object."""
         return SemanticSearchResult(
@@ -154,7 +148,7 @@ class MockDataFactory:
             paragraph_index=paragraph_index,
             content=content,
             similarity_score=similarity_score,
-            context_snippet=context_snippet or f"...{content}..."
+            context_snippet=context_snippet or f"...{content}...",
         )
 
     @staticmethod
@@ -163,20 +157,17 @@ class MockDataFactory:
         scope: str = "document",
         query_text: str = "test query",
         results: list[SemanticSearchResult] | None = None,
-        execution_time_ms: float = 50.0
+        execution_time_ms: float = 50.0,
     ) -> SemanticSearchResponse:
         """Create a mock SemanticSearchResponse object."""
         if results is None:
             results = [
                 MockDataFactory.create_semantic_search_result(
-                    document_name=document_name,
-                    similarity_score=0.9
+                    document_name=document_name, similarity_score=0.9
                 ),
                 MockDataFactory.create_semantic_search_result(
-                    document_name=document_name,
-                    chapter_name="chapter_02.md",
-                    similarity_score=0.8
-                )
+                    document_name=document_name, chapter_name="chapter_02.md", similarity_score=0.8
+                ),
             ]
 
         return SemanticSearchResponse(
@@ -185,7 +176,7 @@ class MockDataFactory:
             query_text=query_text,
             results=results,
             total_results=len(results),
-            execution_time_ms=execution_time_ms
+            execution_time_ms=execution_time_ms,
         )
 
     @staticmethod
@@ -194,7 +185,7 @@ class MockDataFactory:
         operation_type: str = "test_operation",
         result_data: dict[str, Any] | None = None,
         error: str | None = None,
-        execution_time_ms: float = 10.0
+        execution_time_ms: float = 10.0,
     ) -> OperationResult:
         """Create a mock OperationResult object."""
         return OperationResult(
@@ -202,7 +193,7 @@ class MockDataFactory:
             operation_type=operation_type,
             result_data=result_data or {"message": "Operation completed"},
             error=error,
-            execution_time_ms=execution_time_ms
+            execution_time_ms=execution_time_ms,
         )
 
     @staticmethod
@@ -210,7 +201,7 @@ class MockDataFactory:
         success: bool = True,
         operation_count: int = 3,
         successful_count: int | None = None,
-        execution_time_ms: float = 100.0
+        execution_time_ms: float = 100.0,
     ) -> BatchApplyResult:
         """Create a mock BatchApplyResult object."""
         if successful_count is None:
@@ -221,17 +212,14 @@ class MockDataFactory:
         operation_results = []
         for i in range(successful_count):
             operation_results.append(
-                MockDataFactory.create_operation_result(
-                    success=True,
-                    operation_type=f"operation_{i+1}"
-                )
+                MockDataFactory.create_operation_result(success=True, operation_type=f"operation_{i + 1}")
             )
         for i in range(failed_count):
             operation_results.append(
                 MockDataFactory.create_operation_result(
                     success=False,
-                    operation_type=f"operation_{successful_count+i+1}",
-                    error="Mock operation failed"
+                    operation_type=f"operation_{successful_count + i + 1}",
+                    error="Mock operation failed",
                 )
             )
 
@@ -243,7 +231,7 @@ class MockDataFactory:
             execution_time_ms=execution_time_ms,
             rollback_performed=not success,
             operation_results=operation_results,
-            summary=f"Batch completed: {successful_count}/{operation_count} successful"
+            summary=f"Batch completed: {successful_count}/{operation_count} successful",
         )
 
 
@@ -265,22 +253,14 @@ class MockMCPClientFactory:
 
     @staticmethod
     def create_mcp_response_mock(
-        tool_name: str,
-        success: bool = True,
-        result: dict[str, Any] | None = None,
-        error: str | None = None
+        tool_name: str, success: bool = True, result: dict[str, Any] | None = None, error: str | None = None
     ) -> dict[str, Any]:
         """Create a mock MCP tool response."""
         if result is None:
             result = {"message": f"Mock {tool_name} completed successfully"}
 
         response = {
-            "content": [
-                {
-                    "type": "text",
-                    "text": str(result) if success else str(error or "Mock error")
-                }
-            ]
+            "content": [{"type": "text", "text": str(result) if success else str(error or "Mock error")}]
         }
 
         if not success:
@@ -294,8 +274,7 @@ class MockLLMFactory:
 
     @staticmethod
     def create_agent_result_mock(
-        content: str = "Mock agent response",
-        tool_calls: list[dict[str, Any]] | None = None
+        content: str = "Mock agent response", tool_calls: list[dict[str, Any]] | None = None
     ) -> MagicMock:
         """Create a mock agent result object."""
         mock_result = MagicMock()
@@ -317,14 +296,10 @@ class MockLLMFactory:
 
     @staticmethod
     def create_openai_response_mock(
-        content: str = "Mock OpenAI response",
-        tool_calls: list[dict[str, Any]] | None = None
+        content: str = "Mock OpenAI response", tool_calls: list[dict[str, Any]] | None = None
     ) -> dict[str, Any]:
         """Create a mock OpenAI API response."""
-        message = {
-            "role": "assistant",
-            "content": content
-        }
+        message = {"role": "assistant", "content": content}
 
         if tool_calls:
             message["tool_calls"] = [
@@ -333,24 +308,15 @@ class MockLLMFactory:
                     "type": "function",
                     "function": {
                         "name": tool_call.get("name", "test_tool"),
-                        "arguments": str(tool_call.get("args", {}))
-                    }
+                        "arguments": str(tool_call.get("args", {})),
+                    },
                 }
                 for i, tool_call in enumerate(tool_calls)
             ]
 
         return {
-            "choices": [
-                {
-                    "message": message,
-                    "finish_reason": "stop"
-                }
-            ],
-            "usage": {
-                "prompt_tokens": 100,
-                "completion_tokens": 50,
-                "total_tokens": 150
-            }
+            "choices": [{"message": message, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
         }
 
 

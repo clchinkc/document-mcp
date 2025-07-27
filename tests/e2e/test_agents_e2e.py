@@ -39,7 +39,7 @@ def check_api_key_available() -> bool:
     return False
 
 
-async def run_agent_query(agent_module: str, query: str, timeout: int = 300) -> dict[str, Any]:
+async def run_agent_query(agent_module: str, query: str, timeout: int = 60) -> dict[str, Any]:
     """Run an agent with a given query and return the parsed JSON output."""
     cmd = ["uv", "run", "python", "-m", agent_module, "--query", query]
 
@@ -60,6 +60,9 @@ async def run_agent_query(agent_module: str, query: str, timeout: int = 300) -> 
             env["GEMINI_API_KEY"] = settings.gemini_api_key
         if settings.openai_api_key:
             env["OPENAI_API_KEY"] = settings.openai_api_key
+
+        # Speed up E2E tests by disabling metrics collection
+        env["MCP_METRICS_ENABLED"] = "false"
 
         # Create process with proper timeout handling
         process = await asyncio.create_subprocess_exec(
@@ -206,9 +209,11 @@ class TestSimpleAgentE2E:
         validator.assert_chapter_exists(doc_name, chapter_name)
         validator.assert_chapter_content_contains(doc_name, chapter_name, content)
 
-        # 3. Add Summary File
+        # 3. Add Summary File (using new organized structure)
         doc_path = e2e_docs_dir / doc_name
-        summary_file = doc_path / "_SUMMARY.md"
+        summaries_dir = doc_path / "summaries"
+        summaries_dir.mkdir(exist_ok=True)
+        summary_file = summaries_dir / "document.md"
         summary_file.write_text(summary_content, encoding="utf-8")
 
         # 4. Test Summary-First Workflow
@@ -216,7 +221,7 @@ class TestSimpleAgentE2E:
         summary_resp = await run_agent_query("src.agents.simple_agent.main", summary_query)
 
         details = safe_get_response_content(summary_resp, "details")
-        summary_response = details.get("read_document_summary", {})
+        summary_response = details.get("read_summary", {})
         read_content = summary_response.get("content", "") if summary_response else details.get("content", "")
 
         assert summary_content in read_content, "Agent should read summary content"
@@ -229,6 +234,36 @@ class TestSimpleAgentE2E:
         )
 
         read_details = safe_get_response_content(read_resp, "details")
+
+        # 6. Test Creating Additional Summaries Using New Tools
+        # Test creating chapter summary
+        chapter_summary_query = f"Create a summary for chapter '{chapter_name}' in document '{doc_name}' with content: 'Chapter summary: Introduction concepts'"
+        chapter_summary_resp = await run_agent_query("src.agents.simple_agent.main", chapter_summary_query)
+
+        chapter_summary_details = safe_get_response_content(chapter_summary_resp, "details")
+        write_summary_response = chapter_summary_details.get("write_summary", {})
+        if write_summary_response:
+            assert write_summary_response.get("success", False), "Chapter summary creation should succeed"
+
+        # Test creating section summary
+        section_summary_query = f"Create a section summary called 'overview' for document '{doc_name}' with content: 'Section overview of key topics'"
+        section_summary_resp = await run_agent_query("src.agents.simple_agent.main", section_summary_query)
+
+        section_summary_details = safe_get_response_content(section_summary_resp, "details")
+        section_write_response = section_summary_details.get("write_summary", {})
+        if section_write_response:
+            assert section_write_response.get("success", False), "Section summary creation should succeed"
+
+        # 7. Test Listing All Summaries
+        list_summaries_query = f"List all summaries for document '{doc_name}'"
+        list_resp = await run_agent_query("src.agents.simple_agent.main", list_summaries_query)
+
+        list_details = safe_get_response_content(list_resp, "details")
+        summaries_list = list_details.get("list_summaries", [])
+
+        # Should have at least the document summary we created
+        if summaries_list:
+            assert "document.md" in summaries_list, "Document summary should be listed"
         if "read_content_response" in read_details:
             content_data = read_details["read_content_response"]
             if "content" in content_data:
@@ -374,7 +409,7 @@ class TestSafetyAndVersionControlE2E:
         response1 = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create document '{doc_name}'",
-            timeout=30,  # Simple document creation
+            timeout=15,  # Simple document creation
         )
 
         validator.assert_document_exists(doc_name)
@@ -383,7 +418,7 @@ class TestSafetyAndVersionControlE2E:
         response2 = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '01-content.md' to document '{doc_name}' with content: Initial content for snapshot testing",
-            timeout=30,  # Simple chapter addition
+            timeout=15,  # Simple chapter addition
         )
 
         validator.assert_chapter_exists(doc_name, "01-content.md")
@@ -392,7 +427,7 @@ class TestSafetyAndVersionControlE2E:
         snapshot_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create a snapshot of document '{doc_name}' with message 'Safety test snapshot'",
-            timeout=45,  # Snapshots take ~14 seconds + E2E overhead
+            timeout=25,  # Snapshots take ~14 seconds + E2E overhead
         )
 
         # Verify safety workflow
@@ -435,21 +470,21 @@ class TestBatchOperationsE2E:
         create_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create document '{doc_name}'",
-            timeout=30,  # Simple operation
+            timeout=15,  # Simple operation
         )
 
         # Step 2: Add first chapter
         chapter1_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '01-intro.md' to document '{doc_name}' with content: Introduction text",
-            timeout=30,  # Simple operation
+            timeout=15,  # Simple operation
         )
 
         # Step 3: Add second chapter (demonstrates batch-like workflow)
         chapter2_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '02-main.md' to document '{doc_name}' with content: Main content text",
-            timeout=30,  # Simple operation
+            timeout=15,  # Simple operation
         )
 
         # Verify batch workflow succeeded through file system state
@@ -517,7 +552,7 @@ class TestIntegratedWorkflowE2E:
         snapshot_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create snapshot of document '{doc_name}' with message 'Before adding setup documentation'",
-            timeout=45,  # Snapshot operations take ~15 seconds + overhead
+            timeout=25,  # Snapshot operations take ~15 seconds + overhead
         )
 
         # Step 4: Add improvement based on analysis

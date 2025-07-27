@@ -1,6 +1,5 @@
 """Shared configuration for agents using centralized configuration."""
 
-
 from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.models.openai import OpenAIModel
 
@@ -16,6 +15,7 @@ MAX_RETRIES = settings.max_retries
 
 
 AgentSettings = type(settings)
+
 
 def get_agent_settings():
     """Get the centralized settings instance."""

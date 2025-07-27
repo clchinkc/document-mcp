@@ -24,7 +24,7 @@ class AgentFactory:
 
     def register_agent(self, agent_type: str, agent_class: type[AgentBase]) -> None:
         """Register an agent class with the factory.
-        
+
         Args:
             agent_type: Unique identifier for the agent type
             agent_class: Agent class to register
@@ -33,7 +33,7 @@ class AgentFactory:
 
     def get_available_agents(self) -> list[str]:
         """Get list of available agent types.
-        
+
         Returns:
             List of registered agent type names
         """
@@ -41,11 +41,11 @@ class AgentFactory:
 
     def _create_cache_key(self, agent_type: str, **config_params) -> str:
         """Create a cache key for agent instances.
-        
+
         Args:
             agent_type: Type of agent
             **config_params: Configuration parameters
-            
+
         Returns:
             Cache key string
         """
@@ -55,29 +55,24 @@ class AgentFactory:
             "provider": self.settings.active_provider,
             "model": self.settings.active_model,
             "is_test": self.settings.is_test_environment,
-            **config_params
+            **config_params,
         }
 
         # Create a hash of the configuration
         config_str = str(sorted(config_data.items()))
         return hashlib.md5(config_str.encode()).hexdigest()
 
-    async def create_agent(
-        self,
-        agent_type: str,
-        use_cache: bool = True,
-        **config_params
-    ) -> AgentBase:
+    async def create_agent(self, agent_type: str, use_cache: bool = True, **config_params) -> AgentBase:
         """Create or retrieve an agent instance.
-        
+
         Args:
             agent_type: Type of agent to create
             use_cache: Whether to use cached instances
             **config_params: Additional configuration parameters
-            
+
         Returns:
             Agent instance
-            
+
         Raises:
             AgentConfigurationError: If agent type is not registered or creation fails
         """
@@ -85,7 +80,7 @@ class AgentFactory:
             raise AgentConfigurationError(
                 agent_type,
                 f"Agent type '{agent_type}' is not registered. Available types: {list(self._registered_agents.keys())}",
-                details={"available_agents": list(self._registered_agents.keys())}
+                details={"available_agents": list(self._registered_agents.keys())},
             )
 
         # Check cache if enabled
@@ -114,22 +109,18 @@ class AgentFactory:
             raise AgentConfigurationError(
                 agent_type,
                 f"Failed to create {agent_type} agent: {str(e)}",
-                details={"original_error": str(e), "config_params": config_params}
+                details={"original_error": str(e), "config_params": config_params},
             ) from e
 
-    async def get_or_create_agent(
-        self,
-        agent_type: str,
-        **config_params
-    ) -> AgentBase:
+    async def get_or_create_agent(self, agent_type: str, **config_params) -> AgentBase:
         """Get an existing agent or create a new one.
-        
+
         This is a convenience method that always uses caching.
-        
+
         Args:
             agent_type: Type of agent to get/create
             **config_params: Additional configuration parameters
-            
+
         Returns:
             Agent instance
         """
@@ -137,7 +128,7 @@ class AgentFactory:
 
     def clear_cache(self, agent_type: str | None = None) -> None:
         """Clear cached agent instances.
-        
+
         Args:
             agent_type: Specific agent type to clear, or None to clear all
         """
@@ -146,15 +137,14 @@ class AgentFactory:
         else:
             # Clear cache entries for specific agent type
             keys_to_remove = [
-                key for key in self._agent_cache.keys()
-                if self._agent_cache[key].agent_type == agent_type
+                key for key in self._agent_cache.keys() if self._agent_cache[key].agent_type == agent_type
             ]
             for key in keys_to_remove:
                 del self._agent_cache[key]
 
     def get_cache_stats(self) -> dict[str, int]:
         """Get cache statistics.
-        
+
         Returns:
             Dictionary with cache statistics
         """
@@ -172,7 +162,7 @@ class AgentFactory:
         # Close all cached agents if they have cleanup methods
         cleanup_tasks = []
         for agent in self._agent_cache.values():
-            if hasattr(agent, '__aexit__'):
+            if hasattr(agent, "__aexit__"):
                 cleanup_tasks.append(agent.__aexit__(None, None, None))
 
         if cleanup_tasks:
@@ -187,7 +177,7 @@ _global_factory: AgentFactory | None = None
 
 def get_agent_factory() -> AgentFactory:
     """Get the global agent factory instance.
-    
+
     Returns:
         Global AgentFactory instance
     """
@@ -199,11 +189,11 @@ def get_agent_factory() -> AgentFactory:
 
 async def create_agent(agent_type: str, **config_params) -> AgentBase:
     """Convenience function to create an agent using the global factory.
-    
+
     Args:
         agent_type: Type of agent to create
         **config_params: Additional configuration parameters
-        
+
     Returns:
         Agent instance
     """
@@ -213,7 +203,7 @@ async def create_agent(agent_type: str, **config_params) -> AgentBase:
 
 def register_agent(agent_type: str, agent_class: type[AgentBase]) -> None:
     """Convenience function to register an agent with the global factory.
-    
+
     Args:
         agent_type: Unique identifier for the agent type
         agent_class: Agent class to register

@@ -37,6 +37,7 @@ def safe_operation(
     Returns:
         Decorated function with error handling
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T | Any]:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> T | Any:
@@ -52,7 +53,7 @@ def safe_operation(
                             "error_type": e.__class__.__name__,
                             "error_code": e.error_code,
                             "error_details": e.details,
-                        }
+                        },
                     )
 
                 if raise_on_error:
@@ -67,7 +68,7 @@ def safe_operation(
                     details={
                         "original_error_type": e.__class__.__name__,
                         "traceback": traceback.format_exc(),
-                    }
+                    },
                 )
 
                 if log_errors:
@@ -78,7 +79,7 @@ def safe_operation(
                             "error_type": e.__class__.__name__,
                             "error_message": str(e),
                             "traceback": traceback.format_exc(),
-                        }
+                        },
                     )
 
                 if raise_on_error:
@@ -86,6 +87,7 @@ def safe_operation(
                 return default_return
 
         return wrapper
+
     return decorator
 
 
@@ -113,7 +115,7 @@ def create_error_response(
                 "technical_message": error.message,
                 "error_details": error.details,
                 "operation": operation_name,
-            }
+            },
         )
     else:
         # Handle generic exceptions
@@ -125,7 +127,7 @@ def create_error_response(
                 "error_type": error.__class__.__name__,
                 "technical_message": str(error),
                 "operation": operation_name,
-            }
+            },
         )
 
 
@@ -151,7 +153,7 @@ def handle_mcp_tool_error(
             "error_type": error.__class__.__name__,
             "error_message": str(error),
             "context": context or {},
-        }
+        },
     )
 
     return create_error_response(error, f"mcp_tool_{tool_name}")
@@ -165,8 +167,7 @@ def log_operation_start(operation_name: str, **context) -> None:
         **context: Additional context to log
     """
     logger.info(
-        f"Starting operation: {operation_name}",
-        extra={"operation": operation_name, "context": context}
+        f"Starting operation: {operation_name}", extra={"operation": operation_name, "context": context}
     )
 
 
@@ -194,7 +195,7 @@ def log_operation_success(operation_name: str, result: Any = None, **context) ->
             "operation": operation_name,
             "result_summary": result_summary,
             "context": context,
-        }
+        },
     )
 
 
@@ -215,7 +216,7 @@ def validate_required_fields(data: dict[str, Any], required_fields: list[str]) -
     if missing_fields:
         raise ValidationError(
             f"Missing required fields: {', '.join(missing_fields)}",
-            details={"missing_fields": missing_fields, "provided_fields": list(data.keys())}
+            details={"missing_fields": missing_fields, "provided_fields": list(data.keys())},
         )
 
 
@@ -240,10 +241,7 @@ def validate_field_type(
 
     if field_name not in data:
         if required:
-            raise ValidationError(
-                f"Missing required field: {field_name}",
-                field=field_name
-            )
+            raise ValidationError(f"Missing required field: {field_name}", field=field_name)
         return
 
     value = data[field_name]
@@ -255,7 +253,7 @@ def validate_field_type(
             f"Field '{field_name}' must be of type {expected_type.__name__}, got {type(value).__name__}",
             field=field_name,
             value=value,
-            details={"expected_type": expected_type.__name__, "actual_type": type(value).__name__}
+            details={"expected_type": expected_type.__name__, "actual_type": type(value).__name__},
         )
 
 
@@ -268,7 +266,7 @@ class ErrorContext:
         log_start: bool = True,
         log_success: bool = True,
         raise_on_error: bool = True,
-        **context
+        **context,
     ):
         """Initialize error context.
 
@@ -308,7 +306,7 @@ class ErrorContext:
                     "error_type": exc_val.__class__.__name__,
                     "error_details": exc_val.details,
                     "context": self.context,
-                }
+                },
             )
         else:
             logger.error(
@@ -319,7 +317,7 @@ class ErrorContext:
                     "error_message": str(exc_val) if exc_val else "Unknown error",
                     "context": self.context,
                 },
-                exc_info=True
+                exc_info=True,
             )
 
         # Return False to re-raise the exception, True to suppress it

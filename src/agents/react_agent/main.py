@@ -38,8 +38,6 @@ from src.agents.shared.performance_metrics import build_response_data
 # --- ReAct Execution Loop ---
 
 
-
-
 async def run_react_agent_with_metrics(
     user_query: str, max_steps: int = 10
 ) -> tuple[list[dict[str, Any]], AgentPerformanceMetrics]:

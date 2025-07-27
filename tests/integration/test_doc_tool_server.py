@@ -19,11 +19,13 @@ from document_mcp.mcp_client import insert_paragraph_after
 from document_mcp.mcp_client import insert_paragraph_before
 from document_mcp.mcp_client import list_chapters
 from document_mcp.mcp_client import list_documents
+from document_mcp.mcp_client import list_summaries
 from document_mcp.mcp_client import read_content
-from document_mcp.mcp_client import read_document_summary
+from document_mcp.mcp_client import read_summary
 from document_mcp.mcp_client import replace_paragraph
 from document_mcp.mcp_client import replace_text
 from document_mcp.mcp_client import write_chapter_content
+from document_mcp.mcp_client import write_summary
 
 # ===================================
 # Document-Level Tests
@@ -102,16 +104,204 @@ def test_document_statistics(document_factory):
 
 
 def test_read_document_summary(document_factory):
-    """Test reading a document's summary file."""
+    """Test reading a document's summary file using new scoped tools."""
     doc_name = "summary_doc"
     summary_content = "# Summary\n\nThis is the summary."
     doc_path = document_factory(doc_name)
-    (doc_path / "_SUMMARY.md").write_text(summary_content, encoding="utf-8")
 
-    result = read_document_summary(doc_name)
+    # Create new organized summary structure
+    summaries_dir = doc_path / "summaries"
+    summaries_dir.mkdir(exist_ok=True)
+    (summaries_dir / "document.md").write_text(summary_content, encoding="utf-8")
+
+    result = read_summary(doc_name, scope="document")
     assert result is not None
     assert result.document_name == doc_name
     assert result.content == summary_content
+    assert result.scope == "document"
+
+
+def test_comprehensive_summary_workflow_all_scopes(document_factory):
+    """Test complete workflow using all three new summary tools across all scopes."""
+    doc_name = "comprehensive_summary_test"
+    chapters = {
+        "01-intro.md": "# Introduction\n\nWelcome to the comprehensive guide.",
+        "02-basics.md": "# Basics\n\nFundamental concepts explained.",
+        "03-advanced.md": "# Advanced\n\nAdvanced techniques and patterns.",
+    }
+    document_factory(doc_name, chapters)
+
+    # Test 1: Write summaries using all scopes
+
+    # Document summary
+    doc_summary = "# Document Overview\n\nThis guide covers intro, basics, and advanced topics."
+    result = write_summary(doc_name, doc_summary, scope="document")
+    assert result.success is True
+    assert "document summary" in result.message
+
+    # Chapter summaries
+    chapter_summaries = {
+        "01-intro.md": "# Chapter 1 Summary\n\nIntroduces the main concepts.",
+        "02-basics.md": "# Chapter 2 Summary\n\nCovers fundamental principles.",
+        "03-advanced.md": "# Chapter 3 Summary\n\nExplores advanced techniques.",
+    }
+
+    for chapter_name, chapter_summary in chapter_summaries.items():
+        result = write_summary(doc_name, chapter_summary, scope="chapter", target_name=chapter_name)
+        assert result.success is True
+        assert f"chapter summary for '{chapter_name}'" in result.message
+
+    # Section summaries
+    section_summaries = {
+        "fundamentals": "# Fundamentals Section\n\nCore principles and concepts.",
+        "patterns": "# Patterns Section\n\nCommon design patterns and best practices.",
+        "troubleshooting": "# Troubleshooting Section\n\nCommon issues and solutions.",
+    }
+
+    for section_name, section_summary in section_summaries.items():
+        result = write_summary(doc_name, section_summary, scope="section", target_name=section_name)
+        assert result.success is True
+        assert f"section summary for '{section_name}'" in result.message
+
+    # Test 2: List all summaries
+    summaries = list_summaries(doc_name)
+    assert len(summaries) == 7  # 1 document + 3 chapters + 3 sections
+
+    expected_files = [
+        "document.md",
+        "chapter-01-intro.md",
+        "chapter-02-basics.md",
+        "chapter-03-advanced.md",
+        "section-fundamentals.md",
+        "section-patterns.md",
+        "section-troubleshooting.md",
+    ]
+    for expected_file in expected_files:
+        assert expected_file in summaries
+
+    # Should be sorted alphabetically
+    assert summaries == sorted(summaries)
+
+    # Test 3: Read back all summaries using read_summary
+
+    # Read document summary
+    doc_result = read_summary(doc_name, scope="document")
+    assert doc_result is not None
+    assert doc_result.content == doc_summary
+    assert doc_result.scope == "document"
+    assert doc_result.target_name is None
+
+    # Read chapter summaries
+    for chapter_name, expected_content in chapter_summaries.items():
+        chapter_result = read_summary(doc_name, scope="chapter", target_name=chapter_name)
+        assert chapter_result is not None
+        assert chapter_result.content == expected_content
+        assert chapter_result.scope == "chapter"
+        assert chapter_result.target_name == chapter_name
+
+    # Read section summaries
+    for section_name, expected_content in section_summaries.items():
+        section_result = read_summary(doc_name, scope="section", target_name=section_name)
+        assert section_result is not None
+        assert section_result.content == expected_content
+        assert section_result.scope == "section"
+        assert section_result.target_name == section_name
+
+
+def test_summary_tools_error_handling(document_factory):
+    """Test error handling across all new summary tools."""
+    doc_name = "error_test_doc"
+    document_factory(doc_name)
+
+    # Test write_summary error cases
+
+    # Invalid document
+    result = write_summary("nonexistent_doc", "content", scope="document")
+    assert result.success is False
+    assert "not found" in result.message
+
+    # Invalid scope
+    result = write_summary(doc_name, "content", scope="invalid")
+    assert result.success is False
+    assert "Invalid scope" in result.message
+
+    # Missing target_name for chapter scope
+    result = write_summary(doc_name, "content", scope="chapter", target_name=None)
+    assert result.success is False
+    assert "target_name is required" in result.message
+
+    # Missing target_name for section scope
+    result = write_summary(doc_name, "content", scope="section", target_name=None)
+    assert result.success is False
+    assert "target_name is required" in result.message
+
+    # Test read_summary error cases
+
+    # Nonexistent document
+    result = read_summary("nonexistent_doc", scope="document")
+    assert result is None
+
+    # Nonexistent summary
+    result = read_summary(doc_name, scope="document")
+    assert result is None
+
+    # Test list_summaries error cases
+
+    # Nonexistent document
+    summaries = list_summaries("nonexistent_doc")
+    assert summaries == []
+
+    # Document with no summaries
+    summaries = list_summaries(doc_name)
+    assert summaries == []
+
+
+def test_summary_tools_file_system_verification(document_factory):
+    """Test that summary tools correctly manage file system state."""
+    import os
+    from pathlib import Path
+
+    doc_name = "filesystem_test_doc"
+    document_factory(doc_name)
+
+    # Get document root from environment or default
+    doc_root = os.environ.get("DOCUMENT_ROOT_DIR", ".documents_storage")
+    doc_path = Path(doc_root) / doc_name
+    summaries_path = doc_path / "summaries"
+
+    # Initially no summaries directory
+    assert not summaries_path.exists()
+
+    # Write document summary - should create directory and file
+    write_summary(doc_name, "Document overview", scope="document")
+
+    assert summaries_path.exists()
+    assert summaries_path.is_dir()
+
+    doc_summary_file = summaries_path / "document.md"
+    assert doc_summary_file.exists()
+    assert doc_summary_file.read_text(encoding="utf-8") == "Document overview"
+
+    # Write chapter summary
+    write_summary(doc_name, "Chapter overview", scope="chapter", target_name="01-test.md")
+
+    chapter_summary_file = summaries_path / "chapter-01-test.md"
+    assert chapter_summary_file.exists()
+    assert chapter_summary_file.read_text(encoding="utf-8") == "Chapter overview"
+
+    # Write section summary
+    write_summary(doc_name, "Section overview", scope="section", target_name="concepts")
+
+    section_summary_file = summaries_path / "section-concepts.md"
+    assert section_summary_file.exists()
+    assert section_summary_file.read_text(encoding="utf-8") == "Section overview"
+
+    # Verify list_summaries reflects file system state
+    summaries = list_summaries(doc_name)
+    assert len(summaries) == 3
+    assert "document.md" in summaries
+    assert "chapter-01-test.md" in summaries
+    assert "section-concepts.md" in summaries
 
 
 # ===================================

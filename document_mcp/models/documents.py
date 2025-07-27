@@ -44,6 +44,8 @@ class DocumentSummary(BaseModel):
 
     document_name: str
     content: str
+    scope: str = "document"  # "document", "chapter", "section"
+    target_name: str | None = None  # chapter filename or section name when scope is not "document"
 
 
 class SnapshotInfo(BaseModel):

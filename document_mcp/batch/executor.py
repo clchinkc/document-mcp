@@ -250,11 +250,11 @@ class BatchExecutor:
                             delete_document(doc_name)
 
                 elif operation_type == "create_chapter" and result.result and isinstance(result.result, dict):
-                        details = result.result.get("details", {})
-                        doc_name = details.get("document_name")
-                        chapter_name = details.get("chapter_name")
-                        if doc_name and chapter_name:
-                            delete_chapter(doc_name, chapter_name)
+                    details = result.result.get("details", {})
+                    doc_name = details.get("document_name")
+                    chapter_name = details.get("chapter_name")
+                    if doc_name and chapter_name:
+                        delete_chapter(doc_name, chapter_name)
 
             return True
 

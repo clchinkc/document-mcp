@@ -40,7 +40,7 @@ class ToolDescriptionManager:
     def _initialize_tools(self) -> list[ToolDescription]:
         """Initialize all tool descriptions with standardized format."""
         return [
-            # Document Management (4 tools)
+            # Document Management (6 tools)
             ToolDescription(
                 name="list_documents",
                 description="Lists all available documents",
@@ -66,12 +66,33 @@ class ToolDescriptionManager:
                 planner_signature="delete_document(document_name: str)",
             ),
             ToolDescription(
-                name="read_document_summary",
-                description="Reads the _SUMMARY.md file for a document. **Use this first before reading content**",
-                parameters={"document_name": "str"},
-                example='read_document_summary(document_name="My Book")',
+                name="read_summary",
+                description="Reads summary files with flexible scope (document, chapter, section). **Use this to read summaries**",
+                parameters={"document_name": "str", "scope": "str", "target_name": "str | None"},
+                example='read_summary(document_name="My Book", scope="document")',
                 category="Document Management",
-                planner_signature="read_document_summary(document_name: str)",
+                planner_signature="read_summary(document_name: str, scope: str = 'document', target_name: str | None = None)",
+            ),
+            ToolDescription(
+                name="write_summary",
+                description="Writes or updates summary files with flexible scope (document, chapter, section)",
+                parameters={
+                    "document_name": "str",
+                    "summary_content": "str",
+                    "scope": "str",
+                    "target_name": "str | None",
+                },
+                example='write_summary(document_name="My Book", summary_content="This book covers...", scope="document")',
+                category="Document Management",
+                planner_signature="write_summary(document_name: str, summary_content: str, scope: str = 'document', target_name: str | None = None)",
+            ),
+            ToolDescription(
+                name="list_summaries",
+                description="Lists all available summary files for a document",
+                parameters={"document_name": "str"},
+                example='list_summaries(document_name="My Book")',
+                category="Document Management",
+                planner_signature="list_summaries(document_name: str)",
             ),
             # Chapter Management (5 tools)
             ToolDescription(
