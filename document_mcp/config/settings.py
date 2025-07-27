@@ -180,15 +180,28 @@ class Settings(BaseSettings):
 
         # CRITICAL: Always pass DOCUMENT_ROOT_DIR if it's in the environment
         # This is essential for test isolation and Windows CI compatibility
-        if "DOCUMENT_ROOT_DIR" in os.environ:
-            server_env["DOCUMENT_ROOT_DIR"] = os.environ["DOCUMENT_ROOT_DIR"]
+        # Debug: Always log environment variable handling for CI debugging
+        env_var_present = "DOCUMENT_ROOT_DIR" in os.environ
+        print(f"[MCP_ENV_DEBUG] DOCUMENT_ROOT_DIR in os.environ: {env_var_present}")
+        if env_var_present:
+            env_value = os.environ["DOCUMENT_ROOT_DIR"]
+            server_env["DOCUMENT_ROOT_DIR"] = env_value
             server_env["PYTEST_CURRENT_TEST"] = "1"  # Also set test flag when DOCUMENT_ROOT_DIR is present
+            print(f"[MCP_ENV_DEBUG] Added DOCUMENT_ROOT_DIR to MCP env: {env_value}")
         else:
+            print(f"[MCP_ENV_DEBUG] DOCUMENT_ROOT_DIR not in os.environ")
             # Add test mode flag if in test environment (for other test scenarios)
             if self.is_test_environment:
                 server_env["PYTEST_CURRENT_TEST"] = "1"
                 if self.document_root_dir != ".documents_storage":
                     server_env["DOCUMENT_ROOT_DIR"] = self.document_root_dir
+                    print(f"[MCP_ENV_DEBUG] Added DOCUMENT_ROOT_DIR from settings: {self.document_root_dir}")
+        
+        # Debug: Show final MCP server environment subset
+        doc_root_final = server_env.get("DOCUMENT_ROOT_DIR", "NOT_SET")
+        pytest_flag = server_env.get("PYTEST_CURRENT_TEST", "NOT_SET")
+        print(f"[MCP_ENV_DEBUG] Final MCP server env - DOCUMENT_ROOT_DIR: {doc_root_final}")
+        print(f"[MCP_ENV_DEBUG] Final MCP server env - PYTEST_CURRENT_TEST: {pytest_flag}")
 
         return server_env
 

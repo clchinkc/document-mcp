@@ -36,7 +36,24 @@ SERVICE_VERSION = os.getenv("OTEL_SERVICE_VERSION", "1.0.0")
 DEPLOYMENT_ENVIRONMENT = os.getenv("DEPLOYMENT_ENVIRONMENT", "production")
 
 # Metrics enabled by default, can be disabled via environment
-METRICS_ENABLED = os.getenv("MCP_METRICS_ENABLED", "true").lower() == "true"
+# Automatically disable metrics in test environments to prevent CI data spike
+def is_test_environment():
+    """Detect if running in test environment."""
+    return (
+        "PYTEST_CURRENT_TEST" in os.environ or
+        "DOCUMENT_ROOT_DIR" in os.environ or
+        "CI" in os.environ or
+        "GITHUB_ACTIONS" in os.environ
+    )
+
+# Disable metrics in test/CI environments by default to prevent data spikes
+default_metrics_enabled = "false" if is_test_environment() else "true"
+METRICS_ENABLED = os.getenv("MCP_METRICS_ENABLED", default_metrics_enabled).lower() == "true"
+
+# Debug: Log metrics status for debugging
+if is_test_environment():
+    print(f"[METRICS_DEBUG] Test environment detected, metrics disabled by default")
+print(f"[METRICS_DEBUG] METRICS_ENABLED = {METRICS_ENABLED}")
 
 # Allow user override of telemetry endpoint (but use Grafana Cloud by default)
 PROMETHEUS_ENDPOINT = os.getenv("PROMETHEUS_REMOTE_WRITE_ENDPOINT", GRAFANA_CLOUD_PROMETHEUS_ENDPOINT)
