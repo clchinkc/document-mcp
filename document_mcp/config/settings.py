@@ -178,16 +178,17 @@ class Settings(BaseSettings):
         if self.openai_api_key:
             server_env["OPENAI_API_KEY"] = self.openai_api_key
 
-        # Add test mode flag if in test environment
-        if self.is_test_environment:
-            server_env["PYTEST_CURRENT_TEST"] = "1"
-            if self.document_root_dir != ".documents_storage":
-                server_env["DOCUMENT_ROOT_DIR"] = self.document_root_dir
-        
-        # CRITICAL: Always ensure DOCUMENT_ROOT_DIR is passed if set in environment
-        # This handles the Windows CI issue where environment inheritance fails
+        # CRITICAL: Always pass DOCUMENT_ROOT_DIR if it's in the environment
+        # This is essential for test isolation and Windows CI compatibility
         if "DOCUMENT_ROOT_DIR" in os.environ:
             server_env["DOCUMENT_ROOT_DIR"] = os.environ["DOCUMENT_ROOT_DIR"]
+            server_env["PYTEST_CURRENT_TEST"] = "1"  # Also set test flag when DOCUMENT_ROOT_DIR is present
+        else:
+            # Add test mode flag if in test environment (for other test scenarios)
+            if self.is_test_environment:
+                server_env["PYTEST_CURRENT_TEST"] = "1"
+                if self.document_root_dir != ".documents_storage":
+                    server_env["DOCUMENT_ROOT_DIR"] = self.document_root_dir
 
         return server_env
 
