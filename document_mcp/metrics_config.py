@@ -51,7 +51,8 @@ default_metrics_enabled = "false" if is_test_environment() else "true"
 METRICS_ENABLED = os.getenv("MCP_METRICS_ENABLED", default_metrics_enabled).lower() == "true"
 
 # Auto-shutdown configuration
-INACTIVITY_TIMEOUT = int(os.getenv("MCP_METRICS_INACTIVITY_TIMEOUT", "300"))  # 5 minutes default
+# Default 2 minutes - enough time for Prometheus to scrape and send data
+INACTIVITY_TIMEOUT = int(os.getenv("MCP_METRICS_INACTIVITY_TIMEOUT", "120"))  # 2 minutes default
 _last_activity_time = time.time()
 _shutdown_timer = None
 
@@ -651,7 +652,16 @@ def _auto_shutdown_metrics():
         return
         
     print(f"[METRICS] Auto-shutdown triggered after {INACTIVITY_TIMEOUT}s of inactivity")
+    
+    # First, try to flush any pending metrics to ensure they reach Grafana Cloud
+    print(f"[METRICS] Flushing pending metrics before shutdown...")
+    _flush_metrics_before_shutdown()
+    
     _metrics_shutdown = True
+    
+    # Wait a moment for final metrics to be sent
+    import time
+    time.sleep(2)
     
     # Stop background processes
     try:
@@ -675,6 +685,27 @@ def _auto_shutdown_metrics():
         print(f"[METRICS] Stopped background Prometheus processes")
     except Exception as e:
         print(f"[METRICS] Warning: Could not stop Prometheus processes: {e}")
+
+
+def _flush_metrics_before_shutdown():
+    """Attempt to flush any pending metrics before shutdown."""
+    try:
+        # Try to force an immediate export from OpenTelemetry
+        global otlp_reader, prometheus_reader
+        if otlp_reader and hasattr(otlp_reader, 'force_flush'):
+            otlp_reader.force_flush(timeout_millis=5000)
+            print(f"[METRICS] OTLP metrics flushed")
+        
+        if prometheus_reader and hasattr(prometheus_reader, 'force_flush'):
+            prometheus_reader.force_flush(timeout_millis=5000)
+            print(f"[METRICS] Prometheus metrics flushed")
+            
+        # Also try to trigger a final write to persistent storage
+        if os.path.exists("/tmp/document_mcp_metrics.json"):
+            print(f"[METRICS] Persistent metrics preserved for final collection")
+            
+    except Exception as e:
+        print(f"[METRICS] Warning: Could not flush metrics: {e}")
 
 
 def get_resource() -> "Resource":
@@ -901,6 +932,12 @@ def get_metrics_export() -> tuple[str, str]:
     except Exception as e:
         error_msg = f"# Error generating metrics: {e}\n"
         return error_msg, "text/plain"
+
+
+def flush_metrics():
+    """Manually flush metrics to ensure they're sent to Grafana Cloud."""
+    print("[METRICS] Manual flush initiated")
+    _flush_metrics_before_shutdown()
 
 
 def shutdown_metrics():
