@@ -427,7 +427,7 @@ class TestSafetyAndVersionControlE2E:
         response1 = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create document '{doc_name}'",
-            timeout=15,  # Simple document creation
+            timeout=20,  # Document creation with potential API delays
         )
 
         validator.assert_document_exists(doc_name)
@@ -436,7 +436,7 @@ class TestSafetyAndVersionControlE2E:
         response2 = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '01-content.md' to document '{doc_name}' with content: Initial content for snapshot testing",
-            timeout=15,  # Simple chapter addition
+            timeout=30,  # Chapter creation with content may take longer due to API calls
         )
 
         validator.assert_chapter_exists(doc_name, "01-content.md")
@@ -488,21 +488,21 @@ class TestBatchOperationsE2E:
         create_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create document '{doc_name}'",
-            timeout=15,  # Simple operation
+            timeout=20,  # Document creation with potential API delays
         )
 
         # Step 2: Add first chapter
         chapter1_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '01-intro.md' to document '{doc_name}' with content: Introduction text",
-            timeout=15,  # Simple operation
+            timeout=30,  # Chapter creation with content may take longer
         )
 
         # Step 3: Add second chapter (demonstrates batch-like workflow)
         chapter2_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Add chapter '02-main.md' to document '{doc_name}' with content: Main content text",
-            timeout=15,  # Simple operation
+            timeout=30,  # Chapter creation with content may take longer
         )
 
         # Verify batch workflow succeeded through file system state
