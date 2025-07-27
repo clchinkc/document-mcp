@@ -319,42 +319,24 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             }
             ```
         """
-        # Debug: Trace document creation process
-        print(f"[DOC_CREATE_DEBUG] Creating document: {document_name}")
-        
         # Validate input
         is_valid, error_msg = validate_document_name(document_name)
         if not is_valid:
-            print(f"[DOC_CREATE_DEBUG] Validation failed: {error_msg}")
             return OperationStatus(success=False, message=error_msg)
 
         doc_path = _get_document_path(document_name)
-        print(f"[DOC_CREATE_DEBUG] Document path resolved to: {doc_path}")
-        print(f"[DOC_CREATE_DEBUG] Document path absolute: {doc_path.resolve()}")
-        print(f"[DOC_CREATE_DEBUG] Document path exists: {doc_path.exists()}")
         
         if doc_path.exists():
-            print(f"[DOC_CREATE_DEBUG] Document already exists at: {doc_path}")
             return OperationStatus(success=False, message=f"Document '{document_name}' already exists.")
         
         try:
-            print(f"[DOC_CREATE_DEBUG] Creating directory with parents=True...")
             doc_path.mkdir(parents=True, exist_ok=False)
-            print(f"[DOC_CREATE_DEBUG] Directory created successfully at: {doc_path.resolve()}")
-            
-            # Verify creation
-            if doc_path.exists():
-                print(f"[DOC_CREATE_DEBUG] Verification: Directory exists after creation")
-            else:
-                print(f"[DOC_CREATE_DEBUG] ERROR: Directory does not exist after creation!")
-                
             return OperationStatus(
                 success=True,
                 message=f"Document '{document_name}' created successfully.",
                 details={"document_name": document_name},
             )
         except Exception as e:
-            print(f"[DOC_CREATE_DEBUG] Exception during creation: {e}")
             return OperationStatus(success=False, message=f"Error creating document '{document_name}': {e}")
 
     @mcp_server.tool()

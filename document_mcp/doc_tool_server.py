@@ -10,6 +10,7 @@ import datetime
 import os
 from dataclasses import dataclass
 from dataclasses import field
+from pathlib import Path
 from typing import Any
 
 from mcp.server import FastMCP
@@ -174,10 +175,15 @@ def main():
     print(f"[MCP_SERVER_DEBUG] MCP server received PYTEST_CURRENT_TEST: {pytest_env}")
     
     # This print will show the path used by the subprocess
-    root_path = DOCS_ROOT_PATH.resolve()
-    print(f"[MCP_SERVER_DEBUG] Initializing with DOCS_ROOT_PATH = {root_path}")
-    print(f"Document tool server starting. Tools exposed by '{mcp_server.name}':")
-    print(f"Serving tools for root directory: {DOCS_ROOT_PATH.resolve()}")
+    try:
+        root_path = DOCS_ROOT_PATH.resolve()
+        print(f"[MCP_SERVER_DEBUG] Initializing with DOCS_ROOT_PATH = {root_path}")
+        print(f"Document tool server starting. Tools exposed by '{mcp_server.name}':")
+        print(f"Serving tools for root directory: {root_path}")
+    except Exception as e:
+        print(f"[MCP_SERVER_DEBUG] Error resolving DOCS_ROOT_PATH: {e}")
+        print(f"Document tool server starting. Tools exposed by '{mcp_server.name}':")
+        print(f"Serving tools for root directory: {DOCS_ROOT_PATH}")
     
     # Debug: Show platform and current working directory
     import platform
@@ -188,12 +194,15 @@ def main():
     
     # Check if documents directory will be created in expected location
     if doc_root_env:
-        expected_docs_path = Path(doc_root_env).resolve()
-        print(f"[MCP_SERVER_DEBUG] Expected documents path: {expected_docs_path}")
-        if expected_docs_path.exists():
-            print(f"[MCP_SERVER_DEBUG] Expected path exists: True")
-        else:
-            print(f"[MCP_SERVER_DEBUG] Expected path exists: False - will create")
+        try:
+            expected_docs_path = Path(doc_root_env).resolve()
+            print(f"[MCP_SERVER_DEBUG] Expected documents path: {expected_docs_path}")
+            if expected_docs_path.exists():
+                print(f"[MCP_SERVER_DEBUG] Expected path exists: True")
+            else:
+                print(f"[MCP_SERVER_DEBUG] Expected path exists: False - will create")
+        except Exception as e:
+            print(f"[MCP_SERVER_DEBUG] Error processing expected path {doc_root_env}: {e}")
     else:
         print(f"[MCP_SERVER_DEBUG] No DOCUMENT_ROOT_DIR env var - using default")
 
