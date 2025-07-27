@@ -5,6 +5,7 @@ including environment variables, file paths, timeouts, and other settings.
 """
 
 import os
+import sys
 from pathlib import Path
 from typing import Literal
 
@@ -45,7 +46,7 @@ class Settings(BaseSettings):
 
     # === MCP Server Configuration ===
     mcp_server_cmd: list[str] = Field(
-        default_factory=lambda: ["python3", "-m", "document_mcp.doc_tool_server", "stdio"],
+        default_factory=lambda: [sys.executable, "-m", "document_mcp.doc_tool_server", "stdio"],
         description="MCP server command"
     )
 

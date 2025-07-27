@@ -42,9 +42,10 @@ class SimpleAgent(AgentBase, SingleTurnAgentMixin):
 
             # Set up MCP server
             server_env = self.get_mcp_server_environment()
+            from src.agents.shared.config import MCP_SERVER_CMD
             mcp_server = MCPServerStdio(
-                command="python3",
-                args=["-m", "document_mcp.doc_tool_server", "stdio"],
+                command=MCP_SERVER_CMD[0],
+                args=MCP_SERVER_CMD[1:],
                 env=server_env,
             )
 

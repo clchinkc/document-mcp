@@ -56,8 +56,8 @@ async def run_react_agent_with_metrics(
             server_env = prepare_mcp_server_environment()
 
             mcp_server = MCPServerStdio(
-                command="python3",
-                args=["-m", "document_mcp.doc_tool_server", "stdio"],
+                command=MCP_SERVER_CMD[0],
+                args=MCP_SERVER_CMD[1:],
                 env=server_env,
             )
 
@@ -413,8 +413,8 @@ async def main():
             server_env = prepare_mcp_server_environment()
 
             mcp_server = MCPServerStdio(
-                command="python3",
-                args=["-m", "document_mcp.doc_tool_server", "stdio"],
+                command=MCP_SERVER_CMD[0],
+                args=MCP_SERVER_CMD[1:],
                 env=server_env,
             )
             # Create agent directly

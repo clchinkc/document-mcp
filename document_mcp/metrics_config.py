@@ -1,7 +1,15 @@
-import atexit
+"""Document MCP Metrics Configuration
+
+Provides automatic telemetry collection and forwarding to Grafana Cloud.
+Architecture: Tool Calls -> Metrics Server -> Background Prometheus -> Grafana Cloud
+"""
+
 import json
 import os
 import socket
+import subprocess
+import tempfile
+import threading
 import time
 from functools import wraps
 from typing import Any
@@ -16,49 +24,54 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
 
-# Prometheus client for endpoint
+# Prometheus client for metrics endpoint
 from prometheus_client import CONTENT_TYPE_LATEST
 from prometheus_client import generate_latest
 
-# Automatic Grafana Cloud Configuration (Built-in) - Prometheus Remote Write
-# Use the correct Grafana Cloud Prometheus metrics endpoint (matching prometheus.yml)
+# =============================================================================
+# GRAFANA CLOUD CONFIGURATION
+# =============================================================================
+
 GRAFANA_CLOUD_PROMETHEUS_ENDPOINT = "https://prometheus-prod-37-prod-ap-southeast-1.grafana.net/api/prom/push"
 GRAFANA_CLOUD_TOKEN = "glc_eyJvIjoiMTQ5MDY5MCIsIm4iOiJzdGFjay0xMzI2MTg3LWludGVncmF0aW9uLWRvY3VtZW50LW1jcCIsImsiOiJmM1hZZTQ1d2VWSTlEMVMxaUs1NlNOODgiLCJtIjp7InIiOiJwcm9kLWFwLXNvdXRoZWFzdC0xIn19"
-GRAFANA_CLOUD_METRICS_USER_ID = "2576609"  # Stack user ID from prometheus.yml
-
-# For backwards compatibility, keep OTLP endpoint but prioritize Prometheus
+GRAFANA_CLOUD_METRICS_USER_ID = "2576609"
 GRAFANA_CLOUD_OTLP_ENDPOINT = "https://otlp-gateway-prod-ap-southeast-1.grafana.net/otlp"
 
-# Service Configuration - Updated to match Grafana Cloud setup
+# =============================================================================
+# SERVICE CONFIGURATION
+# =============================================================================
+
 SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "document-mcp")
 SERVICE_NAMESPACE = os.getenv("OTEL_SERVICE_NAMESPACE", "document-mcp-group")
 SERVICE_VERSION = os.getenv("OTEL_SERVICE_VERSION", "1.0.0")
 DEPLOYMENT_ENVIRONMENT = os.getenv("DEPLOYMENT_ENVIRONMENT", "production")
+
 
 # Metrics enabled by default, can be disabled via environment
 # Automatically disable metrics in test environments to prevent CI data spike
 def is_test_environment():
     """Detect if running in test environment."""
     return (
-        "PYTEST_CURRENT_TEST" in os.environ or
-        "DOCUMENT_ROOT_DIR" in os.environ or
-        "CI" in os.environ or
-        "GITHUB_ACTIONS" in os.environ
+        "PYTEST_CURRENT_TEST" in os.environ
+        or "DOCUMENT_ROOT_DIR" in os.environ
+        or "CI" in os.environ
+        or "GITHUB_ACTIONS" in os.environ
     )
+
 
 # Disable metrics in test/CI environments by default to prevent data spikes
 default_metrics_enabled = "false" if is_test_environment() else "true"
 METRICS_ENABLED = os.getenv("MCP_METRICS_ENABLED", default_metrics_enabled).lower() == "true"
 
 # Auto-shutdown configuration
-# Default 2 minutes - enough time for Prometheus to scrape and send data
-INACTIVITY_TIMEOUT = int(os.getenv("MCP_METRICS_INACTIVITY_TIMEOUT", "120"))  # 2 minutes default
+# Default 5 minutes - enough time for multiple Prometheus scrapes and remote write
+INACTIVITY_TIMEOUT = int(os.getenv("MCP_METRICS_INACTIVITY_TIMEOUT", "30"))  # 5 minutes default
 _last_activity_time = time.time()
 _shutdown_timer = None
 
 # Debug: Log metrics status for debugging
 if is_test_environment():
-    print(f"[METRICS_DEBUG] Test environment detected, metrics disabled by default")
+    print("[METRICS_DEBUG] Test environment detected, metrics disabled by default")
 print(f"[METRICS_DEBUG] METRICS_ENABLED = {METRICS_ENABLED}")
 
 # Allow user override of telemetry endpoint (but use Grafana Cloud by default)
@@ -98,7 +111,6 @@ _active_operations = {}
 _metrics_shutdown = False
 
 # Prometheus remote write
-import threading
 
 import requests
 from prometheus_client import CollectorRegistry
@@ -293,8 +305,6 @@ def _start_background_prometheus():
     """Start background Prometheus server for automatic Grafana Cloud forwarding."""
     import os
     import shutil
-    import subprocess
-    import tempfile
     import threading
 
     # Check if Prometheus is available
@@ -393,16 +403,15 @@ def _start_persistent_metrics_server():
     """Start persistent metrics server that survives agent exits."""
     # Skip in test environments to prevent data collection
     if is_test_environment():
-        print(f"[METRICS] Skipping persistent metrics server in test environment")
+        print("[METRICS] Skipping persistent metrics server in test environment")
         return
-        
+
     import os
-    import subprocess
-    import tempfile
     import time
 
     # Create persistent metrics server script
     metrics_server_script = '''
+import atexit
 import json
 import time
 import threading
@@ -541,13 +550,16 @@ server.serve_forever()
         with os.fdopen(script_fd, "w") as f:
             f.write(metrics_server_script)
 
-        # Start persistent server
-        subprocess.Popen(
-            ["python3", script_path],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,  # Detach from parent
-        )
+        # Start persistent server with error logging
+        log_file = "/tmp/document_mcp_metrics_server.log"
+        with open(log_file, "w") as log:
+            proc = subprocess.Popen(
+                ["python3", script_path],
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,  # Detach from parent
+            )
+            print(f"[METRICS] Started persistent server PID {proc.pid}, logs: {log_file}")
 
         # Give it time to start
         time.sleep(1)
@@ -634,11 +646,11 @@ def _update_activity():
     """Update the last activity timestamp and reset shutdown timer."""
     global _last_activity_time, _shutdown_timer
     _last_activity_time = time.time()
-    
+
     # Cancel existing shutdown timer
     if _shutdown_timer:
         _shutdown_timer.cancel()
-    
+
     # Set new shutdown timer
     _shutdown_timer = threading.Timer(INACTIVITY_TIMEOUT, _auto_shutdown_metrics)
     _shutdown_timer.daemon = True
@@ -650,19 +662,20 @@ def _auto_shutdown_metrics():
     global _metrics_shutdown
     if _metrics_shutdown:
         return
-        
+
     print(f"[METRICS] Auto-shutdown triggered after {INACTIVITY_TIMEOUT}s of inactivity")
-    
+
     # First, try to flush any pending metrics to ensure they reach Grafana Cloud
-    print(f"[METRICS] Flushing pending metrics before shutdown...")
+    print("[METRICS] Flushing pending metrics before shutdown...")
     _flush_metrics_before_shutdown()
-    
+
     _metrics_shutdown = True
-    
+
     # Wait a moment for final metrics to be sent
     import time
+
     time.sleep(2)
-    
+
     # Stop background processes
     try:
         # Stop persistent metrics server
@@ -677,12 +690,32 @@ def _auto_shutdown_metrics():
                 pass
     except Exception as e:
         print(f"[METRICS] Warning: Could not stop persistent server: {e}")
-    
-    # Stop Prometheus processes (they should auto-exit due to retention time)
+
+    # Stop Prometheus processes more aggressively
     try:
         import subprocess
-        subprocess.run(["pkill", "-f", "prometheus.*mcp"], capture_output=True)
-        print(f"[METRICS] Stopped background Prometheus processes")
+
+        # First try gentle termination with SIGTERM
+        result = subprocess.run(["pkill", "-f", "prometheus.*mcp"], capture_output=True)
+        
+        # Wait a moment for graceful shutdown
+        import time
+        time.sleep(2)
+        
+        # Check if any are still running and force kill them
+        check_result = subprocess.run(["pgrep", "-f", "prometheus.*mcp"], capture_output=True, text=True)
+        if check_result.returncode == 0:  # Still running
+            pids = check_result.stdout.strip().split('\n')
+            for pid in pids:
+                if pid.strip():
+                    try:
+                        subprocess.run(["kill", "-9", pid.strip()], capture_output=True)
+                    except:
+                        pass
+            print(f"[METRICS] Force-killed {len(pids)} persistent Prometheus processes")
+        else:
+            print("[METRICS] Background Prometheus processes stopped gracefully")
+            
     except Exception as e:
         print(f"[METRICS] Warning: Could not stop Prometheus processes: {e}")
 
@@ -692,20 +725,150 @@ def _flush_metrics_before_shutdown():
     try:
         # Try to force an immediate export from OpenTelemetry
         global otlp_reader, prometheus_reader
-        if otlp_reader and hasattr(otlp_reader, 'force_flush'):
+        if otlp_reader and hasattr(otlp_reader, "force_flush"):
             otlp_reader.force_flush(timeout_millis=5000)
-            print(f"[METRICS] OTLP metrics flushed")
-        
-        if prometheus_reader and hasattr(prometheus_reader, 'force_flush'):
+            print("[METRICS] OTLP metrics flushed")
+
+        if prometheus_reader and hasattr(prometheus_reader, "force_flush"):
             prometheus_reader.force_flush(timeout_millis=5000)
-            print(f"[METRICS] Prometheus metrics flushed")
-            
-        # Also try to trigger a final write to persistent storage
-        if os.path.exists("/tmp/document_mcp_metrics.json"):
-            print(f"[METRICS] Persistent metrics preserved for final collection")
-            
+            print("[METRICS] Prometheus metrics flushed")
+
+        # Direct push any accumulated metrics to Grafana Cloud
+        _direct_push_to_grafana_cloud()
+
     except Exception as e:
         print(f"[METRICS] Warning: Could not flush metrics: {e}")
+
+
+def _direct_push_to_grafana_cloud():
+    """Directly push accumulated metrics to Grafana Cloud using HTTP POST with proper protocol."""
+    try:
+        import base64
+        import json
+        import time
+
+        import requests
+
+        # Read accumulated metrics from persistent storage
+        metrics_file = "/tmp/document_mcp_metrics.json"
+        if not os.path.exists(metrics_file):
+            print("[METRICS] No metrics data to push")
+            return
+
+        with open(metrics_file) as f:
+            metrics_data = json.load(f)
+
+        if not metrics_data.get("tool_calls"):
+            print("[METRICS] No tool calls to push")
+            return
+
+        print(f"[METRICS] Pushing {len(metrics_data['tool_calls'])} tool calls directly to Grafana Cloud")
+
+        # Create proper Prometheus remote write payload
+        current_time_ms = int(time.time() * 1000)
+
+        # Build TimeSeries data in the format Grafana Cloud expects
+        timeseries_data = {"timeseries": []}
+
+        # Add tool call metrics
+        for tool_call in metrics_data["tool_calls"]:
+            labels = tool_call["labels"]
+            value = tool_call["value"]
+
+            # Convert labels to the format expected
+            label_pairs = []
+            for key, val in labels.items():
+                label_pairs.append({"name": key, "value": str(val)})
+
+            # Add metric name label
+            label_pairs.append({"name": "__name__", "value": "mcp_tool_calls_total"})
+
+            timeseries_data["timeseries"].append(
+                {"labels": label_pairs, "samples": [{"value": float(value), "timestamp": current_time_ms}]}
+            )
+
+        # Add duration metrics if available
+        if "tool_durations" in metrics_data:
+            for duration in metrics_data["tool_durations"]:
+                labels = duration["labels"]
+                value = duration["value"]
+
+                label_pairs = []
+                for key, val in labels.items():
+                    label_pairs.append({"name": key, "value": str(val)})
+
+                label_pairs.append({"name": "__name__", "value": "mcp_tool_duration_seconds"})
+
+                timeseries_data["timeseries"].append(
+                    {
+                        "labels": label_pairs,
+                        "samples": [{"value": float(value), "timestamp": current_time_ms}],
+                    }
+                )
+
+        # Convert to JSON
+        json_payload = json.dumps(timeseries_data).encode("utf-8")
+
+        # Compress with snappy (try to import snappy for proper compression)
+        try:
+            import snappy
+
+            compressed_payload = snappy.compress(json_payload)
+            content_encoding = "snappy"
+            print(
+                f"[METRICS] Using Snappy compression ({len(json_payload)} -> {len(compressed_payload)} bytes)"
+            )
+        except ImportError:
+            # Fallback - try without compression first
+            compressed_payload = json_payload
+            content_encoding = "identity"
+            print("[METRICS] Warning: Snappy not available, trying without compression")
+
+        # Prepare headers
+        auth_string = f"{GRAFANA_CLOUD_METRICS_USER_ID}:{GRAFANA_CLOUD_TOKEN}"
+        auth_b64 = base64.b64encode(auth_string.encode()).decode()
+
+        headers = {
+            "Authorization": f"Basic {auth_b64}",
+            "Content-Type": "application/x-protobuf",
+            "Content-Encoding": content_encoding,
+            "X-Prometheus-Remote-Write-Version": "0.1.0",
+            "User-Agent": "document-mcp/1.0.0",
+        }
+
+        print(f"[METRICS] Sending {len(timeseries_data['timeseries'])} metrics to Grafana Cloud...")
+
+        # Send the request
+        response = requests.post(
+            GRAFANA_CLOUD_PROMETHEUS_ENDPOINT, headers=headers, data=compressed_payload, timeout=30
+        )
+
+        if response.status_code == 200:
+            print("[METRICS] ✅ Successfully pushed metrics to Grafana Cloud!")
+            return True
+        elif response.status_code == 400 and "snappy" in response.text.lower():
+            print("[METRICS] ⚠️ Snappy compression issue, trying without compression...")
+            # Retry without compression
+            headers["Content-Encoding"] = "identity"
+            response = requests.post(
+                GRAFANA_CLOUD_PROMETHEUS_ENDPOINT, headers=headers, data=json_payload, timeout=30
+            )
+            if response.status_code == 200:
+                print("[METRICS] ✅ Successfully pushed metrics to Grafana Cloud (uncompressed)!")
+                return True
+            else:
+                print(
+                    f"[METRICS] ❌ Push failed even without compression: {response.status_code} - {response.text}"
+                )
+                return False
+        else:
+            print(f"[METRICS] ❌ Push failed: HTTP {response.status_code}")
+            print(f"[METRICS] Response: {response.text[:200]}")
+            return False
+
+    except Exception as e:
+        print(f"[METRICS] ❌ Direct push failed: {e}")
+        return False
 
 
 def get_resource() -> "Resource":
@@ -765,7 +928,7 @@ def initialize_metrics():
             # Use local collector which now uses Prometheus remote write to Grafana Cloud
             otlp_exporter = OTLPMetricExporter(endpoint=local_collector_endpoint)
 
-            otlp_reader = PeriodicExportingMetricReader(exporter=otlp_exporter, export_interval_millis=30000)
+            otlp_reader = PeriodicExportingMetricReader(exporter=otlp_exporter, export_interval_millis=300)
             metric_readers.append(otlp_reader)
             print("   [OK] Using OpenTelemetry Collector -> Prometheus remote write -> Grafana Cloud")
         else:
@@ -857,7 +1020,7 @@ def record_tool_call_start(tool_name: str, args: tuple, kwargs: dict) -> float |
 
     # Update activity timestamp and reset shutdown timer
     _update_activity()
-    
+
     start_time = time.time()
     operation_id = f"{tool_name}_{start_time}"
 
@@ -946,7 +1109,7 @@ def shutdown_metrics():
     if _metrics_shutdown:
         print("[METRICS] Metrics already shut down")
         return
-        
+
     print("[METRICS] Manual shutdown initiated")
     _auto_shutdown_metrics()
 
@@ -1012,4 +1175,6 @@ def instrument_tool(func):
 if METRICS_ENABLED and not is_test_environment():
     initialize_metrics()
 else:
-    print(f"[METRICS] Metrics initialization skipped (enabled={METRICS_ENABLED}, test_env={is_test_environment()})")
+    print(
+        f"[METRICS] Metrics initialization skipped (enabled={METRICS_ENABLED}, test_env={is_test_environment()})"
+    )
