@@ -10,7 +10,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .batch import BatchOperation
 from .logger_config import ErrorCategory
 from .logger_config import log_structured_error
 from .models import ChapterContent
@@ -259,54 +258,3 @@ def _get_summary_file_path(document_name: str, scope: str, target_name: str | No
         raise ValueError(f"Invalid scope: {scope}. Must be 'document', 'chapter', or 'section'")
 
 
-def _resolve_operation_dependencies(
-    operations: list[BatchOperation],
-) -> list[BatchOperation]:
-    """Resolve operation dependencies and return operations in executable order."""
-    # Simple topological sort for dependency resolution
-    resolved = []
-    remaining = operations.copy()
-    while remaining:
-        # Find operations with no unresolved dependencies
-        ready = []
-        for op in remaining:
-            if not op.depends_on:
-                ready.append(op)
-            else:
-                # Check if all dependencies are resolved
-                dependencies_met = all(
-                    any(resolved_op.operation_id == dep_id for resolved_op in resolved)
-                    for dep_id in op.depends_on
-                )
-                if dependencies_met:
-                    ready.append(op)
-        if not ready:
-            # Detect specific type of dependency issue
-            remaining_ids = [op.operation_id for op in remaining]
-
-            # Check if any remaining operation depends on another remaining operation
-            has_circular = False
-            missing_deps = set()
-
-            for op in remaining:
-                for dep_id in op.depends_on:
-                    # Check if dependency is in remaining operations (potential circular)
-                    if any(remaining_op.operation_id == dep_id for remaining_op in remaining):
-                        has_circular = True
-                    # Check if dependency was never defined
-                    elif not any(resolved_op.operation_id == dep_id for resolved_op in resolved):
-                        missing_deps.add(dep_id)
-
-            if has_circular:
-                raise ValueError(f"Circular dependency detected among operations: {remaining_ids}")
-            elif missing_deps:
-                raise ValueError(f"Operations depend on unknown operation(s): {list(missing_deps)}")
-            else:
-                raise ValueError(f"Dependency resolution failed for operations: {remaining_ids}")
-        # Sort ready operations by their order
-        ready.sort(key=lambda op: op.order)
-        resolved.extend(ready)
-        # Remove resolved operations from remaining
-        for op in ready:
-            remaining.remove(op)
-    return resolved

@@ -10,7 +10,6 @@ import time
 import google.generativeai as genai
 import numpy as np
 
-from ..batch import register_batchable_operation
 from ..helpers import _count_words
 from ..helpers import _get_chapter_path
 from ..helpers import _get_document_path
@@ -39,7 +38,6 @@ def register_content_tools(mcp_server):
     """Register all content-related tools with the MCP server."""
 
     @mcp_server.tool()
-    @register_batchable_operation("read_content")
     @log_mcp_call
     def read_content(
         document_name: str,
@@ -316,7 +314,6 @@ def register_content_tools(mcp_server):
             return None
 
     @mcp_server.tool()
-    @register_batchable_operation("find_text")
     @log_mcp_call
     def find_text(
         document_name: str,
@@ -459,7 +456,6 @@ def register_content_tools(mcp_server):
             return None
 
     @mcp_server.tool()
-    @register_batchable_operation("replace_text")
     @log_mcp_call
     @auto_snapshot("replace_text")
     def replace_text(
@@ -613,7 +609,6 @@ def register_content_tools(mcp_server):
             return None
 
     @mcp_server.tool()
-    @register_batchable_operation("get_statistics")
     @log_mcp_call
     def get_statistics(
         document_name: str,
@@ -742,7 +737,6 @@ def register_content_tools(mcp_server):
             return None
 
     @mcp_server.tool()
-    @register_batchable_operation("find_similar_text")
     @log_mcp_call
     def find_similar_text(
         document_name: str,

@@ -108,7 +108,7 @@ scripts/development/telemetry/scripts/start.sh
 ### Simple Agent (`src/agents/simple_agent/`)
 - **Architecture**: Stateless, single-turn execution
 - **Key Features**: Structured output, timeout protection, OpenAI/Gemini support
-- **Ideal for**: Single-step operations, quick queries, JSON output, prototyping, batch workflows
+- **Ideal for**: Single-step operations, quick queries, JSON output, prototyping
 - **Avoid for**: Operations requiring intermediate reasoning steps
 
 ### ReAct Agent (`src/agents/react_agent/`)
@@ -117,14 +117,13 @@ scripts/development/telemetry/scripts/start.sh
 - **Ideal for**: Complex workflows, step-by-step planning, production environments
 - **Avoid for**: Simple operations, performance-critical scenarios, structured JSON output requirements
 
-## Tool Categories (25 MCP Tools)
+## Tool Categories (26 MCP Tools)
 
-- **Document Tools (6)**: Document management, lifecycle operations, and fine-grain summaries
+- **Document Tools (6)**: Document management, lifecycle operations, and fine-grain summaries  
 - **Chapter Tools (5)**: Chapter creation, editing, and management
 - **Paragraph Tools (7)**: Atomic paragraph operations with automatic snapshot protection
 - **Content Tools (5)**: Unified content access, search, replacement, statistics, and semantic search
 - **Safety Tools (3)**: Version control, snapshot management, and diff generation
-- **Batch Tools (1)**: Sequential multi-operation execution with conflict detection
 
 ## Key System Features
 
@@ -132,7 +131,6 @@ scripts/development/telemetry/scripts/start.sh
 - **Atomic paragraph operations** (replace, insert, delete, move) with automatic snapshot protection
 - **Fine-grain Summary System**: Organized storage structure with scope-based summaries (document, chapter, section) in dedicated `summaries/` directory
 - **Scope-based content tools** (read, find, replace, statistics, semantic search) with unified document/chapter/paragraph access
-- **Sequential batch processing** with conflict detection, dependency resolution, and atomic rollback capabilities
 - **Semantic Search**: AI-powered content discovery using embeddings for contextual similarity matching
 
 ## Infrastructure Components
@@ -189,7 +187,7 @@ The Document MCP system demonstrates several key architectural strengths and des
 - **Solid Foundation**: Well-defined architecture with clear separation of concerns between agents, the MCP tool server, and testing infrastructure
 - **Comprehensive Testing**: Four-tiered testing strategy (unit, integration, E2E, evaluation) provides high confidence in system correctness
 - **Robust Agents**: Both agent types are well-implemented with comprehensive error handling and support for multiple LLM providers
-- **Streamlined Toolset**: Clean tool architecture with scope-based operations and atomic batch processing
+- **Streamlined Toolset**: Clean tool architecture with scope-based operations
 
 ### Key Design Principles
 
@@ -200,7 +198,6 @@ The Document MCP system demonstrates several key architectural strengths and des
 - **Clean Naming Conventions**: Consistent "scope-based tools" terminology throughout the codebase for clarity
 - **Streamlined Tool Architecture**: Optimized tool structure with enhanced functionality through scope-based operations
 - **Universal Safety System**: Automatic snapshot protection with user tracking across all content-modifying tools
-- **Atomic Batch Processing**: Robust execution engine with conflict detection, dependency resolution, and comprehensive error handling
 
 ### Architecture Decision: Simplified Agent Model
 
@@ -210,11 +207,11 @@ The system uses a **two-agent architecture** optimized for different complexity 
 User Query Complexity → Agent Selection:
 
 Simple Operations → Simple Agent (direct tool calls)
-Multi-step Workflows → Simple Agent + batch_apply_operations (atomic execution)
-Complex Reasoning → ReAct Agent + batch_apply_operations (reasoning + atomic execution)
+Multi-step Workflows → Simple Agent (sequential operations)
+Complex Reasoning → ReAct Agent (reasoning + execution)
 ```
 
-**Key Insight**: Modern LLMs can generate complex batch operations directly, eliminating the need for separate planning phases. Atomic batch operations provide superior reliability compared to sequential tool execution.
+**Key Insight**: Modern LLMs can handle complex multi-step operations effectively through either direct sequential execution (Simple Agent) or through reasoning workflows (ReAct Agent).
 
 ### Semantic Search Integration
 - **Tool**: `find_similar_text` with scope-based targeting (`document` or `chapter`)
@@ -287,7 +284,7 @@ result = await retry_manager.execute_with_retry(operation)
 - **Integration tests**: Zero LLM calls (mocked responses)  
 - **E2E tests**: Minimized with delays and batching
 - **Production**: Circuit breakers prevent cascade failures
-- **Batch Operations**: Single LLM call for multi-step workflows instead of sequential calls
+- **Sequential Operations**: Streamlined execution of multi-step workflows
 
 ## CI/CD and GitHub Actions
 
@@ -465,22 +462,23 @@ def test_agent_logic(mock_complete_test_environment):
 
 ## Test Status Summary
 
-**Status: PRODUCTION READY - 305/305 tests passing (100%)**
+**Status: PRODUCTION READY - 251/251 tests passing (100%)**
 
 | Test Tier | Tests | Status | Duration | Coverage |
 |-----------|-------|---------|----------|----------|
-| Unit | 139 | 100% | 1.4s | Core tools, validation, semantic search, fine-grain summaries |
-| Integration | 160 | 100% | 18.1s | MCP transport, tool execution, summary workflows |
-| E2E | 6 | 100% | 2.9m | Real APIs, full workflows |
-| Evaluation | 4 | 100% | 27s | Performance benchmarks |
+| Unit | 58 | 100% | ~2s | Core tools, validation, semantic search |
+| Integration | 177 | 100% | ~30s | MCP transport, tool execution, summary workflows |
+| E2E | 6 | 100% | ~5m | Real APIs, full workflows |
+| Evaluation | 4 | 100% | ~30s | Performance benchmarks |
+| Metrics | 6 | 100% | ~1s | Metrics functionality |
 
 **Key Features Validated:**
-- Modular architecture with 25 MCP tools across 6 categories
+- Modular architecture with 26 MCP tools across 5 categories
 - Fine-grain summary system with organized storage structure
 - Universal snapshot protection system
 - Semantic search with embedding cache (80-90% API reduction)
 - Two-agent architecture (Simple/ReAct) with comprehensive error handling
-- 3-tier testing strategy with standardized fixtures
+- 4-tier testing strategy with standardized fixtures
 
 
 ## Development Best Practices
@@ -517,7 +515,7 @@ async def test_mcp_integration(mcp_client):
 ### Development Guidelines
 **Agent Development**: Start with Simple Agent for prototyping, use ReAct for production. Test prompt changes thoroughly.
 
-**Tool Development**: Follow atomic operation principles, implement comprehensive validation, add structured logging, design for idempotency and batch integration.
+**Tool Development**: Follow atomic operation principles, implement comprehensive validation, add structured logging, design for idempotency.
 
 
 ## Codebase Structure

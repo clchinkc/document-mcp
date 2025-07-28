@@ -136,31 +136,6 @@ When a user asks for an operation:
 - Plan operations in logical order (create before write, check before modify)
 - Include error prevention steps when uncertain about document/chapter existence"""
 
-    @staticmethod
-    def get_batch_operation_guidance() -> str:
-        """Batch operation intelligence guidance for all agents."""
-        return """**BATCH OPERATION INTELLIGENCE:**
-Use batch_apply_operations when you need to perform multiple related operations that should succeed or fail together. The system automatically:
-- Resolves operation dependencies (you can define operations in any order)
-- Creates restoration snapshots (automatic rollback on failure)
-- Validates entire batch before execution (catches errors early)
-- Tracks user operations (easy restoration later)
-
-**WHEN TO USE BATCHES:**
-[OK] Multi-step document creation (document + chapters + content)
-[OK] Bulk content editing (character renaming, formatting changes)
-[OK] Complex reorganization (moving/restructuring multiple elements)
-[OK] Multi-document operations requiring consistency
-[OK] Any workflow where partial completion would leave incomplete state
-
-**WHEN TO USE INDIVIDUAL OPERATIONS:**
-[X] Single, simple edits (one paragraph change)
-[X] Exploratory operations where you need to observe results
-[X] Trial-and-error workflows requiring intermediate feedback
-[X] Operations that depend on external input or validation
-
-**VALIDATION STRATEGY:**
-Always validate complex batches first with validate_only=True before execution."""
 
     @staticmethod
     def get_agent_specific_components() -> dict[str, dict[str, str]]:
@@ -199,7 +174,6 @@ def get_shared_prompt_components() -> dict[str, str]:
         "pre_operation_checks": components.get_pre_operation_checks(),
         "document_vs_content": components.get_document_vs_content_distinction(),
         "validation_guidance": components.get_validation_planning_guidance(),
-        "batch_operation_guidance": components.get_batch_operation_guidance(),
         "details_field_requirements": components.get_details_field_requirements(),
     }
 
@@ -271,8 +245,6 @@ def build_agent_prompt(
     prompt_parts.append(shared_components["chapter_naming"])
     prompt_parts.append("")
     prompt_parts.append(shared_components["safety_rules"])
-    prompt_parts.append("")
-    prompt_parts.append(shared_components["batch_operation_guidance"])
     prompt_parts.append("")
     prompt_parts.append(shared_components["details_field_requirements"])
 

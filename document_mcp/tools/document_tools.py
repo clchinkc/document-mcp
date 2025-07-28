@@ -15,7 +15,6 @@ from pathlib import Path
 
 from mcp.server import FastMCP
 
-from ..batch import register_batchable_operation
 from ..helpers import _get_chapter_metadata
 from ..helpers import _get_document_path
 from ..helpers import _get_ordered_chapter_files
@@ -156,7 +155,6 @@ def register_document_tools(mcp_server: FastMCP) -> None:
         return docs_info
 
     @mcp_server.tool()
-    @register_batchable_operation("create_document")
     @log_mcp_call
     @auto_snapshot("create_document")
     def create_document(document_name: str) -> OperationStatus:
@@ -346,7 +344,6 @@ def register_document_tools(mcp_server: FastMCP) -> None:
     @mcp_server.tool()
     @log_mcp_call
     @auto_snapshot("write_summary")
-    @register_batchable_operation("write_summary")
     def write_summary(
         document_name: str, summary_content: str, scope: str = "document", target_name: str | None = None
     ) -> OperationStatus:

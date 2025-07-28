@@ -16,10 +16,6 @@ from typing import Any
 from mcp.server import FastMCP
 
 # Local imports for safe operation handling
-# Import models
-from .batch import BatchApplyResult
-from .batch import BatchOperation
-from .batch import OperationResult
 
 # Import configuration
 from .config import get_settings
@@ -41,7 +37,6 @@ from .models import SnapshotsList
 from .models import StatisticsReport
 
 # Import tool registration functions from modular architecture
-from .tools import register_batch_tools
 from .tools import register_chapter_tools
 from .tools import register_content_tools
 from .tools import register_document_tools
@@ -113,13 +108,10 @@ register_chapter_tools(mcp_server)
 register_paragraph_tools(mcp_server)
 register_content_tools(mcp_server)
 register_safety_tools(mcp_server)
-register_batch_tools(mcp_server)
 
 # Export only essential items for MCP server module
 __all__ = [
     # Models and types
-    "BatchApplyResult",
-    "BatchOperation",
     "ChapterContent",
     "ChapterMetadata",
     "ContentFreshnessStatus",
@@ -128,7 +120,6 @@ __all__ = [
     "FullDocumentContent",
     "ModificationHistory",
     "ModificationHistoryEntry",
-    "OperationResult",
     "OperationStatus",
     "ParagraphDetail",
     "SnapshotInfo",

@@ -14,7 +14,6 @@ from typing import Any
 
 from mcp.server import FastMCP
 
-from ..batch import register_batchable_operation
 from ..helpers import _count_words
 from ..helpers import _get_chapter_metadata
 from ..helpers import _get_chapter_path
@@ -118,7 +117,6 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
         return chapters_metadata_list
 
     @mcp_server.tool()
-    @register_batchable_operation("create_chapter")
     @log_mcp_call
     @auto_snapshot("create_chapter")
     def create_chapter(document_name: str, chapter_name: str, initial_content: str = "") -> OperationStatus:

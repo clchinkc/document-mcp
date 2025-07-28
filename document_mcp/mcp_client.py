@@ -242,18 +242,6 @@ def diff_content(
     )
 
 
-# Batch operations
-def batch_apply_operations(
-    operations: list[dict],
-    atomic: bool = True,
-    validate_only: bool = False,
-    snapshot_before: bool = False,
-    continue_on_error: bool = False,
-):
-    """Execute multiple operations as a batch."""
-    return _get_mcp_tool("batch_apply_operations")(
-        operations, atomic, validate_only, snapshot_before, continue_on_error
-    )
 
 
 # All convenience functions have been removed to ensure tests call MCP tools directly.
@@ -291,6 +279,4 @@ __all__ = [
     "manage_snapshots",
     "check_content_status",
     "diff_content",
-    # Batch operations
-    "batch_apply_operations",
 ]

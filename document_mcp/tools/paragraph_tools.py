@@ -12,7 +12,6 @@ This module contains MCP tools for precise paragraph-level operations within cha
 
 from mcp.server import FastMCP
 
-from ..batch import register_batchable_operation
 from ..helpers import _count_words
 from ..helpers import _get_chapter_path
 from ..helpers import _is_valid_chapter_filename
@@ -140,7 +139,6 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             return OperationStatus(success=False, message=f"Error replacing paragraph: {e}")
 
     @mcp_server.tool()
-    @register_batchable_operation("insert_paragraph_before")
     @log_mcp_call
     @auto_snapshot("insert_paragraph_before")
     def insert_paragraph_before(
@@ -216,7 +214,6 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             return OperationStatus(success=False, message=f"Error inserting paragraph: {e}")
 
     @mcp_server.tool()
-    @register_batchable_operation("insert_paragraph_after")
     @log_mcp_call
     @auto_snapshot("insert_paragraph_after")
     def insert_paragraph_after(
@@ -292,7 +289,6 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             return OperationStatus(success=False, message=f"Error inserting paragraph: {e}")
 
     @mcp_server.tool()
-    @register_batchable_operation("delete_paragraph")
     @log_mcp_call
     @auto_snapshot("delete_paragraph")
     def delete_paragraph(
@@ -370,7 +366,6 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             return OperationStatus(success=False, message=f"Error deleting paragraph: {e}")
 
     @mcp_server.tool()
-    @register_batchable_operation("append_paragraph_to_chapter")
     @log_mcp_call
     @auto_snapshot("append_paragraph_to_chapter")
     def append_paragraph_to_chapter(
@@ -434,7 +429,6 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             return OperationStatus(success=False, message=f"Error appending paragraph: {e}")
 
     @mcp_server.tool()
-    @register_batchable_operation("move_paragraph_before")
     @log_mcp_call
     @auto_snapshot("move_paragraph_before")
     def move_paragraph_before(
@@ -533,7 +527,6 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             )
 
     @mcp_server.tool()
-    @register_batchable_operation("move_paragraph_to_end")
     @log_mcp_call
     @auto_snapshot("move_paragraph_to_end")
     def move_paragraph_to_end(

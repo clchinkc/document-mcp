@@ -203,14 +203,13 @@ Document MCP includes comprehensive safety features designed to prevent content 
 document-mcp/
 ├── document_mcp/           # Core MCP server package
 │   ├── doc_tool_server.py  # Main server with modular tool registrations
-│   ├── tools/              # Modular tool architecture (25 tools)
+│   ├── tools/              # Modular tool architecture (26 tools)
 │   │   ├── __init__.py     # Tool registration system
-│   │   ├── document_tools.py    # Document management (6 tools)
+│   │   ├── document_tools.py    # Document management and summaries (6 tools)
 │   │   ├── chapter_tools.py     # Chapter operations (5 tools)
 │   │   ├── paragraph_tools.py   # Paragraph editing (7 tools)
 │   │   ├── content_tools.py     # Unified content access (5 tools)
-│   │   ├── safety_tools.py      # Version control (3 tools)
-│   │   └── batch_tools.py       # Batch operations (1 tool)
+│   │   └── safety_tools.py      # Version control (3 tools)
 │   ├── logger_config.py    # Structured logging with OpenTelemetry
 │   └── metrics_config.py   # Prometheus metrics and monitoring
 ├── src/agents/             # AI agent implementations
@@ -265,7 +264,7 @@ Choose between three agent implementations:
 - **Planner Agent**: Strategic planning with execution, complex task decomposition
 
 **Agent Selection:**
-- Use Simple Agent for: direct operations, JSON output, prototyping, batch processing
+- Use Simple Agent for: direct operations, JSON output, prototyping
 - Use ReAct Agent for: complex workflows, multi-step planning, production environments, reasoning transparency
 - Use Planner Agent for: strategic planning, complex task decomposition, hierarchical execution
 

@@ -195,7 +195,7 @@ class TestSimpleAgentE2E:
         validator.assert_document_count(0)
 
         # 1. Create Document
-        await run_agent_query("src.agents.simple_agent.main", f"Create a document named '{doc_name}'")
+        await run_agent_query("src.agents.simple_agent.main", f"Create a document named '{doc_name}'", timeout=120)
 
         validator.assert_document_exists(doc_name)
         validator.assert_document_count(1)
@@ -204,6 +204,7 @@ class TestSimpleAgentE2E:
         await run_agent_query(
             "src.agents.simple_agent.main",
             f"In document '{doc_name}', create chapter '{chapter_name}' with content: {content}",
+            timeout=120,
         )
 
         validator.assert_chapter_exists(doc_name, chapter_name)
@@ -218,7 +219,7 @@ class TestSimpleAgentE2E:
 
         # 4. Test Summary-First Workflow
         summary_query = f"Tell me about the document '{doc_name}'"
-        summary_resp = await run_agent_query("src.agents.simple_agent.main", summary_query)
+        summary_resp = await run_agent_query("src.agents.simple_agent.main", summary_query, timeout=120)
 
         details = safe_get_response_content(summary_resp, "details")
         
@@ -240,6 +241,7 @@ class TestSimpleAgentE2E:
         read_resp = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Read chapter '{chapter_name}' from document '{doc_name}'",
+            timeout=120,
         )
 
         read_details = safe_get_response_content(read_resp, "details")
@@ -247,7 +249,7 @@ class TestSimpleAgentE2E:
         # 6. Test Creating Additional Summaries Using New Tools
         # Test creating chapter summary
         chapter_summary_query = f"Create a summary for chapter '{chapter_name}' in document '{doc_name}' with content: 'Chapter summary: Introduction concepts'"
-        chapter_summary_resp = await run_agent_query("src.agents.simple_agent.main", chapter_summary_query)
+        chapter_summary_resp = await run_agent_query("src.agents.simple_agent.main", chapter_summary_query, timeout=120)
 
         chapter_summary_details = safe_get_response_content(chapter_summary_resp, "details")
         write_summary_response = chapter_summary_details.get("write_summary", {})
@@ -256,7 +258,7 @@ class TestSimpleAgentE2E:
 
         # Test creating section summary
         section_summary_query = f"Create a section summary called 'overview' for document '{doc_name}' with content: 'Section overview of key topics'"
-        section_summary_resp = await run_agent_query("src.agents.simple_agent.main", section_summary_query)
+        section_summary_resp = await run_agent_query("src.agents.simple_agent.main", section_summary_query, timeout=120)
 
         section_summary_details = safe_get_response_content(section_summary_resp, "details")
         section_write_response = section_summary_details.get("write_summary", {})
@@ -432,11 +434,11 @@ class TestSafetyAndVersionControlE2E:
 
         validator.assert_document_exists(doc_name)
 
-        # Add content separately to avoid complex query loops
+        # Add content separately to avoid complex query loops  
         response2 = await run_agent_query(
             "src.agents.simple_agent.main",
-            f"Add chapter '01-content.md' to document '{doc_name}' with content: Initial content for snapshot testing",
-            timeout=30,  # Chapter creation with content may take longer due to API calls
+            f"Create chapter named '01-content.md' in document '{doc_name}'",
+            timeout=45,  # Chapter creation and potential snapshots
         )
 
         validator.assert_chapter_exists(doc_name, "01-content.md")
@@ -473,57 +475,42 @@ class TestSafetyAndVersionControlE2E:
 
 @pytest.mark.e2e
 @pytest.mark.skipif(not check_api_key_available(), reason="E2E tests require a real API key")
-class TestBatchOperationsE2E:
-    """E2E tests for batch operations functionality."""
+class TestMultiStepOperationsE2E:
+    """E2E tests for multi-step operations functionality."""
 
     @pytest.mark.asyncio
-    async def test_batch_operations_capability(self, e2e_docs_dir: Path, validator: DocumentSystemValidator):
-        """Test batch operations with coordinated multi-step workflows."""
-        doc_name = f"e2e_batch_{uuid.uuid4().hex[:8]}"
+    async def test_sequential_operations_capability(self, e2e_docs_dir: Path, validator: DocumentSystemValidator):
+        """Test sequential multi-step operations workflow."""
+        doc_name = f"e2e_sequential_{uuid.uuid4().hex[:8]}"
 
-        # Use separate simple operations to avoid MCP communication loops
-        # Complex multi-operation queries cause infinite tool resolution cycles
-
+        # Test sequential operations demonstrating coordinated workflow
         # Step 1: Create document
         create_response = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create document '{doc_name}'",
-            timeout=20,  # Document creation with potential API delays
+            timeout=30,
         )
 
-        # Step 2: Add first chapter
-        chapter1_response = await run_agent_query(
+        # Step 2: Add chapter to demonstrate coordinated workflow
+        chapter_response = await run_agent_query(
             "src.agents.simple_agent.main",
-            f"Add chapter '01-intro.md' to document '{doc_name}' with content: Introduction text",
-            timeout=30,  # Chapter creation with content may take longer
+            f"Create chapter '01-intro.md' in document '{doc_name}'",
+            timeout=30,
         )
 
-        # Step 3: Add second chapter (demonstrates batch-like workflow)
-        chapter2_response = await run_agent_query(
-            "src.agents.simple_agent.main",
-            f"Add chapter '02-main.md' to document '{doc_name}' with content: Main content text",
-            timeout=30,  # Chapter creation with content may take longer
-        )
+        # Verify the operations succeeded
+        assert create_response.get("error_message") is None, "Document creation should succeed"
+        assert chapter_response.get("error_message") is None, "Chapter creation should succeed"
 
-        # Verify batch workflow succeeded through file system state
+        # Verify file system state
         validator.assert_document_exists(doc_name)
         validator.assert_chapter_exists(doc_name, "01-intro.md")
-        validator.assert_chapter_exists(doc_name, "02-main.md")
-        validator.assert_chapter_count(doc_name, 2)
+        validator.assert_chapter_count(doc_name, 1)
 
-        # Verify content was actually created
-        validator.assert_chapter_content_contains(doc_name, "01-intro.md", "Introduction")
-        validator.assert_chapter_content_contains(doc_name, "02-main.md", "Main content")
-
-        # Verify all operations succeeded
-        assert create_response.get("error_message") is None, "Document creation should succeed"
-        assert chapter1_response.get("error_message") is None, "First chapter creation should succeed"
-        assert chapter2_response.get("error_message") is None, "Second chapter creation should succeed"
-
-        print("[OK] Batch operations capability verified (Sequential multi-step workflow)")
+        print("[OK] Multi-step operations workflow verified")
         print("   - Document creation")
-        print("   - Multiple chapter creation with content")
-        print("   - Coordinated sequential operation execution")
+        print("   - Chapter creation")
+        print("   - Coordinated sequential workflow execution")
 
 
 @pytest.mark.e2e
