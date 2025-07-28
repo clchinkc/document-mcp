@@ -188,29 +188,6 @@ class OperationError(DocumentMCPError):
         super().__init__(message, **kwargs)
 
 
-class BatchOperationError(DocumentMCPError):
-    """Raised when a batch operation fails."""
-
-    def __init__(self, failed_operations: int, total_operations: int, **kwargs):
-        message = f"Batch operation failed: {failed_operations}/{total_operations} operations failed"
-        user_message = f"Some operations in the batch failed ({failed_operations} out of {total_operations})"
-
-        details = kwargs.get("details", {})
-        details.update(
-            {
-                "failed_operations": failed_operations,
-                "total_operations": total_operations,
-            }
-        )
-
-        kwargs.update(
-            {
-                "error_code": "BATCH_OPERATION_ERROR",
-                "details": details,
-                "user_message": user_message,
-            }
-        )
-        super().__init__(message, **kwargs)
 
 
 class AgentError(DocumentMCPError):

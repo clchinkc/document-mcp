@@ -9,7 +9,6 @@ from typing import Any
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
-from document_mcp.models import BatchApplyResult
 from document_mcp.models import ChapterContent
 from document_mcp.models import ChapterMetadata
 from document_mcp.models import DocumentInfo
@@ -196,43 +195,6 @@ class MockDataFactory:
             execution_time_ms=execution_time_ms,
         )
 
-    @staticmethod
-    def create_batch_apply_result(
-        success: bool = True,
-        operation_count: int = 3,
-        successful_count: int | None = None,
-        execution_time_ms: float = 100.0,
-    ) -> BatchApplyResult:
-        """Create a mock BatchApplyResult object."""
-        if successful_count is None:
-            successful_count = operation_count if success else 0
-
-        failed_count = operation_count - successful_count
-
-        operation_results = []
-        for i in range(successful_count):
-            operation_results.append(
-                MockDataFactory.create_operation_result(success=True, operation_type=f"operation_{i + 1}")
-            )
-        for i in range(failed_count):
-            operation_results.append(
-                MockDataFactory.create_operation_result(
-                    success=False,
-                    operation_type=f"operation_{successful_count + i + 1}",
-                    error="Mock operation failed",
-                )
-            )
-
-        return BatchApplyResult(
-            success=success,
-            total_operations=operation_count,
-            successful_operations=successful_count,
-            failed_operations=failed_count,
-            execution_time_ms=execution_time_ms,
-            rollback_performed=not success,
-            operation_results=operation_results,
-            summary=f"Batch completed: {successful_count}/{operation_count} successful",
-        )
 
 
 class MockMCPClientFactory:

@@ -8,7 +8,7 @@ The tests are organized into 6 test classes covering different aspects:
 - SimpleAgentE2E: Document lifecycle and semantic search
 - ReactAgentE2E: Reasoning and execution patterns
 - SafetyAndVersionControlE2E: Snapshot management and version control
-- BatchOperationsE2E: Multi-step coordinated workflows
+- MultiStepOperationsE2E: Multi-step coordinated workflows
 - IntegratedWorkflowE2E: Feature integration and complex scenarios
 
 All tests use subprocess execution to ensure true end-to-end validation.

@@ -86,7 +86,7 @@ If users need to access past versions of their documents, they can use the snaps
 - **Before writing to a document/chapter, you must read its current content first** to ensure safe operations
 - Verify a target document exists before any further per-document operation
 - For operations across all documents, enumerate with `list_documents()` prior to acting on each
-- Use atomic operations and consider using batch operations for complex multi-step workflows"""
+- Use atomic operations for complex multi-step workflows"""
 
     @staticmethod
     def get_operation_workflow_guidance() -> str:
