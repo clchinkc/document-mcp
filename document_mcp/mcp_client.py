@@ -30,9 +30,19 @@ def list_documents():
     return _get_mcp_tool("list_documents")()
 
 
-def read_document_summary(document_name: str):
-    """Read document summary file."""
-    return _get_mcp_tool("read_document_summary")(document_name)
+def read_summary(document_name: str, scope: str = "document", target_name: str = None):
+    """Read summary with flexible scope (document, chapter, section)."""
+    return _get_mcp_tool("read_summary")(document_name, scope, target_name)
+
+
+def write_summary(document_name: str, summary_content: str, scope: str = "document", target_name: str = None):
+    """Write or update summary with flexible scope."""
+    return _get_mcp_tool("write_summary")(document_name, summary_content, scope, target_name)
+
+
+def list_summaries(document_name: str):
+    """List all available summary files for a document."""
+    return _get_mcp_tool("list_summaries")(document_name)
 
 
 def create_document(document_name: str):
@@ -232,18 +242,6 @@ def diff_content(
     )
 
 
-# Batch operations
-def batch_apply_operations(
-    operations: list[dict],
-    atomic: bool = True,
-    validate_only: bool = False,
-    snapshot_before: bool = False,
-    continue_on_error: bool = False,
-):
-    """Execute multiple operations as a batch."""
-    return _get_mcp_tool("batch_apply_operations")(
-        operations, atomic, validate_only, snapshot_before, continue_on_error
-    )
 
 
 # All convenience functions have been removed to ensure tests call MCP tools directly.
@@ -281,6 +279,4 @@ __all__ = [
     "manage_snapshots",
     "check_content_status",
     "diff_content",
-    # Batch operations
-    "batch_apply_operations",
 ]

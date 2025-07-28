@@ -26,7 +26,7 @@ class AgentBase(abc.ABC):
 
     def __init__(self, agent_type: str):
         """Initialize the base agent.
-        
+
         Args:
             agent_type: Type identifier for this agent (e.g., "simple", "react")
         """
@@ -37,10 +37,10 @@ class AgentBase(abc.ABC):
 
     async def get_llm(self) -> Model:
         """Get or initialize the LLM model.
-        
+
         Returns:
             Configured LLM model instance
-            
+
         Raises:
             AgentConfigurationError: If LLM configuration fails
         """
@@ -51,13 +51,13 @@ class AgentBase(abc.ABC):
                 raise AgentConfigurationError(
                     self.agent_type,
                     f"Failed to load LLM configuration: {str(e)}",
-                    details={"original_error": str(e)}
+                    details={"original_error": str(e)},
                 ) from e
         return self._llm
 
     def get_mcp_server_environment(self) -> dict[str, str]:
         """Get environment variables for MCP server subprocess.
-        
+
         Returns:
             Environment dictionary for MCP server
         """
@@ -65,13 +65,13 @@ class AgentBase(abc.ABC):
 
     def extract_mcp_tool_responses(self, agent_result: AgentRunResult) -> dict[str, Any]:
         """Extract MCP tool responses from agent execution result.
-        
+
         This method provides a standardized way to extract structured data
         from MCP tool responses across different agent implementations.
-        
+
         Args:
             agent_result: Result from agent execution
-            
+
         Returns:
             Dictionary mapping tool names to their response data
         """
@@ -104,10 +104,10 @@ class AgentBase(abc.ABC):
 
     def create_error_context(self, operation_name: str) -> ErrorContext:
         """Create an error context for agent operations.
-        
+
         Args:
             operation_name: Name of the operation being performed
-            
+
         Returns:
             Configured error context for this agent
         """
@@ -115,7 +115,7 @@ class AgentBase(abc.ABC):
 
     def validate_configuration(self) -> None:
         """Validate agent configuration.
-        
+
         Raises:
             AgentConfigurationError: If configuration is invalid
         """
@@ -126,20 +126,20 @@ class AgentBase(abc.ABC):
                 details={
                     "openai_configured": self.settings.openai_configured,
                     "gemini_configured": self.settings.gemini_configured,
-                }
+                },
             )
 
     @abc.abstractmethod
     async def run(self, query: str, **kwargs) -> dict[str, Any]:
         """Execute the agent with the given query.
-        
+
         Args:
             query: User query to process
             **kwargs: Additional parameters specific to agent implementation
-            
+
         Returns:
             Agent response dictionary with standardized format
-            
+
         Raises:
             AgentError: If agent execution fails
         """
@@ -148,27 +148,23 @@ class AgentBase(abc.ABC):
     @abc.abstractmethod
     def get_system_prompt(self) -> str:
         """Get the system prompt for this agent.
-        
+
         Returns:
             System prompt string
         """
         pass
 
     def create_response(
-        self,
-        summary: str,
-        details: dict[str, Any],
-        success: bool = True,
-        **additional_fields
+        self, summary: str, details: dict[str, Any], success: bool = True, **additional_fields
     ) -> dict[str, Any]:
         """Create a standardized agent response.
-        
+
         Args:
             summary: Human-readable summary of the result
             details: Structured data from MCP tool responses
             success: Whether the operation was successful
             **additional_fields: Additional fields to include in response
-            
+
         Returns:
             Standardized response dictionary
         """
@@ -177,7 +173,7 @@ class AgentBase(abc.ABC):
             "details": details,
             "success": success,
             "agent_type": self.agent_type,
-            **additional_fields
+            **additional_fields,
         }
 
         return response
@@ -197,17 +193,13 @@ class AgentBase(abc.ABC):
 class SingleTurnAgentMixin:
     """Mixin for agents that execute in a single turn."""
 
-    def create_single_turn_response(
-        self,
-        agent_result: AgentRunResult,
-        query: str
-    ) -> dict[str, Any]:
+    def create_single_turn_response(self, agent_result: AgentRunResult, query: str) -> dict[str, Any]:
         """Create response for single-turn agent execution.
-        
+
         Args:
             agent_result: Result from agent execution
             query: Original user query
-            
+
         Returns:
             Standardized response dictionary
         """
@@ -218,11 +210,7 @@ class SingleTurnAgentMixin:
         summary = str(agent_result.data) if hasattr(agent_result, "data") else "Operation completed"
 
         return self.create_response(
-            summary=summary,
-            details=tool_responses,
-            success=True,
-            query=query,
-            execution_mode="single_turn"
+            summary=summary, details=tool_responses, success=True, query=query, execution_mode="single_turn"
         )
 
 
@@ -230,18 +218,15 @@ class MultiTurnAgentMixin:
     """Mixin for agents that execute in multiple turns (like ReAct)."""
 
     def create_multi_turn_response(
-        self,
-        steps: list[dict[str, Any]],
-        final_result: Any,
-        query: str
+        self, steps: list[dict[str, Any]], final_result: Any, query: str
     ) -> dict[str, Any]:
         """Create response for multi-turn agent execution.
-        
+
         Args:
             steps: List of execution steps
             final_result: Final result from agent
             query: Original user query
-            
+
         Returns:
             Standardized response dictionary
         """
@@ -260,5 +245,5 @@ class MultiTurnAgentMixin:
             query=query,
             execution_mode="multi_turn",
             steps_count=len(steps),
-            execution_steps=steps
+            execution_steps=steps,
         )

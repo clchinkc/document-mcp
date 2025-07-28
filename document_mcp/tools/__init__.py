@@ -6,10 +6,8 @@ This package contains the MCP tools organized by functional categories:
 - paragraph_tools: Paragraph editing (replace, insert, delete, move, append)
 - content_tools: Unified content access (read, find, replace, statistics)
 - safety_tools: Version control (snapshots, status, diff)
-- batch_tools: Batch operations (atomic multi-operation execution)
 """
 
-from .batch_tools import register_batch_tools
 from .chapter_tools import register_chapter_tools
 from .content_tools import register_content_tools
 from .document_tools import register_document_tools
@@ -22,5 +20,4 @@ __all__ = [
     "register_paragraph_tools",
     "register_content_tools",
     "register_safety_tools",
-    "register_batch_tools",
 ]

@@ -6,7 +6,6 @@ content status checking, and diff generation.
 
 from typing import Any
 
-from ..batch import register_batchable_operation
 from ..logger_config import ErrorCategory
 from ..logger_config import log_mcp_call
 from ..logger_config import log_structured_error
@@ -23,7 +22,6 @@ def register_safety_tools(mcp_server):
 
     @mcp_server.tool()
     @log_mcp_call
-    @register_batchable_operation("manage_snapshots")
     def manage_snapshots(
         document_name: str,
         action: str,  # "create", "list", "restore"
@@ -169,7 +167,6 @@ def register_safety_tools(mcp_server):
 
     @mcp_server.tool()
     @log_mcp_call
-    @register_batchable_operation("check_content_status")
     def check_content_status(
         document_name: str,
         chapter_name: str | None = None,
@@ -302,7 +299,6 @@ def register_safety_tools(mcp_server):
 
     @mcp_server.tool()
     @log_mcp_call
-    @register_batchable_operation("diff_content")
     def diff_content(
         document_name: str,
         source_type: str = "snapshot",  # "snapshot", "current", "file"

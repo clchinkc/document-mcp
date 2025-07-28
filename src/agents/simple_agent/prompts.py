@@ -38,10 +38,10 @@ Fulfill the request exactly as specified and then stop.""",
 
 **READING DOCUMENT CONTENT - SUMMARY-FIRST APPROACH:**
 
-**BROAD/OVERVIEW QUERIES** (use `read_document_summary` tool FIRST):
+**BROAD/OVERVIEW QUERIES** (use `read_summary` tool FIRST):
 - User asks for overview, summary, or general information about a document.
 - Keywords: "tell me about", "overview", "summary", "what is", "describe".
-- **ALWAYS use `read_document_summary` FIRST for these queries.**
+- **ALWAYS use `read_summary` FIRST for these queries.**
 - **NEVER read full content for broad overview requests.**
 
 **SPECIFIC CONTENT QUERIES** (use `read_content` tool with scope="document"):

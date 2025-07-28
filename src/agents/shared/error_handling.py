@@ -313,11 +313,11 @@ def create_error_response(
 
 def create_agent_error_context(operation_name: str, agent_type: str = "unknown") -> ErrorContext:
     """Create an error context for agent operations.
-    
+
     Args:
         operation_name: Name of the operation
         agent_type: Type of agent performing the operation
-    
+
     Returns:
         ErrorContext configured for agent operations
     """

@@ -20,87 +20,47 @@ class Settings(BaseSettings):
 
     # === Document Storage Configuration ===
     document_root_dir: str = Field(
-        default=".documents_storage",
-        description="Root directory for document storage"
+        default=".documents_storage", description="Root directory for document storage"
     )
 
     # === API Keys ===
-    openai_api_key: str | None = Field(
-        default=None,
-        description="OpenAI API key"
-    )
-    gemini_api_key: str | None = Field(
-        default=None,
-        description="Google Gemini API key"
-    )
+    openai_api_key: str | None = Field(default=None, description="OpenAI API key")
+    gemini_api_key: str | None = Field(default=None, description="Google Gemini API key")
 
     # === Model Configuration ===
-    openai_model_name: str = Field(
-        default="gpt-4.1-mini",
-        description="OpenAI model name"
-    )
-    gemini_model_name: str = Field(
-        default="gemini-2.5-flash",
-        description="Gemini model name"
-    )
+    openai_model_name: str = Field(default="gpt-4.1-mini", description="OpenAI model name")
+    gemini_model_name: str = Field(default="gemini-2.5-flash", description="Gemini model name")
 
     # === MCP Server Configuration ===
     mcp_server_cmd: list[str] = Field(
         default_factory=lambda: [sys.executable, "-m", "document_mcp.doc_tool_server", "stdio"],
-        description="MCP server command"
+        description="MCP server command",
     )
 
     # === Timeout Configuration ===
-    default_timeout: float = Field(
-        default=60.0,
-        description="Default timeout for operations"
-    )
-    max_retries: int = Field(
-        default=3,
-        description="Maximum number of retries"
-    )
+    default_timeout: float = Field(default=60.0, description="Default timeout for operations")
+    max_retries: int = Field(default=3, description="Maximum number of retries")
 
     # === Test Environment Detection ===
-    pytest_current_test: str | None = Field(
-        default=None,
-        description="Test mode indicator"
-    )
+    pytest_current_test: str | None = Field(default=None, description="Test mode indicator")
 
     # === HTTP SSE Server Configuration ===
-    sse_host: str = Field(
-        default="0.0.0.0",
-        description="SSE server host"
-    )
-    sse_port: int = Field(
-        default=8000,
-        description="SSE server port"
-    )
+    sse_host: str = Field(default="0.0.0.0", description="SSE server host")
+    sse_port: int = Field(default=8000, description="SSE server port")
 
     # === Logging Configuration ===
-    log_level: str = Field(
-        default="INFO",
-        description="Logging level"
-    )
-    structured_logging: bool = Field(
-        default=True,
-        description="Enable structured JSON logging"
-    )
+    log_level: str = Field(default="INFO", description="Logging level")
+    structured_logging: bool = Field(default=True, description="Enable structured JSON logging")
 
     # === Performance Configuration ===
-    enable_metrics: bool = Field(
-        default=True,
-        description="Enable metrics collection"
-    )
-    metrics_port: int = Field(
-        default=8001,
-        description="Metrics server port"
-    )
+    enable_metrics: bool = Field(default=True, description="Enable metrics collection")
+    metrics_port: int = Field(default=8001, description="Metrics server port")
 
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
-        "extra": "ignore"  # Ignore extra environment variables
+        "extra": "ignore",  # Ignore extra environment variables
     }
 
     def __init__(self, **kwargs):
@@ -128,9 +88,9 @@ class Settings(BaseSettings):
     def is_test_environment(self) -> bool:
         """Check if running in test environment."""
         return (
-            "PYTEST_CURRENT_TEST" in os.environ or
-            self.pytest_current_test is not None or
-            "DOCUMENT_ROOT_DIR" in os.environ
+            "PYTEST_CURRENT_TEST" in os.environ
+            or self.pytest_current_test is not None
+            or "DOCUMENT_ROOT_DIR" in os.environ
         )
 
     @property
@@ -190,14 +150,14 @@ class Settings(BaseSettings):
             server_env["PYTEST_CURRENT_TEST"] = "1"  # Also set test flag when DOCUMENT_ROOT_DIR is present
             print(f"[MCP_ENV_DEBUG] Added DOCUMENT_ROOT_DIR to MCP env: {env_value}")
         else:
-            print(f"[MCP_ENV_DEBUG] DOCUMENT_ROOT_DIR not in os.environ")
+            print("[MCP_ENV_DEBUG] DOCUMENT_ROOT_DIR not in os.environ")
             # Add test mode flag if in test environment (for other test scenarios)
             if self.is_test_environment:
                 server_env["PYTEST_CURRENT_TEST"] = "1"
                 if self.document_root_dir != ".documents_storage":
                     server_env["DOCUMENT_ROOT_DIR"] = self.document_root_dir
                     print(f"[MCP_ENV_DEBUG] Added DOCUMENT_ROOT_DIR from settings: {self.document_root_dir}")
-        
+
         # Debug: Show final MCP server environment subset
         doc_root_final = server_env.get("DOCUMENT_ROOT_DIR", "NOT_SET")
         pytest_flag = server_env.get("PYTEST_CURRENT_TEST", "NOT_SET")

@@ -40,7 +40,7 @@ class ToolDescriptionManager:
     def _initialize_tools(self) -> list[ToolDescription]:
         """Initialize all tool descriptions with standardized format."""
         return [
-            # Document Management (4 tools)
+            # Document Management (6 tools)
             ToolDescription(
                 name="list_documents",
                 description="Lists all available documents",
@@ -66,12 +66,33 @@ class ToolDescriptionManager:
                 planner_signature="delete_document(document_name: str)",
             ),
             ToolDescription(
-                name="read_document_summary",
-                description="Reads the _SUMMARY.md file for a document. **Use this first before reading content**",
-                parameters={"document_name": "str"},
-                example='read_document_summary(document_name="My Book")',
+                name="read_summary",
+                description="Reads summary files with flexible scope (document, chapter, section). **Use this to read summaries**",
+                parameters={"document_name": "str", "scope": "str", "target_name": "str | None"},
+                example='read_summary(document_name="My Book", scope="document")',
                 category="Document Management",
-                planner_signature="read_document_summary(document_name: str)",
+                planner_signature="read_summary(document_name: str, scope: str = 'document', target_name: str | None = None)",
+            ),
+            ToolDescription(
+                name="write_summary",
+                description="Writes or updates summary files with flexible scope (document, chapter, section)",
+                parameters={
+                    "document_name": "str",
+                    "summary_content": "str",
+                    "scope": "str",
+                    "target_name": "str | None",
+                },
+                example='write_summary(document_name="My Book", summary_content="This book covers...", scope="document")',
+                category="Document Management",
+                planner_signature="write_summary(document_name: str, summary_content: str, scope: str = 'document', target_name: str | None = None)",
+            ),
+            ToolDescription(
+                name="list_summaries",
+                description="Lists all available summary files for a document",
+                parameters={"document_name": "str"},
+                example='list_summaries(document_name="My Book")',
+                category="Document Management",
+                planner_signature="list_summaries(document_name: str)",
             ),
             # Chapter Management (5 tools)
             ToolDescription(
@@ -317,65 +338,6 @@ class ToolDescriptionManager:
                 category="Version Control",
                 planner_signature="diff_content(document_name: str, source_type: str = 'snapshot', source_id: str = None, target_type: str = 'current', target_id: str = None, output_format: str = 'unified', chapter_name: str = None)",
             ),
-            # Batch Operations (1 tool)
-            ToolDescription(
-                name="batch_apply_operations",
-                description="""Execute multiple document operations atomically with comprehensive safety and rollback.
-
-INTELLIGENCE FEATURES:
-• Automatic dependency resolution - operations execute in correct order regardless of definition order
-• Smart conflict detection - prevents contradictory operations (e.g., delete then modify same content)
-• Automatic snapshot creation - every batch gets a restoration checkpoint
-• Granular rollback - failed batches automatically restore to pre-execution state
-• User operation tracking - all changes attributed and logged for easy restoration
-
-WHEN TO USE BATCHES:
-[OK] Multi-step document creation (document + chapters + content)
-[OK] Bulk content editing (character renaming, formatting changes)
-[OK] Complex reorganization (moving/restructuring multiple elements)
-[OK] Multi-document operations requiring consistency
-[OK] Any workflow where partial completion would leave incomplete state
-
-WHEN TO USE INDIVIDUAL OPERATIONS:
-[X] Single, simple edits (one paragraph change)
-[X] Exploratory operations where you need to observe results
-[X] Trial-and-error workflows requiring intermediate feedback
-[X] Operations that depend on external input or validation""",
-                parameters={
-                    "operations": "List[Dict] - List of operations, each with: operation_type (str), target (Dict), parameters (Dict), order (int), operation_id (str), depends_on (List[str], optional)",
-                    "atomic": "bool - True: all succeed or all rollback (recommended for most use cases)",
-                    "validate_only": "bool - True: dry-run validation without execution (test complex batches first)",
-                    "snapshot_before": "bool - True: create named restoration point (automatic for edit operations)",
-                    "continue_on_error": "bool - False: stop on first error (safer), True: continue despite failures",
-                    "execution_mode": "str - 'sequential' (default, safer) or 'parallel_safe' (faster for independent ops)",
-                },
-                example="""batch_apply_operations(
-    operations=[
-        {
-            "operation_type": "create_document",
-            "target": {},
-            "parameters": {"document_name": "Science Fiction Novel"},
-            "order": 1,
-            "operation_id": "create_doc"
-        },
-        {
-            "operation_type": "create_chapter",
-            "target": {"document_name": "Science Fiction Novel"},
-            "parameters": {
-                "chapter_name": "01-introduction.md",
-                "initial_content": "# The Journey Begins\\n\\nIn a galaxy far away..."
-            },
-            "order": 2,
-            "operation_id": "create_intro",
-            "depends_on": ["create_doc"]
-        }
-    ],
-    atomic=True,
-    snapshot_before=True
-)""",
-                category="Batch Operations",
-                planner_signature="batch_apply_operations(operations: List[Dict], atomic: bool = True, validate_only: bool = False, snapshot_before: bool = False, continue_on_error: bool = False, execution_mode: str = 'sequential')",
-            ),
         ]
 
     def get_tools_by_category(self) -> dict[str, list[ToolDescription]]:
@@ -387,7 +349,7 @@ WHEN TO USE INDIVIDUAL OPERATIONS:
             categories[tool.category].append(tool)
         return categories
 
-    def get_tool_descriptions_text(self, format_type: ToolFormat = ToolFormat.FULL) -> str:
+    def get_tool_descriptions_text(self, format_type: ToolFormat = ToolFormat.FULL, exclude_categories: list[str] = None) -> str:
         """Generate tool descriptions text for prompt inclusion."""
         if format_type == ToolFormat.COMPACT:
             return self._generate_compact_format()

@@ -77,7 +77,6 @@ packages = [
     "document_mcp.models",
     "document_mcp.tools", 
     "document_mcp.utils", 
-    "document_mcp.batch",
     "src", 
     "src.agents", 
     "src.agents.simple_agent", 

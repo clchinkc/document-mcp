@@ -2,7 +2,9 @@
 
 This module contains MCP tools for managing document collections:
 - list_documents: List all available document collections
-- read_document_summary: Read document summary file (_SUMMARY.md)
+- read_summary: Read summary files with flexible scope (document, chapter, section)
+- write_summary: Write or update summary files with flexible scope
+- list_summaries: List all available summary files for a document
 - create_document: Create new document directory
 - delete_document: Delete entire document and all chapters
 """
@@ -13,11 +15,11 @@ from pathlib import Path
 
 from mcp.server import FastMCP
 
-from ..batch import register_batchable_operation
-from ..helpers import DOCUMENT_SUMMARY_FILE
 from ..helpers import _get_chapter_metadata
 from ..helpers import _get_document_path
 from ..helpers import _get_ordered_chapter_files
+from ..helpers import _get_summaries_path
+from ..helpers import _get_summary_file_path
 from ..logger_config import log_mcp_call
 from ..models import DocumentInfo
 from ..models import DocumentSummary
@@ -50,7 +52,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
                 - total_paragraph_count (int): Sum of paragraphs across all chapters
                 - last_modified (datetime): Most recent modification time across all chapters
                 - chapters (List[ChapterMetadata]): Ordered list of chapter metadata
-                - has_summary (bool): Whether a _SUMMARY.md file exists
+                - has_summary (bool): Whether a summary file exists in summaries/document.md
 
             Returns empty list [] if no documents exist or documents directory is not found.
 
@@ -129,8 +131,9 @@ def register_document_tools(mcp_server: FastMCP) -> None:
                             stat_dir.st_mtime, tz=datetime.timezone.utc
                         )
 
-                summary_file_path = doc_dir / DOCUMENT_SUMMARY_FILE
-                has_summary_file = summary_file_path.is_file()
+                # Check for summary in new organized location
+                new_summary_path = _get_summaries_path(document_name) / "document.md"
+                has_summary_file = new_summary_path.is_file()
 
                 docs_info.append(
                     DocumentInfo(
@@ -152,118 +155,6 @@ def register_document_tools(mcp_server: FastMCP) -> None:
         return docs_info
 
     @mcp_server.tool()
-    @log_mcp_call
-    def read_document_summary(document_name: str) -> DocumentSummary | None:
-        r"""Retrieve the content of a document's summary file (_SUMMARY.md).
-
-        This tool reads the special _SUMMARY.md file that can be used to provide
-        an overview or table of contents for a document collection. The summary
-        file is optional and may not exist for all documents.
-
-        Parameters:
-            document_name (str): Name of the document directory to read summary from
-
-        Returns:
-            Optional[DocumentSummary]: A DocumentSummary object containing the document name
-            and summary content if it exists, None if the summary file doesn't exist or
-            cannot be read.
-
-            Returns None if:
-            - Document directory doesn't exist
-            - _SUMMARY.md file doesn't exist in the document
-
-        Example Usage:
-            ```json
-            {
-                "name": "read_document_summary",
-                "arguments": {
-                    "document_name": "user_guide"
-                }
-            }
-            ```
-
-        Example Success Response:
-            ```json
-            {
-                "document_name": "user_guide",
-                "content": "# Document Summary\n\n- Chapter 1\n- Chapter 2"
-            }
-            ```
-
-        Example Not Found Response:
-            ```json
-            null
-            ```
-        """
-        # Validate document name (optional, but good practice if it can be invalid)
-        is_valid_doc, doc_error = validate_document_name(document_name)
-        if not is_valid_doc:
-            from ..logger_config import ErrorCategory
-            from ..logger_config import log_structured_error
-
-            log_structured_error(
-                category=ErrorCategory.WARNING,
-                message="Invalid document name provided",
-                context={"document_name": document_name, "validation_error": doc_error},
-                operation="read_document_summary",
-            )
-            # Depending on desired strictness, could return None or raise error
-            return None  # For now, let's be lenient if the path check below handles it
-
-        doc_path = _get_document_path(document_name)
-        if not doc_path.is_dir():
-            from ..logger_config import ErrorCategory
-            from ..logger_config import log_structured_error
-
-            log_structured_error(
-                category=ErrorCategory.INFO,
-                message="Document not found",
-                context={
-                    "document_name": document_name,
-                    "attempted_path": str(doc_path),
-                },
-                operation="read_document_summary",
-            )
-            return None
-
-        summary_file_path = doc_path / DOCUMENT_SUMMARY_FILE
-        if not summary_file_path.is_file():
-            from ..logger_config import ErrorCategory
-            from ..logger_config import log_structured_error
-
-            log_structured_error(
-                category=ErrorCategory.INFO,
-                message="Summary file not found in document",
-                context={
-                    "document_name": document_name,
-                    "summary_file_name": DOCUMENT_SUMMARY_FILE,
-                    "summary_file_path": str(summary_file_path),
-                },
-                operation="read_document_summary",
-            )
-            return None
-
-        try:
-            summary_content = summary_file_path.read_text(encoding="utf-8")
-            return DocumentSummary(document_name=document_name, content=summary_content)
-        except Exception as e:
-            from ..logger_config import ErrorCategory
-            from ..logger_config import log_structured_error
-
-            log_structured_error(
-                category=ErrorCategory.ERROR,
-                message="Failed to read summary file",
-                exception=e,
-                context={
-                    "document_name": document_name,
-                    "summary_file_path": str(summary_file_path),
-                },
-                operation="read_document_summary",
-            )
-            return None
-
-    @mcp_server.tool()
-    @register_batchable_operation("create_document")
     @log_mcp_call
     @auto_snapshot("create_document")
     def create_document(document_name: str) -> OperationStatus:
@@ -319,19 +210,16 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             }
             ```
         """
-        # Debug: Track if create_document tool is called
-        print(f"[CREATE_DOC_DEBUG] create_document tool called with name: '{document_name}'")
-        
         # Validate input
         is_valid, error_msg = validate_document_name(document_name)
         if not is_valid:
             return OperationStatus(success=False, message=error_msg)
 
         doc_path = _get_document_path(document_name)
-        
+
         if doc_path.exists():
             return OperationStatus(success=False, message=f"Document '{document_name}' already exists.")
-        
+
         try:
             doc_path.mkdir(parents=True, exist_ok=False)
             return OperationStatus(
@@ -400,6 +288,148 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             )
         except Exception as e:
             return OperationStatus(success=False, message=f"Error deleting document '{document_name}': {e}")
+
+    @mcp_server.tool()
+    @log_mcp_call
+    def read_summary(
+        document_name: str, scope: str = "document", target_name: str | None = None
+    ) -> DocumentSummary | None:
+        """Read a summary file with flexible scope (document, chapter, or section).
+
+        This tool reads summary content based on the specified scope. It supports:
+        - Document summaries: Overall document overview
+        - Chapter summaries: Summary of specific chapters
+        - Section summaries: Summary of thematic sections
+
+        Parameters:
+            document_name (str): Name of the document directory
+            scope (str): Scope of the summary ("document", "chapter", "section")
+            target_name (str, optional): Required for chapter/section scope.
+                For chapters: chapter filename (e.g., "01-intro.md")
+                For sections: section name (e.g., "introduction")
+
+        Returns:
+            DocumentSummary | None: Summary object with content, scope and target_name,
+            or None if summary doesn't exist
+
+        Example Usage:
+            # Read document summary
+            read_summary("my_book", scope="document")
+
+            # Read chapter summary
+            read_summary("my_book", scope="chapter", target_name="01-intro.md")
+
+            # Read section summary
+            read_summary("my_book", scope="section", target_name="introduction")
+        """
+        if not validate_document_name(document_name):
+            return None
+
+        doc_path = _get_document_path(document_name)
+        if not doc_path.is_dir():
+            return None
+
+        try:
+            summary_file_path = _get_summary_file_path(document_name, scope, target_name)
+            if not summary_file_path.exists():
+                return None
+
+            content = summary_file_path.read_text(encoding="utf-8")
+            return DocumentSummary(
+                document_name=document_name, content=content, scope=scope, target_name=target_name
+            )
+        except Exception:
+            return None
+
+    @mcp_server.tool()
+    @log_mcp_call
+    @auto_snapshot("write_summary")
+    def write_summary(
+        document_name: str, summary_content: str, scope: str = "document", target_name: str | None = None
+    ) -> OperationStatus:
+        """Write or update a summary file with flexible scope.
+
+        Creates or updates summary files for documents, chapters, or sections.
+        Automatically creates the summaries directory structure if needed.
+
+        Parameters:
+            document_name (str): Name of the document directory
+            summary_content (str): Content to write to the summary file
+            scope (str): Scope of the summary ("document", "chapter", "section")
+            target_name (str, optional): Required for chapter/section scope.
+                For chapters: chapter filename (e.g., "01-intro.md")
+                For sections: section name (e.g., "introduction")
+
+        Returns:
+            OperationStatus: Result of the write operation
+
+        Example Usage:
+            # Write document summary
+            write_summary("my_book", "This book covers...", scope="document")
+
+            # Write chapter summary
+            write_summary("my_book", "Chapter introduces...", scope="chapter", target_name="01-intro.md")
+        """
+        if not validate_document_name(document_name):
+            return OperationStatus(success=False, message="Invalid document name")
+
+        doc_path = _get_document_path(document_name)
+        if not doc_path.is_dir():
+            return OperationStatus(success=False, message=f"Document '{document_name}' not found")
+
+        try:
+            # Create summaries directory if it doesn't exist
+            summaries_path = _get_summaries_path(document_name)
+            summaries_path.mkdir(exist_ok=True)
+
+            summary_file_path = _get_summary_file_path(document_name, scope, target_name)
+            summary_file_path.write_text(summary_content, encoding="utf-8")
+
+            scope_desc = f"{scope} summary"
+            if target_name:
+                scope_desc += f" for '{target_name}'"
+
+            return OperationStatus(
+                success=True, message=f"Successfully wrote {scope_desc} for document '{document_name}'"
+            )
+        except ValueError as e:
+            return OperationStatus(success=False, message=str(e))
+        except Exception as e:
+            return OperationStatus(success=False, message=f"Error writing summary: {e}")
+
+    @mcp_server.tool()
+    @log_mcp_call
+    def list_summaries(document_name: str) -> list[str]:
+        """List all available summary files for a document.
+
+        Returns a list of all summary files in the document's summaries directory,
+        providing an overview of what summaries exist across all scopes.
+
+        Parameters:
+            document_name (str): Name of the document directory
+
+        Returns:
+            list[str]: List of summary filenames (e.g., ["document.md", "chapter-01-intro.md"])
+
+        Example Usage:
+            list_summaries("my_book")
+        """
+        if not validate_document_name(document_name):
+            return []
+
+        doc_path = _get_document_path(document_name)
+        if not doc_path.is_dir():
+            return []
+
+        summaries_path = _get_summaries_path(document_name)
+        if not summaries_path.is_dir():
+            return []
+
+        try:
+            summary_files = [f.name for f in summaries_path.iterdir() if f.is_file() and f.suffix == ".md"]
+            return sorted(summary_files)
+        except Exception:
+            return []
 
 
 # Helper functions are now imported from centralized helpers module

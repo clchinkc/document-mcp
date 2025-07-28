@@ -19,17 +19,17 @@ A 'document' is a directory containing multiple 'chapter' files (Markdown .md fi
         """Summary operations workflow used by all agents."""
         return """**SUMMARY OPERATIONS:**
 - **Explicit Content Requests**: When user explicitly asks to "read the content", "show me the content", "what's in the document", etc. → Use scope-based `read_content()` with appropriate scope
-- **Broad Screening/Editing**: When user gives broad edit commands like "update the document", "modify this section", "improve the writing" → First read `read_document_summary()` to understand structure, then read specific content as needed
+- **Broad Screening/Editing**: When user gives broad edit commands like "update the document", "modify this section", "improve the writing" → First read `read_summary()` to understand structure, then read specific content as needed
 - **Summary-First Strategy**: For general inquiries about document topics, use summaries to provide initial insights before reading full content
-- **After Write Operations**: Suggest creating or updating `_SUMMARY.md` files in your response summary
+- **After Write Operations**: Suggest creating or updating summary files using `write_summary()` in your response summary
 
 **CRITICAL: SUMMARY-FIRST DECISION RULES:**
-- **Use ONLY `read_document_summary()` for**: "tell me about document X", "what's in document Y", "describe document Z", "overview of document", "what is document about", "explain document"
+- **Use ONLY `read_summary()` for**: "tell me about document X", "what's in document Y", "describe document Z", "overview of document", "what is document about", "explain document"
 - **Use `read_content()` for**: "read the content", "show me the content", "full text", "complete content", "read all chapters", "show me chapter X"
 - **Keywords indicating summary-first**: "about", "tell me", "describe", "overview", "what is", "explain", "summarize"
 - **Keywords indicating full content**: "read content", "show content", "full text", "complete", "read all", "show all"
-- **NEVER combine summary and content calls for broad queries**: If user asks "tell me about document X", use ONLY `read_document_summary()` - do NOT also call `read_content()`
-- **When in doubt about broad queries**: Start with `read_document_summary()` - it's faster and more efficient"""
+- **NEVER combine summary and content calls for broad queries**: If user asks "tell me about document X", use ONLY `read_summary()` - do NOT also call `read_content()`
+- **When in doubt about broad queries**: Start with `read_summary()` - it's faster and more efficient"""
 
     @staticmethod
     def get_version_control_explanation() -> str:
@@ -86,7 +86,7 @@ If users need to access past versions of their documents, they can use the snaps
 - **Before writing to a document/chapter, you must read its current content first** to ensure safe operations
 - Verify a target document exists before any further per-document operation
 - For operations across all documents, enumerate with `list_documents()` prior to acting on each
-- Use atomic operations and consider using batch operations for complex multi-step workflows"""
+- Use atomic operations for complex multi-step workflows"""
 
     @staticmethod
     def get_operation_workflow_guidance() -> str:
@@ -136,31 +136,6 @@ When a user asks for an operation:
 - Plan operations in logical order (create before write, check before modify)
 - Include error prevention steps when uncertain about document/chapter existence"""
 
-    @staticmethod
-    def get_batch_operation_guidance() -> str:
-        """Batch operation intelligence guidance for all agents."""
-        return """**BATCH OPERATION INTELLIGENCE:**
-Use batch_apply_operations when you need to perform multiple related operations that should succeed or fail together. The system automatically:
-- Resolves operation dependencies (you can define operations in any order)
-- Creates restoration snapshots (automatic rollback on failure)
-- Validates entire batch before execution (catches errors early)
-- Tracks user operations (easy restoration later)
-
-**WHEN TO USE BATCHES:**
-[OK] Multi-step document creation (document + chapters + content)
-[OK] Bulk content editing (character renaming, formatting changes)
-[OK] Complex reorganization (moving/restructuring multiple elements)
-[OK] Multi-document operations requiring consistency
-[OK] Any workflow where partial completion would leave incomplete state
-
-**WHEN TO USE INDIVIDUAL OPERATIONS:**
-[X] Single, simple edits (one paragraph change)
-[X] Exploratory operations where you need to observe results
-[X] Trial-and-error workflows requiring intermediate feedback
-[X] Operations that depend on external input or validation
-
-**VALIDATION STRATEGY:**
-Always validate complex batches first with validate_only=True before execution."""
 
     @staticmethod
     def get_agent_specific_components() -> dict[str, dict[str, str]]:
@@ -199,7 +174,6 @@ def get_shared_prompt_components() -> dict[str, str]:
         "pre_operation_checks": components.get_pre_operation_checks(),
         "document_vs_content": components.get_document_vs_content_distinction(),
         "validation_guidance": components.get_validation_planning_guidance(),
-        "batch_operation_guidance": components.get_batch_operation_guidance(),
         "details_field_requirements": components.get_details_field_requirements(),
     }
 
@@ -271,8 +245,6 @@ def build_agent_prompt(
     prompt_parts.append(shared_components["chapter_naming"])
     prompt_parts.append("")
     prompt_parts.append(shared_components["safety_rules"])
-    prompt_parts.append("")
-    prompt_parts.append(shared_components["batch_operation_guidance"])
     prompt_parts.append("")
     prompt_parts.append(shared_components["details_field_requirements"])
 
