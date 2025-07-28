@@ -65,7 +65,6 @@ modules_to_test = [
     'document_mcp.tools.paragraph_tools',
     'document_mcp.tools.content_tools',
     'document_mcp.tools.safety_tools',
-    'document_mcp.tools.batch_tools',
     'document_mcp.utils',
     'document_mcp.utils.file_operations',
     'document_mcp.utils.validation',
