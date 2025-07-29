@@ -40,7 +40,12 @@ jobs:
       if: matrix.group == 'tests'
       working-directory: .
       run: |
-        uv run pytest --rootdir=. tests/unit/ tests/integration/ tests/test_metrics.py \
+        uv run pytest \
+          --ignore=.venv \
+          --ignore=.pytest_cache \
+          --ignore=build \
+          --ignore=dist \
+          tests/unit/ tests/integration/ tests/test_metrics.py \
           --cov=document_mcp --cov=src \
           --cov-report=xml --cov-report=term-missing \
           -v --tb=short --strict-markers --disable-warnings
@@ -50,7 +55,12 @@ jobs:
       if: matrix.group == 'tests' && (env.GEMINI_API_KEY != '' || env.OPENAI_API_KEY != '')
       working-directory: .
       run: |
-        uv run pytest --rootdir=. tests/e2e/ tests/evaluation/ \
+        uv run pytest \
+          --ignore=.venv \
+          --ignore=.pytest_cache \
+          --ignore=build \
+          --ignore=dist \
+          tests/e2e/ tests/evaluation/ \
           --cov=document_mcp --cov=src \
           --cov-report=xml --cov-report=term-missing \
           -v --tb=short --strict-markers --disable-warnings \
@@ -124,5 +134,10 @@ jobs:
     - name: Run core tests
       working-directory: .
       run: |
-        uv run pytest --rootdir=. tests/unit/ tests/integration/ tests/test_metrics.py \
+        uv run pytest \
+          --ignore=.venv \
+          --ignore=.pytest_cache \
+          --ignore=build \
+          --ignore=dist \
+          tests/unit/ tests/integration/ tests/test_metrics.py \
           -v --tb=short
