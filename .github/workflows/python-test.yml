@@ -35,20 +35,20 @@ jobs:
         uv sync --frozen
         uv pip install -e ".[dev]"
       
-    # Run all tests in parallel (unit, integration, evaluation, metrics)
-    - name: Run test suite
+    # Run core tests (unit, integration, metrics) 
+    - name: Run core test suite
       if: matrix.group == 'tests'
       run: |
-        uv run pytest tests/unit/ tests/integration/ tests/evaluation/ tests/test_metrics.py \
+        uv run pytest tests/unit/ tests/integration/ tests/test_metrics.py \
           --cov=document_mcp --cov=src \
           --cov-report=xml --cov-report=term-missing \
           -v --tb=short --strict-markers --disable-warnings
           
-    # Run E2E tests if API keys available
-    - name: Run E2E tests
+    # Run E2E and Evaluation tests if API keys available  
+    - name: Run E2E and Evaluation tests
       if: matrix.group == 'tests' && (env.GEMINI_API_KEY != '' || env.OPENAI_API_KEY != '')
       run: |
-        uv run pytest tests/e2e/ \
+        uv run pytest tests/e2e/ tests/evaluation/ \
           --cov=document_mcp --cov=src \
           --cov-report=xml --cov-report=term-missing \
           -v --tb=short --strict-markers --disable-warnings \

@@ -41,7 +41,7 @@ class TestAgentErrorHandling:
         # Mock get_llm to simulate API key configuration error
         with patch.object(agent, 'get_llm', side_effect=AgentConfigurationError(
             agent_type="simple",
-            message="Failed to load LLM configuration: No valid API key found"
+            config_issue="Failed to load LLM configuration: No valid API key found"
         )):
             # Should raise AgentConfigurationError when no API keys available
             with pytest.raises(AgentConfigurationError) as exc_info:
