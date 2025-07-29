@@ -15,13 +15,10 @@ from unittest.mock import patch
 import pytest
 from pydantic_ai.mcp import MCPServerStdio
 
-# Mock the settings before importing agents to prevent API key validation
-with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key", "OPENAI_API_KEY": "test-key"}):
-    with patch("src.agents.shared.config.load_llm_config") as global_mock_llm:
-        global_mock_llm.return_value = AsyncMock()
-        from src.agents.react_agent.parser import ActionParser
-        from src.agents.simple_agent.agent import SimpleAgent
-        from src.agents.simple_agent.agent import SimpleAgentResponse
+# Import agents normally - we'll mock at the agent level in each test
+from src.agents.react_agent.parser import ActionParser
+from src.agents.simple_agent.agent import SimpleAgent
+from src.agents.simple_agent.agent import SimpleAgentResponse
 
 
 @pytest.fixture
@@ -59,16 +56,12 @@ class TestSimpleAgentMCPIntegration:
         doc_name = f"simple_integration_{uuid.uuid4().hex[:8]}"
         query = f"Create a document called '{doc_name}'"
 
-        # Mock the LLM response but use real MCP server
-        # Provide basic environment to allow LLM initialization
-        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
-            with patch("src.agents.shared.config.load_llm_config") as mock_load_llm:
-                mock_llm = AsyncMock()
-                mock_load_llm.return_value = mock_llm
-
-            # Create agent
-            agent = SimpleAgent()
-
+        # Create agent
+        agent = SimpleAgent()
+        
+        # Mock get_llm to return a mock LLM
+        mock_llm = AsyncMock()
+        with patch.object(agent, 'get_llm', return_value=mock_llm):
             async with mcp_server:
                 # Mock the Pydantic AI agent to return structured response
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
@@ -107,14 +100,11 @@ class TestSimpleAgentMCPIntegration:
         """Test Simple Agent list documents with real MCP server."""
         query = "List all available documents"
 
-        # Provide basic environment to allow LLM initialization
-        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
-            with patch("src.agents.shared.config.load_llm_config") as mock_load_llm:
-                mock_llm = AsyncMock()
-                mock_load_llm.return_value = mock_llm
-
-            agent = SimpleAgent()
-
+        agent = SimpleAgent()
+        
+        # Mock get_llm to return a mock LLM
+        mock_llm = AsyncMock()
+        with patch.object(agent, 'get_llm', return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
@@ -141,14 +131,11 @@ class TestSimpleAgentMCPIntegration:
         """Test Simple Agent error handling with MCP server."""
         query = "Create a document with invalid name 'test/invalid/name'"
 
-        # Provide basic environment to allow LLM initialization
-        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
-            with patch("src.agents.shared.config.load_llm_config") as mock_load_llm:
-                mock_llm = AsyncMock()
-                mock_load_llm.return_value = mock_llm
-
-            agent = SimpleAgent()
-
+        agent = SimpleAgent()
+        
+        # Mock get_llm to return a mock LLM
+        mock_llm = AsyncMock()
+        with patch.object(agent, 'get_llm', return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
@@ -183,14 +170,11 @@ class TestSimpleAgentMCPIntegration:
         query = "Create a test document"
         short_timeout = 0.001  # Very short timeout to trigger timeout
 
-        # Provide basic environment to allow LLM initialization
-        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
-            with patch("src.agents.shared.config.load_llm_config") as mock_load_llm:
-                mock_llm = AsyncMock()
-                mock_load_llm.return_value = mock_llm
-
-            agent = SimpleAgent()
-
+        agent = SimpleAgent()
+        
+        # Mock get_llm to return a mock LLM
+        mock_llm = AsyncMock()
+        with patch.object(agent, 'get_llm', return_value=mock_llm):
             from document_mcp.exceptions import OperationError
 
             async with mcp_server:
@@ -339,14 +323,11 @@ class TestAgentMCPCommunicationPatterns:
         """Test that agents properly populate details field with MCP responses."""
         # This test validates the critical architecture requirement
 
-        # Provide basic environment to allow LLM initialization
-        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
-            with patch("src.agents.shared.config.load_llm_config") as mock_load_llm:
-                mock_llm = AsyncMock()
-                mock_load_llm.return_value = mock_llm
-
-            agent = SimpleAgent()
-
+        agent = SimpleAgent()
+        
+        # Mock get_llm to return a mock LLM
+        mock_llm = AsyncMock()
+        with patch.object(agent, 'get_llm', return_value=mock_llm):
             async with mcp_server:
                 # Mock agent to simulate real MCP tool response extraction
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
@@ -388,14 +369,11 @@ class TestAgentMCPCommunicationPatterns:
     @pytest.mark.asyncio
     async def test_agent_error_details_population(self, mcp_server, temp_docs_root):
         """Test agent error details population from MCP errors."""
-        # Provide basic environment to allow LLM initialization
-        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
-            with patch("src.agents.shared.config.load_llm_config") as mock_load_llm:
-                mock_llm = AsyncMock()
-                mock_load_llm.return_value = mock_llm
-
-            agent = SimpleAgent()
-
+        agent = SimpleAgent()
+        
+        # Mock get_llm to return a mock LLM
+        mock_llm = AsyncMock()
+        with patch.object(agent, 'get_llm', return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
@@ -437,14 +415,11 @@ class TestAgentMCPCommunicationPatterns:
     @pytest.mark.asyncio
     async def test_multiple_tool_calls_details_aggregation(self, mcp_server, temp_docs_root):
         """Test aggregation of multiple tool call details."""
-        # Provide basic environment to allow LLM initialization
-        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
-            with patch("src.agents.shared.config.load_llm_config") as mock_load_llm:
-                mock_llm = AsyncMock()
-                mock_load_llm.return_value = mock_llm
-
-            agent = SimpleAgent()
-
+        agent = SimpleAgent()
+        
+        # Mock get_llm to return a mock LLM
+        mock_llm = AsyncMock()
+        with patch.object(agent, 'get_llm', return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
