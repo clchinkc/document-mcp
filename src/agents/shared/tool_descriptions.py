@@ -349,7 +349,9 @@ class ToolDescriptionManager:
             categories[tool.category].append(tool)
         return categories
 
-    def get_tool_descriptions_text(self, format_type: ToolFormat = ToolFormat.FULL, exclude_categories: list[str] = None) -> str:
+    def get_tool_descriptions_text(
+        self, format_type: ToolFormat = ToolFormat.FULL, exclude_categories: list[str] = None
+    ) -> str:
         """Generate tool descriptions text for prompt inclusion."""
         if format_type == ToolFormat.COMPACT:
             return self._generate_compact_format()

@@ -13,7 +13,7 @@ from document_mcp.models import ChapterContent
 from document_mcp.models import ChapterMetadata
 from document_mcp.models import DocumentInfo
 from document_mcp.models import FullDocumentContent
-from document_mcp.models import OperationResult
+from document_mcp.models import OperationStatus
 from document_mcp.models import SemanticSearchResponse
 from document_mcp.models import SemanticSearchResult
 from document_mcp.models import StatisticsReport
@@ -185,16 +185,13 @@ class MockDataFactory:
         result_data: dict[str, Any] | None = None,
         error: str | None = None,
         execution_time_ms: float = 10.0,
-    ) -> OperationResult:
-        """Create a mock OperationResult object."""
-        return OperationResult(
+    ) -> OperationStatus:
+        """Create a mock OperationStatus object."""
+        return OperationStatus(
             success=success,
-            operation_type=operation_type,
-            result_data=result_data or {"message": "Operation completed"},
-            error=error,
-            execution_time_ms=execution_time_ms,
+            message=f"{operation_type} completed",
+            details=result_data or {"message": "Operation completed"},
         )
-
 
 
 class MockMCPClientFactory:
@@ -280,6 +277,16 @@ class MockLLMFactory:
             "choices": [{"message": message, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
         }
+
+
+def create_mock_llm_response(
+    content: str = "Mock LLM response", tool_calls: list[dict[str, Any]] | None = None
+) -> MagicMock:
+    """Create a mock LLM response for testing.
+
+    Convenience function that creates a mock LLM response using the MockLLMFactory.
+    """
+    return MockLLMFactory.create_agent_result_mock(content=content, tool_calls=tool_calls)
 
 
 # Convenience instances for common use cases

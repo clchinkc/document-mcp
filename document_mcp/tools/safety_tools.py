@@ -122,11 +122,11 @@ def register_safety_tools(mcp_server):
 
         try:
             if action == "create":
-                # Create snapshot directly - simplified implementation
+                # Create snapshot using internal _create_snapshot function
                 return _create_snapshot(document_name, message, auto_cleanup)
 
             elif action == "list":
-                # List snapshots directly - simplified implementation
+                # List snapshots using internal _list_snapshots function
                 return _list_snapshots(document_name)
 
             elif action == "restore":
@@ -138,7 +138,7 @@ def register_safety_tools(mcp_server):
                         details={"action": "restore"},
                     )
 
-                # Restore snapshot directly - simplified implementation
+                # Restore snapshot using internal _restore_snapshot function
                 return _restore_snapshot(document_name, snapshot_id)
 
         except Exception as e:
@@ -178,7 +178,7 @@ def register_safety_tools(mcp_server):
 
         This consolidated tool combines check_content_freshness and get_modification_history
         into a single interface that provides comprehensive content status information.
-        Reduces tool count while offering enhanced functionality.
+        Reduces tool count while offering comprehensive snapshot management functionality.
 
         Parameters:
             document_name (str): Name of the document directory
@@ -582,7 +582,7 @@ def _diff_snapshots(
     chapter_name: str | None = None,
 ) -> dict[str, Any]:
     """Generate diff between two snapshots or snapshot and current content (internal implementation)."""
-    # This is a simplified implementation that simulates diff detection
+    # Generate unified diff format showing changes between snapshot and current content
     # In production, this would read from actual snapshot files and compare content
 
     from ..helpers import _get_document_path

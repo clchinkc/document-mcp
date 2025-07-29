@@ -87,20 +87,41 @@ class SimpleAgent(AgentBase, SingleTurnAgentMixin):
         """
         timeout = kwargs.get("timeout", self.settings.default_timeout)
 
+        import asyncio  # Import at the top of the method
+
         with self.create_error_context("simple_agent_execution"):
             agent = await self.get_pydantic_agent()
 
             # Execute the agent with timeout
             try:
                 if timeout:
-                    import asyncio
-
                     agent_result = await asyncio.wait_for(agent.run(query), timeout=timeout)
                 else:
                     agent_result = await agent.run(query)
 
                 # Create standardized response
-                return self.create_single_turn_response(agent_result, query)
+                if agent_result and hasattr(agent_result, "data"):
+                    structured_data = agent_result.data
+                    # Extract MCP tool responses for details field
+                    tool_responses = self.extract_mcp_tool_responses(agent_result)
+
+                    return self.create_response(
+                        summary=structured_data.summary
+                        if hasattr(structured_data, "summary")
+                        else "Operation completed",
+                        details=tool_responses,
+                        success=True,
+                        query=query,
+                        execution_mode="single_turn",
+                    )
+                else:
+                    return self.create_response(
+                        summary="Operation failed",
+                        details={},
+                        success=False,
+                        query=query,
+                        execution_mode="single_turn",
+                    )
 
             except asyncio.TimeoutError:
                 from document_mcp.exceptions import OperationError
@@ -122,14 +143,20 @@ class SimpleAgent(AgentBase, SingleTurnAgentMixin):
             Structured agent response
         """
         agent = await self.get_pydantic_agent()
+
+        # Run the agent and extract structured output
         result = await agent.run(query)
-        return (
-            result.data
-            if hasattr(result, "data")
-            else SimpleAgentResponse(
-                summary="Operation completed", details=self.extract_mcp_tool_responses(result)
+
+        if result and hasattr(result, "data"):
+            return result.data
+        elif result and hasattr(result, "output"):
+            return result.output
+        else:
+            # Fallback for unexpected result format
+            return SimpleAgentResponse(
+                summary="Operation completed",
+                details=self.extract_mcp_tool_responses(result) if result else {},
             )
-        )
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Cleanup resources."""

@@ -141,3 +141,40 @@ class AgentResponseFormatter:
                 "execution_completed": execution_completed,
             },
         )
+
+
+def format_agent_response(
+    response_data: dict[str, Any], agent_type: str, metadata: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Convenience function for formatting agent responses based on response data and agent type.
+
+    This function provides backward compatibility and a simplified interface for formatting responses.
+
+    Args:
+        response_data: Dictionary containing summary, details, and optional error_message
+        agent_type: Type of agent (e.g., "simple", "react", "planner")
+        metadata: Optional metadata to include in the response
+
+    Returns:
+        Dictionary with formatted response structure
+    """
+    summary = response_data.get("summary", "")
+    details = response_data.get("details")
+    error_message = response_data.get("error_message")
+    execution_log = response_data.get("execution_log")
+
+    # Create response structure
+    response = {
+        "agent_type": agent_type,
+        "summary": summary,
+        "details": details,
+        "error_message": error_message,
+    }
+
+    # Add optional fields only if they have values
+    if execution_log:
+        response["execution_log"] = execution_log
+    if metadata:
+        response["metadata"] = metadata
+
+    return response

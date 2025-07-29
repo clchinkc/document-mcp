@@ -22,7 +22,7 @@ def test_metrics():
 
     # Test recording some metrics
     print("[GRAPH] Recording test metrics...")
-    for i in range(3):
+    for _i in range(3):
         record_tool_call_success("test_tool", time.time(), 100)
         time.sleep(1)
 

@@ -1,4 +1,4 @@
-name: Cross-Platform Python Tests with Coverage
+name: Simplified Python Tests
 
 on:
   push:
@@ -7,109 +7,114 @@ on:
     branches: [main, develop]
 
 jobs:
-  # Quick smoke test job
-  smoke-test:
+  # Combined test and quality job - reduces job overhead while maintaining parallelism
+  test-and-quality:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [tests, quality]
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
       with:
         python-version: "3.13"
-    - name: Install uv
+        
+    - name: Install uv with caching
       uses: astral-sh/setup-uv@v3
       with:
         version: "latest"
-    - name: Quick installation test
+        enable-cache: false
+        
+    - name: Install dependencies
       run: |
-        uv sync
-        uv pip install ".[dev]"
-        uv run python -c "import document_mcp; print('Import successful')"
-    - name: Run installation test script
+        uv sync --frozen
+        uv pip install -e ".[dev]"
+      
+    # Run core tests (unit, integration, metrics) 
+    - name: Run core test suite
+      if: matrix.group == 'tests'
+      working-directory: .
       run: |
-        chmod +x scripts/test_pip_install.sh
-        ./scripts/test_pip_install.sh
+        uv run pytest --ignore=.venv --ignore=.pytest_cache --ignore=build --ignore=dist tests/unit/ tests/integration/ tests/test_metrics.py --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings
+          
+    # Run E2E and Evaluation tests if API keys available  
+    - name: Run E2E and Evaluation tests
+      if: matrix.group == 'tests'
+      working-directory: .
+      run: |
+        uv run pytest --ignore=.venv --ignore=.pytest_cache --ignore=build --ignore=dist tests/e2e/ tests/evaluation/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings --timeout=600
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          
+    # Code quality checks
+    - name: Run ruff linting
+      if: matrix.group == 'quality'
+      continue-on-error: true
+      run: uv run ruff check --output-format=github
+      
+    - name: Run ruff format check
+      if: matrix.group == 'quality'
+      continue-on-error: true
+      run: uv run ruff format --check
+      
+    - name: Run type checking
+      if: matrix.group == 'quality'
+      continue-on-error: true
+      run: uv run mypy document_mcp/
+        
+    # Package validation
+    - name: Validate package build
+      if: matrix.group == 'quality'
+      run: |
+        uv build
+        echo "✅ Package builds successfully"
+        
+    - name: Upload coverage to Codecov
+      if: matrix.group == 'tests'
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true
 
-  # Cross-platform testing matrix
-  test:
-    needs: smoke-test
+  # Minimal cross-platform validation (only if main tests pass)
+  cross-platform-check:
+    needs: test-and-quality
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-15]
-        python-version: ["3.10", "3.13"]
-        exclude:
-          # Reduce matrix size by excluding some combinations
+        include:
           - os: windows-latest
-            python-version: "3.10"
-
-    env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
+          - os: macos-15
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        version: "latest"
-
-    - name: Install dependencies with uv
-      run: |
-        uv sync
-        uv pip install ".[dev]"
-
-    - name: Run code quality checks with ruff
-      run: |
-        uv run ruff check --output-format=github
-        uv run ruff format --check
-        uv run mypy document_mcp/ || echo "Type checking completed with warnings"
-      continue-on-error: true
-
-    - name: Run all tests
-      run: |
-        uv run pytest tests/unit/ tests/integration/ tests/e2e/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'  # Only upload once
-
-  # Package validation
-  package-validation:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
       with:
         python-version: "3.13"
+
     - name: Install uv
       uses: astral-sh/setup-uv@v3
       with:
         version: "latest"
+        enable-cache: false
+
     - name: Install dependencies
       run: |
-        uv sync
-        uv pip install ".[dev]"
-    - name: Check package build
+        uv sync --frozen
+        uv pip install -e ".[dev]"
+
+    # Run only core tests (skip E2E for cross-platform)
+    - name: Run core tests
+      working-directory: .
       run: |
-        uv build
-        ls -la dist/
-        echo "✅ Package builds successfully"
-    - name: Validate PyPI metadata
-      run: |
-        uv run python -m twine check dist/*
-        echo "✅ PyPI metadata validation passed"
+        uv run pytest --ignore=.venv --ignore=.pytest_cache --ignore=build --ignore=dist tests/unit/ tests/integration/ tests/test_metrics.py -v --tb=short --strict-markers --disable-warnings

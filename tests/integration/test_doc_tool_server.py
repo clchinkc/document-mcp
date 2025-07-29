@@ -766,5 +766,3 @@ class TestUnifiedTools:
         # Test get_statistics with missing chapter_name for chapter scope
         result = get_statistics(doc_name, scope="chapter")
         assert result is None
-
-

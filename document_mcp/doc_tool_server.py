@@ -16,7 +16,6 @@ from typing import Any
 from mcp.server import FastMCP
 
 # Local imports for safe operation handling
-
 # Import configuration
 from .config import get_settings
 

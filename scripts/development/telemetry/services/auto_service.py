@@ -195,7 +195,7 @@ Raw metrics:
 
         # Generate initial metrics burst for immediate visibility
         print("[START] Generating initial metrics burst...")
-        for i in range(5):
+        for _i in range(5):
             try:
                 tool = random.choice(self.mcp_tools)
                 status = "success" if random.random() < 0.9 else "error"

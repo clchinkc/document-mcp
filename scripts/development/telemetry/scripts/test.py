@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quick test to verify mcp_tool_calls_total metrics are working"""
+"""Quick test to verify mcp_tool_calls_total metrics are working."""
 
 import os
 import subprocess

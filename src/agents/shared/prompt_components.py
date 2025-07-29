@@ -136,7 +136,6 @@ When a user asks for an operation:
 - Plan operations in logical order (create before write, check before modify)
 - Include error prevention steps when uncertain about document/chapter existence"""
 
-
     @staticmethod
     def get_agent_specific_components() -> dict[str, dict[str, str]]:
         """Agent-specific prompt components that differ between implementations."""

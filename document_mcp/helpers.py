@@ -256,5 +256,3 @@ def _get_summary_file_path(document_name: str, scope: str, target_name: str | No
         return summaries_path / f"section-{target_name}.md"
     else:
         raise ValueError(f"Invalid scope: {scope}. Must be 'document', 'chapter', or 'section'")
-
-

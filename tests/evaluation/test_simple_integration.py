@@ -4,6 +4,7 @@ This demonstrates the correct architecture: agents collect performance metrics,
 tests optionally enhance them with LLM evaluation.
 """
 
+import os
 import tempfile
 import uuid
 from pathlib import Path
@@ -14,6 +15,16 @@ from src.agents.react_agent.main import run_react_agent_with_metrics
 from src.agents.simple_agent.main import initialize_agent_and_mcp_server
 from src.agents.simple_agent.main import process_single_user_query
 from tests.evaluation.llm_evaluation_layer import enhance_test_metrics
+
+
+def check_api_key_available() -> bool:
+    """Check if a real API key is available for evaluation testing."""
+    api_keys = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
+    for key in api_keys:
+        value = os.environ.get(key, "").strip()
+        if value and value != "test_key" and not value.startswith("sk-test"):
+            return True
+    return False
 
 
 @pytest.fixture

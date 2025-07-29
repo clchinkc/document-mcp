@@ -242,8 +242,6 @@ def diff_content(
     )
 
 
-
-
 # All convenience functions have been removed to ensure tests call MCP tools directly.
 # Use the unified tools above with appropriate scope parameters instead.
 
@@ -252,7 +250,6 @@ def diff_content(
 __all__ = [
     # Document management
     "list_documents",
-    "read_document_summary",
     "create_document",
     "delete_document",
     # Chapter management
