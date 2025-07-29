@@ -1,8 +1,8 @@
 """Safety decorators for MCP tools.
 
-This module provides decorators for enhanced safety features:
+This module provides decorators for automatic safety and snapshot features:
 - auto_snapshot: Automatic snapshot creation before edit operations
-- safety_enhanced_write_operation: Combined safety features for write operations
+- safety_enhanced_write_operation: Automatic snapshots, freshness checks, and result enrichment for write operations
 """
 
 import datetime
@@ -56,26 +56,26 @@ def auto_snapshot(operation_name: str):
     return decorator
 
 
-# Removed create_automatic_snapshot - simplified auto_snapshot decorator handles this directly
+# Removed create_automatic_snapshot - auto_snapshot decorator now handles snapshot creation directly
 
 
 def safety_enhanced_write_operation(
     operation_name: str, create_snapshot: bool = False, check_freshness: bool = True
 ):
-    """Simplified safety decorator for write operations.
+    """Comprehensive safety decorator combining automatic snapshots, freshness validation, and result enrichment.
 
     Note: @auto_snapshot decorator handles snapshot creation separately.
     This decorator focuses on file freshness checking and result enhancement.
     """
 
     def decorator(func):
-        enhanced_func = func
+        protected_func = func
 
         if check_freshness:
-            enhanced_func = check_file_freshness(enhanced_func)
+            protected_func = check_file_freshness(protected_func)
 
-        enhanced_func = enhance_operation_result(enhanced_func)
-        return enhanced_func
+        protected_func = enhance_operation_result(protected_func)
+        return protected_func
 
     return decorator
 

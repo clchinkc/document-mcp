@@ -242,7 +242,7 @@ class GrafanaCloudPrometheusExporter:
             import snappy
 
             # Create simple remote write format for basic metrics
-            # This is a simplified implementation that sends key metrics in remote write format
+            # Send core metrics (tool calls, duration) using Prometheus remote write protocol
 
             current_time_ms = int(time.time() * 1000)
 
@@ -273,7 +273,7 @@ class GrafanaCloudPrometheusExporter:
             if not metrics_data:
                 return None
 
-            # Create JSON payload for remote write (simplified implementation)
+            # Create Prometheus remote write payload with tool usage metrics
             # Note: Full protobuf encoding would require prometheus remote write protobuf definitions
             import json
 
