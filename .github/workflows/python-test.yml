@@ -31,7 +31,7 @@ jobs:
         enable-cache: true
         
     - name: Install dependencies
-      run: uv sync --frozen
+      run: uv sync --frozen --dev
       
     # Run all tests in parallel (unit, integration, evaluation, metrics)
     - name: Run test suite
@@ -104,7 +104,7 @@ jobs:
         enable-cache: true
 
     - name: Install dependencies
-      run: uv sync --frozen
+      run: uv sync --frozen --dev
 
     # Run only core tests (skip E2E for cross-platform)
     - name: Run core tests
