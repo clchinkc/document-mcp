@@ -1,4 +1,4 @@
-"""Document MCP Metrics Configuration
+"""Document MCP Metrics Configuration.
 
 Provides automatic telemetry collection and forwarding to Grafana Cloud.
 Architecture: Tool Calls -> Metrics Server -> Background Prometheus -> Grafana Cloud
@@ -113,6 +113,9 @@ _metrics_shutdown = False
 
 # Prometheus remote write
 
+import builtins
+import contextlib
+
 import requests
 from prometheus_client import CollectorRegistry
 from prometheus_client import Counter
@@ -219,7 +222,7 @@ class GrafanaCloudPrometheusExporter:
             # Send to Grafana Cloud
             import requests
 
-            response = requests.post(
+            requests.post(
                 "https://prometheus-prod-37-prod-ap-southeast-1.grafana.net/api/prom/push",
                 data=remote_write_data,
                 headers=headers,
@@ -328,7 +331,7 @@ global:
   scrape_interval: 3s
   external_labels:
     source: document-mcp-agent
-    
+
 remote_write:
   - url: {GRAFANA_CLOUD_PROMETHEUS_ENDPOINT}
     basic_auth:
@@ -403,10 +406,8 @@ scrape_configs:
         time.sleep(1)
 
     except Exception as e:
-        try:
+        with contextlib.suppress(builtins.BaseException):
             os.unlink(config_path)
-        except:
-            pass
         raise e
 
 
@@ -446,7 +447,7 @@ tool_calls = Counter(
 )
 
 tool_duration = Histogram(
-    'mcp_tool_duration_seconds', 
+    'mcp_tool_duration_seconds',
     'MCP tool execution time',
     ['tool_name', 'status'],
     registry=registry
@@ -482,7 +483,7 @@ class MetricsHandler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
-    
+
     def log_message(self, format, *args):
         pass
 
@@ -500,7 +501,7 @@ def cleanup_handler(signum, frame):
                 prometheus_reader.shutdown()
             except:
                 pass
-        
+
         # Clean up lock file
         os.unlink(LOCK_FILE)
     except:
@@ -550,10 +551,8 @@ server.serve_forever()
             return
         except (OSError, ValueError):
             # Lock file exists but process is dead
-            try:
+            with contextlib.suppress(builtins.BaseException):
                 os.unlink(lock_file)
-            except:
-                pass
 
     # Write server script to temp file
     script_fd, script_path = tempfile.mkstemp(suffix=".py", prefix="metrics_server_")
@@ -579,10 +578,8 @@ server.serve_forever()
     except Exception as e:
         print(f"   [WARN] Could not start persistent metrics server: {e}")
     finally:
-        try:
+        with contextlib.suppress(builtins.BaseException):
             os.unlink(script_path)
-        except:
-            pass
 
 
 def _start_prometheus_http_server_with_retry():
@@ -707,7 +704,7 @@ def _auto_shutdown_metrics():
         import subprocess
 
         # First try gentle termination with SIGTERM
-        result = subprocess.run(["pkill", "-f", "prometheus.*mcp"], capture_output=True)
+        subprocess.run(["pkill", "-f", "prometheus.*mcp"], capture_output=True)
 
         # Wait a moment for graceful shutdown
         import time
@@ -720,10 +717,8 @@ def _auto_shutdown_metrics():
             pids = check_result.stdout.strip().split("\n")
             for pid in pids:
                 if pid.strip():
-                    try:
+                    with contextlib.suppress(builtins.BaseException):
                         subprocess.run(["kill", "-9", pid.strip()], capture_output=True)
-                    except:
-                        pass
             print(f"[METRICS] Force-killed {len(pids)} persistent Prometheus processes")
         else:
             print("[METRICS] Background Prometheus processes stopped gracefully")
@@ -931,7 +926,7 @@ def initialize_metrics():
             # Test if local collector is available
             import requests
 
-            health_response = requests.get("http://localhost:13133", timeout=1)
+            requests.get("http://localhost:13133", timeout=1)
             collector_available = True
         except:
             collector_available = False
@@ -1191,12 +1186,10 @@ def instrument_tool(func):
 # This prevents automatic metrics collection during testing or CI
 if METRICS_ENABLED and not is_test_environment():
     # Quick cleanup of any orphaned processes before starting
-    try:
+    with contextlib.suppress(builtins.BaseException):
         subprocess.run(
             ["pkill", "-f", "prometheus.*mcp.*--storage.tsdb.retention.time.*1h"], capture_output=True
         )
-    except:
-        pass
     initialize_metrics()
 else:
     print(

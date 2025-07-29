@@ -137,7 +137,7 @@ class AgentFactory:
         else:
             # Clear cache entries for specific agent type
             keys_to_remove = [
-                key for key in self._agent_cache.keys() if self._agent_cache[key].agent_type == agent_type
+                key for key in self._agent_cache if self._agent_cache[key].agent_type == agent_type
             ]
             for key in keys_to_remove:
                 del self._agent_cache[key]

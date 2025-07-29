@@ -187,7 +187,8 @@ class OperationError(DocumentMCPError):
         )
         super().__init__(message, **kwargs)
 
-
+        # Add operation property for backward compatibility with tests
+        self.operation = operation
 
 
 class AgentError(DocumentMCPError):
@@ -220,6 +221,9 @@ class AgentConfigurationError(AgentError):
             }
         )
         super().__init__(agent_type, message, **kwargs)
+
+        # Add agent_type property for backward compatibility with tests
+        self.agent_type = agent_type
 
 
 class LLMError(AgentError):

@@ -184,7 +184,7 @@ def log_operation_success(operation_name: str, result: Any = None, **context) ->
     if result is not None:
         if hasattr(result, "__dict__"):
             result_summary = f"{result.__class__.__name__} object"
-        elif isinstance(result, (list, dict)):
+        elif isinstance(result, list | dict):
             result_summary = f"{type(result).__name__} with {len(result)} items"
         else:
             result_summary = str(result)[:100]  # Truncate long strings

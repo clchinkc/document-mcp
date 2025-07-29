@@ -195,7 +195,9 @@ class TestSimpleAgentE2E:
         validator.assert_document_count(0)
 
         # 1. Create Document
-        await run_agent_query("src.agents.simple_agent.main", f"Create a document named '{doc_name}'", timeout=120)
+        await run_agent_query(
+            "src.agents.simple_agent.main", f"Create a document named '{doc_name}'", timeout=120
+        )
 
         validator.assert_document_exists(doc_name)
         validator.assert_document_count(1)
@@ -222,12 +224,14 @@ class TestSimpleAgentE2E:
         summary_resp = await run_agent_query("src.agents.simple_agent.main", summary_query, timeout=120)
 
         details = safe_get_response_content(summary_resp, "details")
-        
+
         # Handle case where details is returned as unparsed content
         if "content" in details and isinstance(details["content"], str):
             # The details field contains a JSON string, check if it includes read_summary
             details_str = details["content"]
-            assert "read_summary" in details_str, "Agent should use read_summary tool for broad document queries"
+            assert "read_summary" in details_str, (
+                "Agent should use read_summary tool for broad document queries"
+            )
             assert summary_content in details_str, "Agent should read summary content"
         else:
             # Details is already parsed as a dictionary
@@ -249,7 +253,9 @@ class TestSimpleAgentE2E:
         # 6. Test Creating Additional Summaries Using New Tools
         # Test creating chapter summary
         chapter_summary_query = f"Create a summary for chapter '{chapter_name}' in document '{doc_name}' with content: 'Chapter summary: Introduction concepts'"
-        chapter_summary_resp = await run_agent_query("src.agents.simple_agent.main", chapter_summary_query, timeout=120)
+        chapter_summary_resp = await run_agent_query(
+            "src.agents.simple_agent.main", chapter_summary_query, timeout=120
+        )
 
         chapter_summary_details = safe_get_response_content(chapter_summary_resp, "details")
         write_summary_response = chapter_summary_details.get("write_summary", {})
@@ -258,7 +264,9 @@ class TestSimpleAgentE2E:
 
         # Test creating section summary
         section_summary_query = f"Create a section summary called 'overview' for document '{doc_name}' with content: 'Section overview of key topics'"
-        section_summary_resp = await run_agent_query("src.agents.simple_agent.main", section_summary_query, timeout=120)
+        section_summary_resp = await run_agent_query(
+            "src.agents.simple_agent.main", section_summary_query, timeout=120
+        )
 
         section_summary_details = safe_get_response_content(section_summary_resp, "details")
         section_write_response = section_summary_details.get("write_summary", {})
@@ -270,7 +278,7 @@ class TestSimpleAgentE2E:
         list_resp = await run_agent_query("src.agents.simple_agent.main", list_summaries_query)
 
         list_details = safe_get_response_content(list_resp, "details")
-        
+
         # Handle case where details is returned as unparsed content
         if "content" in list_details and isinstance(list_details["content"], str):
             details_str = list_details["content"]
@@ -434,7 +442,7 @@ class TestSafetyAndVersionControlE2E:
 
         validator.assert_document_exists(doc_name)
 
-        # Add content separately to avoid complex query loops  
+        # Add content separately to avoid complex query loops
         response2 = await run_agent_query(
             "src.agents.simple_agent.main",
             f"Create chapter named '01-content.md' in document '{doc_name}'",
@@ -479,7 +487,9 @@ class TestMultiStepOperationsE2E:
     """E2E tests for multi-step operations functionality."""
 
     @pytest.mark.asyncio
-    async def test_sequential_operations_capability(self, e2e_docs_dir: Path, validator: DocumentSystemValidator):
+    async def test_sequential_operations_capability(
+        self, e2e_docs_dir: Path, validator: DocumentSystemValidator
+    ):
         """Test sequential multi-step operations workflow."""
         doc_name = f"e2e_sequential_{uuid.uuid4().hex[:8]}"
 
