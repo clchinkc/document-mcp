@@ -40,31 +40,14 @@ jobs:
       if: matrix.group == 'tests'
       working-directory: .
       run: |
-        uv run pytest \
-          --ignore=.venv \
-          --ignore=.pytest_cache \
-          --ignore=build \
-          --ignore=dist \
-          tests/unit/ tests/integration/ tests/test_metrics.py \
-          --cov=document_mcp --cov=src \
-          --cov-report=xml --cov-report=term-missing \
-          -v --tb=short --strict-markers --disable-warnings
+        uv run pytest --ignore=.venv --ignore=.pytest_cache --ignore=build --ignore=dist tests/unit/ tests/integration/ tests/test_metrics.py --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings
           
     # Run E2E and Evaluation tests if API keys available  
     - name: Run E2E and Evaluation tests
       if: matrix.group == 'tests' && (env.GEMINI_API_KEY != '' || env.OPENAI_API_KEY != '')
       working-directory: .
       run: |
-        uv run pytest \
-          --ignore=.venv \
-          --ignore=.pytest_cache \
-          --ignore=build \
-          --ignore=dist \
-          tests/e2e/ tests/evaluation/ \
-          --cov=document_mcp --cov=src \
-          --cov-report=xml --cov-report=term-missing \
-          -v --tb=short --strict-markers --disable-warnings \
-          --timeout=600
+        uv run pytest --ignore=.venv --ignore=.pytest_cache --ignore=build --ignore=dist tests/e2e/ tests/evaluation/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings --timeout=600
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -134,10 +117,4 @@ jobs:
     - name: Run core tests
       working-directory: .
       run: |
-        uv run pytest \
-          --ignore=.venv \
-          --ignore=.pytest_cache \
-          --ignore=build \
-          --ignore=dist \
-          tests/unit/ tests/integration/ tests/test_metrics.py \
-          -v --tb=short
+        uv run pytest --ignore=.venv --ignore=.pytest_cache --ignore=build --ignore=dist tests/unit/ tests/integration/ tests/test_metrics.py -v --tb=short
