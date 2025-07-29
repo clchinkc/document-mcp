@@ -115,6 +115,8 @@ ignore = [
     "D103", # Missing docstring in public function
     "D104", # Missing docstring in public package
     "D105", # Missing docstring in magic method
+    "D107", # Missing docstring in __init__
+    "E722", # Bare except (used in error handling patterns)
 ]
 
 [tool.ruff.lint.pydocstyle]

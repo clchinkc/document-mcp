@@ -28,7 +28,7 @@ jobs:
       uses: astral-sh/setup-uv@v3
       with:
         version: "latest"
-        enable-cache: true
+        enable-cache: false
         
     - name: Install dependencies
       run: |
@@ -44,7 +44,7 @@ jobs:
           
     # Run E2E and Evaluation tests if API keys available  
     - name: Run E2E and Evaluation tests
-      if: matrix.group == 'tests' && (env.GEMINI_API_KEY != '' || env.OPENAI_API_KEY != '')
+      if: matrix.group == 'tests'
       working-directory: .
       run: |
         uv run pytest --ignore=.venv --ignore=.pytest_cache --ignore=build --ignore=dist tests/e2e/ tests/evaluation/ --cov=document_mcp --cov=src --cov-report=xml --cov-report=term-missing -v --tb=short --strict-markers --disable-warnings --timeout=600
@@ -106,7 +106,7 @@ jobs:
       uses: astral-sh/setup-uv@v3
       with:
         version: "latest"
-        enable-cache: true
+        enable-cache: false
 
     - name: Install dependencies
       run: |
@@ -117,4 +117,4 @@ jobs:
     - name: Run core tests
       working-directory: .
       run: |
-        uv run pytest --ignore=.venv --ignore=.pytest_cache --ignore=build --ignore=dist tests/unit/ tests/integration/ tests/test_metrics.py -v --tb=short
+        uv run pytest --ignore=.venv --ignore=.pytest_cache --ignore=build --ignore=dist tests/unit/ tests/integration/ tests/test_metrics.py -v --tb=short --strict-markers --disable-warnings

@@ -37,12 +37,15 @@ class TestAgentErrorHandling:
     async def test_simple_agent_llm_configuration_error(self):
         """Test Simple Agent LLM configuration error handling."""
         agent = SimpleAgent()
-        
+
         # Mock get_llm to simulate API key configuration error
-        with patch.object(agent, 'get_llm', side_effect=AgentConfigurationError(
-            agent_type="simple",
-            config_issue="Failed to load LLM configuration: No valid API key found"
-        )):
+        with patch.object(
+            agent,
+            "get_llm",
+            side_effect=AgentConfigurationError(
+                agent_type="simple", config_issue="Failed to load LLM configuration: No valid API key found"
+            ),
+        ):
             # Should raise AgentConfigurationError when no API keys available
             with pytest.raises(AgentConfigurationError) as exc_info:
                 await agent.get_llm()
@@ -54,10 +57,10 @@ class TestAgentErrorHandling:
     async def test_simple_agent_mcp_server_failure(self, temp_docs_root):
         """Test Simple Agent behavior when MCP server fails."""
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             # Mock Agent class to simulate MCP connection failure
             with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                 mock_agent_class.side_effect = Exception("Failed to connect to MCP server")
@@ -73,12 +76,12 @@ class TestAgentErrorHandling:
         """Test Simple Agent timeout handling."""
         query = "Create a test document"
         short_timeout = 0.001  # Very short timeout
-        
+
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
@@ -103,10 +106,10 @@ class TestAgentErrorHandling:
     async def test_agent_malformed_response_handling(self, mcp_server, temp_docs_root):
         """Test agent handling of malformed LLM responses."""
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
@@ -168,10 +171,10 @@ class TestAgentRetryPatterns:
     async def test_agent_retry_pattern(self, mcp_server, temp_docs_root):
         """Test agent retry pattern for transient failures."""
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
@@ -213,10 +216,10 @@ class TestAgentEdgeCases:
     async def test_agent_empty_query_handling(self, mcp_server, temp_docs_root):
         """Test agent handling of empty queries."""
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
@@ -238,10 +241,10 @@ class TestAgentEdgeCases:
         """Test agent handling of Unicode characters."""
         agent = SimpleAgent()
         unicode_query = "Create document 'ñoñó' with émojis 🚀"
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()

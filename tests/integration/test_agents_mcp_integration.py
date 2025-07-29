@@ -58,10 +58,10 @@ class TestSimpleAgentMCPIntegration:
 
         # Create agent
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 # Mock the Pydantic AI agent to return structured response
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
@@ -101,10 +101,10 @@ class TestSimpleAgentMCPIntegration:
         query = "List all available documents"
 
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
@@ -132,10 +132,10 @@ class TestSimpleAgentMCPIntegration:
         query = "Create a document with invalid name 'test/invalid/name'"
 
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
@@ -171,10 +171,10 @@ class TestSimpleAgentMCPIntegration:
         short_timeout = 0.001  # Very short timeout to trigger timeout
 
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             from document_mcp.exceptions import OperationError
 
             async with mcp_server:
@@ -324,10 +324,10 @@ class TestAgentMCPCommunicationPatterns:
         # This test validates the critical architecture requirement
 
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 # Mock agent to simulate real MCP tool response extraction
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
@@ -370,10 +370,10 @@ class TestAgentMCPCommunicationPatterns:
     async def test_agent_error_details_population(self, mcp_server, temp_docs_root):
         """Test agent error details population from MCP errors."""
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
@@ -416,10 +416,10 @@ class TestAgentMCPCommunicationPatterns:
     async def test_multiple_tool_calls_details_aggregation(self, mcp_server, temp_docs_root):
         """Test aggregation of multiple tool call details."""
         agent = SimpleAgent()
-        
+
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
-        with patch.object(agent, 'get_llm', return_value=mock_llm):
+        with patch.object(agent, "get_llm", return_value=mock_llm):
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:
                     mock_pydantic_agent = AsyncMock()
