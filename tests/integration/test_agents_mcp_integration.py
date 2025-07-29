@@ -15,9 +15,11 @@ from unittest.mock import patch
 import pytest
 from pydantic_ai.mcp import MCPServerStdio
 
-from src.agents.react_agent.parser import ActionParser
-from src.agents.simple_agent.agent import SimpleAgent
-from src.agents.simple_agent.agent import SimpleAgentResponse
+# Mock the settings before importing agents to prevent API key validation
+with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key", "OPENAI_API_KEY": "test-key"}):
+    from src.agents.react_agent.parser import ActionParser
+    from src.agents.simple_agent.agent import SimpleAgent
+    from src.agents.simple_agent.agent import SimpleAgentResponse
 
 
 @pytest.fixture
