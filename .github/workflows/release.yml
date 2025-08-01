@@ -1,14 +1,17 @@
 name: Publish Python Package to PyPI
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Python Tests"]
+    branches: [main]
+    types:
+      - completed
 
 jobs:
   build-and-publish:
     name: Build and publish Python package to PyPI
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       id-token: write
