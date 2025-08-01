@@ -43,7 +43,7 @@ class ActionParser:
 
     def _parse_args(self, args_str: str) -> dict[str, Any]:
         """Parses the arguments string.
-        This is a simplified parser and may not handle all edge cases.
+        This is a parser and may not handle all edge cases.
         """
         args = {}
         # This is a simple parser. A more robust solution might be needed.

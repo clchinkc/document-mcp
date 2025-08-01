@@ -1,4 +1,4 @@
-"""Simplified pytest configuration for Document MCP testing.
+"""The pytest configuration for Document MCP testing.
 
 This provides essential fixtures using the new test environment management
 infrastructure for cleaner and more maintainable test setup.
