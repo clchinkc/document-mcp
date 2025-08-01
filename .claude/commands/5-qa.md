@@ -1,0 +1,3 @@
+5. QA (With parallel subagent)
+5a.  Review the entire test suite—unit, integration, and end‑to‑end—to understand coverage, dependencies (e.g., temporary directories or external services), and purpose. Standardize fixtures and mocks per pytest conventions. Evaluate whether each test fulfills its intended purpose and is critical. Identify and correct any errors, workarounds, or messy code, and remove excessive comments. Don't add uncessary complexity. Avoid over-engineering.
+5b. Clean up the implementation files and project structure: organize directories, tidy code, and remove redundancies—while keeping things simple and avoiding over‑engineering.

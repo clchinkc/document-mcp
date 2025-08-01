@@ -1,54 +1,147 @@
 [![codecov](https://codecov.io/gh/clchinkc/document-mcp/graph/badge.svg?token=TEGUTD2DIF)](https://codecov.io/gh/clchinkc/document-mcp)
+[![Python Tests with Coverage](https://github.com/clchinkc/document-mcp/actions/workflows/python-test.yml/badge.svg)](https://github.com/clchinkc/document-mcp/actions/workflows/python-test.yml)
 # Document MCP
 
 [![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
-[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Model Context Protocol (MCP) server and agent implementations for managing structured Markdown documents.
+Document MCP exists to **complement and diversify the predominantly STEM-oriented toolsets (e.g. Claude Code, bash/grep agents)** by giving writers, researchers, and knowledge-managers first-class, local-first control over large-scale Markdown documents with **built-in safety features** that prevent content loss.
 
 ## 🚀 Quick Start
 
-### Prerequisites Check
+### Installation
 
-Before getting started, ensure you have the following:
+**PyPI Installation (Recommended):**
+```bash
+# Simple one-command install
+pip install document-mcp
 
-1. **Python 3.8+** installed
-2. **API Key** from either OpenAI or Google (for Gemini)
-3. **Virtual Environment** set up
+# Verify installation
+document-mcp --version
+```
 
-### Step-by-Step Setup
+**Development Setup:**
+```bash
+# Install uv package manager (if not already installed)
+# macOS/Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
+# Windows: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Clone and install with development dependencies
+git clone https://github.com/clchinkc/document-mcp.git
+cd document-mcp
+uv sync
+
+# Install with development dependencies (includes testing tools)
+uv pip install ".[dev]"
+```
+
+**Dependencies Information:**
+- **Core Runtime**: The package includes all necessary dependencies for normal operation
+- **Development Dependencies**: Additional tools for testing and development are available via `pip install ".[dev]"`:
+  - `pytest`, `pytest-asyncio`, `pytest-cov` - Testing framework
+  - `ruff`, `mypy` - Code quality and type checking  
+  - `memory-profiler`, `psutil` - Performance monitoring
+  - `twine` - Package validation and publishing
+
+# Alternative: Traditional virtual environment setup
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e ".[dev]"
+```
+
+### Configuration
 
 ```bash
-# 1. Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Create .env file with your API key
+echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
+# OR for Google Gemini:
+echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env
 
-# 2. Install the package with development dependencies
-pip install -e ".[dev]"
+# Verify your setup
+python3 src/agents/simple_agent/main.py --check-config
+```
 
-# 3. Set up environment variables (see configuration below)
+### Quick Test
 
-# 4. Verify your setup
-python src/agents/simple_agent.py --check-config
+```bash
+# Start MCP server (in one terminal)
+# If installed via PyPI:
+document-mcp stdio
+
+# If using development setup:  
+python3 -m document_mcp.doc_tool_server stdio
+
+# Test basic functionality (in another terminal)  
+python3 -c "from document_mcp import __version__; print(f'Document MCP v{__version__} ready')"
+```
+
+**📖 [Complete Manual Testing Guide](docs/manual_testing.md)** - Step-by-step workflows for creative writing, editing, and document management
+
+## 🛠️ Development
+
+### Modern Toolchain
+This project uses modern Python development tools for enhanced performance and developer experience:
+
+- **`uv`**: Ultra-fast Python package manager and dependency resolver (10-100x faster than pip)
+- **`ruff`**: Lightning-fast Python linter and formatter (replaces black, isort, flake8, pydocstyle, autoflake)
+- **`mypy`**: Static type checking for enhanced code quality
+- **`pytest`**: Comprehensive testing framework with async support
+
+### Testing Strategy
+```bash
+# Run all tests with uv (recommended)
+uv run pytest
+
+# Run with traditional python3 (for compatibility)
+python3 -m pytest
+
+# Run by test tier
+uv run pytest tests/unit/              # Unit tests (fastest, no external deps)
+uv run pytest tests/integration/       # Integration tests (real MCP, mocked LLM)
+uv run pytest tests/e2e/               # E2E tests (requires API keys, 600s timeout)
+
+# Run with coverage
+uv run pytest --cov=document_mcp --cov-report=html
+
+# Code quality checks
+uv run ruff check                       # Lint code
+uv run ruff check --fix                 # Auto-fix linting issues  
+uv run ruff format                      # Format code
+uv run mypy document_mcp/               # Type checking
+
+# Quality checks script (uses uv and ruff internally)
+python3 scripts/quality.py full
+```
+
+### Running the System
+```bash
+# Start MCP server (stdio transport)
+uv run python -m document_mcp.doc_tool_server stdio
+# Alternative: python3 -m document_mcp.doc_tool_server stdio
+
+# Test agents
+uv run python src/agents/simple_agent/main.py --query "list all documents"
+uv run python src/agents/react_agent/main.py --query "create a book with multiple chapters"
+
+# Interactive mode
+uv run python src/agents/simple_agent/main.py --interactive
+uv run python src/agents/react_agent/main.py --interactive
+
+# Optimize agent prompts
+uv run python -m prompt_optimizer simple     # Optimize specific agent
+uv run python -m prompt_optimizer all        # Optimize all agents
+uv run python -m prompt_optimizer simple  # Development use within repo only
+
+# Development infrastructure testing
+python3 scripts/development/metrics/test_production.py           # Test production metrics
+python3 scripts/development/telemetry/scripts/test.py           # Test telemetry infrastructure
+scripts/development/telemetry/scripts/start.sh                  # Start development telemetry
 ```
 
 ### Environment Configuration
 
-Create a `.env` file with your API key (one of the following):
-
-```bash
-# For OpenAI (priority 1):
-OPENAI_API_KEY="sk-your-openai-api-key-here"
-OPENAI_MODEL_NAME="gpt-4.1-mini"  # optional
-
-# For Gemini (priority 2):
-GEMINI_API_KEY="your-google-api-key-here"
-GEMINI_MODEL_NAME="gemini-2.5-flash"  # optional
-
-# Optional settings:
-DOCUMENT_ROOT_DIR=sample_doc/
-```
+Create a `.env` file with your API key according to `.env.example`, and fill in the required values.
 
 ### Running the System
 
@@ -58,11 +151,17 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 ### Key Features
 
-- **📁 Document Structure**: Organize content as directories with chapter files
-- **🔧 MCP Integration**: Full HTTP SSE Model Context Protocol support for AI agents
-- **🤖 Dual AI Agents**: Simple single-step agent and advanced ReAct multi-step agent
-- **📊 Analytics**: Built-in statistics and search capabilities
-- **🔄 Version Control Friendly**: Plain Markdown files work great with Git
+- **🛡️ Built-in Safety Features**: Write-safety system, automatic micro-snapshots, and comprehensive version control prevent content loss.
+- **📁 Document Structure**: Organize content as directories with chapter files.
+- **🔧 25 MCP Tools**: Comprehensive document manipulation API organized in 6 functional categories with tools for atomic paragraph operations, content analysis, semantic search, fine-grain summaries, and more.
+- **🤖 AI Agents**: 
+    - **Simple Agent**: Stateless, single-turn execution for discrete operations.
+    - **ReAct Agent**: Stateful, multi-turn agent for complex workflows.
+    - **Planner Agent**: Strategic planning with execution for complex task decomposition.
+- **🚀 Prompt Optimizer**: Automated prompt optimization with performance benchmarking and real LLM evaluation.
+- **📊 Observability**: Structured logging with OpenTelemetry and Prometheus metrics.
+- **✅ Robust Testing**: 3-tier testing strategy (unit, integration, E2E, evaluation).
+- **🔄 Version Control Friendly**: Plain Markdown files work great with Git.
 
 ### Document Organization
 
@@ -78,31 +177,60 @@ Document MCP provides a structured way to manage large documents composed of mul
     └── 02-methodology.md
 ```
 
+## 🛡️ Safety Features
+
+Document MCP includes comprehensive safety features designed to prevent content loss and enable safe writing workflows:
+
+### Write-Safety System
+- **Content Freshness Checking**: Automatically validates content modification status before writes
+- **Conflict Detection**: Warns about potential overwrites if content has been modified externally
+- **Safe Write Operations**: All write operations include safety information and warnings
+
+### Automatic Version Control
+- **Micro-Snapshots**: Automatic snapshots created before destructive operations
+- **Named Snapshots**: Create checkpoints with messages using `snapshot_document`
+- **Version Restoration**: Restore to any previous version using `restore_snapshot`
+- **Intelligent Diffs**: Compare versions with prose-aware diff algorithms
+
+### Modification History
+- **Complete Tracking**: All document changes tracked with timestamps and operation details
+- **Audit Trail**: Full history accessible via `get_modification_history`
+- **Pattern Analysis**: Understand content change patterns over time
+
 ## 🏗️ Project Structure
 
 ```
-.
-├── document_mcp/               # 📦 Main MCP server package
-│   ├── doc_tool_server.py      # MCP server implementation
-│   ├── __init__.py             # Package initializer
-│   └── README.md               # Package documentation (PyPI)
-├── src/                        # 💡 Agent implementations
-│   └── agents/
-│       ├── simple_agent.py     # Simple single-step agent
-│       └── react_agent/
-│           └── main.py         # Advanced ReAct multi-step agent
-├── tests/                      # 🧪 Comprehensive test suite
-│   ├── unit/                   # Unit tests
-│   ├── integration/            # Integration tests
-│   └── fixtures/               # Test fixtures and demos
-├── docs/                       # 📚 Documentation
-│   ├── README.md               # Agent architecture guide
-│   └── examples/               # Usage examples
-├── scripts/                    # 🛠️ Development utilities
-│   ├── run_pytest.py           # Pytest test runner
-│   └── quality.py              # Code quality management
-├── pyproject.toml              # Package configuration
-└── README.md                   # This file (GitHub)
+document-mcp/
+├── document_mcp/           # Core MCP server package
+│   ├── doc_tool_server.py  # Main server with modular tool registrations
+│   ├── tools/              # Modular tool architecture (26 tools)
+│   │   ├── __init__.py     # Tool registration system
+│   │   ├── document_tools.py    # Document management and summaries (6 tools)
+│   │   ├── chapter_tools.py     # Chapter operations (5 tools)
+│   │   ├── paragraph_tools.py   # Paragraph editing (7 tools)
+│   │   ├── content_tools.py     # Unified content access (5 tools)
+│   │   └── safety_tools.py      # Version control (3 tools)
+│   ├── logger_config.py    # Structured logging with OpenTelemetry
+│   └── metrics_config.py   # Prometheus metrics and monitoring
+├── src/agents/             # AI agent implementations
+│   ├── simple_agent/       # Stateless single-turn agent package
+│   │   ├── main.py         # Agent execution logic
+│   │   └── prompts.py      # System prompts
+│   ├── react_agent/        # Stateful multi-turn ReAct agent
+│   │   └── main.py
+│   └── shared/             # Shared agent utilities
+│       ├── cli.py          # Common CLI functionality
+│       ├── config.py       # Enhanced Pydantic Settings
+│       └── error_handling.py
+├── prompt_optimizer/       # Automated prompt optimization tool
+│   ├── core.py            # Main PromptOptimizer class
+│   ├── evaluation.py      # Performance evaluation system
+│   └── cli.py             # Command-line interface
+└── tests/                  # 3-tier testing strategy
+    ├── unit/              # Isolated component tests (mocked)
+    ├── integration/       # Agent-server tests (real MCP, mocked LLM)
+    ├── e2e/               # Full system tests (real APIs)
+    └── evaluation/        # Performance benchmarking and prompt evaluation
 ```
 
 ## 🤖 Agent Examples and Tutorials
@@ -129,30 +257,38 @@ This project provides two distinct agent implementations for document management
 
 ### Getting Started with the Agents
 
-This project provides two agent implementations with unified command patterns. Choose based on your needs:
+Choose between three agent implementations:
 
-- **Simple Agent** (`src/agents/simple_agent.py`): For straightforward single-step operations
-- **ReAct Agent** (`src/agents/react_agent/main.py`): For complex multi-step workflows with reasoning
+- **Simple Agent**: Single-step operations, structured JSON output, fast performance
+- **ReAct Agent**: Multi-step workflows, contextual reasoning, production reliability  
+- **Planner Agent**: Strategic planning with execution, complex task decomposition
 
+**Agent Selection:**
+- Use Simple Agent for: direct operations, JSON output, prototyping
+- Use ReAct Agent for: complex workflows, multi-step planning, production environments, reasoning transparency
+- Use Planner Agent for: strategic planning, complex task decomposition, hierarchical execution
 
+### 🚀 Prompt Optimization
 
-### When to Choose Each Agent
+The system includes an automated prompt optimizer that uses real performance benchmarks to improve agent efficiency:
 
-**Choose Simple Agent when**:
-- You need simple, predictable single-step operations
-- Each query should be processed independently without previous context
-- Your application requires structured JSON output for parsing
-- You're building integrations that expect specific response formats
-- Performance is critical for simple operations
-- You're prototyping or testing basic functionality
+```bash
+# Optimize specific agent
+python3 -m prompt_optimizer simple
+python3 -m prompt_optimizer react
+python3 -m prompt_optimizer planner
 
-**Choose ReAct Agent when**:
-- You have complex, multi-step workflows
-- You need the agent to remember previous steps and build upon context
-- You need transparency in the reasoning process
-- You're working in production environments requiring robust error handling
-- Your tasks benefit from adaptive problem-solving and cumulative learning
-- You need detailed execution logs for debugging or auditing
+# Optimize all agents  
+python3 -m prompt_optimizer all
+
+```
+
+**Key Features:**
+- **Safe Optimization**: Conservative changes that preserve all existing functionality
+- **Performance-Based**: Uses real execution metrics to evaluate improvements
+- **Comprehensive Testing**: Validates changes against 296 tests (unit + integration + E2E + evaluation)
+- **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
+- **Multi-Agent Support**: Works with Simple, ReAct, and Planner agents
 
 ### Practical Examples - Step by Step
 
@@ -220,16 +356,16 @@ Once you have the MCP server running, you can immediately test all features:
 **Quick Configuration Check:**
 ```bash
 # Verify your setup is working
-python src/agents/simple_agent.py --check-config
+python src/agents/simple_agent/main.py --check-config
 ```
 
 **Test the Complete Workflow:**
 ```bash
 # Start with simple operations
-python src/agents/simple_agent.py --query "Create a new document called 'Test Document'"
-python src/agents/simple_agent.py --query "Add a chapter named '01-intro.md' with content 'Hello World!'"
-python src/agents/simple_agent.py --query "List all my documents"
-python src/agents/simple_agent.py --query "Read the full document 'Test Document'"
+python src/agents/simple_agent/main.py --query "Create a new document called 'Test Document'"
+python src/agents/simple_agent/main.py --query "Add a chapter named '01-intro.md' with content 'Hello World!'"
+python src/agents/simple_agent/main.py --query "List all my documents"
+python src/agents/simple_agent/main.py --query "Read the full document 'Test Document'"
 
 # Try complex multi-step workflows
 python src/agents/react_agent/main.py --query "Create a book outline with 3 chapters"
@@ -238,7 +374,7 @@ python src/agents/react_agent/main.py --query "Create a book outline with 3 chap
 **Interactive Mode for Extended Testing:**
 ```bash
 # Simple agent for straightforward tasks
-python src/agents/simple_agent.py --interactive
+python src/agents/simple_agent/main.py --interactive
 
 # ReAct agent for complex reasoning
 python src/agents/react_agent/main.py --interactive
@@ -272,15 +408,15 @@ Both agents share the same configuration system and support the same command-lin
 
 ```bash
 # Check configuration (both agents)
-python src/agents/simple_agent.py --check-config
+python src/agents/simple_agent/main.py --check-config
 python src/agents/react_agent/main.py --check-config
 
 # Single query mode (both agents)
-python src/agents/simple_agent.py --query "list all documents"
+python src/agents/simple_agent/main.py --query "list all documents"
 python src/agents/react_agent/main.py --query "create a book with multiple chapters"
 
 # Interactive mode (both agents)
-python src/agents/simple_agent.py --interactive
+python src/agents/simple_agent/main.py --interactive
 python src/agents/react_agent/main.py --interactive
 ```
 
@@ -298,60 +434,36 @@ Run through this checklist if you're having issues:
 
 ### Getting Help
 
-If you're still having issues:
+If you're experiencing issues, follow this support hierarchy:
 
-1. **Run the configuration check**: `python src/agents/simple_agent.py --check-config`
-2. **Test basic functionality**: `python src/agents/simple_agent.py --query "list documents"`
-3. **Review the test suite**: `python scripts/run_pytest.py`
-4. **Check the documentation**: See the Agent Examples section above for detailed agent architecture
+1. **📖 [Check the Manual Testing Guide](docs/manual_testing.md#troubleshooting-guide)** - Comprehensive troubleshooting for common issues
+2. **🔧 Run diagnostics**: `python src/agents/simple_agent/main.py --check-config`
+3. **🧪 Test basic functionality**: `python src/agents/simple_agent/main.py --query "list documents"`
+4. **🔍 Search existing issues**: [GitHub Issues](https://github.com/clchinkc/document-mcp/issues)
+5. **💬 Open a new issue**: Include output from `--check-config` and system details
 
-## 🧪 Testing
+**Common Solutions:**
+- API key issues → See [Configuration](#configuration) 
+- MCP server connection → Check if `document-mcp stdio` is running
+- Model loading failures → Try different model in `.env`
+- Timeout issues → See [Performance troubleshooting](docs/manual_testing.md#performance-and-load-testing)
 
-Run the comprehensive test suite to verify everything is working correctly:
-
+### Testing Strategy
 ```bash
-# Run all tests with the pytest runner
-source .venv/bin/activate && python scripts/run_pytest.py
+# Run all tests
+pytest
 
-# Run specific test categories
-source .venv/bin/activate && python -m pytest tests/unit/ -v       # Unit tests
-source .venv/bin/activate && python -m pytest tests/integration/ -v # Integration tests
-source .venv/bin/activate && python -m pytest tests/fixtures/ -v    # Fixture tests
+# Run by test tier
+python3 -m pytest tests/unit/          # Unit tests (fastest, no external deps)
+python3 -m pytest tests/integration/   # Integration tests (real MCP, mocked LLM)
+python3 -m pytest tests/e2e/           # E2E tests (requires API keys)
 
 # Run with coverage
-source .venv/bin/activate && python -m pytest --cov=document_mcp --cov=src
+python3 -m pytest --cov=document_mcp --cov-report=html
+
+# Quality checks
+python3 scripts/quality.py full
 ```
-
-The test suite uses a three-tier testing strategy:
-
-**1. Unit Tests** (Mock everything - fast, reliable)
-- 188 tests across 7 files with comprehensive component testing
-- Individual component testing with all dependencies mocked
-- Uses shared testing infrastructure for consistency
-
-**2. Integration Tests** (Real MCP server + Mocked AI)  
-- 81+ tests across 3 files with real MCP server communication
-- Tests MCP tool execution and server communication
-- **Multi-round conversation tests** for both Simple and React agents validating:
-  - State management across conversation rounds
-  - Error recovery and handling between rounds
-  - Resource cleanup and isolation
-  - Complex multi-step workflows
-  - Conversation context preservation
-- Deterministic tests without AI API dependencies
-
-**3. E2E Tests** (Real MCP server + Real AI)
-- 8 tests across 2 files for complete system validation
-- Complete system validation with real AI models
-- Runs in CI/CD with configured API keys
-
-### Agent Features
-
-#### Natural Language Processing
-The agents understand various ways to express document operations:
-- "Create a document" / "Make a new book" / "Start a project called..."
-- "Add a chapter" / "Create a new section" / "Write a chapter named..."
-- "Read the document" / "Show me the content" / "What's in my book?"
 
 ## 🛠️ Development Setup
 
@@ -384,7 +496,6 @@ python scripts/run_pytest.py
 # Or run pytest directly
 python -m pytest tests/ -v
 ```
-
 ### Code Quality Management
 
 This project maintains high code quality standards through automated tools and scripts. The quality system is managed through a dedicated script:
@@ -406,9 +517,6 @@ python scripts/quality.py full       # fix + format + check
 
 # Get detailed output for debugging
 python scripts/quality.py check --verbose
-
-# For running tests, use the dedicated pytest runner
-python scripts/run_pytest.py
 ```
 
 #### Quality Tools Configured
@@ -426,7 +534,7 @@ python scripts/run_pytest.py
 - **Import Style**: Black-compatible with isort
 - **Type Hints**: Encouraged for public APIs
 - **Complexity**: Maximum cyclomatic complexity of 10
-- **Test Coverage**: Comprehensive unit and integration tests (267+ tests)
+- **Test Coverage**: Comprehensive 3-tier testing (296 tests with 100% pass rate)
 
 #### Recommended Workflow
 
@@ -446,21 +554,31 @@ The quality management system provides comprehensive automation for maintaining 
 
 #### Test Coverage
 
-The system provides enterprise-grade reliability with **277+ comprehensive tests** covering:
+The system provides enterprise-grade reliability with **300 comprehensive tests** covering:
 
 **Core Testing Areas:**
-- **Document Operations**: Full CRUD operations and management
-- **Agent Architecture**: Complete testing of both Simple and React agent implementations  
-- **MCP Protocol**: End-to-end server-client communication validation
-- **Multi-round Conversations**: Complex workflows with state management and error recovery
-- **Performance & Reliability**: Timeout handling, resource management, and cleanup verification
+- **Document Operations**: Full CRUD operations and management (131 unit tests)
+- **Agent Architecture**: Complete testing of both Simple and React agent implementations (153 integration tests)
+- **MCP Protocol**: End-to-end server-client communication validation (6 E2E tests)
+- **Performance Benchmarking**: Real API testing and prompt optimization (4 evaluation tests)
+- **Monitoring & Metrics**: OpenTelemetry and Prometheus integration (6 metrics tests)
+- **Quality Assurance**: Centralized fixtures and comprehensive cleanup validation
+
+**Test Results:** 100% success rate (296/296 tests passing) with execution time under 3.5 minutes
 
 The test suite spans unit, integration, and end-to-end categories, ensuring production-ready reliability with proper resource management and state isolation.
 
 ## 📚 Documentation
 
-- **[Package Documentation](document_mcp/README.md)**: MCP server API reference
-- **[API Reference](document_mcp/doc_tool_server.py)**: Complete MCP tools documentation
+### User Guides
+- **📖 [Manual Testing & User Workflows](docs/manual_testing.md)** - Complete guide for creative writing, editing workflows, and troubleshooting
+- **🚀 [Quick Start Examples](#-quick-start)** - Get up and running in minutes
+- **🤖 [Agent Architecture Guide](#-agent-examples-and-tutorials)** - Choose the right agent for your workflow
+
+### Technical Reference  
+- **[Package Documentation](document_mcp/README.md)** - MCP server API reference
+- **[API Reference](document_mcp/doc_tool_server.py)** - Complete MCP tools documentation
+- **[Testing Strategy](tests/README.md)** - 3-tier testing architecture and best practices
 
 ## 🤝 Contributing
 

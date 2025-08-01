@@ -1,65 +1,46 @@
-# Document MCP Server
+# Document-MCP: The Developer's Document Store
 
 [![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-A Model Context Protocol (MCP) server for managing structured Markdown documents. This server provides tools to create, read, update, and analyze documents composed of multiple chapters.
+**Document-MCP is a powerful, local-first MCP server for building, managing, and automating complex, structured documents with confidence. It's designed for developers, technical writers, and researchers who need robust, safe, and programmatic control over their content.**
+
+While other tools focus on simple note-taking, Document-MCP is built for creating and managing multi-chapter documents like books, reports, and technical documentation. It provides a suite of developer-focused features, including write-safety, automatic snapshots, version control, and batch processing.
+
+## Why Document-MCP?
+
+| Feature | Document-MCP | Basic Memory | MCP-Obsidian |
+| --- | --- | --- | --- |
+| **Use Case** | Complex, structured documents (books, reports) | Simple notes and knowledge snippets | Notes within an Obsidian vault |
+| **Safety** | Snapshots, versioning, transactions | Basic file operations | Basic file operations |
+| **Developer Focus** | Metrics, batch processing, granular control | Simple API for conversational knowledge | Obsidian-centric API |
+| **Structure** | Multi-chapter documents | Single notes with semantic tags | Standard Markdown notes |
+
+**Choose Document-MCP if you need to:**
+
+*   **Build complex documents:** Create and manage documents with multiple chapters, and have granular control over paragraphs and content.
+*   **Ensure data safety:** Protect your work with automatic snapshots and versioning, and perform complex operations with atomic transactions.
+*   **Automate your workflows:** Use batch processing to perform multiple operations at once, and monitor everything with detailed performance metrics.
+*   **Work with code:** Document-MCP is designed to be used programmatically, making it ideal for developers and technical users.
 
 ## Installation
 
 ```bash
+# Install with pip (traditional)
 pip install document-mcp
+
+# Install with uv (recommended - 10-100x faster)
+uv add document-mcp
+
+# For development with modern toolchain
+uv sync
 ```
 
 ## Quick Start
 
-### Setup for MCP-Compatible IDEs
-
-1. **Install the package:**
-   ```bash
-   pip install document-mcp
-   ```
-
-2. **Add MCP server configuration:**
-   
-   Add this configuration to your IDE's MCP settings file:
-   ```json
-   {
-     "mcpServers": {
-       "document-mcp": {
-         "command": "document-mcp",
-         "args": ["stdio"],
-         "env": {}
-       }
-     }
-   }
-   ```
-
-3. **IDE-specific configuration locations:**
-   
-   - **Cursor**: `~/.cursor/mcp.json`
-   - **Windsurf**: Add to Windsurf MCP configuration file
-   - **Claude Desktop**: Add to Claude Desktop MCP settings
-   - **Other MCP clients**: Refer to your client's MCP configuration documentation
-
-4. **Enable the MCP server:**
-   - Open your IDE
-   - Enable/turn on the MCP server (usually in settings or toolbar)
-   - Wait for the connection indicator to turn green
-   - The document-mcp tools are now available!
-
-### Manual Server Mode
-
-```bash
-# Start the MCP server manually
-python -m document_mcp.doc_tool_server sse --host localhost --port 3001
-```
-
-## Overview
+### Document Structure
 
 This MCP server treats "documents" as directories containing multiple "chapter" files (Markdown .md files). Chapters are ordered alphanumerically by their filenames (e.g., `01-introduction.md`, `02-main_content.md`).
-
-### Document Structure
 
 ```
 .documents_storage/           # Root directory for all documents
@@ -74,120 +55,123 @@ This MCP server treats "documents" as directories containing multiple "chapter" 
     └── 02-results.md
 ```
 
-## Running the Server
+### Setup for Cursor and Claude Desktop
 
-The server supports both HTTP SSE and stdio transports. HTTP SSE is the default and recommended transport.
+1.  **Install the package:**
+    ```bash
+    pip install document-mcp
+    ```
 
-### HTTP SSE Transport (Recommended)
+2.  **Add MCP server configuration:**
+
+    Add this configuration to your IDE's MCP settings file:
+
+    *   **Cursor:** `~/.cursor/mcp.json`
+    *   **Claude Desktop:** `~/Library/Application Support/Claude/claude_desktop_config.json` (on macOS)
+
+    ```json
+    {
+      "mcpServers": {
+        "document-mcp": {
+          "command": "document-mcp",
+          "args": ["stdio"],
+          "env": {}
+        }
+      }
+    }
+    ```
+
+3.  **Enable the MCP server:**
+    *   Open Cursor or Claude Desktop.
+    *   Enable the MCP server in the settings.
+    *   The Document-MCP tools will now be available in your chat.
+
+### Workflow Instructions for Cursor and Claude
+
+With Document-MCP, you can use natural language to manage your documents. Here are some examples:
+
+**Creating a new document:**
+
+> "Create a new document called 'my-novel'."
+
+**Adding chapters:**
+
+> "Create a new chapter in 'my-novel' called '01-introduction' with the content '# My Novel\n\nThis is the introduction to my novel.'"
+
+**Writing and editing:**
+
+> "Append the paragraph 'This is a new paragraph.' to the chapter '01-introduction' in the document 'my-novel'."
+>
+> "Replace the first paragraph in the chapter '01-introduction' of the document 'my-novel' with 'This is the new first paragraph.'"
+
+**Working with snapshots:**
+
+> "Create a snapshot of the document 'my-novel' with the message 'First draft complete'."
+>
+> "List the snapshots for the document 'my-novel'."
+>
+> "Restore the snapshot with the ID '...' for the document 'my-novel'."
+
+### Using Claude Code in the Obsidian Terminal
+
+You can use Document-MCP with the Obsidian Terminal extension to automate your documentation workflows.
+
+1.  **Install the Obsidian Terminal extension.**
+2.  **Install `document-mcp`** in the terminal's environment.
+3.  **Start the Document-MCP server** in the terminal:
+    ```bash
+    document-mcp sse --host localhost --port 3001
+    ```
+4.  **Use Claude Code** to interact with the server using `curl` or a Python script.
+
+**Example using `curl`:**
 
 ```bash
-# Run with HTTP SSE transport (default)
-python -m document_mcp.doc_tool_server sse --host localhost --port 3001
+# Create a new document
+curl -X POST http://localhost:3001/create_document -d '{"document_name": "my-obsidian-doc"}'
 
-# Or specify arguments explicitly
-python -m document_mcp.doc_tool_server sse --host 0.0.0.0 --port 8000
+# Add a new chapter
+curl -X POST http://localhost:3001/create_chapter -d '{"document_name": "my-obsidian-doc", "chapter_name": "01-daily-notes", "initial_content": "# Daily Notes"}'
 ```
 
-### Stdio Transport
+## Use Cases
 
-```bash
-# Run with stdio transport
-python -m document_mcp.doc_tool_server stdio
-```
+*   **Automated Technical Documentation:** Use an AI assistant to generate and maintain technical documentation for your codebase.
+*   **AI-Powered Research:** Build and organize a research paper with an AI assistant, with each section as a separate chapter.
+*   **Creative Writing:** Write a multi-chapter novel or screenplay with an AI writing partner, using snapshots to save your progress.
 
-## MCP Tools Reference
+## Anonymous Usage Analytics
 
-The server exposes the following tools via the Model Context Protocol:
+Document-MCP includes **automatic, anonymous usage analytics** that help improve the system for all users. This follows industry-standard practices used by npm, VS Code extensions, and Docker.
 
-### Document Management
+### What's Collected (Anonymous Only)
+- **Tool usage patterns**: Which MCP tools are used most frequently
+- **Performance metrics**: Real-world execution times across different environments  
+- **Error rates**: Common failure patterns to prioritize fixes
+- **System information**: Service version, environment type
 
-| Tool | Parameters | Description |
-|------|------------|-------------|
-| `list_documents` | - | Lists all available documents with metadata |
-| `create_document` | `document_name: str` | Creates a new document directory |
-| `delete_document` | `document_name: str` | Deletes a document and all its chapters |
+### What's NOT Collected
+- ❌ **No document content** or file names
+- ❌ **No personal information** or user identification
+- ❌ **No file paths** or directory structures
+- ❌ **No reversible tracking** or individual user data
 
-### Chapter Management
+### Privacy Controls
+- **Automatic collection**: Enabled by default for community benefit
+- **Easy opt-out**: Set `MCP_METRICS_ENABLED=false` to disable completely
+- **Transparent**: All collection documented and open-source
+- **Anonymous**: No way to identify individual users
 
-| Tool | Parameters | Description |
-|------|------------|-------------|
-| `list_chapters` | `document_name: str` | Lists all chapters in a document, ordered by filename |
-| `create_chapter` | `document_name: str`, `chapter_name: str`, `initial_content: str = ""` | Creates a new chapter file |
-| `delete_chapter` | `document_name: str`, `chapter_name: str` | Deletes a chapter from a document |
+This data helps prioritize development efforts on the tools and features that matter most to real users.
 
-### Content Operations
+## Technical Details
 
-| Tool | Parameters | Description |
-|------|------------|-------------|
-| `read_chapter_content` | `document_name: str`, `chapter_name: str` | Reads the content and metadata of a specific chapter |
-| `read_paragraph_content` | `document_name: str`, `chapter_name: str`, `paragraph_index_in_chapter: int` | Reads a specific paragraph from a chapter |
-| `read_full_document` | `document_name: str` | Reads the entire document, concatenating all chapters |
-| `write_chapter_content` | `document_name: str`, `chapter_name: str`, `new_content: str` | Overwrites the entire content of a chapter |
-| `modify_paragraph_content` | `document_name: str`, `chapter_name: str`, `paragraph_index: int`, `new_paragraph_content: str`, `mode: str` | Modifies a paragraph (`replace`, `insert_before`, `insert_after`, `delete`) |
-| `append_paragraph_to_chapter` | `document_name: str`, `chapter_name: str`, `paragraph_content: str` | Appends a new paragraph to the end of a chapter |
+For more detailed information on the available tools, data models, and advanced features like monitoring and logging, please see the [Technical Reference](TECHNICAL_REFERENCE.md).
 
-### Text Operations
+## Contributing
 
-| Tool | Parameters | Description |
-|------|------------|-------------|
-| `replace_text_in_chapter` | `document_name: str`, `chapter_name: str`, `text_to_find: str`, `replacement_text: str` | Replaces all occurrences of text in a specific chapter |
-| `replace_text_in_document` | `document_name: str`, `text_to_find: str`, `replacement_text: str` | Replaces all occurrences of text throughout all chapters |
-
-### Analysis Tools
-
-| Tool | Parameters | Description |
-|------|------------|-------------|
-| `get_chapter_statistics` | `document_name: str`, `chapter_name: str` | Retrieves statistics (word count, paragraph count) for a chapter |
-| `get_document_statistics` | `document_name: str` | Retrieves aggregated statistics for an entire document |
-
-### Search Tools
-
-| Tool | Parameters | Description |
-|------|------------|-------------|
-| `find_text_in_chapter` | `document_name: str`, `chapter_name: str`, `query: str`, `case_sensitive: bool = False` | Finds paragraphs containing the query string in a specific chapter |
-| `find_text_in_document` | `document_name: str`, `query: str`, `case_sensitive: bool = False` | Finds paragraphs containing the query string across all chapters |
-
-## Data Models
-
-The server uses Pydantic models for structured data exchange:
-
-- `DocumentInfo`: Metadata for a document
-- `ChapterMetadata`: Metadata for a chapter
-- `ChapterContent`: Full content and metadata of a chapter
-- `ParagraphDetail`: Information about a specific paragraph
-- `FullDocumentContent`: Complete content of a document
-- `StatisticsReport`: Word and paragraph count statistics
-- `OperationStatus`: Success/failure status for operations
-
-## Requirements
-
-- Python 3.8+
-- fastapi
-- uvicorn[standard]
-- pydantic-ai
-- mcp[cli]
-- python-dotenv
-- google-generativeai
-
-## Testing
-
-The MCP server uses a three-tier testing approach:
-
-1. **Unit Tests**: Mock all dependencies for fast, reliable component testing
-2. **Integration Tests**: Real MCP server with mocked AI for tool validation
-3. **E2E Tests**: Real MCP server with real AI for complete system validation (runs in CI/CD)
-
-Tests cover all MCP tools, error handling, boundary conditions, and multi-step workflows.
-
-## Examples and Documentation
-
-For comprehensive examples, tutorials, and usage guides, visit the [GitHub repository](https://github.com/document-mcp/document-mcp).
+Contributions are welcome! Please see the [Contributing Guide](CONTRIBUTING.md) for more information.
 
 ## License
 
 MIT License
-
-## Links
-
-- **GitHub Repository**: [https://github.com/document-mcp/document-mcp](https://github.com/document-mcp)
-- **Bug Reports**: [GitHub Issues](https://github.com/document-mcp/issues) 
