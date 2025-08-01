@@ -1,6 +1,6 @@
 """Clean evaluation test suite for document-mcp agents.
 
-This module provides a simplified evaluation infrastructure following clean architecture:
+This module provides an evaluation infrastructure following clean architecture:
 - Agents collect performance metrics only (tokens, time, success)
 - Tests optionally enhance with LLM evaluation in test layer only
 

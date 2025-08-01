@@ -148,7 +148,7 @@ def format_agent_response(
 ) -> dict[str, Any]:
     """Convenience function for formatting agent responses based on response data and agent type.
 
-    This function provides backward compatibility and a simplified interface for formatting responses.
+    This function provides a interface for formatting responses.
 
     Args:
         response_data: Dictionary containing summary, details, and optional error_message

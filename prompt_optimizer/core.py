@@ -1,6 +1,6 @@
 """Core prompt optimization logic.
 
-This module contains the main PromptOptimizer class with simplified, focused functionality.
+This module contains the main PromptOptimizer class with  focused functionality.
 """
 
 import os
@@ -25,7 +25,7 @@ from .evaluation import PerformanceEvaluator
 
 
 class PromptOptimizer:
-    """Simplified prompt optimizer that focuses on test-based validation."""
+    """Prompt optimizer that focuses on test-based validation."""
 
     def __init__(self):
         """Initialize the prompt optimizer."""

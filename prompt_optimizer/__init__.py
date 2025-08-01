@@ -1,6 +1,6 @@
 """Prompt Optimizer Package.
 
-A simplified, standalone tool for automated prompt optimization using test-based evaluation.
+A standalone tool for automated prompt optimization using test-based evaluation.
 """
 
 from .cli import main
