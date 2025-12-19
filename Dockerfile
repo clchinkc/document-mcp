@@ -1,29 +1,37 @@
-# Python base image
-FROM python:3.12-slim
+FROM python:3.13-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install poetry
-RUN pip install poetry
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml .
 
-# Install dependencies
-# Using --no-root to install only dependencies, not the project itself
-RUN poetry install --no-root --no-interaction --no-ansi
+# Install Python dependencies (document-mcp core + server extras)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir ".[server]"
 
-# Copy the application code
-COPY document_mcp/ ./document_mcp/
+# Copy application code
+COPY server.py .
 
-# Set environment variables for production
-ENV MCP_METRICS_ENABLED=true
-ENV DEPLOYMENT_ENVIRONMENT=production
-ENV OTEL_SERVICE_NAME=document-mcp-server
+# Create storage directory with proper permissions
+RUN mkdir -p /data/documents_storage && \
+    chmod 755 /data/documents_storage
 
-# Expose the port the server runs on
-EXPOSE 3001
+# Environment variables
+ENV DOCUMENTS_STORAGE_PATH=/data/documents_storage
+ENV PORT=8080
+ENV LOG_LEVEL=info
 
-# Command to run the application
-CMD ["poetry", "run", "python", "-m", "document_mcp.doc_tool_server", "sse", "--host", "0.0.0.0", "--port", "3001"] 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Expose port
+EXPOSE ${PORT}
+
+# Run server (use shell form to allow PORT env var expansion)
+CMD uvicorn server:app --host 0.0.0.0 --port ${PORT} --log-level info 

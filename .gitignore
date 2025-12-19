@@ -194,72 +194,11 @@ cython_debug/
 
 .project-info/
 
-.taskmaster/
-# Added by Task Master AI
-# Logs
-logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dev-debug.log
-# Dependency directories
-node_modules/
-# Environment variables
-# Editor directories and files
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-# OS specific
-*.log
-*.log.*
+# OAuth credentials (sensitive)
+client_secret_*.json
 
-# Development infrastructure temporary data
-scripts/development/telemetry/data/
-/tmp/document_mcp_metrics.json
-/tmp/document_mcp_metrics.lock
-/tmp/prometheus_mcp_*
+# Cloud Run
+.gcloudignore
 
-# Repository cleanup patterns (ensure these stay ignored)
-# Virtual environments
-.venv/
-venv/
-env/
-ENV/
-.conda/
-
-# Build and cache directories  
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-htmlcov/
-.tox/
-.nox/
-build/
-dist/
-
-# IDE and editor directories
-.vscode/
-.idea/
-.cursor/
-
-# Temporary and backup files
-*.tmp
-*.bak
-*.log.*
-cleanup_repository.py
-
-# Prevent documentation bloat (CLAUDE.md compliance)
-# Only CLAUDE.md and README.md are authorized documentation files
-*_GUIDE.md
-*_REPORT.md  
-*_REFERENCE.md
-*_review.md
-*_evolution*.md
-*_optimization*.md
-TECHNICAL_*.md
-CI_*.md
-CLEANUP_*.md
-phase*.md
+# Audit logs
+audit.log
