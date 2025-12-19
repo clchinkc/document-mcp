@@ -771,6 +771,26 @@ async def mcp_endpoint(
                 }
             }, status_code=404)
 
+    except HTTPException as e:
+        # Re-raise HTTP exceptions with proper headers for OAuth flow
+        if e.status_code == 401:
+            server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.us-central1.run.app")
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id if 'request_id' in locals() else None,
+                    "error": {
+                        "code": -32001,
+                        "message": "Unauthorized",
+                        "data": str(e.detail)
+                    }
+                },
+                status_code=401,
+                headers={
+                    "WWW-Authenticate": f'Bearer resource="{server_url}"'
+                }
+            )
+        raise
     except Exception as e:
         logger.error(f"Error processing MCP request: {e}", exc_info=True)
         return JSONResponse({
