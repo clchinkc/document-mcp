@@ -7,12 +7,17 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files
-COPY pyproject.toml .
-
-# Install Python dependencies (document-mcp core + server extras)
+# Install Python dependencies
+# - document-mcp from PyPI (the core MCP package)
+# - Server dependencies for OAuth 2.1
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir ".[server]"
+    pip install --no-cache-dir \
+    "document-mcp>=0.0.4" \
+    "fastapi>=0.115.0" \
+    "uvicorn[standard]>=0.32.0" \
+    "google-auth>=2.34.0" \
+    "redis>=5.0.0" \
+    "requests>=2.31.0"
 
 # Copy application code
 COPY server.py .
