@@ -1,0 +1,67 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server.py'
+      - 'pyproject.toml'
+      - 'Dockerfile'
+      - '.github/workflows/deploy-cloud-run.yml'
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  PROJECT_ID: document-mcp-54749
+  REGION: us-central1
+  SERVICE_NAME: document-mcp
+
+jobs:
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --source . \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --allow-unauthenticated \
+            --platform managed \
+            --memory 512Mi \
+            --cpu 1 \
+            --max-instances 10 \
+            --port 8080 \
+            --vpc-connector mcp-vpc-connector \
+            --set-env-vars "DOCUMENTS_STORAGE_PATH=/data/documents_storage,LOG_LEVEL=info,GOOGLE_OAUTH_CLIENT_ID=${{ secrets.GOOGLE_OAUTH_CLIENT_ID }},GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }},SERVER_URL=https://document-mcp-451560119112.us-central1.run.app,REDIS_HOST=${{ secrets.REDIS_HOST }},REDIS_PORT=${{ secrets.REDIS_PORT }}"
+
+      - name: Verify deployment
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --format="value(status.url)")
+
+          echo "Service URL: $SERVICE_URL"
+
+          # Health check (no auth required)
+          curl -f "${SERVICE_URL}/health" || exit 1
+
+          # OAuth metadata check (no auth required)
+          curl -f "${SERVICE_URL}/.well-known/oauth-authorization-server" || exit 1
+
+          echo "✅ Deployment verified successfully"
+          echo "⚠️  Full OAuth flow requires Claude Desktop Custom Connector"

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "document-mcp"
-version = "0.0.2"
+version = "0.0.4"
 authors = [
   { name="clchinkc" },
 ]
@@ -50,6 +50,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+server = [
+    # OAuth 2.1 hosted server dependencies
+    "google-auth>=2.34.0",  # Google OAuth token verification
+    "redis>=5.0.0",         # Session and token storage
+]
+
 dev = [
     # Core testing framework
     "pytest>=7.3.0",
