@@ -602,8 +602,20 @@ async def oauth_server_metadata():
     }
 
 
-# MCP JSON-RPC endpoint
-@app.post("/mcp")
+@app.get("/.well-known/oauth-protected-resource")
+async def oauth_protected_resource_metadata():
+    """OAuth 2.0 Protected Resource Metadata (RFC 9728)."""
+    server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.us-central1.run.app")
+    return {
+        "resource": server_url,
+        "authorization_servers": [server_url],
+        "bearer_methods_supported": ["header"],
+        "scopes_supported": ["claudeai"]
+    }
+
+
+# MCP JSON-RPC endpoint - at root for Claude Desktop compatibility
+@app.post("/")
 async def mcp_endpoint(
     request: Request,
     authorization: str | None = Header(None, description="OAuth Bearer token (REQUIRED)")
