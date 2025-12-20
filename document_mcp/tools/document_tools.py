@@ -34,7 +34,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
 
     @mcp_server.tool()
     @log_mcp_call
-    def list_documents() -> list[DocumentInfo]:
+    def list_documents(include_chapters: bool = False) -> list[DocumentInfo]:
         """List all available document collections in the document management system.
 
         This tool retrieves metadata for all document directories, where each document
@@ -42,7 +42,9 @@ def register_document_tools(mcp_server: FastMCP) -> None:
         information including chapter counts, word counts, and modification timestamps.
 
         Parameters:
-            None
+            include_chapters (bool): Whether to include detailed chapter metadata (default: False).
+                - False: Fast response with empty chapters list, suitable for document overview
+                - True: Complete response including all chapter metadata, slower but comprehensive
 
         Returns:
             List[DocumentInfo]: A list of document metadata objects. Each DocumentInfo contains:
@@ -58,9 +60,16 @@ def register_document_tools(mcp_server: FastMCP) -> None:
 
         Example Usage:
             ```json
+            // Fast document overview (recommended for most use cases)
             {
                 "name": "list_documents",
                 "arguments": {}
+            }
+
+            // Complete document details with all chapter metadata
+            {
+                "name": "list_documents",
+                "arguments": {"include_chapters": true}
             }
             ```
 
@@ -111,7 +120,8 @@ def register_document_tools(mcp_server: FastMCP) -> None:
                 for chapter_file_path in ordered_chapter_files:
                     metadata = _get_chapter_metadata(document_name, chapter_file_path)
                     if metadata:
-                        chapters_metadata_list.append(metadata)
+                        if include_chapters:
+                            chapters_metadata_list.append(metadata)
                         doc_total_word_count += metadata.word_count
                         doc_total_paragraph_count += metadata.paragraph_count
                         # Ensure metadata.last_modified is offset-aware before comparison
@@ -119,17 +129,12 @@ def register_document_tools(mcp_server: FastMCP) -> None:
                         if current_mod_time_aware > latest_mod_time:
                             latest_mod_time = current_mod_time_aware
 
-                if (
-                    not chapters_metadata_list
-                ):  # If no valid chapters, maybe don't list as a doc or list with 0s
-                    # Or, use directory's mtime if no chapters. For now, only list if chapters exist.
-                    # Or list if it's an empty initialized doc.
-                    # Let's list it even if empty, using the folder's mtime.
-                    if not ordered_chapter_files:  # No chapter files at all
-                        stat_dir = doc_dir.stat()
-                        latest_mod_time = datetime.datetime.fromtimestamp(
-                            stat_dir.st_mtime, tz=datetime.timezone.utc
-                        )
+                # Handle case where document has no chapter files
+                if not ordered_chapter_files:  # No chapter files at all
+                    stat_dir = doc_dir.stat()
+                    latest_mod_time = datetime.datetime.fromtimestamp(
+                        stat_dir.st_mtime, tz=datetime.timezone.utc
+                    )
 
                 # Check for summary in new organized location
                 new_summary_path = _get_summaries_path(document_name) / "document.md"
@@ -138,7 +143,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
                 docs_info.append(
                     DocumentInfo(
                         document_name=document_name,
-                        total_chapters=len(chapters_metadata_list),
+                        total_chapters=len(ordered_chapter_files),  # Always show actual chapter count
                         total_word_count=doc_total_word_count,
                         total_paragraph_count=doc_total_paragraph_count,
                         last_modified=(
@@ -148,7 +153,7 @@ def register_document_tools(mcp_server: FastMCP) -> None:
                                 doc_dir.stat().st_mtime, tz=datetime.timezone.utc
                             )
                         ),
-                        chapters=chapters_metadata_list,
+                        chapters=chapters_metadata_list,  # Empty list when include_chapters=False
                         has_summary=has_summary_file,
                     )
                 )

@@ -21,6 +21,7 @@ from .config import get_settings
 
 # Import metrics functionality
 from .metrics_config import METRICS_ENABLED
+from .metrics_config import ensure_metrics_initialized
 from .models import ChapterContent
 from .models import ChapterMetadata
 from .models import ContentFreshnessStatus
@@ -99,7 +100,7 @@ def get_current_user() -> str:
     return os.environ.get("USER", "system_user")
 
 
-mcp_server = FastMCP(name="DocumentManagementTools", capabilities=["tools", "resources"])
+mcp_server = FastMCP(name="DocumentManagementTools")
 
 # Register tools from modular architecture
 register_document_tools(mcp_server)
@@ -128,20 +129,33 @@ __all__ = [
     "DOCS_ROOT_PATH",
     # MCP Server (primary export)
     "mcp_server",
-    # No internal batch helpers - use batch.registry.execute_batch_operation
 ]
 
 
 # --- Main Server Execution ---
 def main():
     """Run the main entry point for the server with argument parsing."""
-    parser = argparse.ArgumentParser(description="Document MCP Server")
+    parser = argparse.ArgumentParser(
+        description="Document MCP Server - Manage structured Markdown documents via MCP protocol",
+        epilog="""
+Examples:
+  # Start server with stdio transport (for Claude Code/MCP clients)
+  document-mcp stdio
+
+  # Start server with HTTP SSE transport
+  document-mcp sse --host localhost --port 3001
+
+  # Test server startup
+  document-mcp --help
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "transport",
         choices=["sse", "stdio"],
         default="stdio",
         nargs="?",
-        help="Transport: 'sse' for HTTP SSE or 'stdio' for standard I/O (default: stdio)",
+        help="Transport protocol: 'stdio' for MCP clients like Claude Code (default), 'sse' for HTTP server",
     )
     parser.add_argument(
         "--host",
@@ -156,6 +170,9 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Initialize metrics only when server actually starts running (not during --help)
+    ensure_metrics_initialized()
 
     # Debug: Show environment variables received by MCP server subprocess
     import os
@@ -192,11 +209,11 @@ def main():
             if expected_docs_path.exists():
                 print("[MCP_SERVER_DEBUG] Expected path exists: True")
             else:
-                print("[MCP_SERVER_DEBUG] Expected path exists: False - will create")
+                print("[MCP_SERVER_DEBUG] Expected path exists: False")
         except Exception as e:
             print(f"[MCP_SERVER_DEBUG] Error processing expected path {doc_root_env}: {e}")
     else:
-        print("[MCP_SERVER_DEBUG] No DOCUMENT_ROOT_DIR env var - using default")
+        print("[MCP_SERVER_DEBUG] No DOCUMENT_ROOT_DIR env var")
 
     # Show automatic telemetry status
     try:

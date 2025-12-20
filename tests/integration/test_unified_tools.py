@@ -25,11 +25,14 @@ class TestUnifiedReadContent:
 
         assert result is not None
         assert result.document_name == doc_name
-        assert len(result.chapters) == 2
-        assert result.total_word_count > 0
-
-        chapter_names = [ch.chapter_name for ch in result.chapters]
-        assert chapter_names == ["01-intro.md", "02-content.md"]
+        assert result.scope == "document"
+        assert result.content is not None
+        # Content should include both chapters (since total is small)
+        assert "Introduction" in result.content
+        assert "main content" in result.content
+        # Check pagination metadata
+        assert result.pagination.page == 1
+        assert result.pagination.total_characters > 0
 
     def test_read_content_chapter_scope(self, document_factory):
         """Test reading specific chapter using unified read_content tool."""

@@ -99,9 +99,6 @@ async def initialize_agent_and_mcp_server() -> tuple[Agent[LLMOnlyResponse], MCP
         print(f"Error loading LLM config: {e}", file=sys.stderr)
         raise
 
-    # Configuration for stdio transport using shared constant
-
-    # Prepare environment for MCP server subprocess
     from src.agents.shared.config import prepare_mcp_server_environment
 
     server_env = prepare_mcp_server_environment()
@@ -147,7 +144,6 @@ async def process_single_user_query(
         async def _run_agent():
             return await agent.run(user_query)
 
-        # Use RetryManager for robust error handling - let it manage its own timeouts
         run_result: AgentRunResult[LLMOnlyResponse] = await _retry_manager.execute_with_retry(_run_agent)
 
         # Collect metrics if requested

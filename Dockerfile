@@ -31,8 +31,8 @@ ENV DOCUMENTS_STORAGE_PATH=/data/documents_storage
 ENV PORT=8080
 ENV LOG_LEVEL=info
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Health check - increased start-period for cold start reliability
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Expose port

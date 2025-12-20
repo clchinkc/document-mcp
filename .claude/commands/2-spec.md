@@ -16,10 +16,13 @@ a design.
   - A hierarchical numbered list of requirements where each contains:
     - A user story in the format "As a [role], I want [feature], so that [benefit]"
     - A numbered list of acceptance criteria in EARS format (Easy Approach to Requirements Syntax)
+    - Associated use cases that demonstrate how the user story will be fulfilled
+    - Test cases that validate the acceptance criteria and use cases
   - Example format:
 [includes example format here]
+- The model SHOULD apply PRD thinking methodology when generating requirements: identify user personas, define problem statements, consider success metrics, and think through user journeys to create comprehensive requirements
 - The model SHOULD consider edge cases, user experience, technical constraints, and success criteria in the initial requirements
-- After updating the requirement document, the model MUST ask the user "Do the requirements look good? If so, we can move on to the design." using the 'userInput' tool.
+- After updating the requirement document, the model MUST ask the user "Do the requirements look good? If so, I can optionally create behavioral scenarios, or we can move on to the design." using the 'userInput' tool.
 - The 'userInput' tool MUST be used with the exact string 'spec-requirements-review' as the reason
 - The model MUST make modifications to the requirements document if the user requests changes or does not explicitly approve
 - The model MUST ask for explicit approval after every iteration of edits to the requirements document
@@ -28,8 +31,45 @@ a design.
 - The model SHOULD suggest specific areas where the requirements might need clarification or expansion
 - The model MAY ask targeted questions about specific aspects of the requirements that need clarification
 - The model MAY suggest options when the user is unsure about a particular aspect
-- The model MUST proceed to the design phase after the user accepts the requirements
+- The model MUST proceed to behavioral scenario generation if requested, or directly to the design phase after the user accepts the requirements
 
+
+# Behavioral Scenario Generation (Optional)
+
+Workflow Stage: Behavioral Scenario Generation
+
+After the user approves the Requirements, optionally generate behavioral scenarios using Given-When-Then format to create testable specifications before moving to design.
+
+**Constraints:**
+
+- The model MUST create a '.claude/specs/{feature_name}/scenarios.md' file if behavioral scenarios are requested
+- The model MUST convert user stories from requirements into Given-When-Then scenarios
+- The model MUST format scenarios using standard Gherkin syntax:
+  ```
+  Scenario: [Descriptive name]
+    Given [initial state or precondition]
+      And [additional context if needed]
+    When [action or event]
+      And [additional actions if needed]
+    Then [expected outcome]
+      And [additional expected outcomes if needed]
+  ```
+- The model MUST create scenarios for:
+  - Happy path behaviors (primary user journeys)
+  - Alternative path behaviors (valid variations)
+  - Exception scenarios (error handling)
+  - Edge case scenarios (boundary conditions)
+- The model MUST ensure each scenario traces back to specific requirements
+- The model MUST create a traceability section mapping requirements to scenarios
+- The model SHOULD group scenarios by feature area or user story
+- The model MUST ensure scenarios are testable and objectively verifiable
+- After updating the scenarios document, the model MUST ask the user "Do the behavioral scenarios look good? If so, we can move on to the design." using the 'userInput' tool.
+- The 'userInput' tool MUST be used with the exact string 'spec-scenarios-review' as the reason
+- The model MUST make modifications to the scenarios document if the user requests changes or does not explicitly approve
+- The model MUST ask for explicit approval after every iteration of edits to the scenarios document
+- The model MUST NOT proceed to the design document until receiving clear approval
+- The model MUST continue the feedback-revision cycle until explicit approval is received
+- The model MUST proceed to the design phase after the user accepts the scenarios
 
 # Design Document Creation Generation
 
@@ -55,8 +95,9 @@ The design document should be based on the requirements document, so ensure it e
   - Data Models
   - Error Handling
   - Testing Strategy
+  - Behavioral Specifications (if scenarios were created)
 - The model SHOULD include diagrams or visual representations when appropriate (use Mermaid for diagrams if applicable)
-- The model MUST ensure the design addresses all feature requirements identified during the clarification process
+- The model MUST ensure the design addresses all feature requirements and behavioral scenarios identified during the clarification process
 - The model SHOULD highlight design decisions and their rationales
 - The model MAY ask the user for input on specific technical decisions during the design process
 - After updating the design document, the model MUST ask the user "Does the design look good? If so, we can move on to the implementation plan." using the 'userInput' tool.
@@ -92,14 +133,18 @@ The tasks document should be based on the design document, so ensure it exists f
 - Additional information as sub-bullets under the task
 - Specific references to requirements from the requirements document (referencing granular sub-requirements, not just user stories)
 - The model MUST ensure that the implementation plan is a series of discrete, manageable coding steps
-- The model MUST ensure each task references specific requirements from the requirement document
+- The model MUST ensure each task references specific requirements from the requirement document and behavioral scenarios if they exist
 - The model MUST NOT include excessive implementation details that are already covered in the design document
-- The model MUST assume that all context documents (feature requirements, design) will be available during implementation
+- The model MUST assume that all context documents (feature requirements, behavioral scenarios, design) will be available during implementation
 - The model MUST ensure each step builds incrementally on previous steps
 - The model SHOULD prioritize test-driven development where appropriate
 - The model MUST ensure the plan covers all aspects of the design that can be implemented through code
 - The model SHOULD sequence steps to validate core functionality early through code
-- The model MUST ensure that all requirements are covered by the implementation tasks
+- The model MUST ensure that all requirements and behavioral scenarios are covered by the implementation tasks
+- The model MUST include scenario validation tasks when behavioral scenarios exist:
+  - Tasks should verify implementation matches Given-When-Then scenarios
+  - Each user story with scenarios should have corresponding validation tasks
+  - Validation tasks should reference specific scenario names and expected behaviors
 - The model MUST offer to return to previous steps (requirements or design) if gaps are identified during implementation planning
 - The model MUST ONLY include tasks that can be performed by a coding agent (writing code, creating tests, etc.)
 - The model MUST NOT include tasks related to user testing, deployment, performance metrics gathering, or other non-coding activities

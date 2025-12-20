@@ -85,9 +85,10 @@ mcp_call_logger.setLevel(logging.INFO)
 error_logger = logging.getLogger("error_logger")
 error_logger.setLevel(logging.INFO)
 
-# Use Path(__file__).resolve().parent to ensure the path is correct even if the script is called from elsewhere.
-log_file_path = Path(__file__).resolve().parent / "mcp_calls.log"
-error_log_path = Path(__file__).resolve().parent / "errors.log"
+# Use Path(__file__).resolve().parent to ensure correct path from any location.
+_log_dir = Path(__file__).resolve().parent
+log_file_path = _log_dir / "mcp_calls.log"
+error_log_path = _log_dir / "errors.log"
 
 # Use RotatingFileHandler for log rotation
 # maxBytes: 10MB per file, backupCount: 5 files (total ~50MB)

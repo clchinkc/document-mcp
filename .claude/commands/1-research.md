@@ -1,3 +1,5 @@
-1.  Research (With parallel subagent)
-1a. Look into each implementation file (literally all files in src folder), get to the fundamental principle and concrete implementation of the code. Consider how the system is supposed to work, in lowest complexity and highest usefulness and extensibility.
-1b. Look into each test file (literally all files in tests folder), get to the purpose of testing and the condition of passing and failing the test. Consider how to use testing to ensure the implementation correctness with fewer LLM call.
+# Research (Multi-Agent Parallel)
+
+**Implementation Analysis**: Examine all implementation files (src/) for fundamental principles, concrete patterns, and system design. Focus on complexity vs. usefulness vs. extensibility trade-offs, architectural decisions, and code quality patterns.
+
+**Testing Analysis**: Review all test files (tests/) for testing purpose, pass/fail conditions, coverage gaps, and effectiveness. Optimize testing strategy to ensure implementation correctness with minimal resource usage and maximum reliability.

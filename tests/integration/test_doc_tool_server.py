@@ -1,5 +1,6 @@
-"""Integration tests for the Document MCP tool server, focusing on tool interactions
-and file system state changes.
+"""Integration tests for the Document MCP tool server.
+
+Focuses on tool interactions and file system state changes.
 """
 
 from pathlib import Path
@@ -66,7 +67,7 @@ def test_delete_document(document_factory):
 
 
 def test_read_full_document(document_factory):
-    """Test reading a full document with multiple chapters."""
+    """Test reading a full document with multiple chapters using pagination."""
     doc_name = "full_doc_test"
     chapters = {
         "01-intro.md": "Introduction content.",
@@ -74,17 +75,26 @@ def test_read_full_document(document_factory):
     }
     document_factory(doc_name, chapters)
 
-    # Action: Read the full document
+    # Action: Read the full document (paginated response)
     full_doc = read_content(doc_name, scope="document")
 
-    # Post-condition: Content is correct and ordered
+    # Post-condition: Content is correct and includes both chapters
     assert full_doc is not None
     assert full_doc.document_name == doc_name
-    assert len(full_doc.chapters) == 2
-    assert full_doc.chapters[0].chapter_name == "01-intro.md"
-    assert full_doc.chapters[0].content == "Introduction content."
-    assert full_doc.chapters[1].chapter_name == "02-body.md"
-    assert full_doc.chapters[1].content == "Body content."
+    assert full_doc.scope == "document"
+    assert full_doc.content is not None
+
+    # Check pagination metadata
+    assert full_doc.pagination.page == 1
+    assert full_doc.pagination.total_characters > 0
+
+    # Content should include both chapters (since total is small)
+    assert "Introduction content." in full_doc.content
+    assert "Body content." in full_doc.content
+
+    # For small documents, should fit in one page
+    assert full_doc.pagination.total_pages == 1
+    assert full_doc.pagination.has_more is False
 
 
 def test_document_statistics(document_factory):
@@ -525,7 +535,7 @@ class TestUnifiedReadContent:
     """Integration tests for the unified read_content tool."""
 
     def test_read_content_document_scope(self, document_factory):
-        """Test reading full document using unified read_content tool."""
+        """Test reading full document using unified read_content tool with pagination."""
         doc_name = "test_unified_doc"
         chapters = {
             "01-intro.md": "# Introduction\n\nWelcome to the document.",
@@ -533,17 +543,26 @@ class TestUnifiedReadContent:
         }
         document_factory(doc_name, chapters)
 
-        # Test document scope
+        # Test document scope (paginated response)
         result = read_content(doc_name, scope="document")
 
         assert result is not None
         assert result.document_name == doc_name
-        assert len(result.chapters) == 2
-        assert result.total_word_count > 0
+        assert result.scope == "document"
+        assert result.content is not None
+        assert len(result.content) > 0
 
-        # Check that chapters are in correct order
-        chapter_names = [ch.chapter_name for ch in result.chapters]
-        assert chapter_names == ["01-intro.md", "02-content.md"]
+        # Check pagination metadata
+        assert result.pagination.page == 1
+        assert result.pagination.page_size == 50000
+        assert result.pagination.total_characters > 0
+        assert result.pagination.total_pages >= 1
+
+        # Content should include both chapters (since total is small)
+        assert "Introduction" in result.content
+        assert "Content" in result.content
+        assert "Welcome to the document" in result.content
+        assert "This is the main content" in result.content
 
     def test_read_content_chapter_scope(self, document_factory):
         """Test reading specific chapter using unified read_content tool."""
@@ -766,3 +785,279 @@ class TestUnifiedTools:
         # Test get_statistics with missing chapter_name for chapter scope
         result = get_statistics(doc_name, scope="chapter")
         assert result is None
+
+
+# ===================================
+# Token Limit Optimization Tests
+# ===================================
+
+
+def test_list_documents_include_chapters_parameter(document_factory):
+    """Test list_documents with include_chapters parameter for token optimization."""
+    doc_name = "chapters_test"
+    chapters = {
+        "01-intro.md": "Introduction content with multiple words here.",
+        "02-body.md": "Body content with even more words here for testing.",
+        "03-conclusion.md": "Conclusion content wrapping up the document.",
+    }
+    document_factory(doc_name, chapters)
+
+    # Test default behavior (include_chapters=False)
+    docs_fast = list_documents()
+    assert len(docs_fast) == 1
+    doc_info = docs_fast[0]
+    assert doc_info.document_name == doc_name
+    assert doc_info.total_chapters == 3  # Count is always shown
+    assert doc_info.chapters == []  # But chapters list is empty for fast response
+
+    # Test with include_chapters=True
+    docs_detailed = list_documents(include_chapters=True)
+    assert len(docs_detailed) == 1
+    doc_info_detailed = docs_detailed[0]
+    assert doc_info_detailed.document_name == doc_name
+    assert doc_info_detailed.total_chapters == 3
+    assert len(doc_info_detailed.chapters) == 3  # Full chapter metadata included
+    assert doc_info_detailed.chapters[0].chapter_name == "01-intro.md"
+    assert doc_info_detailed.chapters[1].chapter_name == "02-body.md"
+    assert doc_info_detailed.chapters[2].chapter_name == "03-conclusion.md"
+
+
+def test_read_content_pagination_parameter(document_factory):
+    """Test read_content with pagination parameters for precise token optimization."""
+    doc_name = "large_doc_test"
+    chapters = {}
+    for i in range(1, 6):
+        chapters[f"{i:02d}-small.md"] = f"Short chapter {i} content."
+
+    for i in range(6, 11):
+        chapters[f"{i:02d}-large.md"] = f"Large chapter {i} content. " * 20 + f"This is chapter {i}."
+
+    document_factory(doc_name, chapters)
+
+    # Test default pagination
+    doc_content_default = read_content(doc_name, scope="document")
+    assert doc_content_default is not None
+    assert doc_content_default.document_name == doc_name
+    assert doc_content_default.pagination.page == 1
+    assert doc_content_default.pagination.page_size == 50000
+    assert doc_content_default.pagination.total_pages == 1
+    assert doc_content_default.pagination.has_more is False
+
+    # Test small page size
+    doc_content_small = read_content(doc_name, scope="document", page=1, page_size=200)
+    assert doc_content_small is not None
+    assert doc_content_small.pagination.page == 1
+    assert doc_content_small.pagination.page_size == 200
+    assert len(doc_content_small.content) <= 200
+    assert doc_content_small.pagination.total_pages > 1
+    assert doc_content_small.pagination.has_more is True
+
+    # Test second page
+    doc_content_page2 = read_content(doc_name, scope="document", page=2, page_size=200)
+    assert doc_content_page2 is not None
+    assert doc_content_page2.pagination.page == 2
+    assert doc_content_page2.pagination.has_previous is True
+    assert len(doc_content_page2.content) <= 200
+
+    assert doc_content_small.content != doc_content_page2.content
+
+    # Test with medium page size
+    doc_content_medium = read_content(doc_name, scope="document", page=1, page_size=1000)
+    assert doc_content_medium is not None
+    assert len(doc_content_medium.content) <= 1000
+
+    assert len(doc_content_medium.content) > len(doc_content_small.content)
+
+    # Test invalid parameters
+    doc_content_invalid_page = read_content(doc_name, scope="document", page=0)
+    assert doc_content_invalid_page is None  # Should return None for invalid page
+
+    doc_content_invalid_size = read_content(doc_name, scope="document", page_size=0)
+    assert doc_content_invalid_size is None  # Should return None for invalid page_size
+
+
+def test_read_content_pagination_behavior(document_factory):
+    """Test read_content pagination behavior with page boundaries."""
+    doc_name = "pagination_test"
+    chapters = {
+        "01-exact.md": "A" * 100,
+        "02-more.md": "B" * 200,
+    }
+    document_factory(doc_name, chapters)
+
+    doc_content = read_content(doc_name, scope="document", page=1, page_size=150)
+    assert doc_content is not None
+    assert doc_content.pagination.page == 1
+    assert doc_content.pagination.page_size == 150
+    assert len(doc_content.content) == 150
+
+    total_content_size = 100 + 2 + 200
+    expected_pages = (total_content_size + 149) // 150
+    assert doc_content.pagination.total_pages == expected_pages
+    assert doc_content.pagination.has_more is True
+
+    # Test second page
+    doc_content_page2 = read_content(doc_name, scope="document", page=2, page_size=150)
+    assert doc_content_page2 is not None
+    assert doc_content_page2.pagination.page == 2
+    assert doc_content_page2.pagination.has_previous is True
+
+    # Content should be different between pages
+    assert doc_content.content != doc_content_page2.content
+
+    # Test last page
+    last_page = doc_content.pagination.total_pages
+    doc_content_last = read_content(doc_name, scope="document", page=last_page, page_size=150)
+    assert doc_content_last is not None
+    assert doc_content_last.pagination.has_more is False
+    assert doc_content_last.pagination.next_page is None
+
+
+def test_read_content_pagination_edge_cases(document_factory):
+    """Test read_content pagination edge cases and boundary conditions."""
+    doc_name = "edge_case_test"
+
+    # Test empty document
+    document_factory(doc_name, {})
+    empty_content = read_content(doc_name, scope="document")
+    assert empty_content is not None
+    assert empty_content.content == ""
+    assert empty_content.pagination.total_pages == 1
+    assert empty_content.pagination.has_more is False
+
+    # Test single character document
+    single_char_doc = "single_char_doc"
+    document_factory(single_char_doc, {"01-single.md": "X"})
+    single_content = read_content(single_char_doc, scope="document", page_size=1)
+    assert single_content is not None
+    assert single_content.content == "X"
+    assert single_content.pagination.total_pages == 1
+    assert single_content.pagination.has_more is False
+
+    # Test exact page boundary
+    boundary_doc = "boundary_doc"
+    document_factory(boundary_doc, {"01-boundary.md": "A" * 100})
+    boundary_content = read_content(boundary_doc, scope="document", page_size=100)
+    assert boundary_content is not None
+    assert len(boundary_content.content) == 100
+    assert boundary_content.pagination.total_pages == 1
+    assert boundary_content.pagination.has_more is False
+
+    # Test page boundary + 1
+    boundary_plus_doc = "boundary_plus_doc"
+    document_factory(boundary_plus_doc, {"01-boundary.md": "A" * 101})
+    boundary_plus_content = read_content(boundary_plus_doc, scope="document", page_size=100)
+    assert boundary_plus_content is not None
+    assert len(boundary_plus_content.content) == 100
+    assert boundary_plus_content.pagination.total_pages == 2
+    assert boundary_plus_content.pagination.has_more is True
+
+    # Test second page of boundary + 1
+    boundary_plus_page2 = read_content(boundary_plus_doc, scope="document", page=2, page_size=100)
+    assert boundary_plus_page2 is not None
+    assert len(boundary_plus_page2.content) == 1
+    assert boundary_plus_page2.content == "A"
+    assert boundary_plus_page2.pagination.has_more is False
+
+
+def test_read_content_pagination_out_of_bounds(document_factory):
+    """Test read_content pagination with out-of-bounds page requests."""
+    doc_name = "bounds_test"
+    document_factory(doc_name, {"01-test.md": "Test content"})
+
+    # Test page beyond available pages
+    out_of_bounds = read_content(doc_name, scope="document", page=999, page_size=100)
+    assert out_of_bounds is None  # Should return None for out of bounds
+
+    # Test page 0 (invalid)
+    page_zero = read_content(doc_name, scope="document", page=0)
+    assert page_zero is None  # Should return None for invalid page
+
+    # Test negative page
+    negative_page = read_content(doc_name, scope="document", page=-1)
+    assert negative_page is None  # Should return None for negative page
+
+
+def test_read_content_pagination_large_document(document_factory):
+    """Test pagination behavior with larger documents to validate scalability."""
+    import time
+
+    doc_name = "large_doc_test"
+    # Create a reasonably large document
+    chapters = {}
+    for i in range(1, 11):  # 10 chapters
+        # Each chapter ~2KB = 20KB total document
+        chapters[f"{i:02d}-chapter.md"] = f"Chapter {i} content. " * 100 + f"End of chapter {i}."
+
+    document_factory(doc_name, chapters)
+
+    start_time = time.time()
+    page1 = read_content(doc_name, scope="document", page=1, page_size=5000)
+    page1_time = time.time() - start_time
+
+    start_time = time.time()
+    page2 = read_content(doc_name, scope="document", page=2, page_size=5000)
+    page2_time = time.time() - start_time
+
+    assert page1 is not None
+    assert page2 is not None
+    assert page1.pagination.total_characters > 15000
+    assert page1.pagination.total_pages > 3
+    assert page1.pagination.has_more is True
+    assert page2.pagination.has_previous is True
+    assert len(page1.content) == 5000
+    assert len(page2.content) == 5000
+    assert page1.content != page2.content
+
+    assert page1_time < 1.0, f"Page 1 took too long: {page1_time:.2f}s"
+    assert page2_time < 1.0, f"Page 2 took too long: {page2_time:.2f}s"
+
+    last_page = page1.pagination.total_pages
+    start_time = time.time()
+    page_last = read_content(doc_name, scope="document", page=last_page, page_size=5000)
+    last_page_time = time.time() - start_time
+
+    assert page_last is not None
+    assert page_last.pagination.has_more is False
+    assert page_last.pagination.next_page is None
+    assert last_page_time < 1.0, f"Last page took too long: {last_page_time:.2f}s"
+
+
+def test_find_text_max_results_parameter(document_factory):
+    """Test find_text with max_results parameter for token optimization."""
+    doc_name = "search_test"
+    # Create chapters with repeated search term
+    chapters = {}
+    for i in range(1, 6):  # 5 chapters
+        chapters[f"chapter{i}.md"] = (
+            f"Chapter {i} has the word test multiple times. Test again. And test once more."
+        )
+    document_factory(doc_name, chapters)
+
+    # Test default behavior (max_results=100) - should get all results
+    results_default = find_text(doc_name, "test", scope="document")
+    assert results_default is not None
+    total_results = len(results_default)
+    assert total_results >= 5  # Should have at least 5 results (case-insensitive search)
+
+    # Test with limited max_results
+    results_limited = find_text(doc_name, "test", scope="document", max_results=5)
+    assert results_limited is not None
+    assert len(results_limited) == 5  # Limited to 5 results
+
+    # Test with max_results=1
+    results_single = find_text(doc_name, "test", scope="document", max_results=1)
+    assert results_single is not None
+    assert len(results_single) == 1
+
+    # Test chapter scope with max_results
+    results_chapter = find_text(doc_name, "test", scope="chapter", chapter_name="chapter1.md", max_results=2)
+    assert results_chapter is not None
+    assert len(results_chapter) <= 2  # Limited to at most 2 results from single chapter
+
+    # Test invalid max_results
+    results_invalid = find_text(doc_name, "test", scope="document", max_results=0)
+    assert results_invalid is None  # Should return None for invalid limit
+
+    results_negative = find_text(doc_name, "test", scope="document", max_results=-1)
+    assert results_negative is None  # Should return None for negative limit

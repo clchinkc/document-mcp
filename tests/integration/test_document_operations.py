@@ -54,11 +54,14 @@ def test_read_full_document(document_factory):
 
     assert full_doc is not None
     assert full_doc.document_name == doc_name
-    assert len(full_doc.chapters) == 2
-    assert full_doc.chapters[0].chapter_name == "01-intro.md"
-    assert full_doc.chapters[0].content == "Introduction content."
-    assert full_doc.chapters[1].chapter_name == "02-body.md"
-    assert full_doc.chapters[1].content == "Body content."
+    assert full_doc.scope == "document"
+    assert full_doc.content is not None
+    # Content should include both chapters (since total is small)
+    assert "Introduction content." in full_doc.content
+    assert "Body content." in full_doc.content
+    # Check pagination metadata
+    assert full_doc.pagination.page == 1
+    assert full_doc.pagination.total_characters > 0
 
 
 def test_document_statistics(document_factory):

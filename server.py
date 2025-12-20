@@ -45,14 +45,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Redis client for OAuth session/token storage
-redis_client = redis.Redis(
-    host=os.environ.get("REDIS_HOST", "localhost"),
-    port=int(os.environ.get("REDIS_PORT", 6379)),
-    decode_responses=True,
-    socket_connect_timeout=5,
-    socket_timeout=5
-)
+# Redis client placeholder - will be initialized in lifespan
+redis_client: redis.Redis | None = None
+
+
+def get_redis_client() -> redis.Redis:
+    """Get or create Redis client with proper connection handling."""
+    global redis_client
+    if redis_client is None:
+        redis_client = redis.Redis(
+            host=os.environ.get("REDIS_HOST", "localhost"),
+            port=int(os.environ.get("REDIS_PORT", 6379)),
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+            retry_on_timeout=True,
+            health_check_interval=30
+        )
+    return redis_client
 
 
 # Google OAuth verification
@@ -260,7 +270,7 @@ def generate_code_challenge_from_verifier(code_verifier: str) -> str:
 
 async def store_session_data(session_id: str, data: dict, ttl: int = 600):
     """Store session data in Redis with TTL (default 10 minutes)."""
-    await redis_client.setex(
+    await get_redis_client().setex(
         f"oauth:session:{session_id}",
         ttl,
         json.dumps(data)
@@ -269,7 +279,7 @@ async def store_session_data(session_id: str, data: dict, ttl: int = 600):
 
 async def get_session_data(session_id: str) -> dict | None:
     """Get session data from Redis."""
-    data = await redis_client.get(f"oauth:session:{session_id}")
+    data = await get_redis_client().get(f"oauth:session:{session_id}")
     return json.loads(data) if data else None
 
 
@@ -292,7 +302,7 @@ async def validate_access_token(authorization: str | None) -> str:
     token = authorization[7:]  # Remove "Bearer " prefix
 
     # Get user email from Redis
-    user_email = await redis_client.get(f"oauth:token:{token}")
+    user_email = await get_redis_client().get(f"oauth:token:{token}")
     if not user_email:
         raise HTTPException(401, "Invalid or expired access token")
 
@@ -347,15 +357,101 @@ app.add_middleware(
 async def health_check():
     """Health check endpoint for load balancers and monitoring."""
     tools = await mcp_server.list_tools()
+
+    # Verify Redis connection is working
+    redis_ok = False
+    try:
+        await get_redis_client().ping()
+        redis_ok = True
+    except Exception as e:
+        logger.warning(f"Redis health check failed: {e}")
+
+    # Verify all critical routes are registered
+    routes = [route.path for route in app.routes]
+    critical_routes = ["/", "/health", "/oauth/register", "/oauth/authorize", "/oauth/callback", "/oauth/token"]
+    routes_ok = all(r in routes for r in critical_routes)
+
     return {
-        "status": "healthy",
+        "status": "healthy" if (redis_ok and routes_ok) else "degraded",
         "version": app.version,
         "mcp_server": mcp_server.name,
-        "tools_count": len(tools)
+        "tools_count": len(tools),
+        "redis": "ok" if redis_ok else "error",
+        "routes": "ok" if routes_ok else "missing"
     }
 
 
 # OAuth 2.1 Authorization Server Endpoints
+
+@app.post("/oauth/register")
+async def oauth_register(request: Request):
+    """
+    Dynamic Client Registration (RFC 7591).
+
+    Claude Desktop uses this to register itself as an OAuth client
+    before starting the authorization flow.
+    """
+    try:
+        body = await request.json()
+
+        # Extract client metadata
+        redirect_uris = body.get("redirect_uris", [])
+        client_name = body.get("client_name", "Unknown Client")
+        grant_types = body.get("grant_types", ["authorization_code"])
+        response_types = body.get("response_types", ["code"])
+        token_endpoint_auth_method = body.get("token_endpoint_auth_method", "none")
+
+        # Validate required fields
+        if not redirect_uris:
+            raise HTTPException(400, "redirect_uris is required")
+
+        # Generate client_id (public client, no secret needed for PKCE flow)
+        client_id = secrets.token_urlsafe(16)
+
+        # Store client registration in Redis (long TTL - 30 days)
+        client_data = {
+            "client_id": client_id,
+            "client_name": client_name,
+            "redirect_uris": redirect_uris,
+            "grant_types": grant_types,
+            "response_types": response_types,
+            "token_endpoint_auth_method": token_endpoint_auth_method
+        }
+
+        await get_redis_client().setex(
+            f"oauth:client:{client_id}",
+            30 * 24 * 60 * 60,  # 30 days
+            json.dumps(client_data)
+        )
+
+        # Audit log
+        log_audit_event(
+            user_id="system",
+            operation="oauth_register",
+            tool_name="register_endpoint",
+            arguments={"client_name": client_name},
+            success=True
+        )
+
+        logger.info(f"Registered new OAuth client: {client_name} ({client_id})")
+
+        # Return client registration response (RFC 7591)
+        return JSONResponse({
+            "client_id": client_id,
+            "client_name": client_name,
+            "redirect_uris": redirect_uris,
+            "grant_types": grant_types,
+            "response_types": response_types,
+            "token_endpoint_auth_method": token_endpoint_auth_method
+        }, status_code=201)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Client registration error: {e}", exc_info=True)
+        raise HTTPException(500, f"Registration failed: {str(e)}")
+
+
 @app.get("/oauth/authorize")
 async def oauth_authorize(
     response_type: str,
@@ -448,7 +544,8 @@ async def oauth_callback(code: str, state: str):
         )
 
         if google_token_response.status_code != 200:
-            raise HTTPException(500, "Failed to exchange Google code")
+            logger.error(f"Google token exchange failed: {google_token_response.status_code} - {google_token_response.text}")
+            raise HTTPException(500, f"Failed to exchange Google code: {google_token_response.text}")
 
         google_token = google_token_response.json()
 
@@ -470,7 +567,7 @@ async def oauth_callback(code: str, state: str):
         our_auth_code = secrets.token_urlsafe(32)
 
         # 5. Store authorization code with PKCE challenge (10 min TTL)
-        await redis_client.setex(
+        await get_redis_client().setex(
             f"oauth:code:{our_auth_code}",
             600,
             json.dumps({
@@ -483,7 +580,7 @@ async def oauth_callback(code: str, state: str):
         )
 
         # 6. Clean up session
-        await redis_client.delete(f"oauth:session:{state}")
+        await get_redis_client().delete(f"oauth:session:{state}")
 
         # 7. Audit log
         log_audit_event(
@@ -523,7 +620,7 @@ async def oauth_token(
             raise HTTPException(400, "Only authorization_code grant supported")
 
         # 2. Get authorization code data
-        code_data = await redis_client.get(f"oauth:code:{code}")
+        code_data = await get_redis_client().get(f"oauth:code:{code}")
         if not code_data:
             raise HTTPException(400, "Invalid or expired authorization code")
 
@@ -551,13 +648,13 @@ async def oauth_token(
             raise HTTPException(400, "PKCE verification failed")
 
         # 5. Delete authorization code (single use)
-        await redis_client.delete(f"oauth:code:{code}")
+        await get_redis_client().delete(f"oauth:code:{code}")
 
         # 6. Generate access token
         access_token = secrets.token_urlsafe(32)
 
         # 7. Store token with user email (1 hour TTL)
-        await redis_client.setex(
+        await get_redis_client().setex(
             f"oauth:token:{access_token}",
             3600,
             auth_data['user_email']
@@ -590,11 +687,12 @@ async def oauth_token(
 @app.get("/.well-known/oauth-authorization-server")
 async def oauth_server_metadata():
     """OAuth 2.0 Authorization Server Metadata (RFC 8414)."""
-    server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.us-central1.run.app")
+    server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.asia-east1.run.app")
     return {
         "issuer": server_url,
         "authorization_endpoint": f"{server_url}/oauth/authorize",
         "token_endpoint": f"{server_url}/oauth/token",
+        "registration_endpoint": f"{server_url}/oauth/register",
         "response_types_supported": ["code"],
         "grant_types_supported": ["authorization_code"],
         "code_challenge_methods_supported": ["S256"],
@@ -605,13 +703,45 @@ async def oauth_server_metadata():
 @app.get("/.well-known/oauth-protected-resource")
 async def oauth_protected_resource_metadata():
     """OAuth 2.0 Protected Resource Metadata (RFC 9728)."""
-    server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.us-central1.run.app")
+    server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.asia-east1.run.app")
     return {
         "resource": server_url,
         "authorization_servers": [server_url],
         "bearer_methods_supported": ["header"],
         "scopes_supported": ["claudeai"]
     }
+
+
+# MCP SSE endpoint - GET / for Claude Desktop SSE transport
+@app.get("/")
+async def mcp_sse_endpoint(
+    request: Request,
+    authorization: str | None = Header(None, description="OAuth Bearer token (REQUIRED)")
+):
+    """
+    MCP SSE endpoint for Claude Desktop.
+
+    Claude Desktop may try GET / with Accept: text/event-stream for SSE transport.
+    This endpoint returns 401 to trigger OAuth flow, same as POST /.
+    """
+    # Validate access token - will raise 401 if not valid
+    try:
+        user_email = await validate_access_token(authorization)
+        # If authenticated, return info about the SSE endpoint
+        return JSONResponse({
+            "message": "MCP SSE endpoint - use POST / for JSON-RPC requests",
+            "user": user_email,
+            "hint": "Send JSON-RPC 2.0 requests via POST /"
+        })
+    except HTTPException as e:
+        if e.status_code == 401:
+            server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.asia-east1.run.app")
+            return JSONResponse(
+                {"error": "Authentication required", "hint": "Use OAuth 2.1 flow"},
+                status_code=401,
+                headers={"WWW-Authenticate": f'Bearer resource="{server_url}"'}
+            )
+        raise
 
 
 # MCP JSON-RPC endpoint - at root for Claude Desktop compatibility
@@ -761,7 +891,45 @@ async def mcp_endpoint(
                 }
             })
 
+        elif method == "initialize":
+            # MCP protocol initialization handshake
+            logger.info(f"MCP initialize request from user: {user_id}")
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "tools": {"listChanged": True},
+                        "resources": {"subscribe": False, "listChanged": False}
+                    },
+                    "serverInfo": {
+                        "name": mcp_server.name,
+                        "version": app.version
+                    }
+                }
+            })
+
+        elif method == "notifications/initialized":
+            # Client confirms initialization - no response needed for notifications
+            logger.info(f"MCP client initialized for user: {user_id}")
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {}
+            })
+
+        elif method == "ping":
+            # Keep-alive ping
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {}
+            })
+
         else:
+            # Return -32601 but with 200 status (JSON-RPC errors should be 200)
+            logger.warning(f"Unknown MCP method: {method}")
             return JSONResponse({
                 "jsonrpc": "2.0",
                 "id": request_id,
@@ -769,12 +937,12 @@ async def mcp_endpoint(
                     "code": -32601,
                     "message": f"Method not found: {method}"
                 }
-            }, status_code=404)
+            })
 
     except HTTPException as e:
         # Re-raise HTTP exceptions with proper headers for OAuth flow
         if e.status_code == 401:
-            server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.us-central1.run.app")
+            server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.asia-east1.run.app")
             return JSONResponse(
                 {
                     "jsonrpc": "2.0",
@@ -802,6 +970,21 @@ async def mcp_endpoint(
                 "data": str(e)
             }
         }, status_code=500)
+
+
+# Catch-all handler to debug 404 issues
+@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def catch_all(request: Request, path: str):
+    """Catch any requests that don't match other routes for debugging."""
+    logger.warning(f"Catch-all hit: method={request.method}, path=/{path}, headers={dict(request.headers)}")
+    body = await request.body()
+    logger.warning(f"Catch-all body: {body[:500] if body else 'empty'}")
+    return JSONResponse({
+        "error": "Route not found",
+        "method": request.method,
+        "path": f"/{path}",
+        "hint": "This request did not match any defined routes"
+    }, status_code=404)
 
 
 # Development server runner

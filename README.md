@@ -10,6 +10,10 @@ Document MCP exists to **complement and diversify the predominantly STEM-oriente
 
 ## 🚀 Quick Start
 
+> 💡 **Just want to use the MCP server with Claude Code?** See the **[Package Installation Guide](document_mcp/README.md)** for simple setup instructions with universal path finding.
+
+> 🌐 **Want to use with Claude Desktop (hosted)?** The MCP server is deployed on Google Cloud Run with OAuth 2.1 authentication. See the **[Hosted Deployment](#-hosted-deployment)** section below.
+
 ### Installation
 
 **PyPI Installation (Recommended):**
@@ -149,11 +153,19 @@ Create a `.env` file with your API key according to `.env.example`, and fill in 
 
 Document MCP provides a structured way to manage large documents composed of multiple chapters. Think of it as a file system specifically designed for books, research papers, documentation, or any content that benefits from being split into manageable sections.
 
+### Recent Updates (v0.0.3)
+
+- **🔄 Pagination System**: Industry-standard pagination replaces character truncation for complete data access
+- **📊 Enhanced Testing**: Comprehensive 4-tier testing with 352 tests (100% pass rate)
+- **🧹 Code Quality**: Improved documentation and development comments
+- **⚡ Performance**: Optimized E2E test timeouts for reliable API integration
+- **🔧 Tool Enhancement**: Updated content access tools with pagination support
+
 ### Key Features
 
 - **🛡️ Built-in Safety Features**: Write-safety system, automatic micro-snapshots, and comprehensive version control prevent content loss.
 - **📁 Document Structure**: Organize content as directories with chapter files.
-- **🔧 25 MCP Tools**: Comprehensive document manipulation API organized in 6 functional categories with tools for atomic paragraph operations, content analysis, semantic search, fine-grain summaries, and more.
+- **🔧 26 MCP Tools**: Comprehensive document manipulation API organized in 6 functional categories with tools for atomic paragraph operations, pagination-based content access, semantic search, fine-grain summaries, and more.
 - **🤖 AI Agents**: 
     - **Simple Agent**: Stateless, single-turn execution for discrete operations.
     - **ReAct Agent**: Stateful, multi-turn agent for complex workflows.
@@ -208,7 +220,7 @@ document-mcp/
 │   │   ├── document_tools.py    # Document management and summaries (6 tools)
 │   │   ├── chapter_tools.py     # Chapter operations (5 tools)
 │   │   ├── paragraph_tools.py   # Paragraph editing (7 tools)
-│   │   ├── content_tools.py     # Unified content access (5 tools)
+│   │   ├── content_tools.py     # Unified content access with pagination (5 tools)
 │   │   └── safety_tools.py      # Version control (3 tools)
 │   ├── logger_config.py    # Structured logging with OpenTelemetry
 │   └── metrics_config.py   # Prometheus metrics and monitoring
@@ -286,7 +298,7 @@ python3 -m prompt_optimizer all
 **Key Features:**
 - **Safe Optimization**: Conservative changes that preserve all existing functionality
 - **Performance-Based**: Uses real execution metrics to evaluate improvements
-- **Comprehensive Testing**: Validates changes against 296 tests (unit + integration + E2E + evaluation)
+- **Comprehensive Testing**: Validates changes against 352 tests (unit + integration + E2E + evaluation)
 - **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
 - **Multi-Agent Support**: Works with Simple, ReAct, and Planner agents
 
@@ -318,12 +330,21 @@ Once you have both the MCP server and an agent running, try these structured exa
 🤖 Agent: ✅ Document 'Getting Started Guide' contains 1 chapter, 4 words, and 1 paragraph.
 ```
 
-#### Example 5: Read Full Content
+#### Example 5: Read Full Content with Pagination
 ```bash
 👤 User: Read the full document 'Getting Started Guide'
-🤖 Agent: ✅ Retrieved the full content of document 'Getting Started Guide'.
+🤖 Agent: ✅ Retrieved page 1 of document 'Getting Started Guide' (2,450 characters, 1 of 1 pages).
    Content: # Introduction
    Welcome to Document MCP!
+
+# For larger documents with navigation:
+👤 User: Read page 2 of document 'Large Guide' with 25KB page size
+🤖 Agent: ✅ Retrieved page 2 of document 'Large Guide' (25,000 characters, 2 of 5 pages).
+   Navigation: Previous page available, Next page available (page 3)
+
+# Progressive loading pattern:
+👤 User: Read all pages of 'Large Guide' progressively
+🤖 Agent: ✅ Processing all 5 pages progressively... Complete! Total: 125,000 characters processed.
 ```
 
 #### Advanced Examples
@@ -534,7 +555,7 @@ python scripts/quality.py check --verbose
 - **Import Style**: Black-compatible with isort
 - **Type Hints**: Encouraged for public APIs
 - **Complexity**: Maximum cyclomatic complexity of 10
-- **Test Coverage**: Comprehensive 3-tier testing (296 tests with 100% pass rate)
+- **Test Coverage**: Comprehensive 4-tier testing (352 tests with 100% pass rate)
 
 #### Recommended Workflow
 
@@ -554,29 +575,105 @@ The quality management system provides comprehensive automation for maintaining 
 
 #### Test Coverage
 
-The system provides enterprise-grade reliability with **300 comprehensive tests** covering:
+The system provides enterprise-grade reliability with **352 comprehensive tests** covering:
 
 **Core Testing Areas:**
-- **Document Operations**: Full CRUD operations and management (131 unit tests)
-- **Agent Architecture**: Complete testing of both Simple and React agent implementations (153 integration tests)
+- **Document Operations**: Full CRUD operations and pagination system (181 unit tests)
+- **Agent Architecture**: Complete testing of both Simple and ReAct agent implementations (155 integration tests)
 - **MCP Protocol**: End-to-end server-client communication validation (6 E2E tests)
 - **Performance Benchmarking**: Real API testing and prompt optimization (4 evaluation tests)
 - **Monitoring & Metrics**: OpenTelemetry and Prometheus integration (6 metrics tests)
 - **Quality Assurance**: Centralized fixtures and comprehensive cleanup validation
 
-**Test Results:** 100% success rate (296/296 tests passing) with execution time under 3.5 minutes
+**Test Results:** 100% success rate (352/352 tests passing) with execution time under 6 minutes
 
 The test suite spans unit, integration, and end-to-end categories, ensuring production-ready reliability with proper resource management and state isolation.
 
+## 🌐 Hosted Deployment
+
+Document MCP is available as a hosted service on Google Cloud Run with OAuth 2.1 authentication for Claude Desktop.
+
+### Claude Desktop Configuration
+
+Add the following to your Claude Desktop MCP settings (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "document-mcp": {
+      "url": "https://document-mcp-451560119112.asia-east1.run.app"
+    }
+  }
+}
+```
+
+When you connect, Claude Desktop will:
+1. Automatically register as an OAuth client
+2. Open your browser for Google OAuth authentication
+3. Securely store your access token
+
+### Features
+- **OAuth 2.1 with PKCE**: Secure authentication via Google
+- **User Isolation**: Each user gets their own isolated document storage
+- **26 MCP Tools**: Full access to all document management tools
+- **Auto-scaling**: Handles variable load with Cloud Run scaling
+
+### Architecture
+- **Region**: asia-east1 (Taiwan)
+- **Authentication**: OAuth 2.1 with Google Identity
+- **Token Storage**: Redis with automatic expiration
+- **Infrastructure**: Cloud Run + VPC connector + Memorystore Redis
+
+### Self-Hosting
+
+To deploy your own instance:
+
+1. **Prerequisites**: Google Cloud project with billing enabled
+
+2. **Create Redis instance** (for token storage):
+```bash
+gcloud redis instances create document-mcp-redis \
+  --region=asia-east1 --tier=basic --size=1
+```
+
+3. **Create VPC connector**:
+```bash
+gcloud compute networks vpc-access connectors create document-mcp-connector \
+  --region=asia-east1 --range=10.8.0.0/28
+```
+
+4. **Create Google OAuth credentials**:
+   - Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
+   - Create OAuth 2.0 Client ID (Web application)
+   - Add redirect URI: `https://YOUR-SERVICE-URL/oauth/callback`
+
+5. **Create secrets**:
+```bash
+echo -n "YOUR_CLIENT_ID" | gcloud secrets create GOOGLE_OAUTH_CLIENT_ID --data-file=-
+echo -n "YOUR_CLIENT_SECRET" | gcloud secrets create GOOGLE_OAUTH_CLIENT_SECRET --data-file=-
+```
+
+6. **Deploy to Cloud Run**:
+```bash
+gcloud run deploy document-mcp \
+  --source . \
+  --region asia-east1 \
+  --allow-unauthenticated \
+  --vpc-connector document-mcp-connector \
+  --set-secrets "GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest" \
+  --set-env-vars "SERVER_URL=https://YOUR-SERVICE-URL,REDIS_HOST=YOUR_REDIS_IP"
+```
+
 ## 📚 Documentation
 
-### User Guides
+### End User Guides
+- **📦 [Package Installation Guide](document_mcp/README.md)** - Install and use the MCP server with Claude Code (universal setup)
 - **📖 [Manual Testing & User Workflows](docs/manual_testing.md)** - Complete guide for creative writing, editing workflows, and troubleshooting
 - **🚀 [Quick Start Examples](#-quick-start)** - Get up and running in minutes
-- **🤖 [Agent Architecture Guide](#-agent-examples-and-tutorials)** - Choose the right agent for your workflow
 
-### Technical Reference  
-- **[Package Documentation](document_mcp/README.md)** - MCP server API reference
+### Developer Guides
+- **🤖 [Agent Architecture Guide](#-agent-examples-and-tutorials)** - Choose the right agent for your workflow
+- **🏗️ [MCP Design Patterns Guide](docs/MCP_DESIGN_PATTERNS.md)** - Production-ready patterns for context management, partial hydration, and security best practices
 - **[API Reference](document_mcp/doc_tool_server.py)** - Complete MCP tools documentation
 - **[Testing Strategy](tests/README.md)** - 3-tier testing architecture and best practices
 

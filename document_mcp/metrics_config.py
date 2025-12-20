@@ -4,6 +4,9 @@ Provides automatic telemetry collection and forwarding to Grafana Cloud.
 Architecture: Tool Calls -> Metrics Server -> Background Prometheus -> Grafana Cloud
 """
 
+import base64
+import builtins
+import contextlib
 import json
 import os
 import socket
@@ -14,6 +17,8 @@ import time
 from functools import wraps
 from typing import Any
 
+import requests
+
 # OpenTelemetry imports
 from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
@@ -23,17 +28,26 @@ from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
+from prometheus_client import CONTENT_TYPE_LATEST
 
 # Prometheus client for metrics endpoint
-from prometheus_client import CONTENT_TYPE_LATEST
+from prometheus_client import CollectorRegistry
+from prometheus_client import Counter
+from prometheus_client import Gauge
+from prometheus_client import Histogram
 from prometheus_client import generate_latest
 
 # =============================================================================
 # GRAFANA CLOUD CONFIGURATION
 # =============================================================================
 
-GRAFANA_CLOUD_PROMETHEUS_ENDPOINT = "https://prometheus-prod-37-prod-ap-southeast-1.grafana.net/api/prom/push"
-GRAFANA_CLOUD_TOKEN = "glc_eyJvIjoiMTQ5MDY5MCIsIm4iOiJzdGFjay0xMzI2MTg3LWludGVncmF0aW9uLWRvY3VtZW50LW1jcCIsImsiOiJmM1hZZTQ1d2VWSTlEMVMxaUs1NlNOODgiLCJtIjp7InIiOiJwcm9kLWFwLXNvdXRoZWFzdC0xIn19"
+GRAFANA_CLOUD_PROMETHEUS_ENDPOINT = (
+    "https://prometheus-prod-37-prod-ap-southeast-1.grafana.net/api/prom/push"
+)
+GRAFANA_CLOUD_TOKEN = (
+    "glc_eyJvIjoiMTQ5MDY5MCIsIm4iOiJzdGFjay0xMzI2MTg3LWludGVncmF0aW9uLWRvY3VtZW50LW1jcCIsImsiOiJm"
+    "M1hZZTQ1d2VWSTlEMVMxaUs1NlNOODgiLCJtIjp7InIiOiJwcm9kLWFwLXNvdXRoZWFzdC0xIn19"
+)
 GRAFANA_CLOUD_METRICS_USER_ID = "2576609"
 GRAFANA_CLOUD_OTLP_ENDPOINT = "https://otlp-gateway-prod-ap-southeast-1.grafana.net/otlp"
 
@@ -70,10 +84,12 @@ INACTIVITY_TIMEOUT = int(os.getenv("MCP_METRICS_INACTIVITY_TIMEOUT", "120"))  # 
 _last_activity_time = time.time()
 _shutdown_timer = None
 
-# Debug: Log metrics status for debugging
-if is_test_environment():
-    print("[METRICS_DEBUG] Test environment detected, metrics disabled by default")
-print(f"[METRICS_DEBUG] METRICS_ENABLED = {METRICS_ENABLED}")
+# Debug: Log metrics status for debugging (only in debug mode)
+DEBUG_METRICS = os.getenv("MCP_METRICS_DEBUG", "false").lower() == "true"
+if DEBUG_METRICS:
+    if is_test_environment():
+        print("[METRICS_DEBUG] Test environment detected, metrics disabled by default")
+    print(f"[METRICS_DEBUG] METRICS_ENABLED = {METRICS_ENABLED}")
 
 # Allow user override of telemetry endpoint (but use Grafana Cloud by default)
 PROMETHEUS_ENDPOINT = os.getenv("PROMETHEUS_REMOTE_WRITE_ENDPOINT", GRAFANA_CLOUD_PROMETHEUS_ENDPOINT)
@@ -83,8 +99,6 @@ OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", GRAFANA_CLOUD_OTLP_ENDP
 os.environ.setdefault("OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE", "CUMULATIVE")
 
 # Create proper Basic auth header for Grafana Cloud
-import base64
-
 grafana_auth = base64.b64encode(f"{GRAFANA_CLOUD_METRICS_USER_ID}:{GRAFANA_CLOUD_TOKEN}".encode()).decode()
 OTEL_HEADERS = os.getenv("OTEL_EXPORTER_OTLP_HEADERS", f"Authorization=Basic {grafana_auth}")
 
@@ -112,15 +126,6 @@ _active_operations = {}
 _metrics_shutdown = False
 
 # Prometheus remote write
-
-import builtins
-import contextlib
-
-import requests
-from prometheus_client import CollectorRegistry
-from prometheus_client import Counter
-from prometheus_client import Gauge
-from prometheus_client import Histogram
 
 
 class GrafanaCloudPrometheusExporter:
@@ -428,7 +433,9 @@ import json
 import time
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from prometheus_client import CollectorRegistry, Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import (
+    CollectorRegistry, Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+)
 import os
 import signal
 import sys
@@ -865,7 +872,8 @@ def _direct_push_to_grafana_cloud():
                 return True
             else:
                 print(
-                    f"[METRICS] ❌ Push failed even without compression: {response.status_code} - {response.text}"
+                    f"[METRICS] ❌ Push failed even without compression: "
+                    f"{response.status_code} - {response.text}"
                 )
                 return False
         else:
@@ -941,7 +949,8 @@ def initialize_metrics():
         else:
             print("   [WARN] OpenTelemetry Collector not available")
             print(
-                "   [NOTE] Start collector: Install OpenTelemetry Collector if needed for advanced telemetry routing"
+                "   [NOTE] Start collector: Install OpenTelemetry Collector "
+                "if needed for advanced telemetry routing"
             )
 
             # Auto-start background Prometheus for immediate Grafana Cloud delivery
@@ -955,7 +964,7 @@ def initialize_metrics():
             except Exception:
                 print("   [METRICS] Local metrics: Available at :8000/metrics")
                 print(
-                    "   [NOTE] Full telemetry: Run scripts/development/telemetry/scripts/start.sh for Grafana Cloud"
+                    "   [NOTE] Full telemetry: Run telemetry/scripts/start.sh for Grafana Cloud"
                 )
 
         # Create meter provider
@@ -992,15 +1001,11 @@ def initialize_metrics():
         print(f"   [AUTO-SHUTDOWN] Will auto-shutdown after {INACTIVITY_TIMEOUT}s of inactivity")
 
         # Initialize automatic instrumentation if available
-        try:
+        with contextlib.suppress(Exception):
             FastAPIInstrumentor().instrument()
-        except Exception:
-            pass  # Optional instrumentation
 
-        try:
+        with contextlib.suppress(Exception):
             RequestsInstrumentor().instrument()
-        except Exception:
-            pass  # Optional instrumentation
 
     except Exception as e:
         print(f"Warning: Could not initialize automatic telemetry - continuing without metrics: {e}")
@@ -1182,16 +1187,26 @@ def instrument_tool(func):
     return wrapper
 
 
-# Only initialize metrics if explicitly enabled and not in test environment
-# This prevents automatic metrics collection during testing or CI
-if METRICS_ENABLED and not is_test_environment():
-    # Quick cleanup of any orphaned processes before starting
-    with contextlib.suppress(builtins.BaseException):
-        subprocess.run(
-            ["pkill", "-f", "prometheus.*mcp.*--storage.tsdb.retention.time.*1h"], capture_output=True
-        )
-    initialize_metrics()
-else:
-    print(
-        f"[METRICS] Metrics initialization skipped (enabled={METRICS_ENABLED}, test_env={is_test_environment()})"
-    )
+# Metrics will be initialized when server actually starts, not on import
+# This prevents background processes from starting when just checking --help
+_metrics_initialized = False
+
+
+def ensure_metrics_initialized():
+    """Initialize metrics only when server actually starts running."""
+    global _metrics_initialized
+    if _metrics_initialized:
+        return
+
+    if METRICS_ENABLED and not is_test_environment():
+        # Quick cleanup of any orphaned processes before starting
+        with contextlib.suppress(builtins.BaseException):
+            subprocess.run(
+                ["pkill", "-f", "prometheus.*mcp.*--storage.tsdb.retention.time.*1h"], capture_output=True
+            )
+        initialize_metrics()
+    else:
+        if DEBUG_METRICS:
+            is_test = is_test_environment()
+            print(f"[METRICS] Metrics initialization skipped (enabled={METRICS_ENABLED}, test_env={is_test})")
+    _metrics_initialized = True

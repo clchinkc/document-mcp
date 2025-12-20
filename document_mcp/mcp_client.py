@@ -25,9 +25,9 @@ def _get_mcp_tool(tool_name: str):
 
 
 # Document management tools
-def list_documents():
+def list_documents(include_chapters: bool = False):
     """List all available document collections."""
-    return _get_mcp_tool("list_documents")()
+    return _get_mcp_tool("list_documents")(include_chapters)
 
 
 def read_summary(document_name: str, scope: str = "document", target_name: str = None):
@@ -145,9 +145,11 @@ def read_content(
     scope: str = "document",
     chapter_name: str | None = None,
     paragraph_index: int | None = None,
+    page: int = 1,
+    page_size: int = 50000,
 ):
-    """Unified content reading with scope-based targeting."""
-    return _get_mcp_tool("read_content")(document_name, scope, chapter_name, paragraph_index)
+    """Unified content reading with scope-based targeting and pagination."""
+    return _get_mcp_tool("read_content")(document_name, scope, chapter_name, paragraph_index, page, page_size)
 
 
 def find_text(
@@ -156,9 +158,12 @@ def find_text(
     scope: str = "document",
     chapter_name: str | None = None,
     case_sensitive: bool = False,
+    max_results: int = 100,
 ):
     """Unified text search with scope-based targeting."""
-    return _get_mcp_tool("find_text")(document_name, search_text, scope, chapter_name, case_sensitive)
+    return _get_mcp_tool("find_text")(
+        document_name, search_text, scope, chapter_name, case_sensitive, max_results
+    )
 
 
 def replace_text(

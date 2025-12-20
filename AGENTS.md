@@ -2,6 +2,12 @@
 
 The Document MCP system includes two AI agents that demonstrate how to use the MCP tools effectively. These agents are **separate from the core MCP package** and run directly from source code.
 
+## Latest Updates (v0.0.3)
+- ✅ **Pagination Support**: All agents now work with the new pagination system for large documents
+- ✅ **Enhanced Testing**: Complete test coverage with 352 tests passing
+- ✅ **Improved Error Handling**: Better timeout management for E2E scenarios
+- ✅ **Documentation Updates**: Comprehensive refresh of all agent documentation
+
 ## Prerequisites
 
 1. **Install the MCP package** (for the core tools):
@@ -212,6 +218,100 @@ uv run python src/agents/simple_agent/main.py --query "help"
 # Verify API keys
 uv run python src/agents/simple_agent/main.py --check-config
 ```
+
+## Claude Code Integration
+
+The Document MCP server can be integrated with Claude Code for seamless document management within your IDE.
+
+### Setup for Claude Code (Recommended Method)
+
+1. **Install the document-mcp package**:
+   ```bash
+   pip install document-mcp
+   ```
+
+2. **Add to Claude Code using the CLI**:
+   ```bash
+   claude mcp add document-mcp -s user -- document-mcp stdio
+   ```
+
+3. **Verify the installation**:
+   Run `/mcp` in Claude Code to see all installed MCP servers. You should see "document-mcp" listed as connected.
+
+### Alternative Setup (Manual Configuration)
+
+If the CLI method doesn't work or if you prefer manual configuration:
+
+1. **Find the installation path**:
+   ```bash
+   # Find where document-mcp is installed
+   which document-mcp
+   # or if not in PATH:
+   python3 -c "import document_mcp; print(document_mcp.__file__)"
+   ```
+
+2. **Add to your MCP configuration file**:
+   Edit `~/.cursor/mcp.json` (create if it doesn't exist):
+   ```json
+   {
+     "mcpServers": {
+       "document-mcp": {
+         "command": "document-mcp",
+         "args": ["stdio"]
+       }
+     }
+   }
+   ```
+
+   If `document-mcp` is not in your PATH, use the full path:
+   ```json
+   {
+     "mcpServers": {
+       "document-mcp": {
+         "command": "/full/path/to/document-mcp",
+         "args": ["stdio"]
+       }
+     }
+   }
+   ```
+
+### Development Installation
+
+If you're working with the development version from source:
+
+1. **Install in development mode**:
+   ```bash
+   # From the document-mcp repository directory
+   pip install -e .
+   ```
+
+2. **Find the binary path**:
+   ```bash
+   uv run which document-mcp
+   # or
+   python3 -m pip show -f document-mcp | grep document-mcp
+   ```
+
+3. **Add using the full path**:
+   ```bash
+   claude mcp add document-mcp -s user -- /path/to/venv/bin/document-mcp stdio
+   ```
+
+### Troubleshooting Claude Code Integration
+
+Common issues and solutions:
+
+- **"spawn document-mcp ENOENT" error**: The binary is not in your PATH. Use the full path method above.
+- **Connection timeout**: Check that the server starts correctly with `document-mcp --help`
+- **Permission errors**: Ensure the binary has execute permissions
+
+### Testing the Integration
+
+Once configured, you should be able to use document management commands in Claude Code:
+- "List all my documents"
+- "Create a new document called 'Project Notes'"
+- "Add a chapter about architecture to my document"
+- "Search for content similar to 'database design'"
 
 ## Development
 

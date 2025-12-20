@@ -1,6 +1,7 @@
 """Core prompt optimization logic.
 
-This module contains the main PromptOptimizer class with  focused functionality.
+This module contains the main PromptOptimizer class with focused functionality.
+"""
 
 import os
 import shutil

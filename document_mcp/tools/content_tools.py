@@ -19,8 +19,9 @@ from ..logger_config import ErrorCategory
 from ..logger_config import log_mcp_call
 from ..logger_config import log_structured_error
 from ..models import ChapterContent
-from ..models import FullDocumentContent
 from ..models import OperationStatus
+from ..models import PaginatedContent
+from ..models import PaginationInfo
 from ..models import ParagraphDetail
 from ..models import SemanticSearchResponse
 from ..models import SemanticSearchResult
@@ -41,91 +42,32 @@ def register_content_tools(mcp_server):
     @log_mcp_call
     def read_content(
         document_name: str,
-        scope: str = "document",  # "document", "chapter", "paragraph"
+        scope: str = "document",
         chapter_name: str | None = None,
         paragraph_index: int | None = None,
-    ) -> FullDocumentContent | ChapterContent | ParagraphDetail | None:
-        """Unified content reading with scope-based targeting.
-
-        This tool consolidates three separate reading operations into a single, scope-based
-        interface. It can read complete documents, individual chapters, or specific paragraphs
-        depending on the scope parameter, providing a consistent API for all content access.
+        page: int = 1,
+        page_size: int = 50000,
+    ) -> PaginatedContent | ChapterContent | ParagraphDetail | None:
+        """Unified content reading with scope-based targeting and pagination.
 
         Parameters:
-            document_name (str): Name of the document directory to read from
-            scope (str): Reading scope determining what content to retrieve:
-                - "document": Read complete document with all chapters (default)
-                - "chapter": Read specific chapter content and metadata
-                - "paragraph": Read specific paragraph content and metadata
-            chapter_name (Optional[str]): Required for "chapter" and "paragraph" scopes.
-                Must be valid .md filename (e.g., "01-introduction.md")
-            paragraph_index (Optional[int]): Required for "paragraph" scope.
-                Zero-indexed position of paragraph within the chapter (≥0)
+            document_name: Name of the document to read from
+            scope: Reading scope - "document" (paginated), "chapter", or "paragraph"
+            chapter_name: Required for "chapter" and "paragraph" scopes
+            paragraph_index: Required for "paragraph" scope (0-indexed)
+            page: Page number for document scope (1-indexed, default: 1)
+            page_size: Characters per page for document scope (default: 50,000 ≈ 12K tokens)
 
         Returns:
-            Optional[Dict[str, Any]]: Content object matching the requested scope, None if not found.
+            Content object matching the requested scope, or None if not found.
+            - document scope: PaginatedContent with pagination metadata
+            - chapter scope: ChapterContent with metadata
+            - paragraph scope: ParagraphDetail with metadata
 
-            For scope="document":
-                FullDocumentContent with fields:
-                - document_name (str): Name of the document
-                - chapters (List[ChapterContent]): Ordered list of all chapter contents
-                - total_word_count (int): Sum of words across all chapters
-                - total_paragraph_count (int): Sum of paragraphs across all chapters
-
-            For scope="chapter":
-                ChapterContent with fields:
-                - document_name (str): Name of the parent document
-                - chapter_name (str): Filename of the chapter
-                - content (str): Full raw text content of the chapter
-                - word_count (int): Number of words in the chapter
-                - paragraph_count (int): Number of paragraphs in the chapter
-                - last_modified (datetime): Timestamp of last file modification
-
-            For scope="paragraph":
-                ParagraphDetail with fields:
-                - document_name (str): Name of the parent document
-                - chapter_name (str): Name of the chapter file
-                - paragraph_index_in_chapter (int): Zero-indexed position within the chapter
-                - content (str): Full text content of the paragraph
-                - word_count (int): Number of words in the paragraph
-
-        Example Usage:
-            ```json
-            // Read full document
-            {
-                "name": "read_content",
-                "arguments": {
-                    "document_name": "My Book",
-                    "scope": "document"
-                }
-            }
-
-            // Read specific chapter
-            {
-                "name": "read_content",
-                "arguments": {
-                    "document_name": "My Book",
-                    "scope": "chapter",
-                    "chapter_name": "01-introduction.md"
-                }
-            }
-
-            // Read specific paragraph
-            {
-                "name": "read_content",
-                "arguments": {
-                    "document_name": "My Book",
-                    "scope": "paragraph",
-                    "chapter_name": "01-introduction.md",
-                    "paragraph_index": 0
-                }
-            }
-            ```
         """
         # Import models that aren't imported at module level
         from ..helpers import _get_chapter_metadata
         from ..models import ChapterContent
-        from ..models import FullDocumentContent
         from ..models import ParagraphDetail
 
         # Validate document name
@@ -208,57 +150,45 @@ def register_content_tools(mcp_server):
             )
             return None
 
-        # Scope-based dispatch with inline implementations
+        # Validate pagination parameters for document scope
+        if scope == "document":
+            if page <= 0:
+                log_structured_error(
+                    category=ErrorCategory.ERROR,
+                    message=f"Invalid page: {page}. Must be greater than 0",
+                    context={"document_name": document_name, "page": page},
+                    operation="read_content",
+                )
+                return None
+            if page_size <= 0:
+                log_structured_error(
+                    category=ErrorCategory.ERROR,
+                    message=f"Invalid page_size: {page_size}. Must be greater than 0",
+                    context={"document_name": document_name, "page_size": page_size},
+                    operation="read_content",
+                )
+                return None
+
+        # Scope-based dispatch
         try:
             if scope == "document":
-                # Read complete document with all chapters (inline implementation)
                 doc_path = _get_document_path(document_name)
                 if not doc_path.exists():
                     return None
 
-                chapters = []
-                total_word_count = 0
-                total_paragraph_count = 0
+                page_content, pagination_info = _paginate_document_efficiently(document_name, page, page_size)
 
-                for chapter_file in _get_ordered_chapter_files(document_name):
-                    try:
-                        content = chapter_file.read_text(encoding="utf-8")
-                        metadata = _get_chapter_metadata(document_name, chapter_file)
-                        if metadata:
-                            chapter_content = ChapterContent(
-                                document_name=document_name,
-                                chapter_name=chapter_file.name,
-                                content=content,
-                                word_count=metadata.word_count,
-                                paragraph_count=metadata.paragraph_count,
-                                last_modified=metadata.last_modified,
-                            )
-                            chapters.append(chapter_content)
-                            total_word_count += metadata.word_count
-                            total_paragraph_count += metadata.paragraph_count
-                    except Exception as e:
-                        # Log the exception to help debug
-                        log_structured_error(
-                            category=ErrorCategory.WARNING,
-                            message=f"Error reading chapter {chapter_file.name}: {str(e)}",
-                            context={
-                                "document_name": document_name,
-                                "chapter_file": str(chapter_file),
-                            },
-                            operation="read_content",
-                        )
-                        continue
-
-                result = FullDocumentContent(
+                result = PaginatedContent(
+                    content=page_content,
                     document_name=document_name,
-                    chapters=chapters,
-                    total_word_count=total_word_count,
-                    total_paragraph_count=total_paragraph_count,
+                    scope=scope,
+                    chapter_name=chapter_name,
+                    paragraph_index=paragraph_index,
+                    pagination=pagination_info,
                 )
                 return result
 
             elif scope == "chapter":
-                # Read specific chapter content (inline implementation)
                 doc_path = _get_document_path(document_name)
                 chapter_path = doc_path / chapter_name
                 if not chapter_path.exists():
@@ -277,7 +207,6 @@ def register_content_tools(mcp_server):
                 return result
 
             elif scope == "paragraph":
-                # Read specific paragraph content (inline implementation)
                 doc_path = _get_document_path(document_name)
                 chapter_path = doc_path / chapter_name
                 if not chapter_path.exists():
@@ -308,6 +237,8 @@ def register_content_tools(mcp_server):
                     "scope": scope,
                     "chapter_name": chapter_name,
                     "paragraph_index": paragraph_index,
+                    "page": page,
+                    "page_size": page_size,
                 },
                 operation="read_content",
             )
@@ -321,6 +252,7 @@ def register_content_tools(mcp_server):
         scope: str = "document",  # "document", "chapter"
         chapter_name: str | None = None,
         case_sensitive: bool = False,
+        max_results: int = 100,
     ) -> list[ParagraphDetail] | None:
         """Unified text search with scope-based targeting.
 
@@ -337,6 +269,8 @@ def register_content_tools(mcp_server):
             chapter_name (Optional[str]): Required for "chapter" scope.
                 Must be valid .md filename (e.g., "01-introduction.md")
             case_sensitive (bool): Whether search should be case-sensitive (default: False)
+            max_results (int): Maximum number of search results to return (default: 100).
+                Prevents overwhelming responses for common search terms
 
         Returns:
             Optional[List[Dict[str, Any]]]: List of search results, None if error.
@@ -355,6 +289,17 @@ def register_content_tools(mcp_server):
                     "search_text": "important concept",
                     "scope": "document",
                     "case_sensitive": false
+                }
+            }
+
+            // Search with limited results
+            {
+                "name": "find_text",
+                "arguments": {
+                    "document_name": "My Book",
+                    "search_text": "common term",
+                    "scope": "document",
+                    "max_results": 50
                 }
             }
 
@@ -431,14 +376,30 @@ def register_content_tools(mcp_server):
             )
             return None
 
+        # Validate max_results parameter
+        if max_results <= 0:
+            log_structured_error(
+                category=ErrorCategory.ERROR,
+                message=f"Invalid max_results: {max_results}. Must be greater than 0",
+                context={
+                    "document_name": document_name,
+                    "max_results": max_results,
+                    "scope": scope,
+                },
+                operation="find_text",
+            )
+            return None
+
         # Scope-based dispatch to helper functions
         try:
             if scope == "document":
-                result = _find_text_in_document(document_name, search_text, case_sensitive)
+                result = _find_text_in_document(document_name, search_text, case_sensitive, max_results)
                 return result if result else []
 
             elif scope == "chapter":
-                result = _find_text_in_chapter(document_name, chapter_name, search_text, case_sensitive)
+                result = _find_text_in_chapter(
+                    document_name, chapter_name, search_text, case_sensitive, max_results
+                )
                 return result if result else []
 
         except Exception as e:
@@ -938,8 +899,95 @@ def register_content_tools(mcp_server):
 
 
 # Helper functions for content tools
+
+
+def _paginate_content(content: str, page: int, page_size: int) -> tuple[str, PaginationInfo]:
+    """Core pagination logic with boundary handling."""
+    total_chars = len(content)
+    total_pages = (total_chars + page_size - 1) // page_size
+
+    if page < 1 or (total_pages > 0 and page > total_pages):
+        raise ValueError(f"Page {page} out of range [1, {total_pages}]")
+
+    if total_chars == 0:
+        return "", PaginationInfo(
+            page=1,
+            page_size=page_size,
+            total_characters=0,
+            total_pages=1,
+            has_more=False,
+            has_previous=False,
+            next_page=None,
+            previous_page=None,
+        )
+
+    start_idx = (page - 1) * page_size
+    end_idx = min(start_idx + page_size, total_chars)
+
+    page_content = content[start_idx:end_idx]
+
+    pagination = PaginationInfo(
+        page=page,
+        page_size=page_size,
+        total_characters=total_chars,
+        total_pages=total_pages,
+        has_more=page < total_pages,
+        has_previous=page > 1,
+        next_page=page + 1 if page < total_pages else None,
+        previous_page=page - 1 if page > 1 else None,
+    )
+
+    return page_content, pagination
+
+
+def _paginate_document_efficiently(
+    document_name: str, page: int, page_size: int
+) -> tuple[str, PaginationInfo]:
+    """Document pagination with bounded memory usage.
+
+    Loads full document and applies pagination. Provides predictable page sizes
+    with memory usage bounded by document size (not unbounded like truncation).
+    """
+    chapter_files = _get_ordered_chapter_files(document_name)
+
+    if not chapter_files:
+        return "", PaginationInfo(
+            page=1,
+            page_size=page_size,
+            total_characters=0,
+            total_pages=1,
+            has_more=False,
+            has_previous=False,
+            next_page=None,
+            previous_page=None,
+        )
+
+    # Load document content
+    full_content = ""
+    for chapter_file in chapter_files:
+        try:
+            content = chapter_file.read_text(encoding="utf-8")
+            if full_content:
+                full_content += "\n\n" + content
+            else:
+                full_content = content
+        except Exception as e:
+            log_structured_error(
+                category=ErrorCategory.WARNING,
+                message=f"Error reading chapter {chapter_file.name}: {str(e)}",
+                context={
+                    "document_name": document_name,
+                    "chapter_file": str(chapter_file),
+                },
+                operation="read_content",
+            )
+            continue
+
+    return _paginate_content(full_content, page, page_size)
+
+
 def _find_text_in_document(
-    document_name: str, query: str, case_sensitive: bool = False
+    document_name: str, query: str, case_sensitive: bool = False, max_results: int = 100
 ) -> list[ParagraphDetail]:
     """Search for paragraphs containing specific text across all chapters."""
     results = []
@@ -949,14 +997,18 @@ def _find_text_in_document(
 
     chapter_files = _get_ordered_chapter_files(document_name)
     for chapter_file in chapter_files:
-        chapter_results = _find_text_in_chapter(document_name, chapter_file.name, query, case_sensitive)
+        if len(results) >= max_results:
+            break
+        chapter_results = _find_text_in_chapter(
+            document_name, chapter_file.name, query, case_sensitive, max_results - len(results)
+        )
         results.extend(chapter_results)
 
-    return results
+    return results[:max_results]  # Ensure we don't exceed the limit
 
 
 def _find_text_in_chapter(
-    document_name: str, chapter_name: str, query: str, case_sensitive: bool = False
+    document_name: str, chapter_name: str, query: str, case_sensitive: bool = False, max_results: int = 100
 ) -> list[ParagraphDetail]:
     """Search for paragraphs containing specific text within a single chapter."""
     results = []
@@ -971,6 +1023,8 @@ def _find_text_in_chapter(
         search_query = query if case_sensitive else query.lower()
 
         for i, paragraph in enumerate(paragraphs):
+            if len(results) >= max_results:
+                break
             search_text = paragraph if case_sensitive else paragraph.lower()
             if search_query in search_text:
                 results.append(

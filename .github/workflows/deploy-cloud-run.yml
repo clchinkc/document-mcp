@@ -13,7 +13,7 @@ on:
 
 env:
   PROJECT_ID: document-mcp-54749
-  REGION: us-central1
+  REGION: asia-east1
   SERVICE_NAME: document-mcp
 
 jobs:
@@ -45,8 +45,9 @@ jobs:
             --cpu 1 \
             --max-instances 10 \
             --port 8080 \
-            --vpc-connector mcp-vpc-connector \
-            --set-env-vars "DOCUMENTS_STORAGE_PATH=/data/documents_storage,LOG_LEVEL=info,GOOGLE_OAUTH_CLIENT_ID=${{ secrets.GOOGLE_OAUTH_CLIENT_ID }},GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }},SERVER_URL=https://document-mcp-451560119112.us-central1.run.app,REDIS_HOST=${{ secrets.REDIS_HOST }},REDIS_PORT=${{ secrets.REDIS_PORT }}"
+            --vpc-connector document-mcp-connector \
+            --set-env-vars "DOCUMENTS_STORAGE_PATH=/data/documents_storage,LOG_LEVEL=info,SERVER_URL=https://document-mcp-451560119112.asia-east1.run.app,REDIS_HOST=${{ secrets.REDIS_HOST }},REDIS_PORT=${{ secrets.REDIS_PORT }}" \
+            --set-secrets "GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest"
 
       - name: Verify deployment
         run: |
@@ -64,4 +65,3 @@ jobs:
           curl -f "${SERVICE_URL}/.well-known/oauth-authorization-server" || exit 1
 
           echo "✅ Deployment verified successfully"
-          echo "⚠️  Full OAuth flow requires Claude Desktop Custom Connector"

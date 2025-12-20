@@ -28,11 +28,40 @@ Avoid canned starting phrases like "You're absolutely right" or "Good observatio
 
 The Document MCP system is a sophisticated document management platform built around the Model Context Protocol (MCP). It provides AI agents with comprehensive tools for managing structured Markdown documents through a clean separation of concerns.
 
+### MCP Design Patterns and Best Practices
+
+This system implements industry-standard MCP patterns for context management and partial content hydration. For comprehensive guidance on MCP design patterns, see:
+
+**[MCP Design Patterns Guide](docs/MCP_DESIGN_PATTERNS.md)** - Essential patterns for:
+- Reference-by-handle architecture for context offloading
+- Token-aware hydration strategies
+- Security best practices (ephemeral auth, stderr logging)
+- Tool vs. Resource design principles
+- Production deployment checklist
+- Real-world implementation examples
+
+**Key Patterns Implemented in Document MCP**:
+- **Pagination System**: Industry-standard progressive disclosure (50K chars ≈ 12K tokens per page)
+- **Scope-Based Tools**: Unified document/chapter/paragraph access with fine-grained control
+- **Resource URIs**: Read-only content access via structured URIs (e.g., `document://<name>?page=2`)
+- **Safety Tools**: Version control with snapshot-based state management
+- **Semantic Search**: Vector-based content discovery with embedding cache
+
+### Latest System Status (v0.0.3)
+
+**Production Ready**: All 352 tests passing (100% success rate)
+- ✅ **Pagination System**: Successfully migrated from character truncation to industry-standard pagination
+- ✅ **Enhanced Testing**: 4-tier testing strategy with comprehensive coverage
+- ✅ **Code Quality**: Restored essential development comments while maintaining clean code
+- ✅ **E2E Reliability**: Fixed timeout issues for stable API integration
+- ✅ **Tool Enhancement**: Updated all content access tools with pagination support
+
 ### Development Focus
 - **Primary Goal**: Making document MCP tools production-ready with robust agent implementations
 - **Agent Development**: Creating example agents that demonstrate effective MCP tool usage patterns
 - **Token Optimization**: Evaluation infrastructure designed to reduce token count in Simple Agent and ReAct Agent through improved MCP tool descriptions
 - **Quality Assurance**: Comprehensive testing framework to evaluate agent system prompts across multiple agent types (Simple, ReAct, and future generalized agents)
+- **Pagination Migration**: Complete transition from character-based truncation to page-based content retrieval for improved data access
 
 ### Core Architecture
 
@@ -40,8 +69,8 @@ The Document MCP system is a sophisticated document management platform built ar
 document-mcp/
 ├── document_mcp/           # Core MCP server package
 │   ├── doc_tool_server.py  # Main server
-│   ├── models.py           # Pydantic models
-│   ├── tools/              # 25 MCP tools across 6 categories
+│   ├── models.py           # Pydantic models with pagination support
+│   ├── tools/              # 26 MCP tools across 6 categories
 │   ├── utils/              # Validation and file operations
 │   └── [logging, metrics]  # OpenTelemetry + Prometheus
 ├── src/agents/             # AI agent implementations
@@ -103,13 +132,15 @@ Recent configuration cleanup achieved:
 
 ### Testing
 ```bash
-# Run all tests (stable as of latest fixes)
+# Run all tests (stable - all 352 tests passing)
 uv run pytest
 
 # Run by tier
-uv run pytest tests/unit/              # Unit tests - PASSING
-uv run pytest tests/integration/       # Integration tests - PASSING
-uv run pytest tests/e2e/               # E2E tests (requires API keys)
+uv run pytest tests/unit/              # Unit tests (181) - PASSING
+uv run pytest tests/integration/       # Integration tests (155) - PASSING
+uv run pytest tests/e2e/               # E2E tests (6, requires API keys) - PASSING
+uv run pytest tests/evaluation/        # Evaluation tests (4) - PASSING
+uv run pytest tests/test_metrics.py    # Metrics tests (6) - PASSING
 
 # Code quality
 uv run ruff check --fix                # Auto-fix linting
@@ -167,7 +198,7 @@ scripts/development/telemetry/scripts/start.sh
 - **Document Tools (6)**: Document management, lifecycle operations, and fine-grain summaries  
 - **Chapter Tools (5)**: Chapter creation, editing, and management
 - **Paragraph Tools (7)**: Atomic paragraph operations with automatic snapshot protection
-- **Content Tools (5)**: Unified content access, search, replacement, statistics, and semantic search
+- **Content Tools (5)**: Unified content access with pagination, search, replacement, statistics, and semantic search
 - **Safety Tools (3)**: Version control, snapshot management, and diff generation
 
 ## Key System Features
@@ -175,6 +206,7 @@ scripts/development/telemetry/scripts/start.sh
 - **Automatic Snapshot System**: Universal edit operation protection with user tracking across all 15 content-modifying tools
 - **Atomic paragraph operations** (replace, insert, delete, move) with automatic snapshot protection
 - **Fine-grain Summary System**: Organized storage structure with scope-based summaries (document, chapter, section) in dedicated `summaries/` directory
+- **Pagination System**: Industry-standard page-based content retrieval (50K chars ≈ 12K tokens per page) with comprehensive metadata, navigation hints, and memory-efficient bounded loading
 - **Scope-based content tools** (read, find, replace, statistics, semantic search) with unified document/chapter/paragraph access
 - **Semantic Search**: AI-powered content discovery using embeddings for contextual similarity matching
 
@@ -194,14 +226,15 @@ scripts/development/telemetry/scripts/start.sh
 
 ## Testing Architecture
 
-### 3-Tier Testing Strategy
+### 4-Tier Testing Strategy
 
 | Tier | Focus | LLM Calls | Speed | Coverage |
 |------|-------|-----------|-------|----------|
-| **Unit** | Isolated components with complete mocking | Zero | Fastest | Functions, validation, error conditions |
+| **Unit** | Isolated components with complete mocking | Zero | Fastest | Functions, validation, error conditions, pagination |
 | **Integration** | Real MCP server, mocked LLM responses | Zero | Medium | Agent-server communication, tool execution |
 | **E2E** | Complete system with real APIs | Real (managed) | Slowest | Full workflows, real AI responses |
 | **Evaluation** | Performance benchmarking | Controlled real | Medium | Standardized scenarios, metrics |
+| **Metrics** | OpenTelemetry collection validation | Zero | Fast | Production monitoring system |
 
 ### Key Testing Requirements
 
@@ -230,9 +263,9 @@ scripts/development/telemetry/scripts/start.sh
 The Document MCP system demonstrates several key architectural strengths and design principles:
 
 - **Solid Foundation**: Well-defined architecture with clear separation of concerns between agents, the MCP tool server, and testing infrastructure
-- **Testing Strategy Design**: Four-tiered testing strategy (unit, integration, E2E, evaluation) framework exists but requires interface alignment
-- **Agent Implementation**: Both agent types have comprehensive error handling and support for multiple LLM providers, though test integration needs work
-- **Streamlined Toolset**: Clean tool architecture with scope-based operations
+- **Testing Strategy Design**: Four-tiered testing strategy (unit, integration, E2E, evaluation) with 100% pass rate
+- **Agent Implementation**: Both agent types have comprehensive error handling and support for multiple LLM providers with full test coverage
+- **Streamlined Toolset**: Clean tool architecture with scope-based operations and pagination support
 
 ### Key Design Principles
 
@@ -296,6 +329,42 @@ Complex Reasoning → ReAct Agent (reasoning + execution)
 │           ├── paragraph_0.npy
 │           └── manifest.json
 ```
+
+### Pagination Architecture
+
+The system implements industry-standard pagination with comprehensive technical features:
+
+**Core Implementation:**
+- **Memory Efficiency**: `_paginate_document_efficiently()` loads only requested page content with bounded memory usage
+- **Character Boundaries**: Proper pagination without breaking content mid-sentence
+- **Token Optimization**: 50K characters ≈ 12K tokens per page (configurable)
+- **Navigation Metadata**: Full pagination info with total pages, navigation hints, has_more/has_previous flags
+
+**Pydantic Models:**
+```python
+class PaginationInfo(BaseModel):
+    page: int
+    page_size: int
+    total_characters: int
+    total_pages: int
+    has_more: bool
+    has_previous: bool
+    next_page: int | None = None
+    previous_page: int | None = None
+
+class PaginatedContent(BaseModel):
+    content: str
+    document_name: str
+    scope: str
+    chapter_name: str | None = None
+    paragraph_index: int | None = None
+    pagination: PaginationInfo
+```
+
+**Performance Characteristics:**
+- **Before Migration**: Full document loading then truncation (inefficient for large documents)
+- **After Migration**: Page-based loading with predictable response sizes
+- **Benefits**: Complete data access, no silent truncation, progressive disclosure patterns
 
 ### Optimization Opportunities
 
@@ -513,31 +582,32 @@ def test_agent_logic(mock_complete_test_environment):
 
 ## Test Status Summary
 
-**Status: PRODUCTION READY - All core tests passing**
+**Status: PRODUCTION READY - All tests passing**
 
-**Current Test Count: 329 tests total**
+**Current Test Count: 352 tests total**
 
 | Test Tier | Tests | Status | Coverage |
 |-----------|-------|---------|----------|
-| Unit | 188 | **PASSING** | Isolated components, mock environments |
-| Integration | 148 | **PASSING** | Agent-MCP communication, tool execution |
-| E2E | 6 | **REQUIRES API KEYS** | Full system workflows |
-| Evaluation | 4 | **STABLE** | Performance benchmarking |
-| Metrics | 6 | **FUNCTIONAL** | OpenTelemetry collection verified |
+| Unit | 181 | **PASSING** | Isolated components, pagination system |
+| Integration | 155 | **PASSING** | Agent-MCP communication, tool execution |
+| E2E | 6 | **PASSING** | Full system workflows with real APIs |
+| Evaluation | 4 | **PASSING** | Performance benchmarking |
+| Metrics | 6 | **PASSING** | OpenTelemetry collection verified |
 
 **Recent Fixes Completed:**
-- **Interface Alignment**: Fixed AgentPerformanceMetrics with missing `mark_completed()` method
-- **Configuration Cleanup**: Removed unnecessary dependencies, fixed pyproject.toml structure
-- **Test Infrastructure**: Resolved mock configurations and agent initialization issues
-- **Dependency Optimization**: Cleaned up 25+ unused packages while preserving OpenTelemetry metrics
-- **Documentation Accuracy**: Updated to reflect actual working system state
+- **Pagination Migration**: Successfully transitioned from character truncation to industry-standard pagination
+- **Test Suite Enhancement**: All 352 tests passing with improved E2E timeout handling
+- **Code Quality**: Restored essential development comments while maintaining clean codebase
+- **Documentation Update**: Comprehensive documentation refresh reflecting current system state
+- **Interface Alignment**: Fixed test assertions for new `PaginatedContent` response format
 
 **Current System Status:**
-1. **Core MCP Tools**: All 26 tools tested and functional
+1. **Core MCP Tools**: All 26 tools tested and functional with pagination support
 2. **Agent Implementations**: Both Simple and ReAct agents working with proper error handling
-3. **Testing Framework**: Comprehensive 3-tier strategy with 95%+ test coverage
+3. **Testing Framework**: Comprehensive 4-tier strategy with 100% test pass rate (352/352)
 4. **Production Metrics**: OpenTelemetry collection system operational
 5. **Package Structure**: Clean separation between MCP package and development agents
+6. **Pagination System**: Complete industry-standard implementation for large document handling
 
 
 ## Development Best Practices

@@ -43,11 +43,11 @@ class ToolDescriptionManager:
             # Document Management (6 tools)
             ToolDescription(
                 name="list_documents",
-                description="Lists all available documents",
-                parameters={},
-                example="list_documents()",
+                description="Lists all available documents. Use include_chapters=True for detailed metadata (slower), False for fast overview",
+                parameters={"include_chapters": "bool"},
+                example="list_documents(include_chapters=False)  # Fast overview\nlist_documents(include_chapters=True)   # Full details",
                 category="Document Management",
-                planner_signature="list_documents()",
+                planner_signature="list_documents(include_chapters: bool = False)",
             ),
             ToolDescription(
                 name="create_document",
@@ -227,30 +227,33 @@ class ToolDescriptionManager:
             # Scope-based Content Access (4 tools - replacing 9 individual tools)
             ToolDescription(
                 name="read_content",
-                description="Flexible content reading with scope-based targeting. Use scope='document' for full document, scope='chapter' for specific chapter, scope='paragraph' for specific paragraph. Essential for content access operations.",
+                description="Flexible content reading with scope-based targeting and pagination. Use scope='document' for paginated full document access, scope='chapter' for specific chapter, scope='paragraph' for specific paragraph. Document scope uses pagination for complete data access with page/page_size control (50K chars ≈ 12K tokens per page). Essential for content access operations.",
                 parameters={
                     "document_name": "str",
                     "scope": "str",
                     "chapter_name": "Optional[str]",
                     "paragraph_index": "Optional[int]",
+                    "page": "int",
+                    "page_size": "int",
                 },
-                example='read_content(document_name="My Book", scope="chapter", chapter_name="01-intro.md")',
+                example='read_content(document_name="My Book", scope="document")  # First page\nread_content(document_name="My Book", scope="document", page=2, page_size=25000)  # Custom pagination\nread_content(document_name="My Book", scope="chapter", chapter_name="01-intro.md")',
                 category="Scope-based Content Access",
-                planner_signature="read_content(document_name: str, scope: str = 'document', chapter_name: str = None, paragraph_index: int = None)",
+                planner_signature="read_content(document_name: str, scope: str = 'document', chapter_name: str = None, paragraph_index: int = None, page: int = 1, page_size: int = 50000)",
             ),
             ToolDescription(
                 name="find_text",
-                description="Text search with scope-based targeting and case sensitivity control. Use scope='document' to search entire document, scope='chapter' to search specific chapter. Returns locations of matching text.",
+                description="Text search with scope-based targeting and case sensitivity control. Use scope='document' to search entire document, scope='chapter' to search specific chapter. Use max_results to limit response size. Returns locations of matching text.",
                 parameters={
                     "document_name": "str",
                     "search_text": "str",
                     "scope": "str",
                     "chapter_name": "Optional[str]",
                     "case_sensitive": "bool",
+                    "max_results": "int",
                 },
-                example='find_text(document_name="My Book", search_text="search term", scope="document", case_sensitive=False)',
+                example='find_text(document_name="My Book", search_text="search term", scope="document", max_results=50)\nfind_text(document_name="My Book", search_text="search term", scope="chapter", chapter_name="01-intro.md")',
                 category="Scope-based Content Access",
-                planner_signature="find_text(document_name: str, search_text: str, scope: str = 'document', chapter_name: str = None, case_sensitive: bool = False)",
+                planner_signature="find_text(document_name: str, search_text: str, scope: str = 'document', chapter_name: str = None, case_sensitive: bool = False, max_results: int = 100)",
             ),
             ToolDescription(
                 name="replace_text",

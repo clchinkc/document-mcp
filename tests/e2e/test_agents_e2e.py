@@ -39,7 +39,7 @@ def check_api_key_available() -> bool:
     return False
 
 
-async def run_agent_query(agent_module: str, query: str, timeout: int = 60) -> dict[str, Any]:
+async def run_agent_query(agent_module: str, query: str, timeout: int = 180) -> dict[str, Any]:
     """Run an agent with a given query and return the parsed JSON output."""
     cmd = ["uv", "run", "python", "-m", agent_module, "--query", query]
 
@@ -221,7 +221,7 @@ class TestSimpleAgentE2E:
 
         # 4. Test Summary-First Workflow
         summary_query = f"Tell me about the document '{doc_name}'"
-        summary_resp = await run_agent_query("src.agents.simple_agent.main", summary_query, timeout=120)
+        summary_resp = await run_agent_query("src.agents.simple_agent.main", summary_query, timeout=240)
 
         details = safe_get_response_content(summary_resp, "details")
 
@@ -254,7 +254,7 @@ class TestSimpleAgentE2E:
         # Test creating chapter summary
         chapter_summary_query = f"Create a summary for chapter '{chapter_name}' in document '{doc_name}' with content: 'Chapter summary: Introduction concepts'"
         chapter_summary_resp = await run_agent_query(
-            "src.agents.simple_agent.main", chapter_summary_query, timeout=120
+            "src.agents.simple_agent.main", chapter_summary_query, timeout=240
         )
 
         chapter_summary_details = safe_get_response_content(chapter_summary_resp, "details")
@@ -265,7 +265,7 @@ class TestSimpleAgentE2E:
         # Test creating section summary
         section_summary_query = f"Create a section summary called 'overview' for document '{doc_name}' with content: 'Section overview of key topics'"
         section_summary_resp = await run_agent_query(
-            "src.agents.simple_agent.main", section_summary_query, timeout=120
+            "src.agents.simple_agent.main", section_summary_query, timeout=240
         )
 
         section_summary_details = safe_get_response_content(section_summary_resp, "details")
