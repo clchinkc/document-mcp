@@ -6,174 +6,77 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Document MCP exists to **complement and diversify the predominantly STEM-oriented toolsets (e.g. Claude Code, bash/grep agents)** by giving writers, researchers, and knowledge-managers first-class, local-first control over large-scale Markdown documents with **built-in safety features** that prevent content loss.
+Document MCP gives writers, researchers, and knowledge-managers **first-class control over large-scale Markdown documents** with **built-in safety features** that prevent content loss. Manage books, research papers, and documentation with 26 AI-powered tools.
 
 ## 🚀 Quick Start
 
-> 💡 **Just want to use the MCP server with Claude Code?** See the **[Package Installation Guide](document_mcp/README.md)** for simple setup instructions with universal path finding.
+### Option 1: Hosted Service (Recommended)
 
-> 🌐 **Want to use with Claude Desktop (hosted)?** The MCP server is deployed on Google Cloud Run with OAuth 2.1 authentication. See the **[Hosted Deployment](#-hosted-deployment)** section below.
+**For Claude Desktop users** - No installation required. Just add to your Claude Desktop config:
 
-### Installation
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-**PyPI Installation (Recommended):**
+```json
+{
+  "mcpServers": {
+    "document-mcp": {
+      "url": "https://document-mcp-451560119112.asia-east1.run.app"
+    }
+  }
+}
+```
+
+Restart Claude Desktop. When you first connect:
+1. Your browser opens for Google OAuth authentication
+2. Sign in with your Google account
+3. Claude Desktop securely stores your access token
+4. Start managing documents immediately!
+
+**What you get:**
+- 26 MCP tools for document management
+- Your own isolated document storage
+- Automatic snapshots and version control
+- No setup, no API keys, no maintenance
+
+---
+
+### Option 2: Local Installation (For Claude Code / Developers)
+
+**For Claude Code users** or those who want local document storage:
+
 ```bash
-# Simple one-command install
 pip install document-mcp
-
-# Verify installation
-document-mcp --version
 ```
 
-**Development Setup:**
-```bash
-# Install uv package manager (if not already installed)
-# macOS/Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
-# Windows: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+Add to your Claude Code MCP settings:
 
-# Clone and install with development dependencies
-git clone https://github.com/clchinkc/document-mcp.git
-cd document-mcp
-uv sync
-
-# Install with development dependencies (includes testing tools)
-uv pip install ".[dev]"
+```json
+{
+  "mcpServers": {
+    "document-mcp": {
+      "command": "python",
+      "args": ["-m", "document_mcp.doc_tool_server", "stdio"]
+    }
+  }
+}
 ```
 
-**Dependencies Information:**
-- **Core Runtime**: The package includes all necessary dependencies for normal operation
-- **Development Dependencies**: Additional tools for testing and development are available via `pip install ".[dev]"`:
-  - `pytest`, `pytest-asyncio`, `pytest-cov` - Testing framework
-  - `ruff`, `mypy` - Code quality and type checking  
-  - `memory-profiler`, `psutil` - Performance monitoring
-  - `twine` - Package validation and publishing
+See the **[Package Installation Guide](document_mcp/README.md)** for detailed setup with universal path finding.
 
-# Alternative: Traditional virtual environment setup
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -e ".[dev]"
-```
-
-### Configuration
-
-```bash
-# Create .env file with your API key
-echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
-# OR for Google Gemini:
-echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env
-
-# Verify your setup
-python3 src/agents/simple_agent/main.py --check-config
-```
-
-### Quick Test
-
-```bash
-# Start MCP server (in one terminal)
-# If installed via PyPI:
-document-mcp stdio
-
-# If using development setup:  
-python3 -m document_mcp.doc_tool_server stdio
-
-# Test basic functionality (in another terminal)  
-python3 -c "from document_mcp import __version__; print(f'Document MCP v{__version__} ready')"
-```
-
-**📖 [Complete Manual Testing Guide](docs/manual_testing.md)** - Step-by-step workflows for creative writing, editing, and document management
-
-## 🛠️ Development
-
-### Modern Toolchain
-This project uses modern Python development tools for enhanced performance and developer experience:
-
-- **`uv`**: Ultra-fast Python package manager and dependency resolver (10-100x faster than pip)
-- **`ruff`**: Lightning-fast Python linter and formatter (replaces black, isort, flake8, pydocstyle, autoflake)
-- **`mypy`**: Static type checking for enhanced code quality
-- **`pytest`**: Comprehensive testing framework with async support
-
-### Testing Strategy
-```bash
-# Run all tests with uv (recommended)
-uv run pytest
-
-# Run with traditional python3 (for compatibility)
-python3 -m pytest
-
-# Run by test tier
-uv run pytest tests/unit/              # Unit tests (fastest, no external deps)
-uv run pytest tests/integration/       # Integration tests (real MCP, mocked LLM)
-uv run pytest tests/e2e/               # E2E tests (requires API keys, 600s timeout)
-
-# Run with coverage
-uv run pytest --cov=document_mcp --cov-report=html
-
-# Code quality checks
-uv run ruff check                       # Lint code
-uv run ruff check --fix                 # Auto-fix linting issues  
-uv run ruff format                      # Format code
-uv run mypy document_mcp/               # Type checking
-
-# Quality checks script (uses uv and ruff internally)
-python3 scripts/quality.py full
-```
-
-### Running the System
-```bash
-# Start MCP server (stdio transport)
-uv run python -m document_mcp.doc_tool_server stdio
-# Alternative: python3 -m document_mcp.doc_tool_server stdio
-
-# Test agents
-uv run python src/agents/simple_agent/main.py --query "list all documents"
-uv run python src/agents/react_agent/main.py --query "create a book with multiple chapters"
-
-# Interactive mode
-uv run python src/agents/simple_agent/main.py --interactive
-uv run python src/agents/react_agent/main.py --interactive
-
-# Optimize agent prompts
-uv run python -m prompt_optimizer simple     # Optimize specific agent
-uv run python -m prompt_optimizer all        # Optimize all agents
-uv run python -m prompt_optimizer simple  # Development use within repo only
-
-# Development infrastructure testing
-python3 scripts/development/metrics/test_production.py           # Test production metrics
-python3 scripts/development/telemetry/scripts/test.py           # Test telemetry infrastructure
-scripts/development/telemetry/scripts/start.sh                  # Start development telemetry
-```
-
-### Environment Configuration
-
-Create a `.env` file with your API key according to `.env.example`, and fill in the required values.
-
-### Running the System
+---
 
 ## 📖 What is Document MCP?
 
 Document MCP provides a structured way to manage large documents composed of multiple chapters. Think of it as a file system specifically designed for books, research papers, documentation, or any content that benefits from being split into manageable sections.
 
-### Recent Updates (v0.0.3)
-
-- **🔄 Pagination System**: Industry-standard pagination replaces character truncation for complete data access
-- **📊 Enhanced Testing**: Comprehensive 4-tier testing with 352 tests (100% pass rate)
-- **🧹 Code Quality**: Improved documentation and development comments
-- **⚡ Performance**: Optimized E2E test timeouts for reliable API integration
-- **🔧 Tool Enhancement**: Updated content access tools with pagination support
-
 ### Key Features
 
-- **🛡️ Built-in Safety Features**: Write-safety system, automatic micro-snapshots, and comprehensive version control prevent content loss.
-- **📁 Document Structure**: Organize content as directories with chapter files.
-- **🔧 26 MCP Tools**: Comprehensive document manipulation API organized in 6 functional categories with tools for atomic paragraph operations, pagination-based content access, semantic search, fine-grain summaries, and more.
-- **🤖 AI Agents**: 
-    - **Simple Agent**: Stateless, single-turn execution for discrete operations.
-    - **ReAct Agent**: Stateful, multi-turn agent for complex workflows.
-    - **Planner Agent**: Strategic planning with execution for complex task decomposition.
-- **🚀 Prompt Optimizer**: Automated prompt optimization with performance benchmarking and real LLM evaluation.
-- **📊 Observability**: Structured logging with OpenTelemetry and Prometheus metrics.
-- **✅ Robust Testing**: 3-tier testing strategy (unit, integration, E2E, evaluation).
-- **🔄 Version Control Friendly**: Plain Markdown files work great with Git.
+- **26 MCP Tools**: Document management, chapter operations, paragraph editing, semantic search, and version control
+- **Built-in Safety**: Automatic snapshots before destructive operations, version history, and conflict detection
+- **Pagination System**: Industry-standard pagination for large documents (50K chars per page)
+- **User Isolation**: Each authenticated user gets their own isolated storage (hosted version)
+- **Local-First Option**: Keep your documents on your own machine (PyPI version)
 
 ### Document Organization
 
@@ -191,469 +94,170 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 ## 🛡️ Safety Features
 
-Document MCP includes comprehensive safety features designed to prevent content loss and enable safe writing workflows:
+Document MCP includes comprehensive safety features designed to prevent content loss:
 
-### Write-Safety System
-- **Content Freshness Checking**: Automatically validates content modification status before writes
-- **Conflict Detection**: Warns about potential overwrites if content has been modified externally
-- **Safe Write Operations**: All write operations include safety information and warnings
+- **Automatic Snapshots**: Created before every destructive operation
+- **Named Checkpoints**: Create restore points with `snapshot_document`
+- **Version Restoration**: Roll back to any previous version with `restore_snapshot`
+- **Conflict Detection**: Warns about potential overwrites from external modifications
+- **Audit Trail**: Complete modification history with timestamps
 
-### Automatic Version Control
-- **Micro-Snapshots**: Automatic snapshots created before destructive operations
-- **Named Snapshots**: Create checkpoints with messages using `snapshot_document`
-- **Version Restoration**: Restore to any previous version using `restore_snapshot`
-- **Intelligent Diffs**: Compare versions with prose-aware diff algorithms
+## 🌐 Hosted Deployment Details
 
-### Modification History
-- **Complete Tracking**: All document changes tracked with timestamps and operation details
-- **Audit Trail**: Full history accessible via `get_modification_history`
-- **Pattern Analysis**: Understand content change patterns over time
+The hosted version runs on Google Cloud Run with enterprise-grade infrastructure:
 
-## 🏗️ Project Structure
+| Feature | Details |
+|---------|---------|
+| **Authentication** | OAuth 2.1 with PKCE via Google |
+| **Region** | asia-east1 (Taiwan) |
+| **Scaling** | Auto-scales 0-10 instances based on load |
+| **Storage** | Redis for tokens, per-user document directories |
+| **Cost** | Free for users (scales to zero when idle) |
 
+### Why Redis?
+
+Redis is required for the hosted version because:
+- **Cloud Run is stateless** - instances can spin up/down at any time
+- **OAuth requires persistence** - tokens and codes must survive across requests
+- **Multi-instance coordination** - any instance can validate any user's token
+
+### Self-Hosting
+
+To deploy your own instance, see the [Self-Hosting Guide](#self-hosting-guide) below.
+
+## 🔧 Tool Categories
+
+Document MCP provides 26 tools organized into 6 categories:
+
+| Category | Tools | Description |
+|----------|-------|-------------|
+| **Document** | 6 | Create, delete, list documents; manage summaries |
+| **Chapter** | 5 | Add, edit, rename, delete, reorder chapters |
+| **Paragraph** | 7 | Atomic paragraph operations (insert, replace, delete, move) |
+| **Content** | 5 | Read, search, replace, statistics, semantic search |
+| **Safety** | 3 | Snapshots, restore, diff comparison |
+
+## 🤖 Example Workflows
+
+### Basic Document Management
 ```
-document-mcp/
-├── document_mcp/           # Core MCP server package
-│   ├── doc_tool_server.py  # Main server with modular tool registrations
-│   ├── tools/              # Modular tool architecture (26 tools)
-│   │   ├── __init__.py     # Tool registration system
-│   │   ├── document_tools.py    # Document management and summaries (6 tools)
-│   │   ├── chapter_tools.py     # Chapter operations (5 tools)
-│   │   ├── paragraph_tools.py   # Paragraph editing (7 tools)
-│   │   ├── content_tools.py     # Unified content access with pagination (5 tools)
-│   │   └── safety_tools.py      # Version control (3 tools)
-│   ├── logger_config.py    # Structured logging with OpenTelemetry
-│   └── metrics_config.py   # Prometheus metrics and monitoring
-├── src/agents/             # AI agent implementations
-│   ├── simple_agent/       # Stateless single-turn agent package
-│   │   ├── main.py         # Agent execution logic
-│   │   └── prompts.py      # System prompts
-│   ├── react_agent/        # Stateful multi-turn ReAct agent
-│   │   └── main.py
-│   └── shared/             # Shared agent utilities
-│       ├── cli.py          # Common CLI functionality
-│       ├── config.py       # Enhanced Pydantic Settings
-│       └── error_handling.py
-├── prompt_optimizer/       # Automated prompt optimization tool
-│   ├── core.py            # Main PromptOptimizer class
-│   ├── evaluation.py      # Performance evaluation system
-│   └── cli.py             # Command-line interface
-└── tests/                  # 3-tier testing strategy
-    ├── unit/              # Isolated component tests (mocked)
-    ├── integration/       # Agent-server tests (real MCP, mocked LLM)
-    ├── e2e/               # Full system tests (real APIs)
-    └── evaluation/        # Performance benchmarking and prompt evaluation
-```
+👤 User: Create a new document called 'My Novel'
+🤖 Claude: ✅ Created document 'My Novel'
 
-## 🤖 Agent Examples and Tutorials
+👤 User: Add a chapter called '01-introduction.md' with content '# Chapter 1\n\nIt was a dark and stormy night...'
+🤖 Claude: ✅ Created chapter '01-introduction.md' in 'My Novel'
 
-### Agent Architecture Overview
-
-This project provides two distinct agent implementations for document management using the Model Context Protocol (MCP). Both agents interact with the same document management tools but use different architectural approaches and execution patterns.
-
-#### Quick Reference
-
-| Feature | Simple Agent | ReAct Agent |
-|---------|-------------|-------------|
-| **Architecture** | Single-step execution | Multi-step reasoning loop with intelligent termination |
-| **Chat History** | No memory between queries | Full history maintained across steps |
-| **Context Retention** | Each query is independent | Builds context from all previous steps |
-| **Best For** | Simple queries, direct operations | Complex multi-step tasks |
-| **Output** | Structured JSON response | Step-by-step execution log |
-| **Error Handling** | Basic timeout handling | Advanced retry & circuit breaker |
-| **Performance** | Fast for simple tasks | Optimized for complex workflows |
-| **Complexity** | Simple, straightforward | Advanced with caching & optimization |
-| **Termination Logic** | N/A (single step) | **Intelligent completion detection**: task completion, step limits, error recovery, timeout management |
-| **Conversational Flow** | **Independent query processing** | **Multi-round conversation support** |
-| **State Management** | **Clean isolation between queries** | **Persistent context with proper cleanup** |
-
-### Getting Started with the Agents
-
-Choose between three agent implementations:
-
-- **Simple Agent**: Single-step operations, structured JSON output, fast performance
-- **ReAct Agent**: Multi-step workflows, contextual reasoning, production reliability  
-- **Planner Agent**: Strategic planning with execution, complex task decomposition
-
-**Agent Selection:**
-- Use Simple Agent for: direct operations, JSON output, prototyping
-- Use ReAct Agent for: complex workflows, multi-step planning, production environments, reasoning transparency
-- Use Planner Agent for: strategic planning, complex task decomposition, hierarchical execution
-
-### 🚀 Prompt Optimization
-
-The system includes an automated prompt optimizer that uses real performance benchmarks to improve agent efficiency:
-
-```bash
-# Optimize specific agent
-python3 -m prompt_optimizer simple
-python3 -m prompt_optimizer react
-python3 -m prompt_optimizer planner
-
-# Optimize all agents  
-python3 -m prompt_optimizer all
-
-```
-
-**Key Features:**
-- **Safe Optimization**: Conservative changes that preserve all existing functionality
-- **Performance-Based**: Uses real execution metrics to evaluate improvements
-- **Comprehensive Testing**: Validates changes against 352 tests (unit + integration + E2E + evaluation)
-- **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
-- **Multi-Agent Support**: Works with Simple, ReAct, and Planner agents
-
-### Practical Examples - Step by Step
-
-Once you have both the MCP server and an agent running, try these structured examples:
-
-#### Example 1: Create Your First Document
-```bash
-👤 User: Create a new document called 'Getting Started Guide'
-🤖 Agent: ✅ Successfully created the new document named 'Getting Started Guide'.
-```
-
-#### Example 2: Add Content with Chapters
-```bash
-👤 User: Add a chapter named '01-introduction.md' to 'Getting Started Guide' with content '# Introduction\nWelcome to Document MCP!'
-🤖 Agent: ✅ Chapter '01-introduction.md' created successfully in document 'Getting Started Guide'.
-```
-
-#### Example 3: View Your Documents
-```bash
 👤 User: List all my documents
-🤖 Agent: ✅ Found 1 document: 'Getting Started Guide' with 1 chapter, 4 words total.
+🤖 Claude: ✅ Found 1 document: 'My Novel' with 1 chapter
 ```
 
-#### Example 4: Analyze Document Statistics
-```bash
-👤 User: Get statistics for 'Getting Started Guide'
-🤖 Agent: ✅ Document 'Getting Started Guide' contains 1 chapter, 4 words, and 1 paragraph.
+### Safety Features in Action
+```
+👤 User: Delete paragraph 3 from chapter '02-climax.md' in 'My Novel'
+🤖 Claude: ✅ Deleted paragraph 3. Automatic snapshot created for recovery.
+
+👤 User: Actually, restore the last snapshot
+🤖 Claude: ✅ Restored from snapshot. Paragraph 3 is back.
 ```
 
-#### Example 5: Read Full Content with Pagination
-```bash
-👤 User: Read the full document 'Getting Started Guide'
-🤖 Agent: ✅ Retrieved page 1 of document 'Getting Started Guide' (2,450 characters, 1 of 1 pages).
-   Content: # Introduction
-   Welcome to Document MCP!
-
-# For larger documents with navigation:
-👤 User: Read page 2 of document 'Large Guide' with 25KB page size
-🤖 Agent: ✅ Retrieved page 2 of document 'Large Guide' (25,000 characters, 2 of 5 pages).
-   Navigation: Previous page available, Next page available (page 3)
-
-# Progressive loading pattern:
-👤 User: Read all pages of 'Large Guide' progressively
-🤖 Agent: ✅ Processing all 5 pages progressively... Complete! Total: 125,000 characters processed.
+### Semantic Search
+```
+👤 User: Find content similar to "the hero's journey" in my novel
+🤖 Claude: ✅ Found 3 paragraphs with similar themes:
+   - Chapter 2, paragraph 5 (similarity: 0.89)
+   - Chapter 4, paragraph 12 (similarity: 0.82)
+   - Chapter 1, paragraph 3 (similarity: 0.78)
 ```
 
-#### Advanced Examples
-
-**Search and Replace Operations:**
-```bash
-👤 User: Find "Welcome" in document 'Getting Started Guide'
-🤖 Agent: ✅ Found 1 paragraph containing "Welcome" in chapter '01-introduction.md'.
-
-👤 User: Replace "Welcome" with "Hello" in document 'Getting Started Guide'
-🤖 Agent: ✅ Replaced 1 occurrence across 1 chapter in document 'Getting Started Guide'.
-```
-
-**Complex Multi-Step Workflows (ReAct Agent):**
-```bash
-👤 User: Create a research paper structure with an abstract, introduction, methodology, and conclusion
-🤖 ReAct Agent: 
-   Thought: I need to create a document and then add multiple chapters for a research paper structure.
-   Action: create_document with name 'Research Paper'
-   Observation: Document created successfully
-   Thought: Now I need to add the abstract chapter...
-   Action: add_chapter with name '00-abstract.md'...
-   [Continues with step-by-step execution]
-```
-
-#### Try It Now - Interactive Walkthrough
-
-Once you have the MCP server running, you can immediately test all features:
-
-**Quick Configuration Check:**
-```bash
-# Verify your setup is working
-python src/agents/simple_agent/main.py --check-config
-```
-
-**Test the Complete Workflow:**
-```bash
-# Start with simple operations
-python src/agents/simple_agent/main.py --query "Create a new document called 'Test Document'"
-python src/agents/simple_agent/main.py --query "Add a chapter named '01-intro.md' with content 'Hello World!'"
-python src/agents/simple_agent/main.py --query "List all my documents"
-python src/agents/simple_agent/main.py --query "Read the full document 'Test Document'"
-
-# Try complex multi-step workflows
-python src/agents/react_agent/main.py --query "Create a book outline with 3 chapters"
-```
-
-**Interactive Mode for Extended Testing:**
-```bash
-# Simple agent for straightforward tasks
-python src/agents/simple_agent/main.py --interactive
-
-# ReAct agent for complex reasoning
-python src/agents/react_agent/main.py --interactive
-```
-
-This immediate hands-on approach lets you:
-- ✅ Verify your configuration works correctly
-- 🚀 See real responses from both agent types
-- 🧠 Experience the ReAct agent's reasoning process
-- 📋 Build confidence before diving deeper
-
-### Automatic LLM Detection
-
-The system automatically detects which LLM to use based on your `.env` configuration:
-
-1. **OpenAI** (Priority 1): If `OPENAI_API_KEY` is set, uses OpenAI models (default: `gpt-4.1-mini`)
-2. **Gemini** (Priority 2): If `GEMINI_API_KEY` is set, uses Gemini models (default: `gemini-2.5-flash`)
-
-When an agent starts, it will display which model it's using:
-```
-Using OpenAI model: gpt-4.1-mini
-```
-or
-```
-Using Gemini model: gemini-2.5-flash
-```
-
-### Configuration
-
-Both agents share the same configuration system and support the same command-line interface:
-
-```bash
-# Check configuration (both agents)
-python src/agents/simple_agent/main.py --check-config
-python src/agents/react_agent/main.py --check-config
-
-# Single query mode (both agents)
-python src/agents/simple_agent/main.py --query "list all documents"
-python src/agents/react_agent/main.py --query "create a book with multiple chapters"
-
-# Interactive mode (both agents)
-python src/agents/simple_agent/main.py --interactive
-python src/agents/react_agent/main.py --interactive
-```
-
-## 🔧 Troubleshooting
-
-### Setup Verification Checklist
-
-Run through this checklist if you're having issues:
-
-- [ ] ✅ `.env` file exists with valid API key
-- [ ] ✅ Virtual environment activated (`source .venv/bin/activate`)
-- [ ] ✅ Package and dependencies installed (`pip install -e ".[dev]"`)
-- [ ] ✅ MCP server running on localhost:3001
-- [ ] ✅ Configuration check passes (`--check-config`)
-
-### Getting Help
-
-If you're experiencing issues, follow this support hierarchy:
-
-1. **📖 [Check the Manual Testing Guide](docs/manual_testing.md#troubleshooting-guide)** - Comprehensive troubleshooting for common issues
-2. **🔧 Run diagnostics**: `python src/agents/simple_agent/main.py --check-config`
-3. **🧪 Test basic functionality**: `python src/agents/simple_agent/main.py --query "list documents"`
-4. **🔍 Search existing issues**: [GitHub Issues](https://github.com/clchinkc/document-mcp/issues)
-5. **💬 Open a new issue**: Include output from `--check-config` and system details
-
-**Common Solutions:**
-- API key issues → See [Configuration](#configuration) 
-- MCP server connection → Check if `document-mcp stdio` is running
-- Model loading failures → Try different model in `.env`
-- Timeout issues → See [Performance troubleshooting](docs/manual_testing.md#performance-and-load-testing)
-
-### Testing Strategy
-```bash
-# Run all tests
-pytest
-
-# Run by test tier
-python3 -m pytest tests/unit/          # Unit tests (fastest, no external deps)
-python3 -m pytest tests/integration/   # Integration tests (real MCP, mocked LLM)
-python3 -m pytest tests/e2e/           # E2E tests (requires API keys)
-
-# Run with coverage
-python3 -m pytest --cov=document_mcp --cov-report=html
-
-# Quality checks
-python3 scripts/quality.py full
-```
-
-## 🛠️ Development Setup
+## 🛠️ Development
 
 ### Prerequisites
-
-- Python 3.8+
+- Python 3.10+
 - Git
 
-### Local Development
+### Local Development Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/document-mcp/document-mcp.git
+git clone https://github.com/clchinkc/document-mcp.git
 cd document-mcp
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Install with uv (recommended)
+uv sync
 
-# Install package in editable mode with development dependencies
+# Or with pip
 pip install -e ".[dev]"
 ```
 
 ### Running Tests
 
 ```bash
-# Use the pytest runner
-python scripts/run_pytest.py
+# All tests (352 tests, 100% pass rate)
+uv run pytest
 
-# Or run pytest directly
-python -m pytest tests/ -v
+# By tier
+uv run pytest tests/unit/           # Fast, isolated tests
+uv run pytest tests/integration/    # Real MCP, mocked LLM
+uv run pytest tests/e2e/            # Full system (requires API keys)
+
+# Code quality
+uv run ruff check --fix && uv run ruff format
+uv run mypy document_mcp/
 ```
-### Code Quality Management
 
-This project maintains high code quality standards through automated tools and scripts. The quality system is managed through a dedicated script:
+### Running the MCP Server Locally
 
 ```bash
-# Quick quality check (linting and type checking only)
-python scripts/quality.py check
+# Start MCP server
+uv run python -m document_mcp.doc_tool_server stdio
 
-# Apply automatic fixes and format code
-python scripts/quality.py fix        # Remove unused imports, fix issues
-python scripts/quality.py format     # Black formatting + isort
-
-# Run specific quality tools
-python scripts/quality.py lint       # flake8 linting
-python scripts/quality.py typecheck  # mypy type checking
-
-# Complete quality pass (recommended before commits)
-python scripts/quality.py full       # fix + format + check
-
-# Get detailed output for debugging
-python scripts/quality.py check --verbose
+# Or with PyPI installation
+document-mcp stdio
 ```
 
-#### Quality Tools Configured
+## 📋 Self-Hosting Guide
 
-- **Black**: Code formatting (88 character line length)
-- **isort**: Import sorting and organization  
-- **flake8**: Linting and style checking (configured in `.flake8`)
-- **mypy**: Static type checking (configured in `pyproject.toml`)
-- **autoflake**: Automated cleanup of unused imports/variables
-- **pytest**: Comprehensive test suite execution
+Deploy your own Document MCP instance on Google Cloud:
 
-#### Quality Standards
+### Prerequisites
+- Google Cloud project with billing enabled
+- `gcloud` CLI installed and configured
 
-- **Line Length**: 88 characters (Black standard)
-- **Import Style**: Black-compatible with isort
-- **Type Hints**: Encouraged for public APIs
-- **Complexity**: Maximum cyclomatic complexity of 10
-- **Test Coverage**: Comprehensive 4-tier testing (352 tests with 100% pass rate)
+### 1. Create Redis Instance
 
-#### Recommended Workflow
-
-```bash
-# During development
-python scripts/quality.py format    # Format as you code
-
-# Before committing  
-python scripts/quality.py full      # Complete quality pass
-python scripts/run_pytest.py        # Run tests
-
-# Quick check
-python scripts/quality.py check     # Verify quality standards
-```
-
-The quality management system provides comprehensive automation for maintaining code standards throughout development.
-
-#### Test Coverage
-
-The system provides enterprise-grade reliability with **352 comprehensive tests** covering:
-
-**Core Testing Areas:**
-- **Document Operations**: Full CRUD operations and pagination system (181 unit tests)
-- **Agent Architecture**: Complete testing of both Simple and ReAct agent implementations (155 integration tests)
-- **MCP Protocol**: End-to-end server-client communication validation (6 E2E tests)
-- **Performance Benchmarking**: Real API testing and prompt optimization (4 evaluation tests)
-- **Monitoring & Metrics**: OpenTelemetry and Prometheus integration (6 metrics tests)
-- **Quality Assurance**: Centralized fixtures and comprehensive cleanup validation
-
-**Test Results:** 100% success rate (352/352 tests passing) with execution time under 6 minutes
-
-The test suite spans unit, integration, and end-to-end categories, ensuring production-ready reliability with proper resource management and state isolation.
-
-## 🌐 Hosted Deployment
-
-Document MCP is available as a hosted service on Google Cloud Run with OAuth 2.1 authentication for Claude Desktop.
-
-### Claude Desktop Configuration
-
-Add the following to your Claude Desktop MCP settings (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
-
-```json
-{
-  "mcpServers": {
-    "document-mcp": {
-      "url": "https://document-mcp-451560119112.asia-east1.run.app"
-    }
-  }
-}
-```
-
-When you connect, Claude Desktop will:
-1. Automatically register as an OAuth client
-2. Open your browser for Google OAuth authentication
-3. Securely store your access token
-
-### Features
-- **OAuth 2.1 with PKCE**: Secure authentication via Google
-- **User Isolation**: Each user gets their own isolated document storage
-- **26 MCP Tools**: Full access to all document management tools
-- **Auto-scaling**: Handles variable load with Cloud Run scaling
-
-### Architecture
-- **Region**: asia-east1 (Taiwan)
-- **Authentication**: OAuth 2.1 with Google Identity
-- **Token Storage**: Redis with automatic expiration
-- **Infrastructure**: Cloud Run + VPC connector + Memorystore Redis
-
-### Self-Hosting
-
-To deploy your own instance:
-
-1. **Prerequisites**: Google Cloud project with billing enabled
-
-2. **Create Redis instance** (for token storage):
 ```bash
 gcloud redis instances create document-mcp-redis \
-  --region=asia-east1 --tier=basic --size=1
+  --region=asia-east1 \
+  --tier=basic \
+  --size=1
 ```
 
-3. **Create VPC connector**:
+Note the `host` IP from the output.
+
+### 2. Create VPC Connector
+
 ```bash
 gcloud compute networks vpc-access connectors create document-mcp-connector \
-  --region=asia-east1 --range=10.8.0.0/28
+  --region=asia-east1 \
+  --range=10.8.0.0/28
 ```
 
-4. **Create Google OAuth credentials**:
-   - Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
-   - Create OAuth 2.0 Client ID (Web application)
-   - Add redirect URI: `https://YOUR-SERVICE-URL/oauth/callback`
+### 3. Create Google OAuth Credentials
 
-5. **Create secrets**:
+1. Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
+2. Create OAuth 2.0 Client ID (Web application)
+3. Add authorized redirect URI: `https://YOUR-SERVICE-URL/oauth/callback`
+4. Note the Client ID and Client Secret
+
+### 4. Store Secrets
+
 ```bash
 echo -n "YOUR_CLIENT_ID" | gcloud secrets create GOOGLE_OAUTH_CLIENT_ID --data-file=-
 echo -n "YOUR_CLIENT_SECRET" | gcloud secrets create GOOGLE_OAUTH_CLIENT_SECRET --data-file=-
 ```
 
-6. **Deploy to Cloud Run**:
+### 5. Deploy to Cloud Run
+
 ```bash
 gcloud run deploy document-mcp \
   --source . \
@@ -661,41 +265,40 @@ gcloud run deploy document-mcp \
   --allow-unauthenticated \
   --vpc-connector document-mcp-connector \
   --set-secrets "GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest" \
-  --set-env-vars "SERVER_URL=https://YOUR-SERVICE-URL,REDIS_HOST=YOUR_REDIS_IP"
+  --set-env-vars "SERVER_URL=https://YOUR-SERVICE-URL,REDIS_HOST=YOUR_REDIS_IP,REDIS_PORT=6379"
 ```
+
+### 6. Update OAuth Redirect URI
+
+After deployment, update your OAuth credentials with the actual Cloud Run URL:
+`https://document-mcp-XXXXXX.asia-east1.run.app/oauth/callback`
 
 ## 📚 Documentation
 
-### End User Guides
-- **📦 [Package Installation Guide](document_mcp/README.md)** - Install and use the MCP server with Claude Code (universal setup)
-- **📖 [Manual Testing & User Workflows](docs/manual_testing.md)** - Complete guide for creative writing, editing workflows, and troubleshooting
-- **🚀 [Quick Start Examples](#-quick-start)** - Get up and running in minutes
-
-### Developer Guides
-- **🤖 [Agent Architecture Guide](#-agent-examples-and-tutorials)** - Choose the right agent for your workflow
-- **🏗️ [MCP Design Patterns Guide](docs/MCP_DESIGN_PATTERNS.md)** - Production-ready patterns for context management, partial hydration, and security best practices
-- **[API Reference](document_mcp/doc_tool_server.py)** - Complete MCP tools documentation
-- **[Testing Strategy](tests/README.md)** - 3-tier testing architecture and best practices
+| Guide | Description |
+|-------|-------------|
+| **[Package Installation](document_mcp/README.md)** | PyPI setup for Claude Code |
+| **[Manual Testing](docs/manual_testing.md)** | Creative writing workflows |
+| **[MCP Design Patterns](docs/MCP_DESIGN_PATTERNS.md)** | Production patterns and best practices |
+| **[Testing Strategy](tests/README.md)** | 4-tier testing architecture |
 
 ## 🤝 Contributing
 
-I welcome any contribution!
+Contributions welcome! Please run the test suite before submitting PRs:
 
-## 🔗 Related Resources
-
-- **[Pydantic AI Documentation](https://ai.pydantic.dev/)**: Learn more about Pydantic AI
-- **[MCP Specification](https://spec.modelcontextprotocol.io/)**: Model Context Protocol details
-- **[Model Context Protocol (MCP)](https://github.com/modelcontextprotocol)**: Official MCP repository
+```bash
+uv run pytest && uv run ruff check && uv run mypy document_mcp/
+```
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
 - Built with [Model Context Protocol (MCP)](https://github.com/modelcontextprotocol)
 - Powered by [Pydantic AI](https://github.com/pydantic/pydantic-ai)
-- Agents support both [OpenAI](https://openai.com/) and [Google Gemini](https://ai.google.dev/)
+- Hosted on [Google Cloud Run](https://cloud.google.com/run)
 
 ---
 
