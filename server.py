@@ -932,8 +932,6 @@ async def mcp_endpoint(
             GOOGLE_OAUTH_CLIENT_ID: Your Google OAuth client ID
             GOOGLE_OAUTH_CLIENT_SECRET: Your Google OAuth client secret
             SERVER_URL: Your server URL
-            REDIS_HOST: Redis host for token storage
-            REDIS_PORT: Redis port
 
         User Isolation:
             Users are automatically isolated based on their email from the access token.
