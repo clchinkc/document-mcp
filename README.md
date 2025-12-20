@@ -102,7 +102,7 @@ Document MCP includes comprehensive safety features designed to prevent content 
 - **Conflict Detection**: Warns about potential overwrites from external modifications
 - **Audit Trail**: Complete modification history with timestamps
 
-## 🌐 Hosted Deployment Details
+## 🌐 Hosted Service Details
 
 The hosted version runs on Google Cloud Run:
 
@@ -112,8 +112,6 @@ The hosted version runs on Google Cloud Run:
 | **Region** | asia-east1 (Taiwan) |
 | **Scaling** | Auto-scales 0-10 instances based on load |
 | **Cost** | Free for users (scales to zero when idle) |
-
-To deploy your own instance, see the [Self-Hosting Guide](#self-hosting-guide) below.
 
 ## 🔧 Tool Categories
 
@@ -204,46 +202,6 @@ uv run python -m document_mcp.doc_tool_server stdio
 # Or with PyPI installation
 document-mcp stdio
 ```
-
-## 📋 Self-Hosting Guide
-
-Deploy your own Document MCP instance on Google Cloud:
-
-### Prerequisites
-- Google Cloud project with billing enabled
-- `gcloud` CLI installed and configured
-
-### 1. Create Google OAuth Credentials
-
-1. Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
-2. Create OAuth 2.0 Client ID (Web application)
-3. Add authorized redirect URI: `https://YOUR-SERVICE-URL/oauth/callback`
-4. Note the Client ID and Client Secret
-
-### 2. Store Secrets
-
-```bash
-echo -n "YOUR_CLIENT_ID" | gcloud secrets create GOOGLE_OAUTH_CLIENT_ID --data-file=-
-echo -n "YOUR_CLIENT_SECRET" | gcloud secrets create GOOGLE_OAUTH_CLIENT_SECRET --data-file=-
-```
-
-### 3. Deploy to Cloud Run
-
-```bash
-gcloud run deploy document-mcp \
-  --source . \
-  --region asia-east1 \
-  --allow-unauthenticated \
-  --set-secrets "GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest" \
-  --set-env-vars "SERVER_URL=https://YOUR-SERVICE-URL"
-```
-
-The server uses **Firestore** by default for OAuth state storage (free tier, no setup required).
-
-### 4. Update OAuth Redirect URI
-
-After deployment, update your OAuth credentials with the actual Cloud Run URL:
-`https://document-mcp-XXXXXX.asia-east1.run.app/oauth/callback`
 
 ## 📚 Documentation
 
