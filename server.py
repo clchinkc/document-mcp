@@ -205,11 +205,14 @@ def get_storage() -> StorageBackend:
     global _storage
     if _storage is None:
         # Choose backend based on environment
+        # K_SERVICE is automatically set by Cloud Run
+        is_cloud_run = os.environ.get("K_SERVICE") is not None
+
         if os.environ.get("REDIS_HOST"):
             logger.info("Using Redis storage backend")
             _storage = RedisBackend()
-        elif os.environ.get("GOOGLE_CLOUD_PROJECT"):
-            logger.info("Using Firestore storage backend (free tier)")
+        elif is_cloud_run:
+            logger.info("Using Firestore storage backend (Cloud Run detected)")
             try:
                 _storage = FirestoreBackend()
             except Exception as e:
