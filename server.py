@@ -9,6 +9,10 @@ Architecture:
 - FastAPI provides HTTP routing, CORS, and optional REST API
 - document_mcp.mcp_server provides MCP tools and resources
 - The /mcp endpoint handles JSON-RPC requests by calling MCP server methods
+
+Storage Backend:
+- Firestore (default): Free tier, pay-per-use, no VPC needed
+- Redis (optional): Set REDIS_HOST env var to enable
 """
 
 import logging
@@ -18,6 +22,7 @@ import json
 import secrets
 import hashlib
 import base64
+from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 from urllib.parse import urlencode
@@ -27,7 +32,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-import redis.asyncio as redis
 import requests
 
 # Import the document MCP server
@@ -45,15 +49,92 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Redis client placeholder - will be initialized in lifespan
-redis_client: redis.Redis | None = None
+
+# =============================================================================
+# Storage Backend Abstraction
+# =============================================================================
+
+class StorageBackend(ABC):
+    """Abstract storage backend for OAuth state."""
+
+    @abstractmethod
+    async def get(self, key: str) -> str | None:
+        """Get a value by key."""
+        pass
+
+    @abstractmethod
+    async def setex(self, key: str, ttl: int, value: str) -> None:
+        """Set a value with TTL in seconds."""
+        pass
+
+    @abstractmethod
+    async def delete(self, key: str) -> None:
+        """Delete a key."""
+        pass
+
+    @abstractmethod
+    async def ping(self) -> bool:
+        """Check if storage is available."""
+        pass
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Storage backend name."""
+        pass
 
 
-def get_redis_client() -> redis.Redis:
-    """Get or create Redis client with proper connection handling."""
-    global redis_client
-    if redis_client is None:
-        redis_client = redis.Redis(
+class FirestoreBackend(StorageBackend):
+    """Firestore storage backend - free tier, pay-per-use."""
+
+    def __init__(self):
+        from google.cloud import firestore
+        self._db = firestore.AsyncClient()
+        self._collection = "oauth_state"
+
+    async def get(self, key: str) -> str | None:
+        doc = await self._db.collection(self._collection).document(key).get()
+        if doc.exists:
+            data = doc.to_dict()
+            # Check TTL
+            import time
+            if data.get("expires_at", 0) > time.time():
+                return data.get("value")
+            else:
+                # Expired, delete it
+                await self.delete(key)
+        return None
+
+    async def setex(self, key: str, ttl: int, value: str) -> None:
+        import time
+        await self._db.collection(self._collection).document(key).set({
+            "value": value,
+            "expires_at": time.time() + ttl,
+            "created_at": time.time()
+        })
+
+    async def delete(self, key: str) -> None:
+        await self._db.collection(self._collection).document(key).delete()
+
+    async def ping(self) -> bool:
+        try:
+            # Simple check - list collections
+            _ = [c async for c in self._db.collections()]
+            return True
+        except Exception:
+            return False
+
+    @property
+    def name(self) -> str:
+        return "firestore"
+
+
+class RedisBackend(StorageBackend):
+    """Redis storage backend - requires Memorystore or Redis server."""
+
+    def __init__(self):
+        import redis.asyncio as redis_lib
+        self._client = redis_lib.Redis(
             host=os.environ.get("REDIS_HOST", "localhost"),
             port=int(os.environ.get("REDIS_PORT", 6379)),
             decode_responses=True,
@@ -62,7 +143,88 @@ def get_redis_client() -> redis.Redis:
             retry_on_timeout=True,
             health_check_interval=30
         )
-    return redis_client
+
+    async def get(self, key: str) -> str | None:
+        return await self._client.get(key)
+
+    async def setex(self, key: str, ttl: int, value: str) -> None:
+        await self._client.setex(key, ttl, value)
+
+    async def delete(self, key: str) -> None:
+        await self._client.delete(key)
+
+    async def ping(self) -> bool:
+        try:
+            await self._client.ping()
+            return True
+        except Exception:
+            return False
+
+    @property
+    def name(self) -> str:
+        return "redis"
+
+
+class InMemoryBackend(StorageBackend):
+    """In-memory storage backend - for development/testing only."""
+
+    def __init__(self):
+        self._store: dict[str, tuple[str, float]] = {}
+
+    async def get(self, key: str) -> str | None:
+        import time
+        if key in self._store:
+            value, expires_at = self._store[key]
+            if expires_at > time.time():
+                return value
+            else:
+                del self._store[key]
+        return None
+
+    async def setex(self, key: str, ttl: int, value: str) -> None:
+        import time
+        self._store[key] = (value, time.time() + ttl)
+
+    async def delete(self, key: str) -> None:
+        self._store.pop(key, None)
+
+    async def ping(self) -> bool:
+        return True
+
+    @property
+    def name(self) -> str:
+        return "memory"
+
+
+# Global storage backend
+_storage: StorageBackend | None = None
+
+
+def get_storage() -> StorageBackend:
+    """Get the configured storage backend."""
+    global _storage
+    if _storage is None:
+        # Choose backend based on environment
+        if os.environ.get("REDIS_HOST"):
+            logger.info("Using Redis storage backend")
+            _storage = RedisBackend()
+        elif os.environ.get("GOOGLE_CLOUD_PROJECT"):
+            logger.info("Using Firestore storage backend (free tier)")
+            try:
+                _storage = FirestoreBackend()
+            except Exception as e:
+                logger.warning(f"Firestore unavailable: {e}, falling back to in-memory")
+                _storage = InMemoryBackend()
+        else:
+            logger.warning("Using in-memory storage (state will be lost on restart)")
+            _storage = InMemoryBackend()
+    return _storage
+
+
+# Compatibility wrapper for existing code
+def get_redis_client() -> StorageBackend:
+    """Get storage backend (backwards compatible name)."""
+    return get_storage()
 
 
 # Google OAuth verification
@@ -358,13 +520,13 @@ async def health_check():
     """Health check endpoint for load balancers and monitoring."""
     tools = await mcp_server.list_tools()
 
-    # Verify Redis connection is working
-    redis_ok = False
+    # Verify storage backend is working
+    storage = get_storage()
+    storage_ok = False
     try:
-        await get_redis_client().ping()
-        redis_ok = True
+        storage_ok = await storage.ping()
     except Exception as e:
-        logger.warning(f"Redis health check failed: {e}")
+        logger.warning(f"Storage health check failed: {e}")
 
     # Verify all critical routes are registered
     routes = [route.path for route in app.routes]
@@ -372,11 +534,11 @@ async def health_check():
     routes_ok = all(r in routes for r in critical_routes)
 
     return {
-        "status": "healthy" if (redis_ok and routes_ok) else "degraded",
+        "status": "healthy" if (storage_ok and routes_ok) else "degraded",
         "version": app.version,
         "mcp_server": mcp_server.name,
         "tools_count": len(tools),
-        "redis": "ok" if redis_ok else "error",
+        "storage": f"{storage.name}:ok" if storage_ok else f"{storage.name}:error",
         "routes": "ok" if routes_ok else "missing"
     }
 

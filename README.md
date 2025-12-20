@@ -104,24 +104,14 @@ Document MCP includes comprehensive safety features designed to prevent content 
 
 ## 🌐 Hosted Deployment Details
 
-The hosted version runs on Google Cloud Run with enterprise-grade infrastructure:
+The hosted version runs on Google Cloud Run:
 
 | Feature | Details |
 |---------|---------|
 | **Authentication** | OAuth 2.1 with PKCE via Google |
 | **Region** | asia-east1 (Taiwan) |
 | **Scaling** | Auto-scales 0-10 instances based on load |
-| **Storage** | Redis for tokens, per-user document directories |
 | **Cost** | Free for users (scales to zero when idle) |
-
-### Why Redis?
-
-Redis is required for the hosted version because:
-- **Cloud Run is stateless** - instances can spin up/down at any time
-- **OAuth requires persistence** - tokens and codes must survive across requests
-- **Multi-instance coordination** - any instance can validate any user's token
-
-### Self-Hosting
 
 To deploy your own instance, see the [Self-Hosting Guide](#self-hosting-guide) below.
 
@@ -223,52 +213,34 @@ Deploy your own Document MCP instance on Google Cloud:
 - Google Cloud project with billing enabled
 - `gcloud` CLI installed and configured
 
-### 1. Create Redis Instance
-
-```bash
-gcloud redis instances create document-mcp-redis \
-  --region=asia-east1 \
-  --tier=basic \
-  --size=1
-```
-
-Note the `host` IP from the output.
-
-### 2. Create VPC Connector
-
-```bash
-gcloud compute networks vpc-access connectors create document-mcp-connector \
-  --region=asia-east1 \
-  --range=10.8.0.0/28
-```
-
-### 3. Create Google OAuth Credentials
+### 1. Create Google OAuth Credentials
 
 1. Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
 2. Create OAuth 2.0 Client ID (Web application)
 3. Add authorized redirect URI: `https://YOUR-SERVICE-URL/oauth/callback`
 4. Note the Client ID and Client Secret
 
-### 4. Store Secrets
+### 2. Store Secrets
 
 ```bash
 echo -n "YOUR_CLIENT_ID" | gcloud secrets create GOOGLE_OAUTH_CLIENT_ID --data-file=-
 echo -n "YOUR_CLIENT_SECRET" | gcloud secrets create GOOGLE_OAUTH_CLIENT_SECRET --data-file=-
 ```
 
-### 5. Deploy to Cloud Run
+### 3. Deploy to Cloud Run
 
 ```bash
 gcloud run deploy document-mcp \
   --source . \
   --region asia-east1 \
   --allow-unauthenticated \
-  --vpc-connector document-mcp-connector \
   --set-secrets "GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest" \
-  --set-env-vars "SERVER_URL=https://YOUR-SERVICE-URL,REDIS_HOST=YOUR_REDIS_IP,REDIS_PORT=6379"
+  --set-env-vars "SERVER_URL=https://YOUR-SERVICE-URL"
 ```
 
-### 6. Update OAuth Redirect URI
+The server uses **Firestore** by default for OAuth state storage (free tier, no setup required).
+
+### 4. Update OAuth Redirect URI
 
 After deployment, update your OAuth credentials with the actual Cloud Run URL:
 `https://document-mcp-XXXXXX.asia-east1.run.app/oauth/callback`

@@ -35,6 +35,8 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |
+          # Deploy with Firestore storage (default, free tier)
+          # Note: VPC connector only needed if using Redis (${{ secrets.REDIS_HOST }} is set)
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --region ${{ env.REGION }} \
@@ -45,8 +47,8 @@ jobs:
             --cpu 1 \
             --max-instances 10 \
             --port 8080 \
-            --vpc-connector document-mcp-connector \
-            --set-env-vars "DOCUMENTS_STORAGE_PATH=/data/documents_storage,LOG_LEVEL=info,SERVER_URL=https://document-mcp-451560119112.asia-east1.run.app,REDIS_HOST=${{ secrets.REDIS_HOST }},REDIS_PORT=${{ secrets.REDIS_PORT }}" \
+            --clear-vpc-connector \
+            --set-env-vars "DOCUMENTS_STORAGE_PATH=/data/documents_storage,LOG_LEVEL=info,SERVER_URL=https://document-mcp-451560119112.asia-east1.run.app" \
             --set-secrets "GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest"
 
       - name: Verify deployment

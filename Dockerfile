@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     "fastapi>=0.115.0" \
     "uvicorn[standard]>=0.32.0" \
     "google-auth>=2.34.0" \
+    "google-cloud-firestore>=2.19.0" \
     "redis>=5.0.0" \
     "requests>=2.31.0"
 

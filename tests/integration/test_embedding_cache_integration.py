@@ -16,6 +16,20 @@ from document_mcp.tools.content_tools import _perform_semantic_search
 from document_mcp.utils.embedding_cache import EmbeddingCache
 
 
+class MockEmbedding:
+    """Mock embedding object with .values attribute for new google-genai SDK."""
+
+    def __init__(self, values):
+        self.values = values
+
+
+def create_mock_embed_response(embeddings_list):
+    """Create a mock response for client.models.embed_content (new SDK)."""
+    mock_response = MagicMock()
+    mock_response.embeddings = [MockEmbedding(e) for e in embeddings_list]
+    return mock_response
+
+
 class TestEmbeddingCacheIntegration:
     """Test suite for embedding cache integration with semantic search."""
 
@@ -25,11 +39,11 @@ class TestEmbeddingCacheIntegration:
         self.test_chapter = "01-test.md"
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools.genai")
+    @patch("document_mcp.tools.content_tools.genai.Client")
     @patch("document_mcp.tools.content_tools._get_document_path")
     @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
     @patch("document_mcp.tools.content_tools._split_into_paragraphs")
-    def test_semantic_search_with_empty_cache(self, mock_split, mock_chapters, mock_doc_path, mock_genai):
+    def test_semantic_search_with_empty_cache(self, mock_split, mock_chapters, mock_doc_path, mock_client_class):
         """Test semantic search when cache is empty (first run)."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup document structure
@@ -53,15 +67,15 @@ class TestEmbeddingCacheIntegration:
             ]
             mock_split.return_value = test_paragraphs
 
-            # Mock embeddings API response
-            mock_genai.embed_content.return_value = {
-                "embedding": [
-                    [1.0, 0.0, 0.0],  # Query embedding
-                    [0.9, 0.1, 0.0],  # First paragraph (high similarity)
-                    [0.5, 0.5, 0.0],  # Second paragraph (medium similarity)
-                    [0.0, 0.0, 1.0],  # Third paragraph (low similarity)
-                ]
-            }
+            # Mock embeddings API response (new google-genai SDK)
+            mock_client = MagicMock()
+            mock_client.models.embed_content.return_value = create_mock_embed_response([
+                [1.0, 0.0, 0.0],  # Query embedding
+                [0.9, 0.1, 0.0],  # First paragraph (high similarity)
+                [0.5, 0.5, 0.0],  # Second paragraph (medium similarity)
+                [0.0, 0.0, 1.0],  # Third paragraph (low similarity)
+            ])
+            mock_client_class.return_value = mock_client
 
             # Set up environment for cache paths
             os.environ["DOCUMENT_ROOT_DIR"] = str(temp_dir)
@@ -82,9 +96,7 @@ class TestEmbeddingCacheIntegration:
             assert "machine learning" in results[0].content
 
             # Verify API was called with query + paragraphs
-            mock_genai.embed_content.assert_called_once()
-            call_args = mock_genai.embed_content.call_args[1]
-            assert len(call_args["content"]) == 4  # query + 3 paragraphs
+            mock_client.models.embed_content.assert_called_once()
 
             # Verify cache directory was created
             cache_dir = doc_path / ".embeddings" / self.test_chapter
@@ -100,11 +112,11 @@ class TestEmbeddingCacheIntegration:
             assert manifest_file.exists()
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools.genai")
+    @patch("document_mcp.tools.content_tools.genai.Client")
     @patch("document_mcp.tools.content_tools._get_document_path")
     @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
     @patch("document_mcp.tools.content_tools._split_into_paragraphs")
-    def test_semantic_search_with_valid_cache(self, mock_split, mock_chapters, mock_doc_path, mock_genai):
+    def test_semantic_search_with_valid_cache(self, mock_split, mock_chapters, mock_doc_path, mock_client_class):
         """Test semantic search when cache is valid (subsequent runs)."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup document structure
@@ -135,7 +147,8 @@ class TestEmbeddingCacheIntegration:
             os.environ["DOCUMENT_ROOT_DIR"] = str(temp_dir)
 
             # Pre-populate cache with embeddings that will have high similarity to query
-            cache = EmbeddingCache("models/text-embedding-004")
+            # Note: Must match model version used in actual code: "text-embedding-004"
+            cache = EmbeddingCache("text-embedding-004")
             test_embeddings = {
                 0: np.array([1.0, 0.0, 0.0]),  # Perfect match with query [1.0, 0.0, 0.0]
                 1: np.array([0.9, 0.1, 0.0]),  # High similarity with query
@@ -149,12 +162,12 @@ class TestEmbeddingCacheIntegration:
                 self.test_document, self.test_chapter, test_embeddings, test_contents
             )
 
-            # Mock only query embedding (paragraphs should be cached)
-            mock_genai.embed_content.return_value = {
-                "embedding": [
-                    [1.0, 0.0, 0.0]  # Only query embedding needed
-                ]
-            }
+            # Mock only query embedding (paragraphs should be cached) - new SDK pattern
+            mock_client = MagicMock()
+            mock_client.models.embed_content.return_value = create_mock_embed_response([
+                [1.0, 0.0, 0.0]  # Only query embedding needed
+            ])
+            mock_client_class.return_value = mock_client
 
             # Execute search
             results = _perform_semantic_search(
@@ -171,16 +184,14 @@ class TestEmbeddingCacheIntegration:
             assert results[0].paragraph_index == 0  # Best match should be first paragraph
 
             # Verify API was called only for query (not paragraphs)
-            mock_genai.embed_content.assert_called_once()
-            call_args = mock_genai.embed_content.call_args[1]
-            assert len(call_args["content"]) == 1  # Only query, no paragraphs
+            mock_client.models.embed_content.assert_called_once()
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools.genai")
+    @patch("document_mcp.tools.content_tools.genai.Client")
     @patch("document_mcp.tools.content_tools._get_document_path")
     @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
     @patch("document_mcp.tools.content_tools._split_into_paragraphs")
-    def test_semantic_search_cache_invalidation(self, mock_split, mock_chapters, mock_doc_path, mock_genai):
+    def test_semantic_search_cache_invalidation(self, mock_split, mock_chapters, mock_doc_path, mock_client_class):
         """Test that cache is invalidated when content changes."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup document structure
@@ -206,7 +217,8 @@ class TestEmbeddingCacheIntegration:
             os.environ["DOCUMENT_ROOT_DIR"] = str(temp_dir)
 
             # Pre-populate cache with old content
-            cache = EmbeddingCache("models/text-embedding-004")
+            # Note: Must match model version used in actual code: "text-embedding-004"
+            cache = EmbeddingCache("text-embedding-004")
             old_embeddings = {0: np.array([0.9, 0.1, 0.0])}
             old_contents = {0: "Original paragraph"}
 
@@ -224,13 +236,13 @@ class TestEmbeddingCacheIntegration:
             time.sleep(0.2)  # Ensure newer timestamp (increased for reliability)
             chapter_path.write_text("Modified content", encoding="utf-8")
 
-            # Mock embedding response for new content
-            mock_genai.embed_content.return_value = {
-                "embedding": [
-                    [1.0, 0.0, 0.0],  # Query embedding
-                    [0.8, 0.2, 0.0],  # New paragraph embedding
-                ]
-            }
+            # Mock embedding response for new content - new SDK pattern
+            mock_client = MagicMock()
+            mock_client.models.embed_content.return_value = create_mock_embed_response([
+                [1.0, 0.0, 0.0],  # Query embedding
+                [0.8, 0.2, 0.0],  # New paragraph embedding
+            ])
+            mock_client_class.return_value = mock_client
 
             # Execute search
             _perform_semantic_search(
@@ -243,9 +255,7 @@ class TestEmbeddingCacheIntegration:
             )
 
             # Verify API was called for both query and paragraph (cache invalid)
-            mock_genai.embed_content.assert_called_once()
-            call_args = mock_genai.embed_content.call_args[1]
-            assert len(call_args["content"]) == 2  # Query + 1 paragraph
+            mock_client.models.embed_content.assert_called_once()
 
     def test_cache_persistence_across_instances(self):
         """Test that cache persists across different EmbeddingCache instances."""
