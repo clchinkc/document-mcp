@@ -53,11 +53,11 @@ class TestLLMEvaluator:
 
                 self.client = openai.AsyncOpenAI(api_key=config.openai_api_key)
             elif config.active_provider == "gemini":
-                import google.generativeai as genai
+                from google import genai
 
-                genai.configure(api_key=config.gemini_api_key)
-                self.client = genai.GenerativeModel("gemini-2.5-flash")
+                self.client = genai.Client(api_key=config.gemini_api_key)
                 self.model = "gemini-2.5-flash"
+                self._is_gemini = True
             else:
                 # Will be handled by the enabled property
                 pass
@@ -126,8 +126,14 @@ Respond in JSON: {{"score": 0.0-1.0, "feedback": "brief assessment"}}"""
                 max_tokens=150,
             )
             return response.choices[0].message.content
-        else:  # Gemini
-            response = await self.client.generate_content_async(prompt)
+        else:  # Gemini (new SDK)
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                ),
+            )
             return response.text
 
     def _extract_score_from_text(self, text: str) -> float:

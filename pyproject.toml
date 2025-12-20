@@ -30,7 +30,7 @@ dependencies = [
     
     # AI and ML dependencies
     "pydantic-ai>=0.0.14",
-    "google-generativeai>=0.8.3",
+    "google-genai>=1.0.0",
     "openai",
     "numpy>=1.24.0",
     

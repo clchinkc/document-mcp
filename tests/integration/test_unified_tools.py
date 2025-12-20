@@ -245,7 +245,7 @@ class TestSemanticSearchIntegration:
     """Integration tests for semantic search functionality."""
 
     @pytest.mark.skipif(
-        not pytest.importorskip("google.generativeai", reason="google-generativeai not available")
+        not pytest.importorskip("google.genai", reason="google-genai not available")
         or not pytest.importorskip("numpy", reason="numpy not available"),
         reason="Dependencies not available for semantic search",
     )
@@ -253,14 +253,22 @@ class TestSemanticSearchIntegration:
         """Test semantic search with document scope using mocked API."""
         # Mock the API key and response
         mocker.patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-        mock_genai = mocker.patch("document_mcp.tools.content_tools.genai")
-        mock_genai.embed_content.return_value = {
-            "embedding": [
-                [1.0, 0.0, 0.0],  # Query embedding
-                [0.9, 0.1, 0.0],  # High similarity paragraph
-                [0.1, 0.9, 0.0],  # Low similarity paragraph
-            ]
-        }
+
+        # Create mock embedding objects with .values attribute
+        class MockEmbedding:
+            def __init__(self, values):
+                self.values = values
+
+        mock_response = mocker.MagicMock()
+        mock_response.embeddings = [
+            MockEmbedding([1.0, 0.0, 0.0]),  # Query embedding
+            MockEmbedding([0.9, 0.1, 0.0]),  # High similarity paragraph
+            MockEmbedding([0.1, 0.9, 0.0]),  # Low similarity paragraph
+        ]
+
+        mock_client = mocker.MagicMock()
+        mock_client.models.embed_content.return_value = mock_response
+        mocker.patch("document_mcp.tools.content_tools.genai.Client", return_value=mock_client)
 
         doc_name = "test_semantic_doc"
         chapters = {
@@ -293,7 +301,7 @@ class TestSemanticSearchIntegration:
         assert first_result.content != ""
 
     @pytest.mark.skipif(
-        not pytest.importorskip("google.generativeai", reason="google-generativeai not available")
+        not pytest.importorskip("google.genai", reason="google-genai not available")
         or not pytest.importorskip("numpy", reason="numpy not available"),
         reason="Dependencies not available for semantic search",
     )
@@ -301,13 +309,21 @@ class TestSemanticSearchIntegration:
         """Test semantic search with chapter scope using mocked API."""
         # Mock the API key and response
         mocker.patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-        mock_genai = mocker.patch("document_mcp.tools.content_tools.genai")
-        mock_genai.embed_content.return_value = {
-            "embedding": [
-                [1.0, 0.0, 0.0],  # Query embedding
-                [0.8, 0.2, 0.0],  # Matching paragraph
-            ]
-        }
+
+        # Create mock embedding objects with .values attribute
+        class MockEmbedding:
+            def __init__(self, values):
+                self.values = values
+
+        mock_response = mocker.MagicMock()
+        mock_response.embeddings = [
+            MockEmbedding([1.0, 0.0, 0.0]),  # Query embedding
+            MockEmbedding([0.8, 0.2, 0.0]),  # Matching paragraph
+        ]
+
+        mock_client = mocker.MagicMock()
+        mock_client.models.embed_content.return_value = mock_response
+        mocker.patch("document_mcp.tools.content_tools.genai.Client", return_value=mock_client)
 
         doc_name = "test_semantic_chapter"
         chapters = {

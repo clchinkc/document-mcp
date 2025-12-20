@@ -7,7 +7,8 @@ scopes (document, chapter, paragraph) with a consistent interface.
 import os
 import time
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import numpy as np
 
 from ..helpers import _count_words
@@ -1163,10 +1164,10 @@ def _perform_semantic_search(
         return []
 
     try:
-        # Initialize cache and configure Gemini API
-        model = "models/text-embedding-004"
+        # Initialize cache and Gemini client
+        model = "text-embedding-004"
         cache = EmbeddingCache(model_version=model)
-        genai.configure(api_key=api_key)
+        client = genai.Client(api_key=api_key)
 
         # Collect paragraphs and organize by chapter
         chapters_data = {}  # chapter_name -> {"paragraphs": [...], "content": {...}}
@@ -1270,13 +1271,13 @@ def _perform_semantic_search(
 
         # Get embeddings from Gemini (only for uncached content)
         if len(texts_to_embed) > 1:  # If there are paragraphs to embed
-            response = genai.embed_content(
+            response = client.models.embed_content(
                 model=model,
-                content=texts_to_embed,
-                task_type="retrieval_document",
+                contents=texts_to_embed,
+                config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
             )
 
-            embeddings = response["embedding"]
+            embeddings = [e.values for e in response.embeddings]
             query_embedding = np.array(embeddings[0])
             new_paragraph_embeddings = [np.array(emb) for emb in embeddings[1:]]
 
@@ -1296,12 +1297,12 @@ def _perform_semantic_search(
 
         else:
             # Only need query embedding
-            response = genai.embed_content(
+            response = client.models.embed_content(
                 model=model,
-                content=[query_text],
-                task_type="retrieval_document",
+                contents=[query_text],
+                config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
             )
-            query_embedding = np.array(response["embedding"][0])
+            query_embedding = np.array(response.embeddings[0].values)
 
         # Cache new embeddings by chapter
         for chapter_name, embeddings_to_cache in chapters_to_cache.items():
