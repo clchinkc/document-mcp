@@ -1,5 +1,4 @@
-"""
-Hosted Document MCP Server with FastAPI.
+"""Hosted Document MCP Server with FastAPI.
 
 This server wraps the document-mcp package in a FastAPI application,
 providing both MCP protocol endpoints and optional REST API for web UIs.
@@ -10,29 +9,44 @@ Architecture:
 - document_mcp.mcp_server provides MCP tools and resources
 - The /mcp endpoint handles JSON-RPC requests by calling MCP server methods
 
+Transport:
+- Implements MCP Streamable HTTP Transport (spec 2025-06-18)
+- POST /mcp: Client sends JSON-RPC requests
+- GET /mcp: Client listens for server-initiated messages (SSE)
+- Session management via Mcp-Session-Id header
+- Origin validation for security
+
 Storage Backend:
 - Firestore (default): Free tier, pay-per-use, no VPC needed
 - Redis (optional): Set REDIS_HOST env var to enable
 """
+from __future__ import annotations
 
+
+import base64
+import hashlib
+import json
 import logging
 import os
-import sys
-import json
 import secrets
-import hashlib
-import base64
-from abc import ABC, abstractmethod
+import sys
+from abc import ABC
+from abc import abstractmethod
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
 from urllib.parse import urlencode
 
-from fastapi import FastAPI, Header, HTTPException, Request, Form
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
 import requests
+from fastapi import FastAPI
+from fastapi import Form
+from fastapi import Header
+from fastapi import HTTPException
+from fastapi import Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.responses import RedirectResponse
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 
 # Import the document MCP server
 try:
@@ -44,8 +58,8 @@ except ImportError:
 # Configure logging to stderr (MCP requirement)
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO").upper(),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stderr,
 )
 logger = logging.getLogger(__name__)
 
@@ -53,6 +67,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Storage Backend Abstraction
 # =============================================================================
+
 
 class StorageBackend(ABC):
     """Abstract storage backend for OAuth state."""
@@ -89,6 +104,7 @@ class FirestoreBackend(StorageBackend):
 
     def __init__(self):
         from google.cloud import firestore
+
         self._db = firestore.AsyncClient()
         self._collection = "oauth_state"
 
@@ -98,6 +114,7 @@ class FirestoreBackend(StorageBackend):
             data = doc.to_dict()
             # Check TTL
             import time
+
             if data.get("expires_at", 0) > time.time():
                 return data.get("value")
             else:
@@ -107,11 +124,12 @@ class FirestoreBackend(StorageBackend):
 
     async def setex(self, key: str, ttl: int, value: str) -> None:
         import time
-        await self._db.collection(self._collection).document(key).set({
-            "value": value,
-            "expires_at": time.time() + ttl,
-            "created_at": time.time()
-        })
+
+        await (
+            self._db.collection(self._collection)
+            .document(key)
+            .set({"value": value, "expires_at": time.time() + ttl, "created_at": time.time()})
+        )
 
     async def delete(self, key: str) -> None:
         await self._db.collection(self._collection).document(key).delete()
@@ -134,6 +152,7 @@ class RedisBackend(StorageBackend):
 
     def __init__(self):
         import redis.asyncio as redis_lib
+
         self._client = redis_lib.Redis(
             host=os.environ.get("REDIS_HOST", "localhost"),
             port=int(os.environ.get("REDIS_PORT", 6379)),
@@ -141,7 +160,7 @@ class RedisBackend(StorageBackend):
             socket_connect_timeout=5,
             socket_timeout=5,
             retry_on_timeout=True,
-            health_check_interval=30
+            health_check_interval=30,
         )
 
     async def get(self, key: str) -> str | None:
@@ -173,6 +192,7 @@ class InMemoryBackend(StorageBackend):
 
     async def get(self, key: str) -> str | None:
         import time
+
         if key in self._store:
             value, expires_at = self._store[key]
             if expires_at > time.time():
@@ -183,6 +203,7 @@ class InMemoryBackend(StorageBackend):
 
     async def setex(self, key: str, ttl: int, value: str) -> None:
         import time
+
         self._store[key] = (value, time.time() + ttl)
 
     async def delete(self, key: str) -> None:
@@ -232,8 +253,7 @@ def get_redis_client() -> StorageBackend:
 
 # Google OAuth verification
 def verify_google_oauth_token(authorization: str | None) -> str:
-    """
-    Verify Google OAuth token and return user email.
+    """Verify Google OAuth token and return user email.
 
     Args:
         authorization: Authorization header value (format: "Bearer <token>")
@@ -249,22 +269,17 @@ def verify_google_oauth_token(authorization: str | None) -> str:
     client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
     if not client_id:
         logger.error("GOOGLE_OAUTH_CLIENT_ID not configured")
-        raise HTTPException(
-            status_code=500,
-            detail="Server OAuth configuration error"
-        )
+        raise HTTPException(status_code=500, detail="Server OAuth configuration error")
 
     # Validate Authorization header format
     if not authorization:
         raise HTTPException(
-            status_code=401,
-            detail="Missing Authorization header. Provide: Authorization: Bearer <token>"
+            status_code=401, detail="Missing Authorization header. Provide: Authorization: Bearer <token>"
         )
 
     if not authorization.startswith("Bearer "):
         raise HTTPException(
-            status_code=401,
-            detail="Invalid Authorization header format. Expected: Bearer <token>"
+            status_code=401, detail="Invalid Authorization header format. Expected: Bearer <token>"
         )
 
     # Extract token
@@ -272,29 +287,22 @@ def verify_google_oauth_token(authorization: str | None) -> str:
 
     # Verify token with Google
     try:
-        idinfo = id_token.verify_oauth2_token(
-            token,
-            google_requests.Request(),
-            client_id
-        )
+        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), client_id)
 
         # Validate issuer
-        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+        if idinfo["iss"] not in ["accounts.google.com", "https://accounts.google.com"]:
             log_audit_event(
                 user_id="unknown",
                 operation="oauth_authentication",
                 tool_name="verify_google_oauth_token",
-                arguments={"issuer": idinfo.get('iss')},
+                arguments={"issuer": idinfo.get("iss")},
                 success=False,
-                error_message=f"Invalid issuer: {idinfo.get('iss')}"
+                error_message=f"Invalid issuer: {idinfo.get('iss')}",
             )
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token issuer"
-            )
+            raise HTTPException(status_code=401, detail="Invalid token issuer")
 
         # Extract email
-        email = idinfo.get('email')
+        email = idinfo.get("email")
         if not email:
             log_audit_event(
                 user_id="unknown",
@@ -302,12 +310,9 @@ def verify_google_oauth_token(authorization: str | None) -> str:
                 tool_name="verify_google_oauth_token",
                 arguments={},
                 success=False,
-                error_message="No email in token claims"
+                error_message="No email in token claims",
             )
-            raise HTTPException(
-                status_code=401,
-                detail="Token missing email claim"
-            )
+            raise HTTPException(status_code=401, detail="Token missing email claim")
 
         # Log successful authentication
         logger.info(f"OAuth authentication successful for: {email}")
@@ -322,18 +327,14 @@ def verify_google_oauth_token(authorization: str | None) -> str:
             tool_name="verify_google_oauth_token",
             arguments={"token_prefix": token[:20] if token else "None"},
             success=False,
-            error_message=str(e)
+            error_message=str(e),
         )
-        raise HTTPException(
-            status_code=401,
-            detail=f"Invalid or expired OAuth token: {str(e)}"
-        )
+        raise HTTPException(status_code=401, detail=f"Invalid or expired OAuth token: {str(e)}")
 
 
 # User isolation utilities
 def get_user_id_from_oauth(authorization: str | None) -> str:
-    """
-    Extract user ID from OAuth token.
+    """Extract user ID from OAuth token.
 
     Args:
         authorization: Authorization header value (format: "Bearer <token>")
@@ -361,8 +362,7 @@ def get_user_id_from_oauth(authorization: str | None) -> str:
 
 
 def get_user_storage_path(user_id: str) -> str:
-    """
-    Get the storage directory path for a specific user.
+    """Get the storage directory path for a specific user.
 
     Returns absolute path to user's storage directory.
     Creates directory if it doesn't exist.
@@ -391,15 +391,14 @@ def log_audit_event(
     tool_name: str,
     arguments: dict,
     success: bool,
-    error_message: str | None = None
+    error_message: str | None = None,
 ):
-    """
-    Log audit events for compliance and security monitoring.
+    """Log audit events for compliance and security monitoring.
 
     Logs to both stderr (for MCP compliance) and audit log file.
     """
-    import json
     import datetime
+    import json
 
     audit_entry = {
         "timestamp": datetime.datetime.utcnow().isoformat(),
@@ -408,7 +407,7 @@ def log_audit_event(
         "tool_name": tool_name,
         "arguments": {k: v for k, v in arguments.items() if k != "content"},  # Exclude large content
         "success": success,
-        "error": error_message
+        "error": error_message,
     }
 
     # Log to audit file
@@ -423,23 +422,21 @@ def log_audit_event(
     if success:
         logger.info(f"Audit: {user_id} - {operation} - {tool_name}", extra=audit_entry)
     else:
-        logger.warning(f"Audit: {user_id} - {operation} - {tool_name} - FAILED: {error_message}", extra=audit_entry)
+        logger.warning(
+            f"Audit: {user_id} - {operation} - {tool_name} - FAILED: {error_message}", extra=audit_entry
+        )
 
 
 # OAuth 2.1 helper functions
 def generate_code_challenge_from_verifier(code_verifier: str) -> str:
     """Generate PKCE code challenge from verifier (S256 method)."""
-    digest = hashlib.sha256(code_verifier.encode('utf-8')).digest()
-    return base64.urlsafe_b64encode(digest).decode('utf-8').rstrip('=')
+    digest = hashlib.sha256(code_verifier.encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(digest).decode("utf-8").rstrip("=")
 
 
 async def store_session_data(session_id: str, data: dict, ttl: int = 600):
     """Store session data in Redis with TTL (default 10 minutes)."""
-    await get_redis_client().setex(
-        f"oauth:session:{session_id}",
-        ttl,
-        json.dumps(data)
-    )
+    await get_redis_client().setex(f"oauth:session:{session_id}", ttl, json.dumps(data))
 
 
 async def get_session_data(session_id: str) -> dict | None:
@@ -449,8 +446,7 @@ async def get_session_data(session_id: str) -> dict | None:
 
 
 async def validate_access_token(authorization: str | None) -> str:
-    """
-    Validate our OAuth access token and return user email.
+    """Validate our OAuth access token and return user email.
 
     Args:
         authorization: Authorization header value (format: "Bearer <token>")
@@ -490,31 +486,108 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="Document MCP Server",
     description="Hosted MCP server for document management. "
-                "Provides MCP protocol endpoints for Claude Desktop and optional REST API for web UIs.",
+    "Provides MCP protocol endpoints for Claude Desktop and optional REST API for web UIs.",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS Configuration
 # Allow requests from Claude Desktop and localhost for development
-ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "").split(",") if os.environ.get("ALLOWED_ORIGINS") else [
-    # Anthropic Claude (primary client)
-    "https://claude.ai",
-    "https://claude.com",  # Future-proofing
-    "https://console.anthropic.com",
-    # Development
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:8000",
-]
+ALLOWED_ORIGINS = (
+    os.environ.get("ALLOWED_ORIGINS", "").split(",")
+    if os.environ.get("ALLOWED_ORIGINS")
+    else [
+        # Anthropic Claude (primary client)
+        "https://claude.ai",
+        "https://claude.com",  # Future-proofing
+        "https://console.anthropic.com",
+        # Development
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:8000",
+    ]
+)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Mcp-Session-Id", "Mcp-Protocol-Version", "Authorization"],
+    allow_methods=["GET", "POST", "OPTIONS", "DELETE"],
+    allow_headers=[
+        "Content-Type",
+        "Mcp-Session-Id",
+        "Mcp-Protocol-Version",
+        "Authorization",
+        "Origin",
+        "Last-Event-Id",
+    ],
 )
+
+
+# Origin validation middleware for MCP security
+@app.middleware("http")
+async def origin_validation_middleware(request: Request, call_next):
+    """Validate Origin header for MCP endpoints per spec 2025-06-18.
+
+    Security: Validates that requests to MCP endpoints come from allowed origins.
+    This prevents CSRF attacks and ensures only trusted clients can access MCP tools.
+    """
+    path = request.url.path
+
+    # Only validate Origin for MCP endpoints
+    if path in ["/", "/mcp"]:
+        origin = request.headers.get("origin")
+
+        # If Origin header is present, validate it
+        if origin:
+            # Extract host from origin (e.g., "https://claude.ai" -> "claude.ai")
+            try:
+                from urllib.parse import urlparse
+
+                parsed = urlparse(origin)
+                origin_host = f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                origin_host = origin
+
+            # Check if origin is in allowed list
+            if origin_host not in ALLOWED_ORIGINS:
+                logger.warning(f"Origin validation failed: {origin} not in allowed origins")
+                return JSONResponse(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": None,
+                        "error": {
+                            "code": -32001,
+                            "message": f"Origin '{origin}' not allowed",
+                            "data": {"allowed_origins": ALLOWED_ORIGINS[:3]},  # Show first 3
+                        },
+                    },
+                    status_code=403,
+                )
+
+    response = await call_next(request)
+    return response
+
+
+# Session management for MCP Streamable HTTP Transport
+_mcp_sessions: dict[str, dict] = {}
+
+
+def get_or_create_session(session_id: str | None, user_id: str) -> tuple[str, dict]:
+    """Get existing session or create new one for MCP transport."""
+    if session_id and session_id in _mcp_sessions:
+        session = _mcp_sessions[session_id]
+        session["last_access"] = __import__("time").time()
+        return session_id, session
+
+    # Create new session
+    new_session_id = secrets.token_urlsafe(16)
+    _mcp_sessions[new_session_id] = {
+        "user_id": user_id,
+        "created_at": __import__("time").time(),
+        "last_access": __import__("time").time(),
+    }
+    return new_session_id, _mcp_sessions[new_session_id]
 
 
 # Health check endpoint
@@ -533,7 +606,15 @@ async def health_check():
 
     # Verify all critical routes are registered
     routes = [route.path for route in app.routes]
-    critical_routes = ["/", "/health", "/oauth/register", "/oauth/authorize", "/oauth/callback", "/oauth/token"]
+    critical_routes = [
+        "/",
+        "/mcp",  # MCP Streamable HTTP Transport endpoint
+        "/health",
+        "/oauth/register",
+        "/oauth/authorize",
+        "/oauth/callback",
+        "/oauth/token",
+    ]
     routes_ok = all(r in routes for r in critical_routes)
 
     return {
@@ -542,16 +623,16 @@ async def health_check():
         "mcp_server": mcp_server.name,
         "tools_count": len(tools),
         "storage": f"{storage.name}:ok" if storage_ok else f"{storage.name}:error",
-        "routes": "ok" if routes_ok else "missing"
+        "routes": "ok" if routes_ok else "missing",
     }
 
 
 # OAuth 2.1 Authorization Server Endpoints
 
+
 @app.post("/oauth/register")
 async def oauth_register(request: Request):
-    """
-    Dynamic Client Registration (RFC 7591).
+    """Dynamic Client Registration (RFC 7591).
 
     Claude Desktop uses this to register itself as an OAuth client
     before starting the authorization flow.
@@ -580,13 +661,13 @@ async def oauth_register(request: Request):
             "redirect_uris": redirect_uris,
             "grant_types": grant_types,
             "response_types": response_types,
-            "token_endpoint_auth_method": token_endpoint_auth_method
+            "token_endpoint_auth_method": token_endpoint_auth_method,
         }
 
         await get_redis_client().setex(
             f"oauth:client:{client_id}",
             30 * 24 * 60 * 60,  # 30 days
-            json.dumps(client_data)
+            json.dumps(client_data),
         )
 
         # Audit log
@@ -595,20 +676,23 @@ async def oauth_register(request: Request):
             operation="oauth_register",
             tool_name="register_endpoint",
             arguments={"client_name": client_name},
-            success=True
+            success=True,
         )
 
         logger.info(f"Registered new OAuth client: {client_name} ({client_id})")
 
         # Return client registration response (RFC 7591)
-        return JSONResponse({
-            "client_id": client_id,
-            "client_name": client_name,
-            "redirect_uris": redirect_uris,
-            "grant_types": grant_types,
-            "response_types": response_types,
-            "token_endpoint_auth_method": token_endpoint_auth_method
-        }, status_code=201)
+        return JSONResponse(
+            {
+                "client_id": client_id,
+                "client_name": client_name,
+                "redirect_uris": redirect_uris,
+                "grant_types": grant_types,
+                "response_types": response_types,
+                "token_endpoint_auth_method": token_endpoint_auth_method,
+            },
+            status_code=201,
+        )
 
     except HTTPException:
         raise
@@ -625,10 +709,9 @@ async def oauth_authorize(
     code_challenge: str,
     code_challenge_method: str,
     state: str,
-    scope: str = "claudeai"
+    scope: str = "claudeai",
 ):
-    """
-    OAuth 2.1 authorization endpoint.
+    """OAuth 2.1 authorization endpoint.
     Validates PKCE challenge and redirects to Google OAuth.
     """
     try:
@@ -646,13 +729,16 @@ async def oauth_authorize(
         session_id = secrets.token_urlsafe(32)
 
         # 3. Store session data (PKCE challenge, client info)
-        await store_session_data(session_id, {
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "code_challenge": code_challenge,
-            "state": state,
-            "scope": scope
-        })
+        await store_session_data(
+            session_id,
+            {
+                "client_id": client_id,
+                "redirect_uri": redirect_uri,
+                "code_challenge": code_challenge,
+                "state": state,
+                "scope": scope,
+            },
+        )
 
         # 4. Build Google OAuth URL
         google_auth_params = {
@@ -660,7 +746,7 @@ async def oauth_authorize(
             "redirect_uri": f"{os.environ['SERVER_URL']}/oauth/callback",
             "response_type": "code",
             "scope": "openid email profile",
-            "state": session_id
+            "state": session_id,
         }
         google_auth_url = f"https://accounts.google.com/o/oauth2/auth?{urlencode(google_auth_params)}"
 
@@ -670,7 +756,7 @@ async def oauth_authorize(
             operation="oauth_authorize",
             tool_name="authorize_endpoint",
             arguments={"client_id": client_id},
-            success=True
+            success=True,
         )
 
         # 6. Redirect to Google
@@ -685,8 +771,7 @@ async def oauth_authorize(
 
 @app.get("/oauth/callback")
 async def oauth_callback(code: str, state: str):
-    """
-    Google OAuth callback endpoint.
+    """Google OAuth callback endpoint.
     Exchanges Google code for email, generates our authorization code.
     """
     try:
@@ -703,28 +788,28 @@ async def oauth_callback(code: str, state: str):
                 "client_id": os.environ["GOOGLE_OAUTH_CLIENT_ID"],
                 "client_secret": os.environ["GOOGLE_OAUTH_CLIENT_SECRET"],
                 "redirect_uri": f"{os.environ['SERVER_URL']}/oauth/callback",
-                "grant_type": "authorization_code"
+                "grant_type": "authorization_code",
             },
-            timeout=10
+            timeout=10,
         )
 
         if google_token_response.status_code != 200:
-            logger.error(f"Google token exchange failed: {google_token_response.status_code} - {google_token_response.text}")
+            logger.error(
+                f"Google token exchange failed: {google_token_response.status_code} - {google_token_response.text}"
+            )
             raise HTTPException(500, f"Failed to exchange Google code: {google_token_response.text}")
 
         google_token = google_token_response.json()
 
         # 3. Verify Google token and extract email
         idinfo = id_token.verify_oauth2_token(
-            google_token['id_token'],
-            google_requests.Request(),
-            os.environ['GOOGLE_OAUTH_CLIENT_ID']
+            google_token["id_token"], google_requests.Request(), os.environ["GOOGLE_OAUTH_CLIENT_ID"]
         )
 
-        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+        if idinfo["iss"] not in ["accounts.google.com", "https://accounts.google.com"]:
             raise HTTPException(401, "Invalid token issuer")
 
-        user_email = idinfo.get('email')
+        user_email = idinfo.get("email")
         if not user_email:
             raise HTTPException(401, "Token missing email claim")
 
@@ -735,13 +820,15 @@ async def oauth_callback(code: str, state: str):
         await get_redis_client().setex(
             f"oauth:code:{our_auth_code}",
             600,
-            json.dumps({
-                "user_email": user_email,
-                "client_id": session_data['client_id'],
-                "redirect_uri": session_data['redirect_uri'],
-                "code_challenge": session_data['code_challenge'],
-                "scope": session_data['scope']
-            })
+            json.dumps(
+                {
+                    "user_email": user_email,
+                    "client_id": session_data["client_id"],
+                    "redirect_uri": session_data["redirect_uri"],
+                    "code_challenge": session_data["code_challenge"],
+                    "scope": session_data["scope"],
+                }
+            ),
         )
 
         # 6. Clean up session
@@ -753,7 +840,7 @@ async def oauth_callback(code: str, state: str):
             operation="oauth_callback",
             tool_name="callback_endpoint",
             arguments={"email": user_email},
-            success=True
+            success=True,
         )
 
         # 8. Redirect back to Claude with our code
@@ -773,10 +860,9 @@ async def oauth_token(
     code: str = Form(...),
     code_verifier: str = Form(...),
     redirect_uri: str = Form(...),
-    client_id: str = Form(...)
+    client_id: str = Form(...),
 ):
-    """
-    Token exchange endpoint.
+    """Token exchange endpoint.
     Validates PKCE and issues access token.
     """
     try:
@@ -792,23 +878,23 @@ async def oauth_token(
         auth_data = json.loads(code_data)
 
         # 3. Validate client and redirect URI
-        if auth_data['client_id'] != client_id:
+        if auth_data["client_id"] != client_id:
             raise HTTPException(400, "Client mismatch")
 
-        if auth_data['redirect_uri'] != redirect_uri:
+        if auth_data["redirect_uri"] != redirect_uri:
             raise HTTPException(400, "Redirect URI mismatch")
 
         # 4. Verify PKCE (CRITICAL SECURITY)
         computed_challenge = generate_code_challenge_from_verifier(code_verifier)
 
-        if not secrets.compare_digest(computed_challenge, auth_data['code_challenge']):
+        if not secrets.compare_digest(computed_challenge, auth_data["code_challenge"]):
             log_audit_event(
-                user_id=auth_data['user_email'],
+                user_id=auth_data["user_email"],
                 operation="oauth_token",
                 tool_name="token_endpoint",
                 arguments={"client_id": client_id},
                 success=False,
-                error_message="PKCE verification failed"
+                error_message="PKCE verification failed",
             )
             raise HTTPException(400, "PKCE verification failed")
 
@@ -819,19 +905,15 @@ async def oauth_token(
         access_token = secrets.token_urlsafe(32)
 
         # 7. Store token with user email (1 hour TTL)
-        await get_redis_client().setex(
-            f"oauth:token:{access_token}",
-            3600,
-            auth_data['user_email']
-        )
+        await get_redis_client().setex(f"oauth:token:{access_token}", 3600, auth_data["user_email"])
 
         # 8. Audit log
         log_audit_event(
-            user_id=auth_data['user_email'],
+            user_id=auth_data["user_email"],
             operation="oauth_token",
             tool_name="token_endpoint",
             arguments={"client_id": client_id},
-            success=True
+            success=True,
         )
 
         # 9. Return token response
@@ -839,7 +921,7 @@ async def oauth_token(
             "access_token": access_token,
             "token_type": "Bearer",
             "expires_in": 3600,
-            "scope": auth_data['scope']
+            "scope": auth_data["scope"],
         }
 
     except HTTPException:
@@ -861,7 +943,7 @@ async def oauth_server_metadata():
         "response_types_supported": ["code"],
         "grant_types_supported": ["authorization_code"],
         "code_challenge_methods_supported": ["S256"],
-        "token_endpoint_auth_methods_supported": ["none"]
+        "token_endpoint_auth_methods_supported": ["none"],
     }
 
 
@@ -873,18 +955,16 @@ async def oauth_protected_resource_metadata():
         "resource": server_url,
         "authorization_servers": [server_url],
         "bearer_methods_supported": ["header"],
-        "scopes_supported": ["claudeai"]
+        "scopes_supported": ["claudeai"],
     }
 
 
 # MCP SSE endpoint - GET / for Claude Desktop SSE transport
 @app.get("/")
 async def mcp_sse_endpoint(
-    request: Request,
-    authorization: str | None = Header(None, description="OAuth Bearer token (REQUIRED)")
+    request: Request, authorization: str | None = Header(None, description="OAuth Bearer token (REQUIRED)")
 ):
-    """
-    MCP SSE endpoint for Claude Desktop.
+    """MCP SSE endpoint for Claude Desktop.
 
     Claude Desktop may try GET / with Accept: text/event-stream for SSE transport.
     This endpoint returns 401 to trigger OAuth flow, same as POST /.
@@ -893,18 +973,20 @@ async def mcp_sse_endpoint(
     try:
         user_email = await validate_access_token(authorization)
         # If authenticated, return info about the SSE endpoint
-        return JSONResponse({
-            "message": "MCP SSE endpoint - use POST / for JSON-RPC requests",
-            "user": user_email,
-            "hint": "Send JSON-RPC 2.0 requests via POST /"
-        })
+        return JSONResponse(
+            {
+                "message": "MCP SSE endpoint - use POST / for JSON-RPC requests",
+                "user": user_email,
+                "hint": "Send JSON-RPC 2.0 requests via POST /",
+            }
+        )
     except HTTPException as e:
         if e.status_code == 401:
             server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.asia-east1.run.app")
             return JSONResponse(
                 {"error": "Authentication required", "hint": "Use OAuth 2.1 flow"},
                 status_code=401,
-                headers={"WWW-Authenticate": f'Bearer resource="{server_url}"'}
+                headers={"WWW-Authenticate": f'Bearer resource="{server_url}"'},
             )
         raise
 
@@ -912,11 +994,9 @@ async def mcp_sse_endpoint(
 # MCP JSON-RPC endpoint - at root for Claude Desktop compatibility
 @app.post("/")
 async def mcp_endpoint(
-    request: Request,
-    authorization: str | None = Header(None, description="OAuth Bearer token (REQUIRED)")
+    request: Request, authorization: str | None = Header(None, description="OAuth Bearer token (REQUIRED)")
 ):
-    """
-    MCP protocol endpoint supporting JSON-RPC 2.0.
+    """MCP protocol endpoint supporting JSON-RPC 2.0.
 
     Handles tool calls and other MCP operations with mandatory OAuth 2.1 authentication
     and automatic user isolation. Compatible with Claude Desktop and other MCP clients.
@@ -954,34 +1034,24 @@ async def mcp_endpoint(
 
         # Validate JSON-RPC version
         if jsonrpc_version != "2.0":
-            return JSONResponse({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "error": {
-                    "code": -32600,
-                    "message": "Invalid Request - must be JSON-RPC 2.0"
-                }
-            }, status_code=400)
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {"code": -32600, "message": "Invalid Request - must be JSON-RPC 2.0"},
+                },
+                status_code=400,
+            )
 
         # Handle different MCP methods
         if method == "tools/list":
             tools = await mcp_server.list_tools()
             # Convert Tool objects to dicts for JSON serialization
             tools_list = [
-                {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "inputSchema": tool.inputSchema
-                }
+                {"name": tool.name, "description": tool.description, "inputSchema": tool.inputSchema}
                 for tool in tools
             ]
-            return JSONResponse({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": {
-                    "tools": tools_list
-                }
-            })
+            return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": {"tools": tools_list}})
 
         elif method == "tools/call":
             tool_name = params.get("name")
@@ -1005,25 +1075,15 @@ async def mcp_endpoint(
                     operation="tools/call",
                     tool_name=tool_name,
                     arguments=tool_arguments,
-                    success=True
+                    success=True,
                 )
 
                 # Convert TextContent objects to JSON-serializable dicts
-                content_items = [
-                    {
-                        "type": "text",
-                        "text": item.text
-                    }
-                    for item in text_content_list
-                ]
+                content_items = [{"type": "text", "text": item.text} for item in text_content_list]
 
-                return JSONResponse({
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "result": {
-                        "content": content_items
-                    }
-                })
+                return JSONResponse(
+                    {"jsonrpc": "2.0", "id": request_id, "result": {"content": content_items}}
+                )
 
             except Exception as e:
                 # Audit log failed operation
@@ -1033,7 +1093,7 @@ async def mcp_endpoint(
                     tool_name=tool_name,
                     arguments=tool_arguments,
                     success=False,
-                    error_message=str(e)
+                    error_message=str(e),
                 )
                 raise  # Re-raise to be handled by outer exception handler
 
@@ -1046,61 +1106,45 @@ async def mcp_endpoint(
 
         elif method == "resources/list":
             # Resources not yet implemented, return empty list
-            return JSONResponse({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": {
-                    "resources": []
-                }
-            })
+            return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": {"resources": []}})
 
         elif method == "initialize":
             # MCP protocol initialization handshake
             logger.info(f"MCP initialize request from user: {user_id}")
-            return JSONResponse({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {
-                        "tools": {"listChanged": True},
-                        "resources": {"subscribe": False, "listChanged": False}
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {
+                            "tools": {"listChanged": True},
+                            "resources": {"subscribe": False, "listChanged": False},
+                        },
+                        "serverInfo": {"name": mcp_server.name, "version": app.version},
                     },
-                    "serverInfo": {
-                        "name": mcp_server.name,
-                        "version": app.version
-                    }
                 }
-            })
+            )
 
         elif method == "notifications/initialized":
             # Client confirms initialization - no response needed for notifications
             logger.info(f"MCP client initialized for user: {user_id}")
-            return JSONResponse({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": {}
-            })
+            return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": {}})
 
         elif method == "ping":
             # Keep-alive ping
-            return JSONResponse({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": {}
-            })
+            return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": {}})
 
         else:
             # Return -32601 but with 200 status (JSON-RPC errors should be 200)
             logger.warning(f"Unknown MCP method: {method}")
-            return JSONResponse({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "error": {
-                    "code": -32601,
-                    "message": f"Method not found: {method}"
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {"code": -32601, "message": f"Method not found: {method}"},
                 }
-            })
+            )
 
     except HTTPException as e:
         # Re-raise HTTP exceptions with proper headers for OAuth flow
@@ -1109,30 +1153,232 @@ async def mcp_endpoint(
             return JSONResponse(
                 {
                     "jsonrpc": "2.0",
-                    "id": request_id if 'request_id' in locals() else None,
-                    "error": {
-                        "code": -32001,
-                        "message": "Unauthorized",
-                        "data": str(e.detail)
-                    }
+                    "id": request_id if "request_id" in locals() else None,
+                    "error": {"code": -32001, "message": "Unauthorized", "data": str(e.detail)},
                 },
                 status_code=401,
-                headers={
-                    "WWW-Authenticate": f'Bearer resource="{server_url}"'
-                }
+                headers={"WWW-Authenticate": f'Bearer resource="{server_url}"'},
             )
         raise
     except Exception as e:
         logger.error(f"Error processing MCP request: {e}", exc_info=True)
-        return JSONResponse({
-            "jsonrpc": "2.0",
-            "id": request_id if 'request_id' in locals() else None,
-            "error": {
-                "code": -32603,
-                "message": "Internal error",
-                "data": str(e)
-            }
-        }, status_code=500)
+        return JSONResponse(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id if "request_id" in locals() else None,
+                "error": {"code": -32603, "message": "Internal error", "data": str(e)},
+            },
+            status_code=500,
+        )
+
+
+# MCP Streamable HTTP Transport endpoints (spec 2025-06-18)
+# These mirror the root endpoints but with explicit /mcp path for compliance
+
+
+@app.get("/mcp")
+async def mcp_streamable_get(
+    request: Request,
+    authorization: str | None = Header(None),
+    mcp_session_id: str | None = Header(None, alias="Mcp-Session-Id"),
+):
+    """MCP Streamable HTTP Transport - GET endpoint for SSE.
+
+    Per MCP spec 2025-06-18: GET /mcp with Accept: text/event-stream
+    for server-initiated messages (SSE stream).
+    """
+    accept = request.headers.get("accept", "")
+
+    # Check if client wants SSE
+    if "text/event-stream" in accept:
+        # SSE not fully implemented yet, return guidance
+        return JSONResponse(
+            {
+                "message": "SSE endpoint - server-initiated messages not yet implemented",
+                "hint": "Use POST /mcp for JSON-RPC requests",
+                "protocol": "MCP Streamable HTTP (2025-06-18)",
+            },
+            headers={"Mcp-Session-Id": mcp_session_id or ""},
+        )
+
+    # For non-SSE GET, validate auth and return info
+    try:
+        user_email = await validate_access_token(authorization)
+        session_id, _ = get_or_create_session(mcp_session_id, user_email)
+
+        return JSONResponse(
+            {
+                "message": "MCP Streamable HTTP endpoint",
+                "user": user_email,
+                "protocol": "MCP Streamable HTTP (2025-06-18)",
+                "endpoints": {
+                    "POST /mcp": "JSON-RPC requests",
+                    "GET /mcp": "SSE stream (Accept: text/event-stream)",
+                    "DELETE /mcp": "Terminate session",
+                },
+            },
+            headers={"Mcp-Session-Id": session_id},
+        )
+    except HTTPException as e:
+        if e.status_code == 401:
+            server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.asia-east1.run.app")
+            return JSONResponse(
+                {"error": "Authentication required", "hint": "Use OAuth 2.1 flow"},
+                status_code=401,
+                headers={"WWW-Authenticate": f'Bearer resource="{server_url}"'},
+            )
+        raise
+
+
+@app.post("/mcp")
+async def mcp_streamable_post(
+    request: Request,
+    authorization: str | None = Header(None),
+    mcp_session_id: str | None = Header(None, alias="Mcp-Session-Id"),
+):
+    """MCP Streamable HTTP Transport - POST endpoint for JSON-RPC.
+
+    Per MCP spec 2025-06-18: POST /mcp for client JSON-RPC requests.
+    Returns Mcp-Session-Id header for session continuity.
+    """
+    try:
+        # Validate access token
+        user_email = await validate_access_token(authorization)
+        user_id = user_email.replace("@", "_at_").replace(".", "_dot_")
+
+        # Get or create session
+        session_id, _ = get_or_create_session(mcp_session_id, user_id)
+
+        body = await request.json()
+
+        # Extract JSON-RPC fields
+        jsonrpc_version = body.get("jsonrpc")
+        method = body.get("method")
+        params = body.get("params", {})
+        request_id = body.get("id")
+
+        if jsonrpc_version != "2.0":
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {"code": -32600, "message": "Invalid Request - must be JSON-RPC 2.0"},
+                },
+                status_code=400,
+                headers={"Mcp-Session-Id": session_id},
+            )
+
+        # Route to appropriate handler
+        if method == "initialize":
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "protocolVersion": "2025-06-18",  # Updated to Streamable HTTP spec
+                        "capabilities": {
+                            "tools": {"listChanged": True},
+                            "resources": {"subscribe": False, "listChanged": False},
+                        },
+                        "serverInfo": {"name": mcp_server.name, "version": app.version},
+                    },
+                },
+                headers={"Mcp-Session-Id": session_id},
+            )
+
+        elif method == "tools/list":
+            tools = await mcp_server.list_tools()
+            tools_list = [
+                {"name": tool.name, "description": tool.description, "inputSchema": tool.inputSchema}
+                for tool in tools
+            ]
+            return JSONResponse(
+                {"jsonrpc": "2.0", "id": request_id, "result": {"tools": tools_list}},
+                headers={"Mcp-Session-Id": session_id},
+            )
+
+        elif method == "tools/call":
+            tool_name = params.get("name")
+            tool_arguments = params.get("arguments", {})
+
+            user_storage_path = get_user_storage_path(user_id)
+            original_doc_root = os.environ.get("DOCUMENT_ROOT_DIR")
+            os.environ["DOCUMENT_ROOT_DIR"] = user_storage_path
+
+            try:
+                text_content_list, dict_result = await mcp_server.call_tool(tool_name, tool_arguments)
+                log_audit_event(user_id, "tools/call", tool_name, tool_arguments, True)
+                content_items = [{"type": "text", "text": item.text} for item in text_content_list]
+
+                return JSONResponse(
+                    {"jsonrpc": "2.0", "id": request_id, "result": {"content": content_items}},
+                    headers={"Mcp-Session-Id": session_id},
+                )
+            except Exception as e:
+                log_audit_event(user_id, "tools/call", tool_name, tool_arguments, False, str(e))
+                raise
+            finally:
+                if original_doc_root is not None:
+                    os.environ["DOCUMENT_ROOT_DIR"] = original_doc_root
+                else:
+                    os.environ.pop("DOCUMENT_ROOT_DIR", None)
+
+        elif method == "resources/list":
+            return JSONResponse(
+                {"jsonrpc": "2.0", "id": request_id, "result": {"resources": []}},
+                headers={"Mcp-Session-Id": session_id},
+            )
+
+        elif method == "notifications/initialized" or method == "ping":
+            return JSONResponse(
+                {"jsonrpc": "2.0", "id": request_id, "result": {}},
+                headers={"Mcp-Session-Id": session_id},
+            )
+
+        else:
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {"code": -32601, "message": f"Method not found: {method}"},
+                },
+                headers={"Mcp-Session-Id": session_id},
+            )
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            server_url = os.environ.get("SERVER_URL", "https://document-mcp-451560119112.asia-east1.run.app")
+            return JSONResponse(
+                {"jsonrpc": "2.0", "id": None, "error": {"code": -32001, "message": "Unauthorized"}},
+                status_code=401,
+                headers={"WWW-Authenticate": f'Bearer resource="{server_url}"'},
+            )
+        raise
+    except Exception as e:
+        logger.error(f"Error in /mcp POST: {e}", exc_info=True)
+        return JSONResponse(
+            {"jsonrpc": "2.0", "id": None, "error": {"code": -32603, "message": str(e)}},
+            status_code=500,
+        )
+
+
+@app.delete("/mcp")
+async def mcp_streamable_delete(
+    request: Request,
+    mcp_session_id: str | None = Header(None, alias="Mcp-Session-Id"),
+):
+    """MCP Streamable HTTP Transport - DELETE endpoint for session termination.
+
+    Per MCP spec 2025-06-18: DELETE /mcp to explicitly terminate a session.
+    """
+    if mcp_session_id and mcp_session_id in _mcp_sessions:
+        del _mcp_sessions[mcp_session_id]
+        return JSONResponse({"message": "Session terminated", "session_id": mcp_session_id})
+
+    return JSONResponse(
+        {"message": "Session not found or already terminated"},
+        status_code=404,
+    )
 
 
 # Catch-all handler to debug 404 issues
@@ -1142,12 +1388,15 @@ async def catch_all(request: Request, path: str):
     logger.warning(f"Catch-all hit: method={request.method}, path=/{path}, headers={dict(request.headers)}")
     body = await request.body()
     logger.warning(f"Catch-all body: {body[:500] if body else 'empty'}")
-    return JSONResponse({
-        "error": "Route not found",
-        "method": request.method,
-        "path": f"/{path}",
-        "hint": "This request did not match any defined routes"
-    }, status_code=404)
+    return JSONResponse(
+        {
+            "error": "Route not found",
+            "method": request.method,
+            "path": f"/{path}",
+            "hint": "This request did not match any defined routes",
+        },
+        status_code=404,
+    )
 
 
 # Development server runner
@@ -1161,5 +1410,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         reload=True,  # Auto-reload during development
-        log_level=os.environ.get("LOG_LEVEL", "info").lower()
+        log_level=os.environ.get("LOG_LEVEL", "info").lower(),
     )

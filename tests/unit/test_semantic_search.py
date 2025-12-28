@@ -51,11 +51,13 @@ class TestSemanticSearchCore:
 
         # Mock embeddings API response with new SDK structure
         mock_client = MagicMock()
-        mock_client.models.embed_content.return_value = create_mock_embed_response([
-            [1.0, 0.0, 0.0],  # Query embedding
-            [0.9, 0.1, 0.0],  # First paragraph (high similarity)
-            [0.0, 0.0, 1.0],  # Second paragraph (low similarity)
-        ])
+        mock_client.models.embed_content.return_value = create_mock_embed_response(
+            [
+                [1.0, 0.0, 0.0],  # Query embedding
+                [0.9, 0.1, 0.0],  # First paragraph (high similarity)
+                [0.0, 0.0, 1.0],  # Second paragraph (low similarity)
+            ]
+        )
         mock_client_class.return_value = mock_client
 
         # Execute search
@@ -90,10 +92,12 @@ class TestSemanticSearchCore:
 
         # Mock embeddings API response with high similarity
         mock_client = MagicMock()
-        mock_client.models.embed_content.return_value = create_mock_embed_response([
-            [1.0, 0.0, 0.0],  # Query embedding
-            [0.9, 0.1, 0.0],  # Paragraph embedding (high similarity)
-        ])
+        mock_client.models.embed_content.return_value = create_mock_embed_response(
+            [
+                [1.0, 0.0, 0.0],  # Query embedding
+                [0.9, 0.1, 0.0],  # Paragraph embedding (high similarity)
+            ]
+        )
         mock_client_class.return_value = mock_client
 
         # Execute search
@@ -162,12 +166,14 @@ class TestSemanticSearchCore:
 
         # Mock embeddings with varying similarities
         mock_client = MagicMock()
-        mock_client.models.embed_content.return_value = create_mock_embed_response([
-            [1.0, 0.0, 0.0],  # Query
-            [0.9, 0.1, 0.0],  # Para 1: high similarity (~0.95)
-            [0.5, 0.5, 0.0],  # Para 2: medium similarity (~0.71)
-            [0.0, 1.0, 0.0],  # Para 3: low similarity (0.0)
-        ])
+        mock_client.models.embed_content.return_value = create_mock_embed_response(
+            [
+                [1.0, 0.0, 0.0],  # Query
+                [0.9, 0.1, 0.0],  # Para 1: high similarity (~0.95)
+                [0.5, 0.5, 0.0],  # Para 2: medium similarity (~0.71)
+                [0.0, 1.0, 0.0],  # Para 3: low similarity (0.0)
+            ]
+        )
         mock_client_class.return_value = mock_client
 
         # Test with high threshold
@@ -205,13 +211,15 @@ class TestSemanticSearchCore:
 
         # Mock embeddings - all with high similarity
         mock_client = MagicMock()
-        mock_client.models.embed_content.return_value = create_mock_embed_response([
-            [1.0, 0.0, 0.0],  # Query
-            [0.95, 0.05, 0.0],  # Para 1
-            [0.9, 0.1, 0.0],  # Para 2
-            [0.85, 0.15, 0.0],  # Para 3
-            [0.8, 0.2, 0.0],  # Para 4
-        ])
+        mock_client.models.embed_content.return_value = create_mock_embed_response(
+            [
+                [1.0, 0.0, 0.0],  # Query
+                [0.95, 0.05, 0.0],  # Para 1
+                [0.9, 0.1, 0.0],  # Para 2
+                [0.85, 0.15, 0.0],  # Para 3
+                [0.8, 0.2, 0.0],  # Para 4
+            ]
+        )
         mock_client_class.return_value = mock_client
 
         # Test with max_results=2

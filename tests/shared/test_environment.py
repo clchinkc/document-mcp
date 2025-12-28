@@ -3,6 +3,8 @@
 This module provides centralized environment management to eliminate
 complex environment manipulation patterns repeated across test files.
 """
+from __future__ import annotations
+
 
 import importlib
 import os
@@ -96,7 +98,7 @@ class EnvironmentManager:
         if provider == "openai":
             env_vars = {
                 "OPENAI_API_KEY": "sk-test-key-for-integration-testing",
-                "OPENAI_MODEL_NAME": "gpt-4o",
+                "OPENAI_MODEL_NAME": "gpt-4.1-mini",
                 "GEMINI_API_KEY": None,  # Remove to force OpenAI usage
             }
         elif provider == "gemini":

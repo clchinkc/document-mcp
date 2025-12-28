@@ -12,9 +12,10 @@ def print_help():
     print("[START] Prompt Optimizer")
     print("=" * 20)
     print("\nUSAGE: python3 -m prompt_optimizer [AGENT]")
-    print("\nAGENTS: simple, react, planner, all")
+    print("\nAGENTS: simple, react, all")
     print("\nEXAMPLES:")
     print("  python3 -m prompt_optimizer simple")
+    print("  python3 -m prompt_optimizer react")
     print("  python3 -m prompt_optimizer all")
 
 
@@ -52,11 +53,12 @@ async def main():
 
     # Determine agents to optimize
     if agent_arg == "all":
-        agents = ["simple", "react", "planner"]
-    elif agent_arg in ["simple", "react", "planner"]:
+        agents = ["simple", "react"]
+    elif agent_arg in ["simple", "react"]:
         agents = [agent_arg]
     else:
         print(f"[ERROR] Unknown agent: {agent_arg}")
+        print("Available agents: simple, react, all")
         print_help()
         return
 

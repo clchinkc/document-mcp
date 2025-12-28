@@ -4,6 +4,8 @@ This module provides comprehensive unit tests for shared functionality
 used across different agent implementations including configuration,
 error handling, tool descriptions, and base classes.
 """
+from __future__ import annotations
+
 
 import os
 from unittest.mock import Mock

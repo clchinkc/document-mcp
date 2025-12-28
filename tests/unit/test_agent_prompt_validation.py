@@ -84,13 +84,17 @@ class TestPromptOptimizationValidation:
     """Test prompt optimization validation."""
 
     def test_prompt_length_optimization(self):
-        """Test prompt length is reasonable."""
+        """Test prompt length is reasonable.
+
+        Note: Both agents use FULL format (100% accuracy) after DSPy optimization.
+        Simple agent increased from ~18K to ~21K chars for the accuracy gain.
+        """
         for agent_type, prompt in [
             ("simple", get_simple_agent_system_prompt()),
             ("react", get_react_system_prompt()),
         ]:
             assert len(prompt) > 200, f"{agent_type} prompt too short"
-            assert len(prompt) < 20000, f"{agent_type} prompt too long"
+            assert len(prompt) < 25000, f"{agent_type} prompt too long"
 
             word_count = len(prompt.split())
             assert 50 < word_count < 5000, f"{agent_type} prompt word count: {word_count}"
@@ -160,7 +164,7 @@ class TestPromptValidationFramework:
         def validate_prompt(prompt: str) -> bool:
             """Basic prompt validation."""
             return (
-                200 < len(prompt) < 20000
+                200 < len(prompt) < 25000  # Increased for FULL format (100% accuracy)
                 and any(phrase in prompt.lower() for phrase in ["you are", "assistant"])
                 and any(phrase in prompt.lower() for phrase in ["tool", "function"])
                 and any(phrase in prompt.lower() for phrase in ["response", "format"])

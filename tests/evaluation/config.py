@@ -3,6 +3,8 @@
 This module provides centralized configuration for the evaluation test suite,
 including performance thresholds, test scenarios, and environment settings.
 """
+from __future__ import annotations
+
 
 from dataclasses import dataclass
 
@@ -47,7 +49,7 @@ class EvaluationConfig:
 
     # LLM Evaluation settings
     enable_llm_evaluation: bool = True
-    llm_evaluator_model: str = "gpt-4o-mini"
+    llm_evaluator_model: str = "google/gemini-3-flash-preview"
     llm_evaluation_timeout: int = 30
     enable_multi_judge_evaluation: bool = False
     multi_judge_models: list[str] = None
@@ -72,7 +74,7 @@ class EvaluationConfig:
 
     def __post_init__(self):
         if self.multi_judge_models is None:
-            self.multi_judge_models = ["gpt-4o-mini", "gpt-3.5-turbo"]
+            self.multi_judge_models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
 
         if self.llm_evaluation_weights is None:
             self.llm_evaluation_weights = {

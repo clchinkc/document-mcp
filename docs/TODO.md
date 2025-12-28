@@ -1,668 +1,228 @@
 # Document MCP Development Roadmap
 
-**Last Updated**: December 17, 2025
-**Status**: Production Ready (352 tests passing) - Enhancement Phase
+**Last Updated**: December 29, 2024
+**Status**: All phases complete (536 tests, 61% coverage) - Variant-specific metrics system implemented and tested
 
 This document outlines the development priorities for evolving Document MCP into a comprehensive story writing and document management platform.
 
 ---
 
-## Design Philosophy
+## Current System Status
 
-### Writer Mental Model Alignment
+### Tool Inventory (28 MCP Tools)
 
-Writers think in **two parallel tracks**:
-1. **Narrative Content** - Prose organized hierarchically (Acts/Parts → Chapters → Scenes → Paragraphs)
-2. **Story Bible** - Reference metadata (Characters, Locations, Timeline, Worldbuilding Rules)
+| Category | Tools | Count |
+|----------|-------|-------|
+| Document Management | `list_documents`, `create_document`, `delete_document`, `read_summary`, `write_summary`, `list_summaries` | 6 |
+| Chapter Management | `list_chapters`, `create_chapter`, `delete_chapter`, `write_chapter_content` | 4 |
+| Paragraph Operations | `add_paragraph`, `replace_paragraph`, `delete_paragraph`, `move_paragraph` | 4 |
+| Content Access | `read_content`, `find_text`, `replace_text`, `get_statistics`, `find_similar_text`, `find_entity` | 6 |
+| Metadata | `read_metadata`, `write_metadata`, `list_metadata` | 3 |
+| Version Control | `manage_snapshots`, `check_content_status`, `diff_content` | 3 |
+| Overview | `get_document_outline` | 1 |
+| Discovery | `search_tool` | 1 |
 
-Document MCP currently excels at Track 1. Track 2 (Story Bible / Codex) is an enhancement opportunity.
+### Writer Needs Coverage
 
-### Key Writer Needs Addressed
-
-| Writer Need | Current MCP Feature | Status |
-|-------------|---------------------|--------|
-| Hierarchical organization | Document → Chapter → Paragraph | ✅ Strong |
-| Version control | Automatic snapshots on every edit | ✅ Strong |
-| Content search | `find_text` with scope targeting | ✅ Strong |
-| Semantic discovery | `find_similar_text` with embeddings | ✅ Strong |
-| Progressive loading | Pagination (50K chars/page) | ✅ Strong |
-| Chapter summaries | `summaries/` directory | ✅ Strong |
-| Entity tracking | "When did I last mention X?" | ❌ Gap |
-| Story Bible storage | Characters, timeline, worldbuilding | ❌ Gap |
-| Outline view | All chapter synopses at once | ❌ Gap |
-
----
-
-## Phase 1: MCP Standards Compliance (Priority: Critical)
-
-### 1.1 Streamable HTTP Transport Migration
-**Effort**: 2-3 days | **Value**: Critical
-
-The current SSE transport was **deprecated on March 26, 2025**. Migration to Streamable HTTP (MCP spec 2025-06-18) is required for compatibility with Claude Desktop and other MCP clients.
-
-**Current State**:
-- Uses FastMCP with HTTP SSE transport
-- Two endpoints (`/sse`, `/messages`)
-
-**Target State**:
-- Single `/mcp` endpoint handling both POST and GET
-- Session management via `Mcp-Session-Id` header
-- Origin validation for security
-
-**Implementation Details**:
-```
-POST /mcp  → Client sends JSON-RPC requests
-GET /mcp   → Client listens for server-initiated messages (Accept: text/event-stream)
-```
-
-**Key Changes**:
-- [ ] Update transport configuration in `doc_tool_server.py`
-- [ ] Implement session ID handling
-- [ ] Add Origin header validation middleware
-- [ ] Update connection documentation
-- [ ] Test with Claude Desktop
-
-**References**:
-- [MCP Spec 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
-- [Why MCP deprecated SSE](https://blog.fka.dev/blog/2025-06-06-why-mcp-deprecated-sse-and-go-with-streamable-http)
-
-### 1.2 Tool Description Optimization
-**Effort**: 1 day | **Value**: High
-
-Audit and rewrite all 26 tool descriptions for LLM agent comprehension.
-
-**Current Issue**: Tool descriptions may be written for human developers rather than LLM agents.
-
-**Optimization Format** (per tool):
-```
-WHAT: Primary action + target object
-WHEN: Trigger conditions / user intents that warrant this tool
-RETURNS: Expected output + key information fields
-AUTO: Edge cases handled automatically
-```
-
-**Example Before**:
-```
-"find_text_in_document: Finds text within a document or specific scope"
-```
-
-**Example After**:
-```
-"find_text_in_document: Search for exact text matches within a document, chapter, or paragraph. Use when user asks 'where did I mention X?' or needs to locate specific content. Returns match locations with surrounding context (paragraph index, chapter name). Automatically handles case-insensitive matching and partial word boundaries."
-```
-
-**Tasks**:
-- [ ] Audit all 26 tool descriptions in `tool_descriptions.py`
-- [ ] Apply WHAT/WHEN/RETURNS/AUTO format
-- [ ] Test with both Simple and ReAct agents
-- [ ] Measure token usage before/after
-
-### 1.3 Defer Loading Implementation
-**Effort**: 1-2 days | **Value**: High
-
-Implement Claude's advanced tool use pattern to reduce context consumption by **85%**.
-
-**Concept**: Mark advanced tools with `defer_loading: true` so they're not loaded into context until needed. Provide a `search_available_tools` meta-tool for discovery.
-
-**Tool Categorization**:
-
-| Category | Tools | Loading |
-|----------|-------|---------|
-| **Core** (always loaded) | list_documents, read_chapter_content, create_document | Immediate |
-| **Discovery** | search_available_tools | Immediate |
-| **Content** (defer) | find_text, find_similar_text, replace_text, get_statistics | Deferred |
-| **Paragraph** (defer) | All 7 paragraph tools | Deferred |
-| **Safety** (defer) | manage_snapshots, diff_content, get_modification_history | Deferred |
-| **Advanced** (defer) | All remaining tools | Deferred |
-
-**New Tool**: `search_available_tools`
-```python
-@mcp.tool()
-def search_available_tools(
-    query: str,
-    category: str = None
-) -> list[dict]:
-    """
-    Search available tools by capability.
-    Returns tool names, descriptions, and categories matching the query.
-    Use this to discover tools before calling them.
-    """
-```
-
-**Tasks**:
-- [ ] Add `defer_loading` field to tool metadata
-- [ ] Implement `search_available_tools` tool
-- [ ] Categorize all 26 tools by loading priority
-- [ ] Update tool registration in `doc_tool_server.py`
-- [ ] Test that deferred tools are loaded on-demand
-
-**Reference**: [Anthropic Advanced Tool Use](https://www.anthropic.com/engineering/advanced-tool-use)
+| Writer Need | MCP Feature | Status |
+|-------------|-------------|--------|
+| Hierarchical organization | Document → Chapter → Paragraph | ✅ Complete |
+| Version control | Automatic snapshots on every edit | ✅ Complete |
+| Content search | `find_text` with scope targeting | ✅ Complete |
+| Semantic discovery | `find_similar_text` with embeddings | ✅ Complete |
+| Progressive loading | Pagination (50K chars/page) | ✅ Complete |
+| Chapter summaries | `summaries/` directory | ✅ Complete |
+| Entity tracking | `find_entity` with alias support | ✅ Complete |
+| Story Bible storage | `metadata/` directory | ✅ Complete |
+| Outline view | `get_document_outline` | ✅ Complete |
+| Chapter metadata | YAML frontmatter | ✅ Complete |
 
 ---
 
-## Phase 2: Writer-Focused Enhancements (Priority: High)
+## Completed Phases
 
-### 2.1 Entity Tracking Tool
-**Effort**: 2 days | **Value**: High
+### Phase 1: MCP Standards Compliance ✅ (Dec 25, 2024)
 
-Writers constantly ask "When did I last mention this character?" Create a dedicated tool for tracking entity occurrences.
+- Streamable HTTP Transport (`/mcp` endpoint with SSE, JSON-RPC, session management)
+- Tool Description Optimization (WHAT/WHEN/RETURNS format)
+- Defer Loading (core vs deferred tools, ~83% token savings)
 
-**New Tool**: `track_entity`
+### Phase 2: Writer-Focused Enhancements ✅ (Dec 25, 2024)
 
-**Input**:
-```json
-{
-  "document_name": "string",
-  "entity_name": "string",
-  "entity_type": "character|location|object|concept|any"
-}
-```
+**Metadata System:**
+- YAML frontmatter in chapters (status, pov_character, tags, notes)
+- Entity metadata (`metadata/entities.yaml` with aliases)
+- Timeline metadata (`metadata/timeline.yaml`)
+- Gemini-compatible tool parameters (individual fields vs dict)
 
-**Output**:
-```json
-{
-  "entity": "Marcus",
-  "total_mentions": 47,
-  "first_mention": {
-    "chapter": "01-intro",
-    "paragraph": 3,
-    "context": "...Marcus entered the room..."
-  },
-  "last_mention": {
-    "chapter": "12-climax",
-    "paragraph": 8,
-    "context": "...Marcus knew this was the end..."
-  },
-  "by_chapter": [
-    {"chapter": "01-intro", "count": 5, "first_paragraph": 3},
-    {"chapter": "02-rising", "count": 12, "first_paragraph": 1}
-  ],
-  "total_chapters_mentioned": 8
-}
-```
+**Smart Search & Overview:**
+- `find_entity`: Alias-aware entity search across chapters
+- `get_document_outline`: Document structure with metadata
 
-**Implementation**:
-- [ ] Create `track_entity` tool in `content_tools.py`
-- [ ] Add case-insensitive name matching
-- [ ] Include context snippets (±50 chars)
-- [ ] Support fuzzy matching for name variants (e.g., "Marcus" / "Marc")
-- [ ] Add unit tests
-- [ ] Update tool descriptions
+**Testing:**
+- 564 tests (362 unit + 170 integration + 6 e2e + 15 evaluation + 11 benchmark)
+- Phase 2 integration tests: `tests/integration/test_metadata_operations.py`
 
-### 2.2 Story Bible / Codex Storage
-**Effort**: 2 days | **Value**: Medium-High
-
-Extend the storage model to support structured metadata separate from narrative content.
-
-**Current Storage**:
-```
-document_name/
-├── 01-chapter.md
-├── summaries/
-├── .snapshots/
-└── .embeddings/
-```
-
-**Proposed Storage**:
-```
-document_name/
-├── 01-chapter.md
-├── summaries/
-├── codex/                    # NEW: Story Bible
-│   ├── characters.yaml       # Character profiles
-│   ├── locations.yaml        # Setting details
-│   ├── timeline.yaml         # Event chronology
-│   ├── worldbuilding.yaml    # Rules, magic systems, etc.
-│   └── glossary.yaml         # Terms, names, spelling
-├── .snapshots/
-└── .embeddings/
-```
-
-**New Tools**:
-- `read_codex_item(document_name, category, item_name)` → Read a codex entry
-- `write_codex_item(document_name, category, item_name, content)` → Create/update entry
-- `list_codex_items(document_name, category?)` → List all items, optionally filtered
-- `search_codex(document_name, query)` → Semantic search across codex
-
-**YAML Schema Example** (characters.yaml):
-```yaml
-characters:
-  - name: "Marcus Chen"
-    aliases: ["Marc", "The Detective"]
-    role: "protagonist"
-    physical:
-      age: 35
-      appearance: "Tall, dark hair, scar on left cheek"
-    personality:
-      traits: ["determined", "cynical", "secretly kind"]
-      motivations: ["Find his sister's killer", "Redemption"]
-    relationships:
-      - target: "Sarah Chen"
-        type: "sister (deceased)"
-      - target: "Detective Wong"
-        type: "partner"
-    first_appearance: "01-intro"
-    arc_notes: "Starts cynical, learns to trust again"
-```
-
-**Tasks**:
-- [ ] Define YAML schemas for each codex category
-- [ ] Implement `codex/` directory management
-- [ ] Create 4 new codex tools
-- [ ] Add validation for codex entries
-- [ ] Integrate with semantic search (reuse embedding system)
-- [ ] Add unit and integration tests
-
-### 2.3 Outline View Tool
-**Effort**: 1 day | **Value**: Medium
-
-Provide a high-level structural overview of the document, similar to Scrivener's corkboard view.
-
-**New Tool**: `get_document_outline`
-
-**Output**:
-```json
-{
-  "document_name": "My Novel",
-  "total_chapters": 12,
-  "total_words": 45000,
-  "chapters": [
-    {
-      "name": "01-opening",
-      "synopsis": "Hero discovers the ancient map in grandmother's attic",
-      "word_count": 2500,
-      "paragraph_count": 15,
-      "status": "revised",
-      "pov_character": "Marcus",
-      "timeline_position": "Day 1"
-    },
-    {
-      "name": "02-journey-begins",
-      "synopsis": "Travel to the mountain begins, first obstacle encountered",
-      "word_count": 3200,
-      "paragraph_count": 18,
-      "status": "draft",
-      "pov_character": "Marcus",
-      "timeline_position": "Day 3"
-    }
-  ]
-}
-```
-
-**Tasks**:
-- [ ] Create `get_document_outline` tool
-- [ ] Aggregate chapter summaries if available
-- [ ] Include word counts and paragraph counts
-- [ ] Add optional metadata fields (status, pov, timeline)
-- [ ] Format output for easy LLM consumption
-
-### 2.4 Chapter Metadata Extension
-**Effort**: 1 day | **Value**: Medium
-
-Extend chapter files to support optional metadata header.
-
-**Format** (Markdown frontmatter):
-```markdown
----
-status: draft|revised|complete
-pov_character: Marcus
-tags: [flashback, action, dialogue-heavy]
-timeline_position: Day 3, Morning
-word_target: 3000
----
-
-# Chapter Title
-
-Chapter content here...
-```
-
-**New Tools/Extensions**:
-- `read_chapter_metadata(document_name, chapter_name)` → Get metadata only
-- `write_chapter_metadata(document_name, chapter_name, metadata)` → Update metadata
-- `list_chapters_by_status(document_name, status)` → Filter by status
-- `list_chapters_by_tag(document_name, tag)` → Filter by tag
-
-**Tasks**:
-- [ ] Implement YAML frontmatter parsing in chapter tools
-- [ ] Create metadata-specific tools
-- [ ] Update existing read_chapter_content to optionally include metadata
-- [ ] Add filtering capabilities
-- [ ] Preserve metadata during chapter edits
+**Infrastructure (Dec 26, 2024):**
+- ✅ Storage abstraction: Local filesystem + GCS backends with auto-detection
+- ✅ Metrics: Local OpenTelemetry with Prometheus endpoint (Grafana Cloud removed)
+- ✅ Benchmarks package: Unified `benchmarks/` with flexible config for A/B testing
 
 ---
 
-## Phase 3: Advanced Features (Priority: Medium)
+## Phase 3: Tool Optimization Research ✅ (Complete)
 
-### 3.1 FastMCP 2.0 Upgrade
-**Effort**: 1 day | **Value**: Medium
+### 3.1 Agent Performance Benchmarking ✅ (Dec 26, 2024)
 
-Upgrade to FastMCP 2.0+ (current: 2.14.1) for production features.
+Comprehensive benchmarking infrastructure created to measure agent tool selection.
 
-**Benefits**:
-- Server composition (proxy multiple MCP servers)
-- Auto-generated REST API from MCP tools
-- Enterprise auth integration (OAuth, OIDC)
-- Built-in testing utilities
+**Benchmark Results (GPT-5 Mini, Claude 4.5 Haiku, Gemini 3 Flash)**:
+| Category | Accuracy | Notes |
+|----------|----------|-------|
+| Document Management | 100% | ✅ Working well |
+| Chapter Management | 100% | ✅ Working well |
+| Content Access | 100% | ✅ Working well |
+| Discovery | 100% | Fixed via search_tool description improvement |
+| Paragraph Operations | 100% | Fixed via ONLY/BEFORE/AFTER disambiguation |
 
-**Tasks**:
-- [ ] Evaluate FastMCP 2.0 migration path
-- [ ] Test compatibility with existing tools
-- [ ] Update dependencies in `pyproject.toml`
-- [ ] Document new capabilities
+**Key Finding**: Slowness is from LLM API calls (~12s each), not MCP operations (<1s).
 
-### 3.2 Consistency Checking Tools
-**Effort**: 3 days | **Value**: Medium
+> See [docs/BENCHMARKING.md](./BENCHMARKING.md) for implementation details and usage.
 
-Leverage semantic search for automated consistency checking.
+### 3.2 Optimization Pipeline ✅ (Infrastructure Complete)
 
-**New Tools**:
-- `check_character_consistency(document_name, character_name)` → Find description contradictions
-- `check_timeline_consistency(document_name)` → Detect temporal paradoxes
-- `check_name_spelling(document_name)` → Find spelling variations of proper nouns
+Multi-dimensional experimentation infrastructure across tool sets, models, and descriptions.
 
-**Example Output** (character consistency):
-```json
-{
-  "character": "Marcus",
-  "inconsistencies": [
-    {
-      "type": "physical_description",
-      "chapter_a": "01-intro",
-      "text_a": "His blue eyes narrowed",
-      "chapter_b": "08-revelation",
-      "text_b": "Marcus's brown eyes widened",
-      "severity": "high"
-    }
-  ],
-  "consistent_attributes": ["height", "age", "voice"]
-}
+**Validated Approaches**:
+- ✅ Scope-based tool consolidation (document/chapter/paragraph targeting)
+- ✅ META-TOOL prefixes for discovery tools (`search_tool`)
+- ✅ Clear WHAT/WHEN/RETURNS description format
+- ✅ 4-tool paragraph design (add, replace, delete, move)
+
+**Current Achievement**: 100% accuracy on all 53 scenarios across 6 complexity levels.
+
+> See [docs/BENCHMARKING.md](./BENCHMARKING.md) for benchmark configuration and running instructions.
+
+### 3.3 DSPy Prompt Optimization with Variant-Specific Metrics ✅ (Dec 29, 2024)
+
+Production-aligned prompt optimization using DSPy COPRO with three specialized variants:
+
+| Variant | Format | Metric | Focus | Baseline | Status |
+|---------|--------|--------|-------|----------|--------|
+| **COST_OPTIMIZED** | Minimal | 50/25/25 | Minimize tokens | 90.3% | ✅ +0.010 |
+| **ACCURACY_BALANCED** | Compact | Ratio | Per-token ratio | 93.0% | Ready for optimization |
+| **MAXIMUM_ACCURACY** | Full | Pure | Maximize accuracy | 95.1% | Ready for optimization |
+
+**Implementation Status (December 29, 2024)**:
+- ✅ Three variants with independent optimization metrics fully implemented
+- ✅ Python 3.9+ compatibility fixed (`from __future__ import annotations` in 40+ files)
+- ✅ Eliminates "metric competition" problem from unified composite score approach
+- ✅ Each variant can now improve within its own metric space
+- ✅ Production-ready with write-back mechanism (`prompt_backups/` storage)
+- ✅ 185 benchmark scenarios covering all 28 MCP tools (including L5/L6 edge cases and adversarial)
+- ✅ Variant enum renamed: MINIMAL → COST_OPTIMIZED, COMPACT → ACCURACY_BALANCED, FULL → MAXIMUM_ACCURACY
+
+**Key Features**:
+- Variant-specific metric calculation in `benchmarks/metrics.py`
+- DSPy COPRO optimizer with light/medium/heavy modes
+- Write-back saves optimized instructions with version history
+- Agent-specific benchmarking (Simple + ReAct) with variant formats
+- Keeps baseline when optimization doesn't improve
+
+**Recommendation**: Choose variant based on use case:
+- **COST_OPTIMIZED**: High-volume APIs, batch processing (98.2% accuracy)
+- **ACCURACY_BALANCED**: Production systems balancing accuracy and cost
+- **MAXIMUM_ACCURACY**: Error-critical applications, when accuracy > tokens
+
+See [Variant Architecture](./VARIANT_ARCHITECTURE.md) for comprehensive system design.
+
+### 3.4 Agent Prompt Enhancements ✅ (Dec 27, 2024)
+
+Enhanced agent prompt system with dynamic content injection:
+
+- **SKILL.md Integration**: Agents load Critical Workflows from `.claude/skills/document-mcp/SKILL.md`
+- **0-Shot Optimization**: DSPy optimizes instructions only (no few-shot demos)
+- **Default Model**: Gemini 3 Flash (`google/gemini-3-flash-preview`) via OpenRouter
+- **Environment Controls**: `ENABLE_SKILL_INTEGRATION` (default: true)
+
+> See [docs/ARCHITECTURAL_ANALYSIS.md](./ARCHITECTURAL_ANALYSIS.md) for comprehensive system analysis.
+
+---
+
+## Future Architecture Ideas
+
+Research findings and patterns explored but not currently prioritized:
+
+- **Dynamic Tool Execution**: Code mode for 98.7% token reduction (not recommended due to security complexity)
+- **Meta-Tool Pattern**: 2-tool discovery approach (implement only if benchmarks show bottleneck)
+- **Batch Operations**: Multi-target parameter support for common workflows
+- **Workspace State**: Session persistence for multi-turn context continuity
+
+> See [docs/ARCHITECTURE_IDEAS.md](./ARCHITECTURE_IDEAS.md) for detailed analysis and trade-offs.
+
+---
+
+## Design Principle: Data vs Reasoning
+
+**MCP tools provide data access. LLMs provide reasoning.**
+
+Consistency checking (character contradictions, timeline paradoxes, spelling variations) should NOT be MCP tools because they require LLM intelligence. Instead, agents use existing tools:
+
+```
+find_entity()        → Get all mentions with context
+read_metadata()      → Get entity info, aliases, timeline
+get_document_outline() → Get structure overview
 ```
 
-**Tasks**:
-- [ ] Design consistency checking algorithms
-- [ ] Implement character consistency tool
-- [ ] Implement timeline consistency tool
-- [ ] Implement name spelling tool
-- [ ] Add severity scoring
-- [ ] Integration with codex data
-
-### 3.3 Tool Consolidation Experiment
-**Effort**: 2 days | **Value**: Low-Medium
-
-Test whether consolidating 26 tools to 10-15 improves agent performance.
-
-**Consolidation Candidates**:
-- Multiple paragraph tools → `modify_paragraph(action: replace|insert|delete|move, ...)`
-- Multiple chapter tools → `manage_chapter(action: create|read|write|delete, ...)`
-- Multiple content tools → `query_content(type: read|search|stats|similar, ...)`
-
-**Approach**:
-- [ ] Create consolidated tool variants
-- [ ] A/B test with both agent types
-- [ ] Measure success rate, token usage, latency
-- [ ] Document findings
-- [ ] Only adopt if measurably better
+The LLM then reasons about contradictions from this structured data.
 
 ---
 
 ## Hosting Strategy
 
-### Deployment Options
+### Option A: Developer-Hosted (For Firstory Integration)
+- Centralized server with user isolation
+- Zero setup for users
+- `/mcp` endpoint serves both UI and LLM
 
-#### Option A: Developer-Hosted (Recommended for Firstory Integration)
-
-A central server hosted by the developer that all users connect to.
-
-**Architecture**:
-```
-User's Claude Desktop/Web
-         │
-         │ HTTPS (Streamable HTTP)
-         ▼
-┌─────────────────────────┐
-│  Hosted MCP Server      │
-│  (FastAPI + Uvicorn)    │
-│                         │
-│  /mcp endpoint          │
-│  ├─ Authentication      │
-│  ├─ User isolation      │
-│  └─ Rate limiting       │
-│                         │
-│  Storage: Per-user dirs │
-│  or Cloud storage       │
-└─────────────────────────┘
-```
-
-**Pros**:
-- Users need zero setup beyond Claude configuration
-- Centralized updates and maintenance
-- Consistent experience across all users
-- Easier integration with Firstory (same server serves both UI and MCP)
-- Usage analytics and monitoring
-
-**Cons**:
-- Hosting costs scale with users
-- Data stored on developer's infrastructure (privacy considerations)
-- Single point of failure
-
-**Best For**: Firstory integration where both the web UI and LLM use the same MCP server.
-
-#### Option B: Local Installation (Current Model)
-
-Users install the package and run the server locally.
-
-**Architecture**:
-```
-User's Machine
-├── Claude Desktop
-│   └── MCP Connection (stdio or localhost)
-│
-├── document-mcp server
-│   └── Local storage (~/.documents_storage)
-│
-└── User's files stay local
-```
-
-**Pros**:
-- User data stays on their machine
-- No hosting costs for developer
+### Option B: Local Installation (Current Model)
+- `pip install document-mcp`
+- Data stays on user's machine
 - Works offline
-- Privacy-first
-
-**Cons**:
-- Users must install Python, pip, and configure
-- Harder to provide support
-- Version fragmentation
-
-**Best For**: Privacy-conscious users, offline use, developer/power users.
-
-#### Recommendation
-
-For **Firstory integration**: Use Option A (hosted)
-- Single MCP server serves both Firstory UI and LLM
-- Both user interactions and AI operations go through same MCP
-- Unified data store, no sync issues
-
-For **standalone document-mcp**: Continue supporting Option B (local)
-- Keep `pip install document-mcp` working
-- Document both deployment options
 
 ---
 
-## Integration with Firstory
-
-### Key Architectural Principle
-
-**Both the user AND the LLM use the SAME MCP to manipulate data.**
-
-This unified approach means:
-- MCP server is the **single source of truth** for story content
-- Firstory UI makes MCP calls for all document operations (via REST API wrapper or direct MCP)
-- Claude/LLM makes MCP calls through the same interface
-- No separate data stores, no sync complexity, no dual-write patterns
-
-### Unified Data Flow Architecture
-```
-┌──────────────────────┐         ┌──────────────────────┐
-│   Firstory Web UI    │         │   Claude Desktop     │
-│   (User Actions)     │         │   (AI Actions)       │
-└──────────┬───────────┘         └──────────┬───────────┘
-           │                                 │
-           │ HTTP/HTTPS                      │ Streamable HTTP
-           │ (REST or MCP)                   │ (MCP Protocol)
-           │                                 │
-           ▼                                 ▼
-┌─────────────────────────────────────────────────────────┐
-│         Hosted MCP Server (try-document-mcp)            │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │  /mcp endpoint (Streamable HTTP - 2025-06-18)   │   │
-│  │  - Both UI and LLM use this                     │   │
-│  │  - Single source of truth                       │   │
-│  └─────────────────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │  /api/* endpoints (Optional REST layer)         │   │
-│  │  - More efficient for web UI bulk operations    │   │
-│  │  - Calls same MCP tools internally              │   │
-│  └─────────────────────────────────────────────────┘   │
-└───────────────────────┬─────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────┐
-│              Document MCP Core (this package)           │
-│  - 26 Tools for document/chapter/paragraph operations   │
-│  - Automatic snapshots (write-safety)                   │
-│  - Semantic search with embedding cache                 │
-│  - Pagination system (50K chars/page)                   │
-└───────────────────────┬─────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────┐
-│                    Storage Layer                        │
-│  Per-user isolated storage:                             │
-│  documents_storage/{user_id}/{story_id}/                │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Integration Points
-
-| Firstory Feature | MCP Tool(s) | Implementation Status | Notes |
-|------------------|-------------|-----------------------|-------|
-| Story creation | `create_document` | ✅ Ready | Initialize document structure |
-| Act management | `create_chapter`, `list_chapters` | ✅ Ready | Acts as chapters |
-| Sequence organization | Chapter sections | ✅ Ready | Sections within chapters |
-| Scene/Beat editing | `read_paragraph_content`, `replace_paragraph` | ✅ Ready | Atomic paragraph operations |
-| Codex storage | `*_codex_item` tools | 📋 Planned (Phase 2) | Story Bible in codex/ directory |
-| Version history | `manage_snapshots`, `diff_content` | ✅ Ready | Automatic snapshot system |
-| Consistency checking | `check_*_consistency` tools | 📋 Planned (Phase 3) | AI-powered validation |
-| Semantic search | `find_similar_text` | ✅ Ready | Embedding-based search |
-| Outline view | `get_document_outline` | 📋 Planned (Phase 2) | Chapter summaries |
-| Entity tracking | `track_entity` | 📋 Planned (Phase 2) | Character mention tracking |
-
-### Mapping Firstory Structure to MCP
+## Storage Structure
 
 ```
-Firstory Structure          MCP Structure                    Implementation
-─────────────────          ──────────────                   ──────────────
-Story                  →    Document                        create_document()
-  ├── Metadata         →    Document metadata               In frontmatter
-  ├── Acts             →    Chapters (01-act-1.md, etc.)   create_chapter()
-  │   ├── Metadata     →    Chapter frontmatter             YAML header
-  │   └── Sequences    →    Sections within chapters       Markdown headings
-  │       └── Scenes   →    Paragraphs                     Paragraph tools
-  │           └── Beats →   Sub-paragraphs or content      In paragraph text
-  └── Codex            →    codex/ directory               Phase 2 feature
-      ├── Characters   →    codex/characters.yaml          *_codex_item tools
-      ├── Locations    →    codex/locations.yaml           (when implemented)
-      ├── Themes       →    codex/themes.yaml
-      └── Concepts     →    codex/concepts.yaml
+document_name/
+├── 01-chapter.md              # With optional YAML frontmatter
+├── 02-chapter.md
+├── metadata/                  # Document-level metadata
+│   ├── entities.yaml          # Characters, locations, items with aliases
+│   └── timeline.yaml          # Story chronology
+├── summaries/                 # Summary files
+│   ├── document.md
+│   └── 01-chapter.md
+├── .snapshots/                # Version control
+└── .embeddings/               # Semantic search cache
 ```
-
-### Why This Architecture Works for Firstory
-
-**Single Source of Truth**:
-- No data sync issues between UI and AI operations
-- Snapshots protect against both user and AI errors
-- Version history tracks all changes regardless of source
-
-**Scalability**:
-- MCP server can be scaled independently
-- Storage can move from filesystem → cloud → database as needed
-- REST API layer optional but beneficial for UI performance
-
-**Developer Experience**:
-- Firstory devs work with familiar REST patterns (if REST layer used)
-- Or directly use MCP protocol (same as AI)
-- TypeScript MCP client available for type safety
-
-**User Experience**:
-- Seamless integration between manual edits and AI operations
-- Real-time collaboration possible (Phase 3)
-- Offline support via IndexedDB + sync queue (already in Firstory)
-
-### Firstory Documentation Reference
-
-The Firstory codebase already documents this integration:
-- `docs/ai-and-integrations.md` - "Document MCP Integration" section
-- `docs/todo/development-tasks-roadmap-reference.md` - Lists "MCP Document Operations [3 days]"
-
-This Document MCP TODO serves as the implementation roadmap for those planned features.
 
 ---
 
-## Testing Strategy
+## Future Work (Production Deployment)
 
-### Current State (352 tests, 100% passing)
+### Rename to Story MCP
+After production deployment is stable:
+- Rename GitHub repository from `document-mcp` to `story-mcp`
+- Update PyPI package name and publish
+- Update Cloud Run service and OAuth config
 
-| Tier | Count | Purpose |
-|------|-------|---------|
-| Unit | 181 | Isolated component testing |
-| Integration | 155 | Agent-MCP communication |
-| E2E | 6 | Full system with real APIs |
-| Evaluation | 4 | Performance benchmarking |
-| Metrics | 6 | OpenTelemetry validation |
-
-### Testing Requirements for New Features
-
-**Each new tool must have**:
-- Unit tests for core logic
-- Integration tests for MCP communication
-- Documentation with examples
-
-**Phase 1 (Standards Compliance)**:
-- Test Streamable HTTP transport with MCP Inspector
-- Verify Claude Desktop connectivity
-- Test defer loading with mock LLM calls
-
-**Phase 2 (Writer Features)**:
-- Entity tracking accuracy tests
-- Codex YAML validation tests
-- Outline generation tests
-
----
-
-## Development Priorities Summary
-
-### Essential (Do First)
-1. ✅ Streamable HTTP Transport (2-3 days) - Required for Claude compatibility
-2. ✅ Tool Description Audit (1 day) - Improve agent success rate
-3. ✅ Defer Loading (1-2 days) - 85% token reduction
-4. ✅ Entity Tracking Tool (2 days) - High-value writer feature
-
-### Important (Do Second)
-5. Story Bible / Codex Storage (2 days) - Track 2 of writer mental model
-6. Outline View Tool (1 day) - Structural overview
-7. Chapter Metadata Extension (1 day) - Status/tag tracking
-8. FastMCP 2.0 Upgrade (1 day) - Production features
-
-### Nice to Have (Do If Time)
-9. Consistency Checking Tools (3 days) - Advanced validation
-10. Tool Consolidation Experiment (2 days) - Only if issues arise
-
-### Total Estimated Effort
-- **Essential**: 6-8 days
-- **Important**: 5 days
-- **Nice to Have**: 5 days
-- **Grand Total**: 16-18 days
+### Production Deployment
+When ready to go live:
+- Submit for Google OAuth verification review (4-6 weeks)
+- Register/configure custom domain for Cloud Run
+- Update DNS records and verify connectivity
 
 ---
 
@@ -670,7 +230,7 @@ This Document MCP TODO serves as the implementation roadmap for those planned fe
 
 - [MCP Specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)
 - [Anthropic Advanced Tool Use](https://www.anthropic.com/engineering/advanced-tool-use)
-- [FastMCP Documentation](https://www.prefect.io/fastmcp)
+- [Architectural Analysis](./ARCHITECTURAL_ANALYSIS.md)
 - [MCP Design Patterns](./MCP_DESIGN_PATTERNS.md)
-- [Writer Mental Models Research](https://blog.reedsy.com/guide/story-structure/)
-- [Scrivener Binder Patterns](https://www.literatureandlatte.com/blog/integrating-scriveners-binder-corkboard-and-outliner)
+- [Benchmarking Infrastructure](./BENCHMARKING.md)
+- [Architecture Ideas](./ARCHITECTURE_IDEAS.md)

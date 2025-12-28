@@ -60,7 +60,7 @@ python src/agents/simple_agent/main.py --check-config
 Expected output:
 ```
 ✅ Configuration valid
-Using OpenAI model: gpt-4o-mini
+Using Gemini model: gemini-2.5-flash
 MCP server connection: Ready
 ```
 
@@ -298,7 +298,7 @@ This section provides a complete, unedited session showing the creation of a sho
 # 1. Initial Setup Verification
 $ python src/agents/simple_agent/main.py --check-config
 ✅ Configuration valid
-Using OpenAI model: gpt-4o-mini
+Using Gemini model: gemini-2.5-flash
 MCP server connection: Ready
 
 # 2. Create Document Structure
@@ -463,7 +463,7 @@ python -c "
 import openai
 client = openai.OpenAI()
 response = client.chat.completions.create(
-    model='gpt-4o-mini',
+    model='gemini-2.5-flash',
     messages=[{'role': 'user', 'content': 'Hello'}],
     max_tokens=10
 )
@@ -522,7 +522,7 @@ import openai
 try:
     client = openai.OpenAI()
     response = client.chat.completions.create(
-        model='gpt-4o-mini',
+        model='gemini-2.5-flash',
         messages=[{'role': 'user', 'content': 'test'}],
         max_tokens=5
     )
@@ -615,7 +615,7 @@ client = openai.OpenAI()
 try:
     # This will show rate limit info in headers
     response = client.chat.completions.create(
-        model='gpt-4o-mini',
+        model='gemini-2.5-flash',
         messages=[{'role': 'user', 'content': 'test'}],
         max_tokens=1
     )
@@ -750,7 +750,7 @@ import time
 start = time.time()
 client = openai.OpenAI()
 response = client.chat.completions.create(
-    model='gpt-4o-mini',
+    model='gemini-2.5-flash',
     messages=[{'role': 'user', 'content': 'Hello'}],
     max_tokens=10
 )

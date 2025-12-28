@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from document_mcp.mcp_client import append_paragraph_to_chapter
+from document_mcp.mcp_client import add_paragraph
 from document_mcp.mcp_client import create_chapter
 from document_mcp.mcp_client import create_document
 from document_mcp.mcp_client import delete_chapter
@@ -15,8 +15,6 @@ from document_mcp.mcp_client import delete_document
 from document_mcp.mcp_client import delete_paragraph
 from document_mcp.mcp_client import find_text
 from document_mcp.mcp_client import get_statistics
-from document_mcp.mcp_client import insert_paragraph_after
-from document_mcp.mcp_client import insert_paragraph_before
 from document_mcp.mcp_client import list_chapters
 from document_mcp.mcp_client import list_documents
 from document_mcp.mcp_client import list_summaries
@@ -334,7 +332,7 @@ def test_create_and_list_chapter(document_factory):
     # Post-condition: Chapter is listed correctly
     chapters_list = list_chapters(doc_name)
     assert len(chapters_list) == 1
-    assert chapters_list[0].chapter_name == chapter_name
+    assert chapters_list[0]["chapter_name"] == chapter_name
 
 
 def test_delete_chapter(document_factory):
@@ -412,20 +410,20 @@ def test_replace_paragraph(para_doc, temp_docs_root: Path):
     assert content == "Paragraph 1.\n\nNew Paragraph 2.\n\nParagraph 3."
 
 
-def test_insert_paragraph_before(para_doc, temp_docs_root: Path):
-    """Test inserting a paragraph before another."""
+def test_add_paragraph_before(para_doc, temp_docs_root: Path):
+    """Test inserting a paragraph before another using add_paragraph."""
     doc_name, chapter_name = para_doc
-    result = insert_paragraph_before(doc_name, chapter_name, 1, "Inserted Paragraph.")
+    result = add_paragraph(doc_name, chapter_name, "Inserted Paragraph.", "before", 1)
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
     assert content == "Paragraph 1.\n\nInserted Paragraph.\n\nParagraph 2.\n\nParagraph 3."
 
 
-def test_insert_paragraph_after(para_doc, temp_docs_root: Path):
-    """Test inserting a paragraph after another."""
+def test_add_paragraph_after(para_doc, temp_docs_root: Path):
+    """Test inserting a paragraph after another using add_paragraph."""
     doc_name, chapter_name = para_doc
-    result = insert_paragraph_after(doc_name, chapter_name, 1, "Inserted Paragraph.")
+    result = add_paragraph(doc_name, chapter_name, "Inserted Paragraph.", "after", 1)
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()
@@ -442,10 +440,10 @@ def test_delete_paragraph(para_doc, temp_docs_root: Path):
     assert content == "Paragraph 1.\n\nParagraph 3."
 
 
-def test_append_paragraph_to_chapter(para_doc, temp_docs_root: Path):
-    """Test appending a paragraph to a chapter."""
+def test_add_paragraph_end(para_doc, temp_docs_root: Path):
+    """Test appending a paragraph to the end of a chapter using add_paragraph."""
     doc_name, chapter_name = para_doc
-    result = append_paragraph_to_chapter(doc_name, chapter_name, "Appended Paragraph.")
+    result = add_paragraph(doc_name, chapter_name, "Appended Paragraph.", "end")
     assert result.success is True
 
     content = (temp_docs_root / doc_name / chapter_name).read_text()

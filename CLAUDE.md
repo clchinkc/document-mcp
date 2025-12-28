@@ -26,11 +26,11 @@ Avoid canned starting phrases like "You're absolutely right" or "Good observatio
 
 ## System Overview
 
-The Document MCP system is a sophisticated document management platform built around the Model Context Protocol (MCP). It provides AI agents with comprehensive tools for managing structured Markdown documents through a clean separation of concerns.
+The Document MCP system is a document management platform built around the Model Context Protocol (MCP). It provides AI agents with tools for managing structured Markdown documents.
 
-### MCP Design Patterns and Best Practices
+### MCP Design Patterns
 
-This system implements industry-standard MCP patterns for context management and partial content hydration. For comprehensive guidance on MCP design patterns, see:
+For MCP design patterns, see:
 
 **[MCP Design Patterns Guide](docs/MCP_DESIGN_PATTERNS.md)** - Essential patterns for:
 - Reference-by-handle architecture for context offloading
@@ -40,28 +40,18 @@ This system implements industry-standard MCP patterns for context management and
 - Production deployment checklist
 - Real-world implementation examples
 
-**Key Patterns Implemented in Document MCP**:
-- **Pagination System**: Industry-standard progressive disclosure (50K chars ≈ 12K tokens per page)
+**Key Patterns Implemented**:
+- **Pagination System**: Page-based disclosure (50K chars ≈ 12K tokens per page)
 - **Scope-Based Tools**: Unified document/chapter/paragraph access with fine-grained control
 - **Resource URIs**: Read-only content access via structured URIs (e.g., `document://<name>?page=2`)
 - **Safety Tools**: Version control with snapshot-based state management
 - **Semantic Search**: Vector-based content discovery with embedding cache
 
-### Latest System Status (v0.0.3)
-
-**Production Ready**: All 352 tests passing (100% success rate)
-- ✅ **Pagination System**: Successfully migrated from character truncation to industry-standard pagination
-- ✅ **Enhanced Testing**: 4-tier testing strategy with comprehensive coverage
-- ✅ **Code Quality**: Restored essential development comments while maintaining clean code
-- ✅ **E2E Reliability**: Fixed timeout issues for stable API integration
-- ✅ **Tool Enhancement**: Updated all content access tools with pagination support
-
 ### Development Focus
-- **Primary Goal**: Making document MCP tools production-ready with robust agent implementations
-- **Agent Development**: Creating example agents that demonstrate effective MCP tool usage patterns
-- **Token Optimization**: Evaluation infrastructure designed to reduce token count in Simple Agent and ReAct Agent through improved MCP tool descriptions
-- **Quality Assurance**: Comprehensive testing framework to evaluate agent system prompts across multiple agent types (Simple, ReAct, and future generalized agents)
-- **Pagination Migration**: Complete transition from character-based truncation to page-based content retrieval for improved data access
+- **Agents**: Example agents demonstrating MCP tool usage patterns
+- **Tool Optimization**: A/B testing framework with multi-model support (GPT-5 Mini, Claude Haiku 4.5, Gemini 3 Flash)
+- **Testing**: 4-tier test strategy (unit, integration, E2E, evaluation)
+- **Prompt Optimization**: DSPy integration with composite scoring (60% accuracy + 25% input tokens + 15% output tokens)
 
 ### Core Architecture
 
@@ -70,20 +60,27 @@ document-mcp/
 ├── document_mcp/           # Core MCP server package
 │   ├── doc_tool_server.py  # Main server
 │   ├── models.py           # Pydantic models with pagination support
-│   ├── tools/              # 26 MCP tools across 6 categories
+│   ├── tools/              # 32 MCP tools across 8 categories
 │   ├── utils/              # Validation and file operations
-│   └── [logging, metrics]  # OpenTelemetry + Prometheus
+│   ├── observability.py    # GCP-native logs/traces/metrics
+│   └── [logging, metrics]  # OpenTelemetry + legacy Prometheus
 ├── src/agents/             # AI agent implementations
 │   ├── simple_agent/       # Stateless single-turn agent
 │   ├── react_agent/        # Stateful multi-turn ReAct agent
 │   └── shared/             # Common utilities and tool descriptions
+├── benchmarks/             # Shared benchmarking infrastructure
+│   ├── config.py           # Flexible benchmark configuration
+│   ├── metrics.py          # Composite scoring (accuracy + tokens)
+│   ├── scenarios.py        # Level 1-4 test scenarios
+│   └── tools.py            # Tool set definitions (atomic/consolidated)
+├── dspy_optimizer/         # DSPy prompt optimization
 ├── prompt_optimizer/       # Automated prompt optimization
-├── scripts/development/    # Testing and telemetry infrastructure  
-└── tests/                  # 3-tier testing strategy
-    ├── unit/              # Isolated component tests
-    ├── integration/       # Agent-server tests (mocked LLM)
-    ├── e2e/               # Full system tests (real APIs)
-    └── evaluation/        # Performance benchmarking
+├── scripts/development/    # Testing and telemetry infrastructure
+└── tests/                  # 4-tier testing strategy
+    ├── unit/              # Isolated component tests (341)
+    ├── integration/       # Agent-server tests (168)
+    ├── e2e/               # Full system tests (6)
+    └── evaluation/        # Performance benchmarking (21)
 ```
 
 ## Package Structure and Agent Separation
@@ -91,13 +88,14 @@ document-mcp/
 ### Core MCP Package
 The **document-mcp** package contains only the core MCP server and tools:
 ```bash
-pip install document-mcp  # Installs MCP server and 26 tools
+pip install document-mcp  # Installs MCP server and 32 tools
 ```
 
 **Package Contents:**
 - MCP server (`document_mcp/doc_tool_server.py`)
-- 26 MCP tools across 5 categories  
-- OpenTelemetry metrics collection
+- 32 MCP tools across 8 categories
+- GCP-native observability (`document_mcp/observability.py`)
+- OpenTelemetry metrics collection (legacy + modern)
 - Pydantic models and validation
 - Production logging and error handling
 
@@ -115,15 +113,8 @@ uv sync --dev  # Install agent dependencies
 - `src/agents/shared/` - Common utilities and tool descriptions
 - `AGENTS.md` - Complete usage guide for both agents
 
-### Configuration Optimization
-Recent configuration cleanup achieved:
-- **Dependencies**: Removed 25+ unused packages (twine, pre-commit, anthropic, cohere, etc.)
-- **Package Size**: Optimized from 320MB to ~30MB (excluding .venv)
-- **Configuration**: Fixed pyproject.toml structure, removed duplicates
-- **Testing**: Maintained all functionality while reducing bloat
-
 ### Why This Separation?
-- **Production Focus**: MCP package is lean and production-ready
+- **Focus**: MCP package is lean
 - **Development Flexibility**: Agents can evolve independently  
 - **User Choice**: Users install MCP tools, optionally clone for agent examples
 - **Dependency Management**: Core package has minimal dependencies, agents have full dev stack
@@ -132,15 +123,14 @@ Recent configuration cleanup achieved:
 
 ### Testing
 ```bash
-# Run all tests (stable - all 352 tests passing)
+# Run all tests
 uv run pytest
 
 # Run by tier
-uv run pytest tests/unit/              # Unit tests (181) - PASSING
-uv run pytest tests/integration/       # Integration tests (155) - PASSING
-uv run pytest tests/e2e/               # E2E tests (6, requires API keys) - PASSING
-uv run pytest tests/evaluation/        # Evaluation tests (4) - PASSING
-uv run pytest tests/test_metrics.py    # Metrics tests (6) - PASSING
+uv run pytest tests/unit/              # Unit tests
+uv run pytest tests/integration/       # Integration tests
+uv run pytest tests/e2e/               # E2E tests (requires API keys)
+uv run pytest tests/evaluation/        # Evaluation tests
 
 # Code quality
 uv run ruff check --fix                # Auto-fix linting
@@ -189,26 +179,30 @@ scripts/development/telemetry/scripts/start.sh
 
 ### ReAct Agent (`src/agents/react_agent/`)
 - **Architecture**: Stateful, multi-turn with ReAct (Reason-Act-Observe) pattern  
-- **Key Features**: Advanced error handling, circuit breakers, agent caching, rich console output
-- **Ideal for**: Complex workflows, step-by-step planning, production environments
+- **Key Features**: Error handling, circuit breakers, agent caching, rich console output
+- **Ideal for**: Complex workflows, step-by-step planning
 - **Avoid for**: Simple operations, performance-critical scenarios, structured JSON output requirements
 
-## Tool Categories (26 MCP Tools)
+## Tool Categories (32 MCP Tools)
 
-- **Document Tools (6)**: Document management, lifecycle operations, and fine-grain summaries  
-- **Chapter Tools (5)**: Chapter creation, editing, and management
-- **Paragraph Tools (7)**: Atomic paragraph operations with automatic snapshot protection
-- **Content Tools (5)**: Unified content access with pagination, search, replacement, statistics, and semantic search
+- **Document Tools (6)**: Document management, lifecycle operations, and fine-grain summaries
+- **Chapter Tools (4)**: Chapter creation, editing, listing, and management with frontmatter metadata support
+- **Paragraph Tools (8)**: Atomic paragraph operations (read, replace, insert, delete, move, append) with automatic snapshot protection
+- **Content Tools (6)**: Unified content access with pagination, search, replacement, statistics, semantic search, and entity tracking
+- **Metadata Tools (3)**: YAML-based metadata management for chapters, entities, and timeline events
 - **Safety Tools (3)**: Version control, snapshot management, and diff generation
+- **Overview Tools (1)**: Document outline with metadata and entity counts
+- **Discovery Tools (1)**: Tool search and discovery
 
 ## Key System Features
 
 - **Automatic Snapshot System**: Universal edit operation protection with user tracking across all 15 content-modifying tools
 - **Atomic paragraph operations** (replace, insert, delete, move) with automatic snapshot protection
 - **Fine-grain Summary System**: Organized storage structure with scope-based summaries (document, chapter, section) in dedicated `summaries/` directory
-- **Pagination System**: Industry-standard page-based content retrieval (50K chars ≈ 12K tokens per page) with comprehensive metadata, navigation hints, and memory-efficient bounded loading
+- **Pagination System**: Page-based content retrieval (50K chars ≈ 12K tokens per page) with metadata, navigation hints, and memory-efficient bounded loading
 - **Scope-based content tools** (read, find, replace, statistics, semantic search) with unified document/chapter/paragraph access
 - **Semantic Search**: AI-powered content discovery using embeddings for contextual similarity matching
+- **Metadata System (Phase 2)**: YAML-based structured metadata for chapters (frontmatter), entities (characters, locations, items), and timeline events with Gemini-compatible tool parameters
 
 ## Infrastructure Components
 
@@ -217,12 +211,76 @@ scripts/development/telemetry/scripts/start.sh
 - **Automatic metrics collection** via `@log_mcp_call` decorator on all MCP tools
 
 #### Production Metrics System (`document_mcp/metrics_config.py`)
-- **Centralized User Analytics**: Automatic collection from all users to developer's Grafana Cloud
-- **Production-Ready Architecture**: Persistent metrics server, background Prometheus, automatic failover
-- **Anonymous Data Collection**: Tool usage patterns, performance metrics, error rates
-- **Industry Standard Approach**: Similar to npm, VS Code extensions, Docker analytics
-- **Zero User Setup**: Hardcoded credentials for seamless collection
+- **OpenTelemetry Integration**: Standard metrics collection with Prometheus endpoint
+- **Local Prometheus**: Metrics available at `http://localhost:8001/metrics`
 - **Tool-Level Granularity**: Tracks specific MCP tool names (list_documents, create_document, etc.)
+- **Composite Scoring**: 60% accuracy + 25% input token efficiency + 15% output token efficiency (inverse scaling: `eff = 1/(1 + tokens/scale)`)
+
+#### GCP Observability (`document_mcp/observability.py`)
+- **Cloud Logging**: Native integration via `google-cloud-logging`
+- **Cloud Trace**: Distributed tracing via `CloudTraceSpanExporter`
+- **Cloud Monitoring**: Metrics export via `CloudMonitoringMetricsExporter`
+- **Auto-Detection**: Automatic Cloud Run detection via `K_SERVICE` environment variable
+- **Graceful Fallback**: Uses safe console exporters locally for development
+
+**Using Observability Locally:**
+```python
+from document_mcp.observability import (
+    initialize_observability,
+    get_observability_status,
+    trace_mcp_tool,
+    log_mcp_call,
+)
+
+# Initialize (call once at startup)
+initialize_observability()
+
+# Check status
+status = get_observability_status()
+# Returns: {'enabled': True, 'environment': 'local', 'tracing': True, 'metrics': True, ...}
+
+# Trace a tool call
+with trace_mcp_tool('my_tool', param='value'):
+    # tool implementation
+    pass
+
+# Or use as decorator
+@log_mcp_call
+def my_mcp_tool():
+    pass
+```
+
+**Environment Variables:**
+- `MCP_OBSERVABILITY_ENABLED`: Set to "false" to disable (default: "true")
+- `K_SERVICE`: Set automatically on Cloud Run (triggers GCP exporters)
+- `GOOGLE_CLOUD_PROJECT`: Required for Cloud Trace correlation
+
+#### Benchmarks Infrastructure (`benchmarks/`)
+
+**A/B Testing Framework**: Compare different configurations to optimize agent performance.
+
+**What Can Be A/B Tested**:
+1. **Tool Sets**: Atomic (8 specific paragraph tools) vs Consolidated (2 unified tools)
+   - Set `DOCUMENT_MCP_TOOL_SET=atomic` or `DOCUMENT_MCP_TOOL_SET=consolidated`
+   - Tests whether unified tools improve task completion vs specific tools
+2. **Models**: GPT-5 Mini, Claude Haiku 4.5, Gemini 3 Flash via OpenRouter
+   - Compare how different LLMs utilize the same tools
+3. **Tool Descriptions**: Different prompt styles for the same tools
+   - Test if description format affects tool selection accuracy
+
+**Scenario Levels**:
+- Level 1: Simple (single tool selection)
+- Level 2: Sequential (2-3 tool chains)
+- Level 3: Complex (context-dependent reasoning)
+- Level 4: Ambiguous (multiple valid solutions)
+- Level 5: Edge cases (empty documents, unicode, boundaries)
+- Level 6: Adversarial (confusing terminology, negative indices)
+
+**Key Components**:
+- `benchmarks/config.py`: Configuration and model settings
+- `benchmarks/scenarios.py`: Test scenarios across all levels
+- `benchmarks/tools.py`: Tool set definitions (atomic vs consolidated)
+- `benchmarks/runner.py`: Benchmark execution with timeout protection
 
 ## Testing Architecture
 
@@ -258,14 +316,12 @@ scripts/development/telemetry/scripts/start.sh
 
 ## Architecture Decisions and Design Principles
 
-### Core Architectural Strengths
+### Architecture Overview
 
-The Document MCP system demonstrates several key architectural strengths and design principles:
-
-- **Solid Foundation**: Well-defined architecture with clear separation of concerns between agents, the MCP tool server, and testing infrastructure
-- **Testing Strategy Design**: Four-tiered testing strategy (unit, integration, E2E, evaluation) with 100% pass rate
-- **Agent Implementation**: Both agent types have comprehensive error handling and support for multiple LLM providers with full test coverage
-- **Streamlined Toolset**: Clean tool architecture with scope-based operations and pagination support
+- Clear separation of concerns between agents, MCP tool server, and testing
+- Four-tiered testing strategy (unit, integration, E2E, evaluation)
+- Both agent types have error handling and support multiple LLM providers
+- Tool architecture with scope-based operations and pagination
 
 ### Key Design Principles
 
@@ -311,12 +367,15 @@ Complex Reasoning → ReAct Agent (reasoning + execution)
 ```
 .documents_storage/
 ├── document_name/           # Document directory
-│   ├── 01-chapter.md       # Ordered chapter files
+│   ├── 01-chapter.md       # Ordered chapter files (with optional YAML frontmatter)
 │   ├── 02-chapter.md
 │   ├── summaries/          # Fine-grain summary system
 │   │   ├── document.md     # Document-level summary
 │   │   ├── 01-chapter.md   # Chapter-specific summary
 │   │   └── overview.md     # Section-level summary
+│   ├── metadata/           # Structured metadata directory (Phase 2)
+│   │   ├── entities.yaml   # Characters, locations, items with aliases
+│   │   └── timeline.yaml   # Chronological events with chapter references
 │   ├── .snapshots/         # Automatic snapshots directory
 │   │   ├── snapshot_20250712_150000_create_chapter_clchinkc/
 │   │   └── snapshot_20250712_150030_replace_paragraph_clchinkc/
@@ -330,9 +389,40 @@ Complex Reasoning → ReAct Agent (reasoning + execution)
 │           └── manifest.json
 ```
 
+### Metadata System Architecture (Phase 2)
+
+**YAML Frontmatter in Chapters:**
+```yaml
+---
+status: draft|revised|complete
+pov_character: Marcus
+tags: [action, dialogue]
+notes: Author notes here
+---
+
+# Chapter content here...
+```
+
+**Entities Metadata (`metadata/entities.yaml`):**
+```yaml
+characters:
+  - name: Marcus Chen
+    aliases: [Marcus, Marc, The Detective]
+    type: character
+    description: Main protagonist
+
+locations:
+  - name: Central Station
+    aliases: [the station, HQ]
+    type: location
+```
+
+**Gemini API Compatibility:**
+Tool parameters use individual typed fields instead of `dict[str, Any]` to avoid the `additionalProperties` limitation in Gemini's function calling. This ensures full compatibility across OpenAI, Gemini, and other LLM providers.
+
 ### Pagination Architecture
 
-The system implements industry-standard pagination with comprehensive technical features:
+The system implements pagination with the following features:
 
 **Core Implementation:**
 - **Memory Efficiency**: `_paginate_document_efficiently()` loads only requested page content with bounded memory usage
@@ -366,17 +456,16 @@ class PaginatedContent(BaseModel):
 - **After Migration**: Page-based loading with predictable response sizes
 - **Benefits**: Complete data access, no silent truncation, progressive disclosure patterns
 
-### Optimization Opportunities
+### Possible Improvements
 
-- **A/B Testing Framework**: Real-world validation of format optimizations with actual LLM performance metrics
-- **Context-Aware Formatting**: Intelligent format selection based on query complexity and agent context
-- **Advanced Performance Analytics**: Comprehensive monitoring of format effectiveness and usage patterns
+- **A/B Testing Framework**: Validation of format optimizations with actual LLM performance metrics
+- **Context-Aware Formatting**: Format selection based on query complexity and agent context
 
 
 ## Performance Optimization
 
 ### Agent Caching
-The ReAct agent implements sophisticated caching:
+The ReAct agent implements caching:
 ```python
 # Agent instances cached by model type and prompt hash
 _agent_cache = {}  # Avoids repeated initialization
@@ -455,21 +544,18 @@ uv run python -m prompt_optimizer simple
 ```
 
 **Optimization Features**:
-- **Safe Optimization**: Conservative changes that preserve all existing functionality
+- **Safe Optimization**: Conservative changes that preserve existing functionality
 - **Performance-Based**: Uses real execution metrics to evaluate improvements
-- **Comprehensive Testing**: Validates changes against 352 tests (unit + integration + E2E + evaluation + metrics)
-- **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
+- **Testing**: Validates changes against all tests
+- **Automatic Backup**: Safe rollback if optimization fails
 - **Multi-Agent Support**: Works with Simple and ReAct agents
-- **Simple Decision Logic**: Binary comparison - better than baseline performance index or not
-- **Current Limitation**: Optimization blocked until interface mismatches are resolved
 
 **How It Works**:
-1. **Baseline Measurement**: Measures current prompt performance across all tests
-2. **Conservative Optimization**: LLM generates minimal, safe improvements  
-3. **Comprehensive Validation**: Runs 352 tests plus performance benchmarks
+1. **Baseline Measurement**: Measures current prompt performance
+2. **Conservative Optimization**: LLM generates minimal, safe improvements
+3. **Validation**: Runs tests plus performance benchmarks
 4. **Decision Logic**: Accepts only if tests pass AND performance improves
 5. **Safety First**: Automatic backup and restore if anything breaks
-6. **Current Status**: Optimization process blocked due to existing test failures
 
 **File Locations**:
 - **Agent Prompts**: `src/agents/{agent_type}/prompts.py`
@@ -493,19 +579,14 @@ export GEMINI_API_KEY="your-key"
 
 #### Test Failures
 ```bash
-# WARNING: All test tiers currently have issues
-# Integration test MCP issues - EXPECT FAILURES
-python3 -m pytest tests/integration/ -v  # Check MCP server startup
+# Run all tests:
+uv run pytest tests/unit/ tests/integration/ --tb=short -q
 
-# Unit test mocking problems - EXPECT FAILURES  
-python3 -m pytest tests/unit/ -v --tb=short  # Check mock configurations
-
-# E2E and evaluation tests with extended timeout - STATUS UNKNOWN
-python3 -m pytest tests/e2e/ -v --timeout=600
-python3 -m pytest tests/evaluation/ -v --timeout=600
-
-# To debug specific interface mismatches:
-python3 -m pytest tests/unit/test_agent_performance_metrics.py -v --tb=long
+# Run specific tiers:
+uv run pytest tests/unit/ -v
+uv run pytest tests/integration/ -v
+uv run pytest tests/e2e/ -v --timeout=600
+uv run pytest tests/evaluation/ -v
 ```
 
 #### Performance Issues
@@ -561,10 +642,10 @@ def test_agent_logic(mock_complete_test_environment):
 ## Quality Standards
 
 ### Code Quality
-- **Type hints**: Comprehensive Pydantic models
+- **Type hints**: Pydantic models
 - **Error handling**: Structured error categories and recovery
 - **Logging**: JSON-structured with OpenTelemetry
-- **Testing**: 3-tier strategy with 95%+ coverage
+- **Testing**: 4-tier strategy
 - **Documentation**: Docstrings and inline comments
 
 ### Performance Standards
@@ -575,39 +656,21 @@ def test_agent_logic(mock_complete_test_environment):
 - **Agent responses**: < 30s for complex workflows
 
 ### Reliability Standards
-- **Error recovery**: Circuit breakers and retry logic implemented in codebase
-- **Test stability**: **STABLE** - All unit and integration tests passing consistently
-- **E2E reliability**: **VERIFIED** - Full workflows tested with real APIs
-- **Production readiness**: **READY** - Comprehensive testing and metrics collection operational
+- **Error recovery**: Circuit breakers and retry logic implemented
+- **Test stability**: Unit and integration tests passing
+- **E2E reliability**: Full workflows tested with real APIs
 
 ## Test Status Summary
 
-**Status: PRODUCTION READY - All tests passing**
+| Test Tier | Description |
+|-----------|-------------|
+| Unit | Isolated components, pagination, observability |
+| Integration | Agent-MCP communication, tool execution |
+| E2E | Full system workflows with real APIs |
+| Evaluation | Performance benchmarking |
+| Metrics | OpenTelemetry collection |
 
-**Current Test Count: 352 tests total**
-
-| Test Tier | Tests | Status | Coverage |
-|-----------|-------|---------|----------|
-| Unit | 181 | **PASSING** | Isolated components, pagination system |
-| Integration | 155 | **PASSING** | Agent-MCP communication, tool execution |
-| E2E | 6 | **PASSING** | Full system workflows with real APIs |
-| Evaluation | 4 | **PASSING** | Performance benchmarking |
-| Metrics | 6 | **PASSING** | OpenTelemetry collection verified |
-
-**Recent Fixes Completed:**
-- **Pagination Migration**: Successfully transitioned from character truncation to industry-standard pagination
-- **Test Suite Enhancement**: All 352 tests passing with improved E2E timeout handling
-- **Code Quality**: Restored essential development comments while maintaining clean codebase
-- **Documentation Update**: Comprehensive documentation refresh reflecting current system state
-- **Interface Alignment**: Fixed test assertions for new `PaginatedContent` response format
-
-**Current System Status:**
-1. **Core MCP Tools**: All 26 tools tested and functional with pagination support
-2. **Agent Implementations**: Both Simple and ReAct agents working with proper error handling
-3. **Testing Framework**: Comprehensive 4-tier strategy with 100% test pass rate (352/352)
-4. **Production Metrics**: OpenTelemetry collection system operational
-5. **Package Structure**: Clean separation between MCP package and development agents
-6. **Pagination System**: Complete industry-standard implementation for large document handling
+Run `uv run pytest` to verify all tests pass.
 
 
 ## Development Best Practices
@@ -617,9 +680,8 @@ def test_agent_logic(mock_complete_test_environment):
 
 **Key Requirements**:
 - Assert on `details` field content, not LLM-generated `summary` text
-- E2E tests use CLI subprocess calls and MCP stdio transport  
+- E2E tests use CLI subprocess calls and MCP stdio transport
 - Agent implementations MUST populate `details` field with structured MCP tool responses
-- **Production Standard**: All tests pass consistently with proper interface alignment
 
 ### Testing Patterns
 ```python
@@ -644,7 +706,7 @@ async def test_mcp_integration(mcp_client):
 ### Development Guidelines
 **Agent Development**: Start with Simple Agent for prototyping, use ReAct for production. Test prompt changes thoroughly.
 
-**Tool Development**: Follow atomic operation principles, implement comprehensive validation, add structured logging, design for idempotency.
+**Tool Development**: Follow atomic operation principles, implement validation, add structured logging, design for idempotency.
 
 
 ## Codebase Structure

@@ -1,0 +1,39 @@
+# Default 4-tool paragraph tool set
+# This is the current MCP server implementation
+
+name: "Default (4 tools)"
+tool_count: 4
+
+tools:
+  - name: add_paragraph
+    what: "Add new paragraph at position: BEFORE target, AFTER target, or at END."
+    when: >
+      Use for ALL new paragraph additions.
+      position='before'|'after'|'end'.
+      index required for 'before'/'after', omit for 'end'.
+
+  - name: replace_paragraph
+    what: "REPLACE/OVERWRITE content at index - paragraph count unchanged."
+    when: "Use for: 'replace N', 'edit N', 'change N'. NOT for adding new."
+
+  - name: delete_paragraph
+    what: "DELETE/REMOVE at index - subsequent paragraphs shift up."
+    when: "Use for: 'delete N', 'remove N'. DESTRUCTIVE."
+
+  - name: move_paragraph
+    what: "Move paragraph to new position (before or after target)."
+    when: >
+      Use for: 'move X before Y', 'move X after Y', 'move X to end'.
+      source_index required. destination='before'|'after'.
+      target_index=null with 'after' moves to end.
+
+# Maps semantic operations to tool names
+tool_mapping:
+  insert_before: add_paragraph
+  insert_after: add_paragraph
+  append: add_paragraph
+  replace: replace_paragraph
+  delete: delete_paragraph
+  move_before: move_paragraph
+  move_after: move_paragraph
+  move_to_end: move_paragraph

@@ -3,6 +3,8 @@
 This module provides centralized fixture management to eliminate duplication
 across test files and ensure consistent test setup patterns.
 """
+from __future__ import annotations
+
 
 from collections.abc import Callable
 from pathlib import Path

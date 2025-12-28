@@ -4,9 +4,11 @@ The Document MCP system includes two AI agents that demonstrate how to use the M
 
 ## Latest Updates (v0.0.3)
 - ✅ **Pagination Support**: All agents now work with the new pagination system for large documents
-- ✅ **Enhanced Testing**: Complete test coverage with 352 tests passing
+- ✅ **GCP Observability**: All tool calls now traced with logs/metrics (works locally too)
+- ✅ **OpenRouter Support**: Use OpenRouter models with priority over OpenAI and Gemini
+- ✅ **Tool Selection Benchmarks**: Evaluation framework for measuring agent tool selection accuracy
+- ✅ **Enhanced Testing**: Complete test coverage with 536 tests passing (61% coverage)
 - ✅ **Improved Error Handling**: Better timeout management for E2E scenarios
-- ✅ **Documentation Updates**: Comprehensive refresh of all agent documentation
 
 ## Prerequisites
 
@@ -28,14 +30,19 @@ The Document MCP system includes two AI agents that demonstrate how to use the M
    pip install -r requirements-agents.txt
    ```
 
-4. **Set up API keys** (choose one):
+4. **Set up API keys** (choose one, priority order: OpenRouter > OpenAI > Gemini):
    ```bash
+   # For OpenRouter (recommended - access to multiple models)
+   export OPENROUTER_API_KEY="your-openrouter-key"
+
    # For OpenAI
    export OPENAI_API_KEY="your-openai-key"
-   
+
    # For Google Gemini
    export GEMINI_API_KEY="your-gemini-key"
    ```
+
+   Or create a `.env` file in the project root (see `.env.example`).
 
 ## Agent Types
 
@@ -47,7 +54,7 @@ The Document MCP system includes two AI agents that demonstrate how to use the M
 uv run python src/agents/simple_agent/main.py --query "list all documents"
 
 # With specific model
-uv run python src/agents/simple_agent/main.py --query "create document 'Meeting Notes'" --model "gpt-4o"
+uv run python src/agents/simple_agent/main.py --query "create document 'Meeting Notes'" --model "gemini-2.5-flash"
 
 # Interactive mode
 uv run python src/agents/simple_agent/main.py --interactive
@@ -106,25 +113,28 @@ uv run python src/agents/simple_agent/main.py --query "list all documents" --ver
 
 ### Environment Variables
 ```bash
-# LLM Configuration
+# LLM Configuration (priority: OpenRouter > OpenAI > Gemini)
+OPENROUTER_API_KEY=your-key     # Recommended - access to multiple models
+OPENROUTER_MODEL_NAME=openai/gpt-5-mini  # Optional model override
 OPENAI_API_KEY=your-key
+OPENAI_MODEL_NAME=gpt-4.1-mini  # Optional model override
 GEMINI_API_KEY=your-key
-ANTHROPIC_API_KEY=your-key
+GEMINI_MODEL_NAME=gemini-2.5-flash  # Optional model override
 
 # Agent Settings
 AGENT_TIMEOUT=300                # Request timeout in seconds
 AGENT_MAX_RETRIES=3             # Retry attempts for failed operations
 AGENT_LOG_LEVEL=INFO            # Logging level
 
-# MCP Server Settings  
+# MCP Server Settings
 MCP_SERVER_TIMEOUT=30           # MCP tool timeout
-DOCUMENTS_STORAGE_PATH=./docs   # Custom storage location
+DOCUMENT_ROOT_DIR=./docs        # Custom storage location
 ```
 
 ### Command Line Options
 ```bash
 # Model selection
---model gpt-4o                  # Use specific OpenAI model
+--model gemini-2.5-flash       # Use specific model
 --model gemini-1.5-pro         # Use specific Gemini model
 
 # Output control
@@ -146,7 +156,7 @@ from src.agents.simple_agent.agent import SimpleAgent
 from src.agents.shared.config import AgentConfig
 
 # Initialize agent
-config = AgentConfig(model="gpt-4o", timeout=120)
+config = AgentConfig(model="gemini-2.5-flash", timeout=120)
 agent = SimpleAgent(config)
 
 # Execute query

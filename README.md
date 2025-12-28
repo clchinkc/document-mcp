@@ -6,7 +6,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Document MCP gives writers, researchers, and knowledge-managers **first-class control over large-scale Markdown documents** with **built-in safety features** that prevent content loss. Manage books, research papers, and documentation with 26 AI-powered tools.
+Document MCP gives writers, researchers, and knowledge-managers **first-class control over large-scale Markdown documents** with **built-in safety features** that prevent content loss. Manage books, research papers, and documentation with 32 AI-powered tools.
 
 ## 🚀 Quick Start
 
@@ -34,7 +34,7 @@ Restart Claude Desktop. When you first connect:
 4. Start managing documents immediately!
 
 **What you get:**
-- 26 MCP tools for document management
+- 32 MCP tools for document management
 - Your own isolated document storage
 - Automatic snapshots and version control
 - No setup, no API keys, no maintenance
@@ -72,9 +72,9 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 ### Key Features
 
-- **26 MCP Tools**: Document management, chapter operations, paragraph editing, semantic search, and version control
+- **32 MCP Tools**: Document management, chapter operations, paragraph editing, semantic search, metadata, and version control
 - **Built-in Safety**: Automatic snapshots before destructive operations, version history, and conflict detection
-- **Pagination System**: Industry-standard pagination for large documents (50K chars per page)
+- **Pagination System**: Page-based content access for large documents (50K chars per page)
 - **User Isolation**: Each authenticated user gets their own isolated storage (hosted version)
 - **Local-First Option**: Keep your documents on your own machine (PyPI version)
 
@@ -94,7 +94,7 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 ## 🛡️ Safety Features
 
-Document MCP includes comprehensive safety features designed to prevent content loss:
+Document MCP includes safety features designed to prevent content loss:
 
 - **Automatic Snapshots**: Created before every destructive operation
 - **Named Checkpoints**: Create restore points with `snapshot_document`
@@ -115,15 +115,18 @@ The hosted version runs on Google Cloud Run:
 
 ## 🔧 Tool Categories
 
-Document MCP provides 26 tools organized into 6 categories:
+Document MCP provides 32 tools organized into 8 categories:
 
 | Category | Tools | Description |
 |----------|-------|-------------|
 | **Document** | 6 | Create, delete, list documents; manage summaries |
-| **Chapter** | 5 | Add, edit, rename, delete, reorder chapters |
-| **Paragraph** | 7 | Atomic paragraph operations (insert, replace, delete, move) |
-| **Content** | 5 | Read, search, replace, statistics, semantic search |
+| **Chapter** | 4 | Add, edit, delete, list chapters with frontmatter |
+| **Paragraph** | 8 | Atomic paragraph operations (insert, replace, delete, move) |
+| **Content** | 6 | Read, search, replace, statistics, semantic search, entity tracking |
+| **Metadata** | 3 | Chapter frontmatter, entities, timeline management |
 | **Safety** | 3 | Snapshots, restore, diff comparison |
+| **Overview** | 1 | Document outline with metadata |
+| **Discovery** | 1 | Tool search and discovery |
 
 ## 🤖 Example Workflows
 
@@ -180,7 +183,7 @@ pip install -e ".[dev]"
 ### Running Tests
 
 ```bash
-# All tests (352 tests, 100% pass rate)
+# All tests (528 tests)
 uv run pytest
 
 # By tier

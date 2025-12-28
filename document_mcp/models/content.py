@@ -3,6 +3,8 @@
 This module contains models for chapter content, document content,
 and content-based operations.
 """
+from __future__ import annotations
+
 
 import datetime
 

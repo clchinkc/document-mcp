@@ -16,7 +16,7 @@ The evaluation process is best demonstrated in `test_simple_integration.py` and 
 
 1.  **Agent Execution**: An agent is executed to perform a task (e.g., via `process_single_user_query_with_metrics`). It returns its standard response and a `AgentPerformanceMetrics` object containing metrics like execution time, token usage, and success status.
 2.  **Test-Layer Enhancement**: In the test, the `enhance_test_metrics` function from `llm_evaluation_layer.py` is called. This function takes the performance metrics and the agent's query/response.
-3.  **Optional LLM Evaluation**: If the `ENABLE_LLM_EVALUATION` environment variable is set to `true`, `enhance_test_metrics` uses a simple, cost-effective LLM (like `gpt-4o-mini`) to score the response quality and provide brief feedback. This evaluation is designed to be fast and non-blocking.
+3.  **Optional LLM Evaluation**: If the `ENABLE_LLM_EVALUATION` environment variable is set to `true`, `enhance_test_metrics` uses a simple, cost-effective LLM (like `gemini-2.5-flash`) to score the response quality and provide brief feedback. This evaluation is designed to be fast and non-blocking.
 4.  **Combined Assertions**: The test can then assert on both the concrete performance metrics (e.g., `execution_time < 5.0`) and the qualitative score from the LLM evaluation (e.g., `quality_score > 0.7`).
 
 ### Example: `test_simple_integration.py`
@@ -108,6 +108,6 @@ The configuration defines agent-specific limits to prevent performance regressio
 The optional LLM quality evaluation is designed to be robust and cost-effective.
 
 -   **Control**: Enabled via `export ENABLE_LLM_EVALUATION=true`.
--   **Cost-Effective**: Uses `gpt-4o-mini` or `gemini-2.5-flash` by default.
+-   **Cost-Effective**: Uses `gemini-2.5-flash` by default.
 -   **Robust**: A 10-second timeout and graceful failure handling ensure that evaluation issues never break a test run.
 -   **Integration**: Works seamlessly with CI/CD. Fast performance tests can run on every commit, with optional, scheduled runs for LLM-enhanced quality checks.

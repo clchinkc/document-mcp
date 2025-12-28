@@ -43,7 +43,9 @@ class TestEmbeddingCacheIntegration:
     @patch("document_mcp.tools.content_tools._get_document_path")
     @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
     @patch("document_mcp.tools.content_tools._split_into_paragraphs")
-    def test_semantic_search_with_empty_cache(self, mock_split, mock_chapters, mock_doc_path, mock_client_class):
+    def test_semantic_search_with_empty_cache(
+        self, mock_split, mock_chapters, mock_doc_path, mock_client_class
+    ):
         """Test semantic search when cache is empty (first run)."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup document structure
@@ -69,12 +71,14 @@ class TestEmbeddingCacheIntegration:
 
             # Mock embeddings API response (new google-genai SDK)
             mock_client = MagicMock()
-            mock_client.models.embed_content.return_value = create_mock_embed_response([
-                [1.0, 0.0, 0.0],  # Query embedding
-                [0.9, 0.1, 0.0],  # First paragraph (high similarity)
-                [0.5, 0.5, 0.0],  # Second paragraph (medium similarity)
-                [0.0, 0.0, 1.0],  # Third paragraph (low similarity)
-            ])
+            mock_client.models.embed_content.return_value = create_mock_embed_response(
+                [
+                    [1.0, 0.0, 0.0],  # Query embedding
+                    [0.9, 0.1, 0.0],  # First paragraph (high similarity)
+                    [0.5, 0.5, 0.0],  # Second paragraph (medium similarity)
+                    [0.0, 0.0, 1.0],  # Third paragraph (low similarity)
+                ]
+            )
             mock_client_class.return_value = mock_client
 
             # Set up environment for cache paths
@@ -116,7 +120,9 @@ class TestEmbeddingCacheIntegration:
     @patch("document_mcp.tools.content_tools._get_document_path")
     @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
     @patch("document_mcp.tools.content_tools._split_into_paragraphs")
-    def test_semantic_search_with_valid_cache(self, mock_split, mock_chapters, mock_doc_path, mock_client_class):
+    def test_semantic_search_with_valid_cache(
+        self, mock_split, mock_chapters, mock_doc_path, mock_client_class
+    ):
         """Test semantic search when cache is valid (subsequent runs)."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup document structure
@@ -164,9 +170,11 @@ class TestEmbeddingCacheIntegration:
 
             # Mock only query embedding (paragraphs should be cached) - new SDK pattern
             mock_client = MagicMock()
-            mock_client.models.embed_content.return_value = create_mock_embed_response([
-                [1.0, 0.0, 0.0]  # Only query embedding needed
-            ])
+            mock_client.models.embed_content.return_value = create_mock_embed_response(
+                [
+                    [1.0, 0.0, 0.0]  # Only query embedding needed
+                ]
+            )
             mock_client_class.return_value = mock_client
 
             # Execute search
@@ -191,7 +199,9 @@ class TestEmbeddingCacheIntegration:
     @patch("document_mcp.tools.content_tools._get_document_path")
     @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
     @patch("document_mcp.tools.content_tools._split_into_paragraphs")
-    def test_semantic_search_cache_invalidation(self, mock_split, mock_chapters, mock_doc_path, mock_client_class):
+    def test_semantic_search_cache_invalidation(
+        self, mock_split, mock_chapters, mock_doc_path, mock_client_class
+    ):
         """Test that cache is invalidated when content changes."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup document structure
@@ -238,10 +248,12 @@ class TestEmbeddingCacheIntegration:
 
             # Mock embedding response for new content - new SDK pattern
             mock_client = MagicMock()
-            mock_client.models.embed_content.return_value = create_mock_embed_response([
-                [1.0, 0.0, 0.0],  # Query embedding
-                [0.8, 0.2, 0.0],  # New paragraph embedding
-            ])
+            mock_client.models.embed_content.return_value = create_mock_embed_response(
+                [
+                    [1.0, 0.0, 0.0],  # Query embedding
+                    [0.8, 0.2, 0.0],  # New paragraph embedding
+                ]
+            )
             mock_client_class.return_value = mock_client
 
             # Execute search

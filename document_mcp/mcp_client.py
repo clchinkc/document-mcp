@@ -6,6 +6,8 @@ without the complexity of the internal server implementation.
 
 All functions in this module correspond directly to registered MCP tools.
 """
+from __future__ import annotations
+
 
 # Import the MCP server to access registered tools
 from .doc_tool_server import mcp_server
@@ -28,21 +30,6 @@ def _get_mcp_tool(tool_name: str):
 def list_documents(include_chapters: bool = False):
     """List all available document collections."""
     return _get_mcp_tool("list_documents")(include_chapters)
-
-
-def read_summary(document_name: str, scope: str = "document", target_name: str = None):
-    """Read summary with flexible scope (document, chapter, section)."""
-    return _get_mcp_tool("read_summary")(document_name, scope, target_name)
-
-
-def write_summary(document_name: str, summary_content: str, scope: str = "document", target_name: str = None):
-    """Write or update summary with flexible scope."""
-    return _get_mcp_tool("write_summary")(document_name, summary_content, scope, target_name)
-
-
-def list_summaries(document_name: str):
-    """List all available summary files for a document."""
-    return _get_mcp_tool("list_summaries")(document_name)
 
 
 def create_document(document_name: str):
@@ -84,10 +71,24 @@ def list_chapters(document_name: str):
     return _get_mcp_tool("list_chapters")(document_name)
 
 
-# Paragraph management tools
-def read_paragraph_content(document_name: str, chapter_name: str, paragraph_index: int):
-    """Read the content of a specific paragraph."""
-    return _get_mcp_tool("read_paragraph_content")(document_name, chapter_name, paragraph_index)
+# Paragraph management tools - Direct MCP tool access (4 tools)
+def add_paragraph(
+    document_name: str,
+    chapter_name: str,
+    new_content: str,
+    position: str = "end",
+    paragraph_index: int | None = None,
+):
+    """Add new paragraph at position: before/after target index, or at end.
+
+    Args:
+        document_name: Name of the document
+        chapter_name: Name of the chapter
+        new_content: Content for the new paragraph
+        position: 'before', 'after', or 'end'
+        paragraph_index: Required for 'before'/'after', omit for 'end'
+    """
+    return _get_mcp_tool("add_paragraph")(document_name, chapter_name, new_content, position, paragraph_index)
 
 
 def replace_paragraph(
@@ -95,48 +96,40 @@ def replace_paragraph(
     chapter_name: str,
     paragraph_index: int,
     new_content: str,
-    last_known_modified: str | None = None,
-    force_write: bool = False,
 ):
-    """Replace content of a specific paragraph."""
+    """Replace/overwrite content at index - paragraph count unchanged."""
     return _get_mcp_tool("replace_paragraph")(
         document_name,
         chapter_name,
         paragraph_index,
         new_content,
-        last_known_modified,
-        force_write,
     )
 
 
-def insert_paragraph_before(document_name: str, chapter_name: str, paragraph_index: int, new_content: str):
-    """Insert paragraph before specified index."""
-    return _get_mcp_tool("insert_paragraph_before")(document_name, chapter_name, paragraph_index, new_content)
-
-
-def insert_paragraph_after(document_name: str, chapter_name: str, paragraph_index: int, new_content: str):
-    """Insert paragraph after specified index."""
-    return _get_mcp_tool("insert_paragraph_after")(document_name, chapter_name, paragraph_index, new_content)
-
-
 def delete_paragraph(document_name: str, chapter_name: str, paragraph_index: int):
-    """Delete a specific paragraph."""
+    """Delete/remove paragraph at index - subsequent paragraphs shift up."""
     return _get_mcp_tool("delete_paragraph")(document_name, chapter_name, paragraph_index)
 
 
-def append_paragraph_to_chapter(document_name: str, chapter_name: str, new_content: str):
-    """Add paragraph to end of chapter."""
-    return _get_mcp_tool("append_paragraph_to_chapter")(document_name, chapter_name, new_content)
+def move_paragraph(
+    document_name: str,
+    chapter_name: str,
+    source_index: int,
+    destination: str = "after",
+    target_index: int | None = None,
+):
+    """Move paragraph to new position (before or after target).
 
-
-def move_paragraph_before(document_name: str, chapter_name: str, source_index: int, target_index: int):
-    """Move paragraph to before another paragraph."""
-    return _get_mcp_tool("move_paragraph_before")(document_name, chapter_name, source_index, target_index)
-
-
-def move_paragraph_to_end(document_name: str, chapter_name: str, paragraph_index: int):
-    """Move paragraph to end of chapter."""
-    return _get_mcp_tool("move_paragraph_to_end")(document_name, chapter_name, paragraph_index)
+    Args:
+        document_name: Name of the document
+        chapter_name: Name of the chapter
+        source_index: Index of paragraph to move
+        destination: 'before' or 'after'
+        target_index: Target position (None with 'after' moves to end)
+    """
+    return _get_mcp_tool("move_paragraph")(
+        document_name, chapter_name, source_index, destination, target_index
+    )
 
 
 # Unified content tools (scope-based)
@@ -251,33 +244,139 @@ def diff_content(
 # Use the unified tools above with appropriate scope parameters instead.
 
 
-# Export all available functions
+# Metadata tools (Phase 2)
+def read_metadata(
+    document_name: str,
+    scope: str,
+    target: str | None = None,
+):
+    """Read metadata from chapter frontmatter or document metadata files."""
+    return _get_mcp_tool("read_metadata")(document_name, scope, target)
+
+
+def write_metadata(
+    document_name: str,
+    scope: str,
+    target: str | None = None,
+    # Chapter metadata fields
+    status: str | None = None,
+    pov_character: str | None = None,
+    tags: list[str] | None = None,
+    notes: str | None = None,
+    # Entity fields
+    entity_type: str | None = None,
+    aliases: list[str] | None = None,
+    description: str | None = None,
+    # Timeline fields
+    event_id: str | None = None,
+    date: str | None = None,
+    chapters: list[str] | None = None,
+):
+    """Write or update metadata for chapters or document-level data."""
+    return _get_mcp_tool("write_metadata")(
+        document_name,
+        scope,
+        target,
+        status,
+        pov_character,
+        tags,
+        notes,
+        entity_type,
+        aliases,
+        description,
+        event_id,
+        date,
+        chapters,
+    )
+
+
+def list_metadata(
+    document_name: str,
+    scope: str,
+    filter_status: str | None = None,
+    filter_type: str | None = None,
+    filter_pov_character: str | None = None,
+):
+    """List all metadata entries with optional filtering."""
+    return _get_mcp_tool("list_metadata")(
+        document_name, scope, filter_status, filter_type, filter_pov_character
+    )
+
+
+# Overview tools (Phase 2)
+def find_entity(
+    document_name: str,
+    entity_name: str,
+    include_context: bool = True,
+):
+    """Find all mentions of an entity across the document, using aliases from metadata."""
+    return _get_mcp_tool("find_entity")(document_name, entity_name, include_context)
+
+
+def get_document_outline(
+    document_name: str,
+    include_metadata: bool = True,
+    include_entity_counts: bool = True,
+):
+    """Get complete document structure with chapter metadata and summaries."""
+    return _get_mcp_tool("get_document_outline")(document_name, include_metadata, include_entity_counts)
+
+
+# Summary tools
+def read_summary(document_name: str, scope: str = "document", target_name: str | None = None):
+    """Read summary with flexible scope (document, chapter, section)."""
+    return _get_mcp_tool("read_summary")(document_name, scope, target_name)
+
+
+def write_summary(
+    document_name: str,
+    summary_content: str,
+    scope: str = "document",
+    target_name: str | None = None,
+):
+    """Write or update summary with flexible scope."""
+    return _get_mcp_tool("write_summary")(document_name, summary_content, scope, target_name)
+
+
+def list_summaries(document_name: str):
+    """List all available summary files for a document."""
+    return _get_mcp_tool("list_summaries")(document_name)
+
+
+# Export all available functions - matches actual MCP tool names
 __all__ = [
-    # Document management
+    # Document management (3 tools)
     "list_documents",
     "create_document",
     "delete_document",
-    # Chapter management
+    # Summary tools (3 tools)
+    "read_summary",
+    "write_summary",
+    "list_summaries",
+    # Chapter management (4 tools)
     "create_chapter",
     "write_chapter_content",
     "delete_chapter",
     "list_chapters",
-    # Paragraph management
-    "read_paragraph_content",
+    # Paragraph management (4 tools) - Direct MCP tool access
+    "add_paragraph",
     "replace_paragraph",
-    "insert_paragraph_before",
-    "insert_paragraph_after",
     "delete_paragraph",
-    "append_paragraph_to_chapter",
-    "move_paragraph_before",
-    "move_paragraph_to_end",
-    # Unified content tools
+    "move_paragraph",
+    # Unified content tools (5 tools)
     "read_content",
     "find_text",
     "replace_text",
     "get_statistics",
     "find_similar_text",
-    # Safety and version control
+    # Metadata tools (3 tools)
+    "read_metadata",
+    "write_metadata",
+    "list_metadata",
+    # Overview tools (2 tools)
+    "find_entity",
+    "get_document_outline",
+    # Safety and version control (3 tools)
     "manage_snapshots",
     "check_content_status",
     "diff_content",

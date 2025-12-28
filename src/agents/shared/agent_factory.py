@@ -3,6 +3,8 @@
 This module provides a factory pattern for creating agents with consistent
 configuration, caching, and lifecycle management.
 """
+from __future__ import annotations
+
 
 import asyncio
 import hashlib

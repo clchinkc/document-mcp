@@ -6,11 +6,10 @@ with real function calls and comprehensive validation of the enhanced features.
 
 import os
 
-from document_mcp.mcp_client import append_paragraph_to_chapter
+from document_mcp.mcp_client import add_paragraph
 from document_mcp.mcp_client import create_chapter
 from document_mcp.mcp_client import create_document
 from document_mcp.mcp_client import delete_document
-from document_mcp.mcp_client import insert_paragraph_before
 from document_mcp.mcp_client import manage_snapshots
 from document_mcp.mcp_client import read_content
 from document_mcp.mcp_client import replace_paragraph
@@ -197,17 +196,19 @@ class TestAutomaticSnapshotSystemIntegration:
             initial_count = len(initial_snapshots.snapshots)
 
             # Perform multiple operations that should each create snapshots
-            append_paragraph_to_chapter(
+            add_paragraph(
                 document_name=doc_name,
                 chapter_name=chapter_name,
                 new_content="First appended paragraph",
+                position="end",
             )
 
-            insert_paragraph_before(
+            add_paragraph(
                 document_name=doc_name,
                 chapter_name=chapter_name,
-                paragraph_index=0,
                 new_content="Inserted at beginning",
+                position="before",
+                paragraph_index=0,
             )
 
             # Verify multiple snapshots were created
@@ -225,11 +226,13 @@ class TestAutomaticSnapshotSystemIntegration:
             operation_names = [snap.message for snap in all_snapshots]
 
             # Check that we have snapshots for both operations
-            append_found = any("append_paragraph_to_chapter" in msg for msg in operation_names)
-            insert_found = any("insert_paragraph_before" in msg for msg in operation_names)
+            # Note: Both append and insert use the consolidated "add_paragraph" tool
+            add_paragraph_count = sum(1 for msg in operation_names if "add_paragraph" in msg)
 
-            assert append_found, f"No append snapshot found in: {operation_names}"
-            assert insert_found, f"No insert snapshot found in: {operation_names}"
+            # We should have at least 2 add_paragraph snapshots (one for append, one for insert)
+            assert add_paragraph_count >= 2, (
+                f"Expected at least 2 add_paragraph snapshots, found {add_paragraph_count} in: {operation_names}"
+            )
 
         finally:
             delete_document(doc_name)

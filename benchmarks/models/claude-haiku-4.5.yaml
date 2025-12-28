@@ -1,0 +1,18 @@
+# Claude Haiku 4.5 model configuration
+# Anthropic's fast, cost-effective model
+
+name: "Claude Haiku 4.5"
+provider: openrouter
+model_id: anthropic/claude-haiku-4.5
+temperature: 0.0
+
+# API configuration
+api_key_env: OPENROUTER_API_KEY
+
+# Rate limiting
+requests_per_minute: 100
+tokens_per_minute: 100000
+
+# Cost tracking (per 1M tokens)
+input_cost: 0.80
+output_cost: 4.00

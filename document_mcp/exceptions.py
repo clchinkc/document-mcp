@@ -4,6 +4,8 @@ This module provides a unified exception framework with consistent error handlin
 and user-friendly error messages across all components.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 

@@ -3,6 +3,8 @@
 This module provides unified safety tools for snapshot management,
 content status checking, and diff generation.
 """
+from __future__ import annotations
+
 
 from typing import Any
 

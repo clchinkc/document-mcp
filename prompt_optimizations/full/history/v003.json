@@ -1,0 +1,26 @@
+{
+  "version": "v003",
+  "timestamp": "20251228_214959",
+  "optimizer": "copro",
+  "model": "google/gemini-3-flash-preview",
+  "scenario_set": "basic_only",
+  "scenario_count": 129,
+  "include_edge_cases": false,
+  "include_adversarial": false,
+  "baseline": {
+    "accuracy": 0.93,
+    "composite": 0.735,
+    "avg_input_tokens": 3449,
+    "avg_output_tokens": 121
+  },
+  "optimized": {
+    "accuracy": 0.899,
+    "composite": 0.713,
+    "avg_input_tokens": 3648,
+    "avg_output_tokens": 129
+  },
+  "instructions": {
+    "selector.predict": "Select the correct MCP tool for a document operation query."
+  },
+  "notes": "Optimization with --no-edge-cases --no-adversarial to match benchmark. COPRO decreased score (discarded). Baseline kept. 129 scenarios (basic only), 86 train / 43 val split."
+}

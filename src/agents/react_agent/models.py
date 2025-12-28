@@ -1,5 +1,7 @@
 """Pydantic models for the ReAct agent."""
 
+from __future__ import annotations
+
 from pydantic import BaseModel
 from pydantic import Field
 

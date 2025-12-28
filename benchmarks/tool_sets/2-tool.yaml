@@ -1,0 +1,26 @@
+# Consolidated 2-tool paragraph tool set
+# Maximum consolidation - minimal tool count
+
+name: "Consolidated (2 tools)"
+tool_count: 2
+
+tools:
+  - name: modify_paragraph
+    what: "Unified paragraph modification: insert, replace, delete, or append."
+    when: >
+      operation='insert_before'|'insert_after'|'append'|'replace'|'delete'.
+      index required except for 'append'. content required except for 'delete'.
+
+  - name: move_paragraph
+    what: "Move paragraph to new position."
+    when: "source_index + destination='before'|'to_end' + optional target_index."
+
+# Maps semantic operations to tool names
+tool_mapping:
+  insert_before: modify_paragraph
+  insert_after: modify_paragraph
+  append: modify_paragraph
+  replace: modify_paragraph
+  delete: modify_paragraph
+  move_before: move_paragraph
+  move_to_end: move_paragraph

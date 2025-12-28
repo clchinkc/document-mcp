@@ -1,0 +1,21 @@
+{
+  "version": "v001",
+  "timestamp": "20251228_181924",
+  "optimizer": "mipro",
+  "model": "unknown",
+  "baseline": {
+    "accuracy": 1.0,
+    "composite": 0.7878025753645618,
+    "avg_input_tokens": 3106.4727272727273,
+    "avg_output_tokens": 90.9090909090909
+  },
+  "optimized": {
+    "accuracy": 1.0,
+    "composite": 0.788126469123589,
+    "avg_input_tokens": 3106.5454545454545,
+    "avg_output_tokens": 89.4
+  },
+  "instructions": {
+    "selector.predict": "Select the correct MCP tool for a document operation query."
+  }
+}

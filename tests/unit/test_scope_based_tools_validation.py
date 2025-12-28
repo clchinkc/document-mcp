@@ -3,6 +3,8 @@
 These tests ensure scope-based tools properly handle invalid inputs and edge cases
 without requiring external dependencies.
 """
+from __future__ import annotations
+
 
 from document_mcp.mcp_client import find_text
 from document_mcp.mcp_client import get_statistics

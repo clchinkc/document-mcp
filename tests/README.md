@@ -5,9 +5,9 @@
 This document outlines the testing strategy, structure, and best practices for the Document MCP project. A robust testing culture is crucial for maintaining code quality, preventing regressions, and enabling confident refactoring. Our test suite is organized into four main categories—Unit, Integration, End-to-End (E2E), Evaluation, and Metrics—each serving a distinct purpose.
 
 ### Current Status (v0.0.3)
-- **Total Tests**: 352 tests with 100% pass rate
-- **Coverage**: Comprehensive 4-tier testing strategy
-- **Features**: Full pagination system validation and enhanced E2E reliability
+- **Total Tests**: 554 tests with 100% pass rate
+- **Coverage**: Comprehensive 4-tier testing strategy (61% code coverage)
+- **Features**: Full pagination system validation, GCP observability tests, tool selection benchmarking, A/B description testing, multi-model validation, and enhanced E2E reliability
 
 **Special focus on Safety Features**: The testing framework includes comprehensive validation of the write-safety system, automatic micro-snapshots, version control operations, pagination system, and modification history tracking to ensure zero content loss.
 
@@ -17,10 +17,10 @@ The testing framework is organized by test type, ensuring a clear separation of 
 
 ```
 tests/
-├── unit/         # Isolated function/class tests (181 tests)
-├── integration/  # Component interaction tests (155 tests)
+├── unit/         # Isolated function/class tests (341 tests)
+├── integration/  # Component interaction tests (168 tests)
 ├── e2e/          # Full system tests (6 tests)
-├── evaluation/   # Performance benchmarking (4 tests)
+├── evaluation/   # Performance benchmarking + A/B testing + multi-model (33 tests)
 ├── test_metrics.py # Metrics validation (6 tests)
 ├── shared/       # Shared utilities, base classes, and fixtures
 └── conftest.py   # Global pytest configuration and fixtures

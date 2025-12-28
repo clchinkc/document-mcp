@@ -37,7 +37,6 @@ class PromptOptimizer:
         self.agent_files = {
             "simple": "src/agents/simple_agent/prompts.py",
             "react": "src/agents/react_agent/prompts.py",
-            "planner": "src/agents/planner_agent/prompts.py",
         }
 
     def get_current_prompt(self, agent_type: str) -> str:
@@ -50,12 +49,8 @@ class PromptOptimizer:
             from src.agents.react_agent.prompts import get_react_system_prompt
 
             return get_react_system_prompt()
-        elif agent_type == "planner":
-            from src.agents.planner_agent.prompts import get_planner_system_prompt
-
-            return get_planner_system_prompt()
         else:
-            raise ValueError(f"Unknown agent type: {agent_type}")
+            raise ValueError(f"Unknown agent type: {agent_type}. Available: simple, react")
 
     def backup_prompt(self, agent_type: str) -> str:
         """Backup current prompt file."""
@@ -89,7 +84,6 @@ class PromptOptimizer:
         templates = {
             "simple": "get_simple_agent_system_prompt",
             "react": "get_react_system_prompt",
-            "planner": "get_planner_system_prompt",
         }
 
         if agent_type not in templates:

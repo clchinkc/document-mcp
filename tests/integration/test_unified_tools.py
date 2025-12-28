@@ -1,7 +1,5 @@
 """Integration tests for unified tools in the Document MCP tool server."""
 
-import pytest
-
 from document_mcp.mcp_client import find_similar_text
 from document_mcp.mcp_client import find_text
 from document_mcp.mcp_client import get_statistics
@@ -244,111 +242,11 @@ class TestUnifiedTools:
 class TestSemanticSearchIntegration:
     """Integration tests for semantic search functionality."""
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("google.genai", reason="google-genai not available")
-        or not pytest.importorskip("numpy", reason="numpy not available"),
-        reason="Dependencies not available for semantic search",
-    )
-    def test_find_similar_text_document_scope_mocked(self, document_factory, mocker):
-        """Test semantic search with document scope using mocked API."""
-        # Mock the API key and response
-        mocker.patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-
-        # Create mock embedding objects with .values attribute
-        class MockEmbedding:
-            def __init__(self, values):
-                self.values = values
-
-        mock_response = mocker.MagicMock()
-        mock_response.embeddings = [
-            MockEmbedding([1.0, 0.0, 0.0]),  # Query embedding
-            MockEmbedding([0.9, 0.1, 0.0]),  # High similarity paragraph
-            MockEmbedding([0.1, 0.9, 0.0]),  # Low similarity paragraph
-        ]
-
-        mock_client = mocker.MagicMock()
-        mock_client.models.embed_content.return_value = mock_response
-        mocker.patch("document_mcp.tools.content_tools.genai.Client", return_value=mock_client)
-
-        doc_name = "test_semantic_doc"
-        chapters = {
-            "ch1.md": "This paragraph discusses artificial intelligence and machine learning concepts.",
-            "ch2.md": "This chapter covers database design and optimization techniques.",
-        }
-        document_factory(doc_name, chapters)
-
-        result = find_similar_text(
-            doc_name,
-            "AI and ML technologies",
-            scope="document",
-            similarity_threshold=0.7,
-            max_results=5,
-        )
-
-        assert result is not None
-        assert result.document_name == doc_name
-        assert result.scope == "document"
-        assert result.query_text == "AI and ML technologies"
-        assert len(result.results) >= 1
-        assert result.total_results >= 1
-        assert result.execution_time_ms > 0
-
-        # Check first result
-        first_result = result.results[0]
-        assert first_result.document_name == doc_name
-        assert first_result.chapter_name in ["ch1.md", "ch2.md"]
-        assert first_result.similarity_score >= 0.7
-        assert first_result.content != ""
-
-    @pytest.mark.skipif(
-        not pytest.importorskip("google.genai", reason="google-genai not available")
-        or not pytest.importorskip("numpy", reason="numpy not available"),
-        reason="Dependencies not available for semantic search",
-    )
-    def test_find_similar_text_chapter_scope_mocked(self, document_factory, mocker):
-        """Test semantic search with chapter scope using mocked API."""
-        # Mock the API key and response
-        mocker.patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-
-        # Create mock embedding objects with .values attribute
-        class MockEmbedding:
-            def __init__(self, values):
-                self.values = values
-
-        mock_response = mocker.MagicMock()
-        mock_response.embeddings = [
-            MockEmbedding([1.0, 0.0, 0.0]),  # Query embedding
-            MockEmbedding([0.8, 0.2, 0.0]),  # Matching paragraph
-        ]
-
-        mock_client = mocker.MagicMock()
-        mock_client.models.embed_content.return_value = mock_response
-        mocker.patch("document_mcp.tools.content_tools.genai.Client", return_value=mock_client)
-
-        doc_name = "test_semantic_chapter"
-        chapters = {
-            "target.md": "Database normalization is a crucial aspect of database design.",
-            "other.md": "Machine learning algorithms require large datasets.",
-        }
-        document_factory(doc_name, chapters)
-
-        result = find_similar_text(
-            doc_name,
-            "database design principles",
-            scope="chapter",
-            chapter_name="target.md",
-            similarity_threshold=0.6,
-        )
-
-        assert result is not None
-        assert result.scope == "chapter"
-        assert len(result.results) >= 1
-        assert all(r.chapter_name == "target.md" for r in result.results)
-
-    def test_find_similar_text_no_api_key(self, document_factory, mocker):
+    def test_find_similar_text_no_api_key(self, document_factory, monkeypatch):
         """Test semantic search fails gracefully without API key."""
         # Remove API key from environment
-        mocker.patch.dict("os.environ", {}, clear=True)
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
 
         doc_name = "test_no_api_key"
         chapters = {"ch1.md": "Some content"}

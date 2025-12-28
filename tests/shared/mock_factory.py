@@ -3,6 +3,8 @@
 This module provides standardized mock objects, responses, and factories
 to eliminate mock duplication and ensure consistent testing patterns.
 """
+from __future__ import annotations
+
 
 import datetime
 from typing import Any

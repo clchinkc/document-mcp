@@ -3,6 +3,8 @@
 This module provides a common interface for formatting agent responses
 in JSON format while allowing each agent to maintain its unique characteristics.
 """
+from __future__ import annotations
+
 
 import json
 from typing import Any

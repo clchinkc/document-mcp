@@ -4,8 +4,10 @@ This module contains MCP tools for managing chapter files within documents:
 - list_chapters: List all chapter files within a document
 - create_chapter: Create a new chapter file with optional initial content
 - delete_chapter: Delete a chapter file from a document
-- write_chapter_content: Overwrite entire chapter content
+- write_chapter_content: Overwrite entire chapter content (preserves frontmatter)
 """
+from __future__ import annotations
+
 
 import datetime
 import difflib
@@ -23,10 +25,12 @@ from ..helpers import _is_valid_chapter_filename
 from ..helpers import _split_into_paragraphs
 from ..logger_config import log_mcp_call
 from ..models import ChapterContent
-from ..models import ChapterMetadata
 from ..models import OperationStatus
 from ..utils.decorators import auto_snapshot
 from ..utils.decorators import safety_enhanced_write_operation
+from ..utils.frontmatter import get_content_without_frontmatter
+from ..utils.frontmatter import parse_frontmatter
+from ..utils.frontmatter import write_frontmatter
 from ..utils.validation import CHAPTER_MANIFEST_FILE
 from ..utils.validation import validate_chapter_name
 from ..utils.validation import validate_content
@@ -40,7 +44,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
 
     @mcp_server.tool()
     @log_mcp_call
-    def list_chapters(document_name: str) -> list[ChapterMetadata] | None:
+    def list_chapters(document_name: str, include_metadata: bool = False) -> list[dict[str, Any]] | None:
         """List all chapter files within a specified document, ordered by filename.
 
         This tool retrieves metadata for all chapter files (.md) within a document directory.
@@ -49,15 +53,17 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
 
         Parameters:
             document_name (str): Name of the document directory to list chapters from
+            include_metadata (bool): If True, include YAML frontmatter metadata for each chapter
 
         Returns:
-            Optional[List[ChapterMetadata]]: List of chapter metadata objects if document exists,
-            None if document not found. Each ChapterMetadata contains:
+            Optional[List[dict]]: List of chapter metadata dicts if document exists,
+            None if document not found. Each dict contains:
                 - chapter_name (str): Filename of the chapter (e.g., "01-introduction.md")
                 - title (Optional[str]): Chapter title (currently None, reserved for future use)
                 - word_count (int): Total number of words in the chapter
                 - paragraph_count (int): Total number of paragraphs in the chapter
                 - last_modified (datetime): Timestamp of last file modification
+                - frontmatter (dict): YAML frontmatter data (only if include_metadata=True)
 
             Returns empty list [] if document exists but contains no valid chapter files.
             Returns None if the document directory does not exist.
@@ -67,7 +73,8 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
             {
                 "name": "list_chapters",
                 "arguments": {
-                    "document_name": "user_guide"
+                    "document_name": "user_guide",
+                    "include_metadata": true
                 }
             }
             ```
@@ -80,14 +87,11 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
                     "title": null,
                     "word_count": 342,
                     "paragraph_count": 8,
-                    "last_modified": "2024-01-15T10:30:00Z"
-                },
-                {
-                    "chapter_name": "02-getting-started.md",
-                    "title": null,
-                    "word_count": 567,
-                    "paragraph_count": 15,
-                    "last_modified": "2024-01-15T11:45:00Z"
+                    "last_modified": "2024-01-15T10:30:00Z",
+                    "frontmatter": {
+                        "status": "revised",
+                        "pov_character": "Marcus"
+                    }
                 }
             ]
             ```
@@ -100,26 +104,45 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
         doc_path = _get_document_path(document_name)
         if not doc_path.is_dir():
             print(f"Document '{document_name}' not found at {doc_path}")
-            return None  # Or perhaps OperationStatus(success=False, message="Document not found")
-            # For now, following Optional[List[...]] pattern for read lists
+            return None
 
         ordered_chapter_files = _get_ordered_chapter_files(document_name)
-        chapters_metadata_list = []
+        chapters_list: list[dict[str, Any]] = []
+
         for chapter_file_path in ordered_chapter_files:
             metadata = _get_chapter_metadata(document_name, chapter_file_path)
             if metadata:
-                chapters_metadata_list.append(metadata)
+                chapter_dict = metadata.model_dump()
 
-        if not ordered_chapter_files and not chapters_metadata_list:
-            # If the directory exists but has no valid chapter files, return empty list.
+                if include_metadata:
+                    # Read frontmatter from file
+                    try:
+                        content = chapter_file_path.read_text(encoding="utf-8")
+                        frontmatter_data, _ = parse_frontmatter(content)
+                        chapter_dict["frontmatter"] = frontmatter_data
+                    except Exception:
+                        chapter_dict["frontmatter"] = {}
+
+                chapters_list.append(chapter_dict)
+
+        if not ordered_chapter_files and not chapters_list:
             return []
 
-        return chapters_metadata_list
+        return chapters_list
 
     @mcp_server.tool()
     @log_mcp_call
     @auto_snapshot("create_chapter")
-    def create_chapter(document_name: str, chapter_name: str, initial_content: str = "") -> OperationStatus:
+    def create_chapter(
+        document_name: str,
+        chapter_name: str,
+        initial_content: str = "",
+        # Frontmatter metadata fields (individual params for Gemini compatibility)
+        status: str | None = None,
+        pov_character: str | None = None,
+        tags: list[str] | None = None,
+        notes: str | None = None,
+    ) -> OperationStatus:
         r"""Create a new chapter file within an existing document directory.
 
         .. note::
@@ -127,7 +150,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
 
         This tool adds a new Markdown chapter file to a document collection. The chapter
         will be ordered based on its filename when listed with other chapters. Supports
-        optional initial content to bootstrap the chapter with starter text.
+        optional initial content and YAML frontmatter metadata.
 
         Parameters:
             document_name (str): Name of the existing document directory to add chapter to
@@ -142,6 +165,10 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
                 - Empty string (default): Creates empty chapter file
                 - Any valid UTF-8 text content
                 - Must be ≤1MB in size
+            status (str, optional): Chapter status (draft/revised/complete)
+            pov_character (str, optional): Point of view character name
+            tags (list[str], optional): List of tags for the chapter
+            notes (str, optional): Notes about the chapter
 
         Returns:
             OperationStatus: Structured result object containing:
@@ -150,6 +177,7 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
                 - details (Dict[str, Any], optional): Additional context including:
                     - document_name (str): Name of the parent document (on success)
                     - chapter_name (str): Name of the created chapter (on success)
+                    - has_metadata (bool): Whether frontmatter was included
 
         Example Usage:
             ```json
@@ -158,7 +186,9 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
                 "arguments": {
                     "document_name": "user_guide",
                     "chapter_name": "03-advanced-features.md",
-                    "initial_content": "# Advanced Features\n\nThis chapter covers advanced functionality."
+                    "initial_content": "# Advanced Features\n\nThis chapter covers advanced functionality.",
+                    "status": "draft",
+                    "pov_character": "Narrator"
                 }
             }
             ```
@@ -170,7 +200,8 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
                 "message": "Chapter '03-advanced-features.md' created successfully in document 'user_guide'.",
                 "details": {
                     "document_name": "user_guide",
-                    "chapter_name": "03-advanced-features.md"
+                    "chapter_name": "03-advanced-features.md",
+                    "has_metadata": true
                 }
             }
             ```
@@ -214,12 +245,33 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
                 message=f"Chapter '{chapter_name}' already exists in document '{document_name}'.",
             )
 
+        # Build metadata dict from individual parameters
+        metadata: dict[str, Any] = {}
+        if status:
+            metadata["status"] = status
+        if pov_character:
+            metadata["pov_character"] = pov_character
+        if tags:
+            metadata["tags"] = tags
+        if notes:
+            metadata["notes"] = notes
+
         try:
-            chapter_path.write_text(initial_content, encoding="utf-8")
+            # If metadata provided, write frontmatter with content
+            if metadata:
+                file_content = write_frontmatter(initial_content, metadata)
+            else:
+                file_content = initial_content
+
+            chapter_path.write_text(file_content, encoding="utf-8")
             return OperationStatus(
                 success=True,
                 message=f"Chapter '{chapter_name}' created successfully in document '{document_name}'.",
-                details={"document_name": document_name, "chapter_name": chapter_name},
+                details={
+                    "document_name": document_name,
+                    "chapter_name": chapter_name,
+                    "has_metadata": metadata is not None,
+                },
             )
         except Exception as e:
             return OperationStatus(
@@ -399,14 +451,26 @@ def register_chapter_tools(mcp_server: FastMCP) -> None:
         try:
             # Read original content before overwriting
             original_content = ""
+            existing_frontmatter: dict[str, Any] = {}
             if chapter_path.exists():
                 original_content = chapter_path.read_text(encoding="utf-8")
+                # Extract existing frontmatter to preserve it
+                existing_frontmatter, _ = parse_frontmatter(original_content)
 
-            # Write new content
-            chapter_path.write_text(new_content, encoding="utf-8")
+            # Preserve existing frontmatter if present
+            if existing_frontmatter:
+                final_content = write_frontmatter(new_content, existing_frontmatter)
+            else:
+                final_content = new_content
 
-            # Generate diff for details
-            diff_info = _generate_content_diff(original_content, new_content, chapter_name)
+            # Write new content with preserved frontmatter
+            chapter_path.write_text(final_content, encoding="utf-8")
+
+            # Generate diff for details (compare body content only)
+            original_body = get_content_without_frontmatter(original_content)
+            diff_info = _generate_content_diff(original_body, new_content, chapter_name)
+            if existing_frontmatter:
+                diff_info["frontmatter_preserved"] = True
 
             return OperationStatus(
                 success=True,

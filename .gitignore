@@ -202,3 +202,9 @@ client_secret_*.json
 
 # Audit logs
 audit.log
+
+# Claude Code configuration (personal/local)
+.claude/
+
+# Benchmark results (generated)
+benchmarks/results/

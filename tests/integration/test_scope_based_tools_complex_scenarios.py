@@ -3,6 +3,8 @@
 These tests validate scope-based tools performance and behavior with realistic,
 complex document structures using direct function calls.
 """
+from __future__ import annotations
+
 
 from document_mcp.mcp_client import find_text
 from document_mcp.mcp_client import get_statistics

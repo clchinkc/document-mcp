@@ -23,7 +23,7 @@ def test_create_and_list_chapter(document_factory):
 
     chapters_list = list_chapters(doc_name)
     assert len(chapters_list) == 1
-    assert chapters_list[0].chapter_name == chapter_name
+    assert chapters_list[0]["chapter_name"] == chapter_name
 
 
 def test_delete_chapter(document_factory):

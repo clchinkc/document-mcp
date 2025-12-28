@@ -275,8 +275,10 @@ class TestSafetyHelperFunctions:
                 else:
                     os.environ.pop("DOCUMENT_ROOT_DIR", None)
 
-    def test_check_file_freshness_file_not_exists(self, mocker):
-        mock_path = mocker.Mock()
+    def test_check_file_freshness_file_not_exists(self):
+        from unittest.mock import Mock
+
+        mock_path = Mock()
         mock_path.exists.return_value = False
 
         result = _check_file_freshness(mock_path)
@@ -286,9 +288,11 @@ class TestSafetyHelperFunctions:
         assert result.safety_status == "conflict"
         assert "Verify file was not accidentally deleted" in result.recommendations
 
-    def test_check_file_freshness_file_exists_fresh(self, mocker):
+    def test_check_file_freshness_file_exists_fresh(self):
+        from unittest.mock import Mock
+
         current_time = datetime.datetime.now()
-        mock_path = mocker.Mock()
+        mock_path = Mock()
         mock_path.exists.return_value = True
         mock_path.stat.return_value.st_mtime = current_time.timestamp()
 
@@ -298,10 +302,12 @@ class TestSafetyHelperFunctions:
         assert result.is_fresh
         assert result.safety_status == "safe"
 
-    def test_check_file_freshness_file_exists_stale(self, mocker):
+    def test_check_file_freshness_file_exists_stale(self):
+        from unittest.mock import Mock
+
         old_time = datetime.datetime.now() - datetime.timedelta(hours=1)
         new_time = datetime.datetime.now()
-        mock_path = mocker.Mock()
+        mock_path = Mock()
         mock_path.exists.return_value = True
         mock_path.stat.return_value.st_mtime = new_time.timestamp()
 

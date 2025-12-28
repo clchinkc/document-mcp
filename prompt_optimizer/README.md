@@ -2,15 +2,15 @@
 
 Automated prompt optimization tool that safely improves agent prompts using performance benchmarking and comprehensive testing.
 
-## ✨ Key Features
+## Key Features
 
 - **Safe Optimization**: Conservative changes that preserve all existing functionality
 - **Performance-Based**: Uses real execution metrics to evaluate improvements
-- **Comprehensive Testing**: Validates changes against 300 tests (unit + integration + E2E + evaluation + metrics)
+- **Comprehensive Testing**: Validates changes against 547+ tests (unit + integration + E2E + evaluation + metrics)
 - **Automatic Backup**: Safe rollback if optimization fails or breaks functionality
-- **Multi-Agent Support**: Works with Simple, ReAct, and Planner agents
+- **Multi-Agent Support**: Works with Simple and ReAct agents
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Basic Usage
 
@@ -26,9 +26,6 @@ uv run python -m prompt_optimizer react
 python3 -m prompt_optimizer all
 python3 -m prompt_optimizer simple
 python3 -m prompt_optimizer react
-
-# Development use within repo only
-uv run python -m prompt_optimizer simple
 ```
 
 ### As Python Package
@@ -45,34 +42,51 @@ async def optimize():
 asyncio.run(optimize())
 ```
 
-## 📁 Clean Architecture
+## Architecture
 
 ```
 prompt_optimizer/
 ├── __init__.py          # Package exports
-├── __main__.py          # CLI entry point  
+├── __main__.py          # CLI entry point
 ├── core.py              # Main PromptOptimizer class
 ├── evaluation.py        # Performance evaluation system
 ├── cli.py               # Command-line interface
-└── README.md           # This documentation
+└── README.md            # This documentation
 ```
 
-## 🔧 How It Works
+## How It Works
 
-1. **Baseline Measurement**: Measures current prompt performance across all tests
-2. **Conservative Optimization**: LLM generates minimal, safe improvements  
-3. **Comprehensive Validation**: Runs 105 tests plus performance benchmarks
+1. **Baseline Measurement**: Measures current prompt performance across evaluation benchmarks
+2. **Conservative Optimization**: LLM generates minimal, safe improvements
+3. **Comprehensive Validation**: Runs 547 tests plus performance benchmarks
 4. **Decision Logic**: Accepts only if tests pass AND performance improves
 5. **Safety First**: Automatic backup and restore if anything breaks
 
-## ⚙️ Requirements
+## Integration with Benchmarking Infrastructure
+
+The optimizer integrates with the evaluation infrastructure:
+
+- **Tool Selection Benchmarks**: `tests/evaluation/test_tool_selection_benchmark.py`
+  - 37 scenarios across 7 categories
+  - Measures tool selection accuracy
+
+- **A/B Description Testing**: `tests/evaluation/test_ab_descriptions.py`
+  - Compare description variants (Current, Improved, Minimal)
+  - Multi-model testing (GPT-5, Gemini-3, Claude-4.5)
+
+- **Performance Metrics**: `tests/evaluation/config.py`
+  - Token usage tracking
+  - Execution time thresholds
+  - Tool call counting
+
+## Requirements
 
 - Python 3.9+
-- Valid LLM API keys (OpenAI or Gemini)
-- Working test suite (105 tests total)
+- Valid LLM API keys (OpenAI, Gemini, or OpenRouter)
+- Working test suite (547 tests total)
 - All dependencies from `pyproject.toml`
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -86,3 +100,4 @@ prompt_optimizer/
 - **Agent Prompts**: `src/agents/{agent_type}/prompts.py`
 - **Backups**: `prompt_backups/{agent}_prompt_backup_{timestamp}.py`
 - **Tests**: `tests/unit/`, `tests/integration/`, `tests/e2e/`
+- **Benchmarks**: `tests/evaluation/`

@@ -4,6 +4,8 @@ This module contains models for statistics, semantic search,
 and analytical operations.
 """
 
+from __future__ import annotations
+
 import datetime
 
 from pydantic import BaseModel

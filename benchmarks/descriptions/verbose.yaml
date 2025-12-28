@@ -1,0 +1,44 @@
+# Verbose description style
+# Maximum detail - for models that benefit from more context
+
+name: "Verbose"
+style: verbose
+
+tools:
+  - name: add_paragraph
+    what: >
+      Add a new paragraph to the chapter at a specified position. Supports three modes:
+      'before' inserts above the target index (pushes existing content down),
+      'after' inserts below the target index, 'end' appends to the end of the chapter.
+    when: >
+      Use this tool whenever you need to add NEW content to a chapter.
+      Required params: content (the text), position ('before'|'after'|'end').
+      If position is 'before' or 'after', also provide paragraph_index.
+
+  - name: replace_paragraph
+    what: >
+      Replace the content of an existing paragraph at the specified index.
+      The total number of paragraphs remains unchanged.
+      This overwrites the existing text completely.
+    when: >
+      Use when editing or updating existing content. DO NOT use for adding new paragraphs.
+      Required params: paragraph_index, new_content.
+
+  - name: delete_paragraph
+    what: >
+      Permanently remove a paragraph from the chapter.
+      All paragraphs after the deleted one shift up (their indices decrease by 1).
+      This is a destructive operation.
+    when: >
+      Use when content needs to be removed entirely.
+      Required param: paragraph_index.
+      WARNING: Cannot be undone without snapshots.
+
+  - name: move_paragraph
+    what: >
+      Reorder paragraphs by moving one to a new position.
+      Supports moving before another paragraph or to the end of the chapter.
+    when: >
+      Use for reordering content.
+      Required: source_index, destination ('before'|'to_end').
+      If destination is 'before', also provide target_index.

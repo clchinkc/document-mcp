@@ -4,16 +4,20 @@ This module provides decorators for automatic safety and snapshot features:
 - auto_snapshot: Automatic snapshot creation before edit operations
 - safety_enhanced_write_operation: Automatic snapshots, freshness checks, and result enrichment for write operations
 """
+from __future__ import annotations
 
-import datetime
+
+import os
 from functools import wraps
 from pathlib import Path
 
 from ..logger_config import ErrorCategory
 from ..logger_config import log_structured_error
-from ..models import ContentFreshnessStatus
 from ..models import OperationStatus
+from ..utils.file_operations import DOCS_ROOT_PATH
 from ..utils.file_operations import get_current_user
+from ..utils.validation import check_file_freshness as _check_file_freshness
+from ..utils.validation import parse_timestamp as _parse_timestamp
 
 
 def auto_snapshot(operation_name: str):
@@ -56,9 +60,6 @@ def auto_snapshot(operation_name: str):
     return decorator
 
 
-# Removed create_automatic_snapshot - auto_snapshot decorator now handles snapshot creation directly
-
-
 def safety_enhanced_write_operation(
     operation_name: str, create_snapshot: bool = False, check_freshness: bool = True
 ):
@@ -72,7 +73,7 @@ def safety_enhanced_write_operation(
         protected_func = func
 
         if check_freshness:
-            protected_func = check_file_freshness(protected_func)
+            protected_func = check_file_freshness_decorator(protected_func)
 
         protected_func = enhance_operation_result(protected_func)
         return protected_func
@@ -80,7 +81,7 @@ def safety_enhanced_write_operation(
     return decorator
 
 
-def check_file_freshness(func):
+def check_file_freshness_decorator(func):
     """Decorator to check file freshness before write operations."""
 
     @wraps(func)
@@ -90,7 +91,7 @@ def check_file_freshness(func):
         )
 
         # Parse timestamp
-        last_known_dt = _parse_timestamp(last_known_modified)
+        last_known_dt = _parse_timestamp(last_known_modified) if last_known_modified else None
         if last_known_modified and last_known_dt is None:
             return OperationStatus(
                 success=False,
@@ -129,6 +130,10 @@ def check_file_freshness(func):
     return wrapper
 
 
+# Alias for backward compatibility
+check_file_freshness = check_file_freshness_decorator
+
+
 def enhance_operation_result(func):
     """Decorator to enhance operation results with safety information."""
 
@@ -142,11 +147,7 @@ def enhance_operation_result(func):
 
             # Add safety info to result
             if safety_info:
-                # Ensure safety_info is properly serialized
-                if hasattr(safety_info, "model_dump"):
-                    result.safety_info = safety_info
-                else:
-                    result.safety_info = safety_info
+                result.safety_info = safety_info
             else:
                 result.safety_info = None
 
@@ -207,33 +208,8 @@ def _extract_operation_parameters(args, kwargs):
     return document_name, chapter_name, last_known_modified, force_write
 
 
-def _parse_timestamp(timestamp_str: str | None) -> datetime.datetime | None:
-    """Parse ISO timestamp string to datetime object."""
-    if not timestamp_str:
-        return None
-
-    try:
-        # Handle ISO format with Z suffix
-        if timestamp_str.endswith("Z"):
-            timestamp_str = timestamp_str[:-1] + "+00:00"
-
-        dt = datetime.datetime.fromisoformat(timestamp_str)
-
-        # Convert to naive datetime for consistent comparison
-        if dt.tzinfo:
-            dt = dt.replace(tzinfo=None)
-
-        return dt
-    except (ValueError, AttributeError):
-        return None
-
-
 def _get_operation_path(document_name: str, chapter_name: str | None = None) -> Path:
     """Get the file path for the operation."""
-    import os
-
-    from ..utils.file_operations import DOCS_ROOT_PATH
-
     # Use environment variable if available for test isolation
     if "PYTEST_CURRENT_TEST" in os.environ:
         docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR", str(DOCS_ROOT_PATH))
@@ -245,58 +221,3 @@ def _get_operation_path(document_name: str, chapter_name: str | None = None) -> 
         return root_path / document_name / chapter_name
     else:
         return root_path / document_name
-
-
-def _check_file_freshness(
-    file_path: Path, last_known_modified: datetime.datetime | None = None
-) -> ContentFreshnessStatus:
-    """Check if a file has been modified since last known modification time."""
-    if not file_path.exists():
-        return ContentFreshnessStatus(
-            is_fresh=False,
-            last_modified=datetime.datetime.now(),
-            last_known_modified=last_known_modified,
-            safety_status="conflict",
-            message="File no longer exists",
-            recommendations=[
-                "Verify file was not accidentally deleted",
-                "Consider restoring from snapshot",
-            ],
-        )
-
-    current_modified = datetime.datetime.fromtimestamp(file_path.stat().st_mtime)
-
-    if last_known_modified is None:
-        return ContentFreshnessStatus(
-            is_fresh=True,
-            last_modified=current_modified,
-            last_known_modified=None,
-            safety_status="safe",
-            message="No previous modification time to compare against",
-            recommendations=[],
-        )
-
-    time_diff = abs((current_modified - last_known_modified).total_seconds())
-
-    if time_diff < 1:  # Within 1 second tolerance
-        return ContentFreshnessStatus(
-            is_fresh=True,
-            last_modified=current_modified,
-            last_known_modified=last_known_modified,
-            safety_status="safe",
-            message="Content is fresh and safe to modify",
-            recommendations=[],
-        )
-    else:
-        return ContentFreshnessStatus(
-            is_fresh=False,
-            last_modified=current_modified,
-            last_known_modified=last_known_modified,
-            safety_status="warning",
-            message=f"Content was modified {time_diff:.1f} seconds ago by external source",
-            recommendations=[
-                "Re-read content before proceeding",
-                "Consider creating a snapshot before modifying",
-                "Use force_write=True to proceed anyway",
-            ],
-        )

@@ -2,7 +2,69 @@
 
 This module provides reusable prompt sections that can be shared across
 different agent implementations to maintain consistency and reduce duplication.
+
+Optionally integrates SKILL.md content for consistency with Claude Code Skills.
 """
+
+from __future__ import annotations
+
+import logging
+import os
+
+logger = logging.getLogger(__name__)
+
+# Environment variable to control SKILL.md integration
+ENABLE_SKILL_INTEGRATION = os.environ.get("ENABLE_SKILL_INTEGRATION", "true").lower() == "true"
+# Environment variable to control optimized demos (disabled by default - using 0-shot optimization)
+# Set ENABLE_OPTIMIZED_DEMOS=true to enable few-shot demos injection
+ENABLE_OPTIMIZED_DEMOS = os.environ.get("ENABLE_OPTIMIZED_DEMOS", "false").lower() == "true"
+
+
+def _get_optimized_demos(variant: str = "full") -> str | None:
+    """Load DSPy-optimized demos if available and enabled.
+
+    Args:
+        variant: Prompt variant to load demos for.
+
+    Returns:
+        Formatted demos section or None.
+    """
+    if not ENABLE_OPTIMIZED_DEMOS:
+        return None
+
+    try:
+        from .optimized_demos import get_optimized_examples_section
+
+        content = get_optimized_examples_section(variant)
+        return content if content else None
+    except ImportError:
+        logger.debug("optimized_demos not available")
+        return None
+    except Exception as e:
+        logger.debug(f"Failed to load optimized demos: {e}")
+        return None
+
+
+def _get_skill_content() -> str | None:
+    """Load SKILL.md content if available and enabled.
+
+    Returns:
+        SKILL.md critical workflows section or None.
+    """
+    if not ENABLE_SKILL_INTEGRATION:
+        return None
+
+    try:
+        from .skill_loader import get_critical_workflows
+
+        content = get_critical_workflows()
+        return content if content else None
+    except ImportError:
+        logger.debug("skill_loader not available, using built-in prompts only")
+        return None
+    except Exception as e:
+        logger.debug(f"Failed to load SKILL.md: {e}")
+        return None
 
 
 class PromptComponents:
@@ -17,19 +79,11 @@ A 'document' is a directory containing multiple 'chapter' files (Markdown .md fi
     @staticmethod
     def get_summary_operations_workflow() -> str:
         """Summary operations workflow used by all agents."""
-        return """**SUMMARY OPERATIONS:**
-- **Explicit Content Requests**: When user explicitly asks to "read the content", "show me the content", "what's in the document", etc. → Use scope-based `read_content()` with appropriate scope
-- **Broad Screening/Editing**: When user gives broad edit commands like "update the document", "modify this section", "improve the writing" → First read `read_summary()` to understand structure, then read specific content as needed
-- **Summary-First Strategy**: For general inquiries about document topics, use summaries to provide initial insights before reading full content
-- **After Write Operations**: Suggest creating or updating summary files using `write_summary()` in your response summary
-
-**CRITICAL: SUMMARY-FIRST DECISION RULES:**
-- **Use ONLY `read_summary()` for**: "tell me about document X", "what's in document Y", "describe document Z", "overview of document", "what is document about", "explain document"
-- **Use `read_content()` for**: "read the content", "show me the content", "full text", "complete content", "read all chapters", "show me chapter X"
-- **Keywords indicating summary-first**: "about", "tell me", "describe", "overview", "what is", "explain", "summarize"
-- **Keywords indicating full content**: "read content", "show content", "full text", "complete", "read all", "show all"
-- **NEVER combine summary and content calls for broad queries**: If user asks "tell me about document X", use ONLY `read_summary()` - do NOT also call `read_content()`
-- **When in doubt about broad queries**: Start with `read_summary()` - it's faster and more efficient"""
+        return """**SUMMARY vs CONTENT DECISION:**
+- **Use `read_summary()`**: For "about", "describe", "overview", "what is", "tell me about" queries
+- **Use `read_content()`**: For "read content", "show me", "full text", "display chapter" queries
+- **For broad edits**: Use `read_summary()` first to understand structure, then read specific content
+- **After writes**: Suggest updating summaries with `write_summary()` in your response"""
 
     @staticmethod
     def get_version_control_explanation() -> str:
@@ -92,49 +146,37 @@ If users need to access past versions of their documents, they can use the snaps
     def get_operation_workflow_guidance() -> str:
         """General operation workflow guidance for all agents."""
         return """**OPERATION WORKFLOW:**
-When a user asks for an operation:
-1. Identify the correct tool by understanding the user's intent and matching it to the tool's description
-2. Determine the necessary parameters for the chosen tool based on its description and the user's query
-3. Consider the operation workflow appropriate for your agent type
-4. After receiving results, analyze what you found and determine if further actions are needed"""
+1. Identify intent → match to tool description
+2. Determine parameters from user query
+3. Execute tool and analyze results
+4. Determine if further actions needed"""
 
     @staticmethod
     def get_pre_operation_checks() -> str:
         """Pre-operation validation checks applicable to all agents."""
         return """**PRE-OPERATION CHECKS:**
-- If the user asks to list/show/get available documents, call `list_documents()` FIRST
-- If the user asks to read specific document content, verify the document exists and follow the summary operations workflow
-- If the user's request is a search request (keywords: find, search, locate), use the appropriate search tool with proper scope
-- If the user's request is to create, add, update, modify, or delete a document or chapter, proceed directly with the appropriate tool
-- Verify a target document exists before any per-document operation
-- For operations across all documents, enumerate with `list_documents()` prior to acting on each"""
+- For "list/show documents" → call `list_documents()` FIRST
+- For "read content" → verify document exists, follow summary-first workflow
+- For "find/search" → use appropriate search tool with scope
+- For "create/update/delete" → proceed with appropriate tool
+- Verify document exists before per-document operations
+- For multi-document ops → enumerate with `list_documents()` first"""
 
     @staticmethod
     def get_document_vs_content_distinction() -> str:
         """Critical distinction between listing documents and reading content."""
-        return """**CRITICAL DISTINCTION - LISTING vs READING DOCUMENTS:**
-
-**LISTING DOCUMENTS** (use `list_documents` tool):
-- User wants to see what documents exist/are available
-- Keywords: "show", "list", "get", "what", "available", "all documents"
-- Returns: List[DocumentInfo] - names and metadata of documents
-
-**READING DOCUMENT CONTENT** (use `read_content` tool with appropriate scope):
-- User wants to see the actual content/text inside documents
-- Keywords: "read", "content", "text", "what's in", with specific document names
-- Returns: Content based on scope parameter (document/chapter/paragraph)
-
-**NEVER confuse directory names with document names when listing available documents.**"""
+        return """**LISTING vs READING:**
+- `list_documents()`: See what documents exist (returns names/metadata)
+- `read_content()`: See actual text inside documents (returns content by scope)
+Keywords: "list/show/available" → list_documents | "read/content/text" → read_content"""
 
     @staticmethod
     def get_validation_planning_guidance() -> str:
         """Validation and planning guidance applicable to all agents."""
-        return """**VALIDATION GUIDANCE:**
-- Always start with verification steps (`list_documents`, `list_chapters`) when working with existing content
-- Use `read_content` with appropriate scope before modifying to understand current state
-- For search operations, use `find_text` with appropriate scope before making changes
-- Plan operations in logical order (create before write, check before modify)
-- Include error prevention steps when uncertain about document/chapter existence"""
+        return """**VALIDATION:**
+- Verify with `list_documents`/`list_chapters` before modifying existing content
+- Use `read_content` before modifying to understand current state
+- Plan: create before write, check before modify"""
 
     @staticmethod
     def get_agent_specific_components() -> dict[str, dict[str, str]]:
@@ -247,6 +289,13 @@ def build_agent_prompt(
     prompt_parts.append("")
     prompt_parts.append(shared_components["details_field_requirements"])
 
+    # Add SKILL.md content if available (provides Claude Code consistency)
+    skill_content = _get_skill_content()
+    if skill_content:
+        prompt_parts.append("")
+        prompt_parts.append("**CRITICAL WORKFLOWS (from SKILL.md):**")
+        prompt_parts.append(skill_content)
+
     # Add tool descriptions
     prompt_parts.append("")
     prompt_parts.append("**AVAILABLE TOOLS:**")
@@ -255,6 +304,12 @@ def build_agent_prompt(
     )
     prompt_parts.append("")
     prompt_parts.append(tool_descriptions)
+
+    # Add DSPy-optimized few-shot examples if available
+    optimized_demos = _get_optimized_demos("full")
+    if optimized_demos:
+        prompt_parts.append("")
+        prompt_parts.append(optimized_demos)
 
     # Add agent-specific sections
     if additional_sections:

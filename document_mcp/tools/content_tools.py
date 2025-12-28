@@ -3,13 +3,15 @@
 This module provides unified content access tools that work across different
 scopes (document, chapter, paragraph) with a consistent interface.
 """
+from __future__ import annotations
+
 
 import os
 import time
 
+import numpy as np
 from google import genai
 from google.genai import types
-import numpy as np
 
 from ..helpers import _count_words
 from ..helpers import _get_chapter_path
@@ -897,6 +899,171 @@ def register_content_tools(mcp_server):
                 operation="find_similar_text",
             )
             return None
+
+    @mcp_server.tool()
+    @log_mcp_call
+    def find_entity(
+        document_name: str,
+        entity_name: str,
+        include_context: bool = True,
+        context_chars: int = 50,
+    ) -> dict | None:
+        """Find all mentions of an entity across the document, using aliases from metadata.
+
+        WHAT: Find all mentions of an entity across the document, using aliases from metadata.
+        WHEN: Use when user asks "where did I mention Marcus?" or "when was the pendant last used?"
+        RETURNS: Aggregated mentions by chapter with context snippets.
+
+        This tool automatically looks up entity aliases from the document's metadata
+        (metadata/entities.yaml) and searches for all name variants. Results are
+        aggregated by chapter with first/last mention tracking.
+
+        Parameters:
+            document_name (str): Name of the document to search
+            entity_name (str): Entity name to search for (aliases are auto-looked up)
+            include_context (bool): Include surrounding text snippets (default: True)
+            context_chars (int): Characters of context on each side (default: 50)
+
+        Returns:
+            Optional[dict]: Aggregated entity mentions with structure:
+                {
+                    "entity": "Marcus Chen",
+                    "aliases_searched": ["Marcus", "Marc", "The Detective"],
+                    "total_mentions": 47,
+                    "first_mention": {"chapter": "01-intro", "paragraph": 3, "context": "..."},
+                    "last_mention": {"chapter": "12-climax", "paragraph": 8, "context": "..."},
+                    "by_chapter": [
+                        {"chapter": "01-intro", "count": 5, "paragraphs": [3, 5, 8, 12, 15]},
+                        ...
+                    ]
+                }
+
+        Example Usage:
+            ```json
+            {
+                "name": "find_entity",
+                "arguments": {
+                    "document_name": "My Novel",
+                    "entity_name": "Marcus"
+                }
+            }
+            ```
+        """
+        import yaml
+
+        from ..helpers import _get_entities_path
+        from ..utils.frontmatter import get_content_without_frontmatter
+
+        # Validate document name
+        is_valid_doc, doc_error = validate_document_name(document_name)
+        if not is_valid_doc:
+            log_structured_error(
+                category=ErrorCategory.ERROR,
+                message=f"Invalid document name: {doc_error}",
+                context={"document_name": document_name},
+                operation="find_entity",
+            )
+            return None
+
+        doc_path = _get_document_path(document_name)
+        if not doc_path.exists():
+            return None
+
+        # Build list of search terms (entity name + aliases)
+        search_terms = [entity_name]
+        entity_info = None
+
+        # Try to load aliases from metadata
+        entities_path = _get_entities_path(document_name)
+        if entities_path.is_file():
+            try:
+                content = entities_path.read_text(encoding="utf-8")
+                data = yaml.safe_load(content) or {}
+
+                # Search for entity in all categories
+                entity_name_lower = entity_name.lower()
+                for category in ["characters", "locations", "items"]:
+                    for entity in data.get(category, []):
+                        name = entity.get("name", "")
+                        aliases = entity.get("aliases", [])
+
+                        # Check if this entity matches
+                        if name.lower() == entity_name_lower or entity_name_lower in [
+                            a.lower() for a in aliases
+                        ]:
+                            entity_info = entity
+                            search_terms = [name] + aliases
+                            break
+                    if entity_info:
+                        break
+            except Exception:
+                pass  # Fall back to just searching for entity_name
+
+        # Perform search across all chapters
+        chapter_files = _get_ordered_chapter_files(document_name)
+        all_mentions = []
+        by_chapter = []
+
+        for chapter_file in chapter_files:
+            try:
+                raw_content = chapter_file.read_text(encoding="utf-8")
+                # Strip frontmatter before searching to avoid matching metadata fields
+                chapter_content = get_content_without_frontmatter(raw_content)
+                paragraphs = _split_into_paragraphs(chapter_content)
+                chapter_mentions = []
+
+                for para_idx, paragraph in enumerate(paragraphs):
+                    para_lower = paragraph.lower()
+
+                    for term in search_terms:
+                        if term.lower() in para_lower:
+                            # Found a mention
+                            mention = {
+                                "chapter": chapter_file.name,
+                                "paragraph": para_idx,
+                            }
+
+                            if include_context:
+                                # Extract context around first occurrence
+                                term_pos = para_lower.find(term.lower())
+                                start = max(0, term_pos - context_chars)
+                                end = min(len(paragraph), term_pos + len(term) + context_chars)
+                                mention["context"] = "..." + paragraph[start:end] + "..."
+
+                            all_mentions.append(mention)
+                            chapter_mentions.append(para_idx)
+                            break  # Only count once per paragraph
+
+                if chapter_mentions:
+                    by_chapter.append(
+                        {
+                            "chapter": chapter_file.name,
+                            "count": len(chapter_mentions),
+                            "paragraphs": chapter_mentions,
+                        }
+                    )
+
+            except Exception:
+                continue
+
+        if not all_mentions:
+            return {
+                "entity": entity_name,
+                "aliases_searched": search_terms,
+                "total_mentions": 0,
+                "first_mention": None,
+                "last_mention": None,
+                "by_chapter": [],
+            }
+
+        return {
+            "entity": entity_info.get("name", entity_name) if entity_info else entity_name,
+            "aliases_searched": search_terms,
+            "total_mentions": len(all_mentions),
+            "first_mention": all_mentions[0],
+            "last_mention": all_mentions[-1],
+            "by_chapter": by_chapter,
+        }
 
 
 # Helper functions for content tools

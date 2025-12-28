@@ -14,9 +14,6 @@ DEFAULT_TIMEOUT = settings.default_timeout
 MAX_RETRIES = settings.max_retries
 
 
-AgentSettings = type(settings)
-
-
 def get_agent_settings():
     """Get the centralized settings instance."""
     return settings
@@ -36,6 +33,10 @@ def prepare_mcp_server_environment() -> dict[str, str]:
 
 async def load_llm_config():
     """Load and configure the LLM model based on available environment variables."""
+    if settings.active_provider == "openrouter":
+        print(f"Using OpenRouter model: {settings.active_model}")
+        return OpenAIModel(model_name=settings.active_model, provider="openrouter")
+
     if settings.active_provider == "openai":
         print(f"Using OpenAI model: {settings.active_model}")
         return OpenAIModel(model_name=settings.active_model)
@@ -48,9 +49,11 @@ async def load_llm_config():
     raise ValueError(
         "No valid API key found in environment variables. "
         "Please set one of the following in your .env file:\n"
+        "- OPENROUTER_API_KEY for OpenRouter models\n"
         "- OPENAI_API_KEY for OpenAI models\n"
         "- GEMINI_API_KEY for Google Gemini models\n"
         "\nOptionally, you can also set:\n"
+        "- OPENROUTER_MODEL_NAME (default: anthropic/claude-3.5-sonnet)\n"
         "- OPENAI_MODEL_NAME (default: gpt-4.1-mini)\n"
         "- GEMINI_MODEL_NAME (default: gemini-2.5-flash)"
     )

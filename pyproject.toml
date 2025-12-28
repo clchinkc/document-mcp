@@ -56,6 +56,14 @@ server = [
     "redis>=5.0.0",         # Session and token storage
 ]
 
+gcp-observability = [
+    # Google Cloud native observability (optional, for Cloud Run deployment)
+    "google-cloud-logging>=3.0.0",
+    "opentelemetry-exporter-gcp-trace>=1.6.0",
+    "opentelemetry-exporter-gcp-monitoring>=1.6.0",
+    "opentelemetry-propagator-gcp>=1.6.0",
+]
+
 dev = [
     # Core testing framework
     "pytest>=7.3.0",
@@ -74,7 +82,10 @@ dev = [
     # Performance monitoring
     "memory-profiler>=0.60.0",  # For memory profiling tests
     "psutil>=5.9.0",  # For system resource monitoring
-    
+
+    # DSPy for prompt optimization
+    "dspy>=2.5.0",
+
     # Development utilities (agents run separately from source)
 ]
 
@@ -121,9 +132,26 @@ ignore = [
     "D103", # Missing docstring in public function
     "D104", # Missing docstring in public package
     "D105", # Missing docstring in magic method
+    "D106", # Missing docstring in public nested class (Pydantic Config)
     "D107", # Missing docstring in __init__
+    "D205", # Blank line required between summary and description (too strict for our docstrings)
+    "D212", # Multi-line docstring summary placement (conflicts with D213)
+    "E501", # Line too long (managed manually for readability in docstrings/prompts)
     "E722", # Bare except (used in error handling patterns)
+    "SIM105", # contextlib.suppress (sometimes try-except is clearer)
+    "SIM108", # Ternary operator (sometimes if-else is clearer)
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"**/prompts.py" = ["E501"]  # Prompt files need long strings
+"**/tool_descriptions.py" = ["E501"]  # Tool descriptions need long strings
+"**/prompt_components.py" = ["E501"]  # Prompt components need long strings
+"server.py" = ["B904"]  # Exception chaining not always appropriate
+"prompt_optimizer/*.py" = ["B904"]  # Exception chaining not always appropriate
+"tests/**/*.py" = ["B904", "SIM117", "D417"]  # Test files have different conventions
+"src/agents/simple_agent/main.py" = ["E402"]  # Import order due to logging setup
+"src/agents/simple_agent/agent.py" = ["B904"]  # Exception chaining in timeout handling
+"src/agents/shared/agent_base.py" = ["B027"]  # Empty __aexit__ is intentional
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -154,6 +182,13 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.17.0",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+]
 
 
 

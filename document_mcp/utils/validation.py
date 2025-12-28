@@ -3,6 +3,8 @@
 This module contains all validation functions used throughout the system
 to ensure data integrity and security.
 """
+from __future__ import annotations
+
 
 import datetime
 from pathlib import Path

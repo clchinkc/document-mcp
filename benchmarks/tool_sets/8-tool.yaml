@@ -1,0 +1,53 @@
+# Atomic 9-tool paragraph tool set
+# One tool per operation - maximum granularity
+
+name: "Atomic (9 tools)"
+tool_count: 9
+
+tools:
+  - name: insert_paragraph_before
+    what: "Insert new paragraph BEFORE specified index."
+    when: "Use ONLY when inserting BEFORE/ABOVE an existing paragraph."
+
+  - name: insert_paragraph_after
+    what: "Insert new paragraph AFTER specified index."
+    when: "Use ONLY when inserting AFTER/BELOW an existing paragraph."
+
+  - name: append_paragraph_to_chapter
+    what: "Append new paragraph at END of chapter."
+    when: "Use ONLY when adding to the END. No index needed."
+
+  - name: replace_paragraph
+    what: "REPLACE content at index. Count unchanged."
+    when: "Use for 'replace N', 'edit N', 'change N'."
+
+  - name: delete_paragraph
+    what: "DELETE at index. Subsequent paragraphs shift up."
+    when: "Use for 'delete N', 'remove N'. DESTRUCTIVE."
+
+  - name: read_paragraph
+    what: "Read content of a single paragraph."
+    when: "Use to read specific paragraph content."
+
+  - name: move_paragraph_before
+    what: "Move paragraph BEFORE a target index."
+    when: "Use for 'move X before Y'."
+
+  - name: move_paragraph_after
+    what: "Move paragraph AFTER a target index."
+    when: "Use for 'move X after Y'."
+
+  - name: move_paragraph_to_end
+    what: "Move paragraph to END of chapter."
+    when: "Use for 'move X to end'."
+
+# Maps semantic operations to tool names
+tool_mapping:
+  insert_before: insert_paragraph_before
+  insert_after: insert_paragraph_after
+  append: append_paragraph_to_chapter
+  replace: replace_paragraph
+  delete: delete_paragraph
+  move_before: move_paragraph_before
+  move_after: move_paragraph_after
+  move_to_end: move_paragraph_to_end

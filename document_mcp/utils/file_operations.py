@@ -3,6 +3,8 @@
 This module contains file path utilities and file system operations
 used throughout the system.
 """
+from __future__ import annotations
+
 
 import os
 from pathlib import Path
@@ -55,10 +57,10 @@ def get_document_path(document_name: str) -> Path:
     return DOCS_ROOT_PATH / document_name
 
 
-def get_chapter_path(document_name: str, chapter_filename: str) -> Path:
+def get_chapter_path(document_name: str, chapter_name: str) -> Path:
     """Return the full path for a given chapter file."""
     doc_path = get_document_path(document_name)
-    return doc_path / chapter_filename
+    return doc_path / chapter_name
 
 
 def get_operation_path(document_name: str, chapter_name: str | None) -> Path:
@@ -73,6 +75,22 @@ def get_snapshots_path(document_name: str) -> Path:
     """Return the path to the snapshots directory for a document."""
     doc_path = get_document_path(document_name)
     return doc_path / ".snapshots"
+
+
+def get_metadata_path(document_name: str) -> Path:
+    """Return the path to the metadata directory for a document."""
+    doc_path = get_document_path(document_name)
+    return doc_path / "metadata"
+
+
+def get_entities_path(document_name: str) -> Path:
+    """Return the path to the entities.yaml file for a document."""
+    return get_metadata_path(document_name) / "entities.yaml"
+
+
+def get_timeline_path(document_name: str) -> Path:
+    """Return the path to the timeline.yaml file for a document."""
+    return get_metadata_path(document_name) / "timeline.yaml"
 
 
 def get_modification_history_path(document_name: str) -> Path:

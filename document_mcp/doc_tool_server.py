@@ -36,10 +36,17 @@ from .models import SnapshotInfo
 from .models import SnapshotsList
 from .models import StatisticsReport
 
+# Import observability
+from .observability import get_observability_status
+from .observability import initialize_observability
+
 # Import tool registration functions from modular architecture
 from .tools import register_chapter_tools
 from .tools import register_content_tools
+from .tools import register_discovery_tools
 from .tools import register_document_tools
+from .tools import register_metadata_tools
+from .tools import register_overview_tools
 from .tools import register_paragraph_tools
 from .tools import register_safety_tools
 from .utils.file_operations import DOCS_ROOT_PATH
@@ -103,11 +110,17 @@ def get_current_user() -> str:
 mcp_server = FastMCP(name="DocumentManagementTools")
 
 # Register tools from modular architecture
+# Discovery tools registered first (always loaded for defer loading support)
+register_discovery_tools(mcp_server)
+# Core document tools
 register_document_tools(mcp_server)
 register_chapter_tools(mcp_server)
+# Paragraph tools (4 tools: add, replace, delete, move)
 register_paragraph_tools(mcp_server)
 register_content_tools(mcp_server)
 register_safety_tools(mcp_server)
+register_metadata_tools(mcp_server)
+register_overview_tools(mcp_server)
 
 # Export only essential items for MCP server module
 __all__ = [
@@ -171,7 +184,10 @@ Examples:
 
     args = parser.parse_args()
 
-    # Initialize metrics only when server actually starts running (not during --help)
+    # Initialize observability (logs, traces, metrics) - works on Cloud Run and locally
+    initialize_observability()
+
+    # Initialize legacy metrics only when server actually starts running (not during --help)
     ensure_metrics_initialized()
 
     # Debug: Show environment variables received by MCP server subprocess
@@ -215,23 +231,30 @@ Examples:
     else:
         print("[MCP_SERVER_DEBUG] No DOCUMENT_ROOT_DIR env var")
 
-    # Show automatic telemetry status
+    # Show observability status
+    obs_status = get_observability_status()
+    print(f"[OK] Observability ({obs_status['environment']})")
+    print(f"   Logging: {'enabled' if obs_status['logging'] else 'disabled'}")
+    print(f"   Tracing: {'enabled' if obs_status['tracing'] else 'disabled'}")
+    print(f"   Metrics: {'enabled' if obs_status['metrics'] else 'disabled'}")
+
+    # Show automatic telemetry status (legacy)
     try:
         from .metrics_config import get_metrics_summary
 
         summary = get_metrics_summary()
         if summary["status"] in ["active", "enabled"]:
-            print(f"[OK] Automatic telemetry: {summary.get('telemetry_mode', 'active')}")
+            print(f"[OK] Legacy telemetry: {summary.get('telemetry_mode', 'active')}")
             print(f"   Service: {summary['service_name']} v{summary['service_version']}")
             print(f"   Environment: {summary['environment']}")
         elif summary["status"] == "shutdown":
-            print("[INFO] Telemetry: shutdown after inactivity")
+            print("[INFO] Legacy telemetry: shutdown after inactivity")
         elif summary["status"] == "disabled":
-            print(f"[INFO] Telemetry: {summary.get('reason', 'disabled')}")
+            print(f"[INFO] Legacy telemetry: {summary.get('reason', 'disabled')}")
         else:
-            print(f"[INFO] Telemetry: {summary['status']}")
+            print(f"[INFO] Legacy telemetry: {summary['status']}")
     except (ImportError, NameError):
-        print("[INFO] Telemetry: not available")
+        print("[INFO] Legacy telemetry: not available")
 
     if args.transport == "stdio":
         print("MCP server running with stdio transport. Waiting for client connection...")

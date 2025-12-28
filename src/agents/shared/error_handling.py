@@ -4,6 +4,8 @@ This module provides common classes for error classification and retry logic
 that can be used across different agent implementations. It integrates with
 the centralized error handling framework.
 """
+from __future__ import annotations
+
 
 import asyncio
 from dataclasses import dataclass

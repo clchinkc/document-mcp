@@ -9,7 +9,8 @@ While other tools focus on simple note-taking, Document-MCP is built for creatin
 
 ### Recent Updates (v0.0.3)
 - ✅ **Pagination System**: Industry-standard pagination for complete large document access
-- ✅ **Enhanced Testing**: 352 comprehensive tests with 100% pass rate
+- ✅ **Enhanced Testing**: 477 comprehensive tests with 100% pass rate (61% coverage)
+- ✅ **GCP Observability**: Native Cloud Logging, Tracing, and Monitoring integration (works locally too)
 - ✅ **Improved Documentation**: Updated guides and API references
 - ✅ **Performance Optimization**: Better timeout handling and reliability
 

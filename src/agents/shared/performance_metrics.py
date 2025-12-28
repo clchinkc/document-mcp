@@ -4,6 +4,8 @@ This module provides comprehensive performance tracking for all agent types,
 replacing hardcoded mock values with actual LLM usage data and execution metrics.
 Works cleanly with the test-layer LLM evaluation system when enabled.
 """
+from __future__ import annotations
+
 
 import time
 from dataclasses import dataclass

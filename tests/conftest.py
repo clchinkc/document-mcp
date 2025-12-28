@@ -4,6 +4,8 @@ This provides essential fixtures using the new test environment management
 infrastructure for cleaner and more maintainable test setup.
 """
 
+import os
+
 import pytest
 from dotenv import load_dotenv
 
@@ -13,6 +15,23 @@ from .shared.test_environment import check_api_key_available
 
 # Load environment variables
 load_dotenv()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def disable_observability_for_tests():
+    """Disable OpenTelemetry observability during tests to prevent shutdown warnings.
+
+    This session-scoped fixture runs automatically before any tests and prevents
+    the 'shutdown can only be called once' warning from OpenTelemetry.
+    """
+    original_value = os.environ.get("MCP_OBSERVABILITY_ENABLED")
+    os.environ["MCP_OBSERVABILITY_ENABLED"] = "false"
+    yield
+    # Restore original value
+    if original_value is not None:
+        os.environ["MCP_OBSERVABILITY_ENABLED"] = original_value
+    elif "MCP_OBSERVABILITY_ENABLED" in os.environ:
+        del os.environ["MCP_OBSERVABILITY_ENABLED"]
 
 
 @pytest.fixture
@@ -55,6 +74,11 @@ def pytest_configure(config):
     """Configure custom pytest markers."""
     config.addinivalue_line("markers", "stdio: marks tests as stdio-based integration tests")
     config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests requiring real API keys")
+    # Filter OpenTelemetry shutdown warning that appears when multiple providers exist
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore:shutdown can only be called once:UserWarning",
+    )
 
 
 # Skip decorator for tests requiring real API keys

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import sys
@@ -9,7 +11,6 @@ from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.mcp import MCPServerStdio
 
-# Import models from the server to ensure compatibility
 from src.agents.shared.error_handling import RetryManager
 from src.agents.shared.performance_metrics import AgentPerformanceMetrics
 from src.agents.shared.performance_metrics import PerformanceMetricsCollector
@@ -29,6 +30,21 @@ from src.agents.shared.config import load_llm_config
 from src.agents.simple_agent.prompts import get_simple_agent_system_prompt
 
 # --- MCP Tool Response Extraction ---
+
+
+def _make_json_serializable(obj: Any) -> Any:
+    """Convert object to JSON-serializable format."""
+    if obj is None or isinstance(obj, str | int | float | bool):
+        return obj
+    if isinstance(obj, dict):
+        return {k: _make_json_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, list | tuple):
+        return [_make_json_serializable(item) for item in obj]
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump()
+    if hasattr(obj, "__dict__"):
+        return _make_json_serializable(obj.__dict__)
+    return str(obj)
 
 
 def extract_mcp_tool_responses(agent_result: AgentRunResult) -> dict[str, Any]:
@@ -51,7 +67,7 @@ def extract_mcp_tool_responses(agent_result: AgentRunResult) -> dict[str, Any]:
                         and type(part).__name__ == "ToolReturnPart"
                     ):
                         tool_name = part.tool_name
-                        tool_content = part.content
+                        tool_content = _make_json_serializable(part.content)
 
                         # Store the actual MCP tool response data
                         if isinstance(tool_content, list):
@@ -62,10 +78,6 @@ def extract_mcp_tool_responses(agent_result: AgentRunResult) -> dict[str, Any]:
                             tool_responses[tool_name] = {"content": tool_content}
 
     return tool_responses
-
-
-# --- Agent Response Model (for Pydantic AI Agent's structured output) ---
-# Using imported models from the server to ensure compatibility
 
 
 class LLMOnlyResponse(BaseModel):
@@ -83,11 +95,6 @@ class FinalAgentResponse(BaseModel):
     error_message: str | None = None
 
 
-# --- System Prompt ---
-# System prompt is now imported from separate module
-
-
-# --- Agent Setup and Processing Logic ---
 _retry_manager = RetryManager()
 
 
@@ -114,7 +121,7 @@ async def initialize_agent_and_mcp_server() -> tuple[Agent[LLMOnlyResponse], MCP
             llm,
             mcp_servers=[mcp_server],
             system_prompt=get_simple_agent_system_prompt(),
-            output_type=LLMOnlyResponse,
+            result_type=LLMOnlyResponse,
         )
     except Exception as e:
         print(f"Error creating agent: {e}", file=sys.stderr)
@@ -155,8 +162,8 @@ async def process_single_user_query(
                 execution_start_time=start_time,
             )
 
-        if run_result and run_result.output:
-            llm_response = run_result.output
+        if run_result and run_result.data:
+            llm_response = run_result.data
 
             # Extract MCP tool responses programmatically
             mcp_tool_responses = extract_mcp_tool_responses(run_result)
@@ -306,10 +313,14 @@ async def main():
                     # If final_response is None, process_single_user_query already printed an error to stderr
             else:
                 # No arguments provided, show help
-                action_parser.print_help()
+                print("Usage: python src/agents/simple_agent/main.py [OPTIONS]")
+                print("\nOptions:")
+                print("  --query TEXT       Execute a single query")
+                print("  --interactive      Run in interactive mode")
+                print("  --check-config     Verify configuration")
                 print("\nExample usage:")
-                print('  python src/agents/simple_agent.py --query "List all documents"')
-                print("  python src/agents/simple_agent.py --interactive")
+                print('  python src/agents/simple_agent/main.py --query "List all documents"')
+                print("  python src/agents/simple_agent/main.py --interactive")
 
     except KeyboardInterrupt:
         if args.interactive or not args.query:  # Only print this message in interactive mode

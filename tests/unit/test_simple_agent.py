@@ -226,8 +226,10 @@ class TestSimpleAgentExecution:
         mock_pydantic_agent = AsyncMock()
         mock_pydantic_agent.run.return_value = mock_agent_result
 
+        mock_get_pydantic_agent = AsyncMock(return_value=mock_pydantic_agent)
+
         with (
-            patch.object(agent, "get_pydantic_agent", return_value=mock_pydantic_agent),
+            patch.object(agent, "get_pydantic_agent", mock_get_pydantic_agent),
             patch.object(agent, "create_response") as mock_create_response,
             patch.object(agent, "create_error_context") as mock_error_context,
         ):
@@ -261,26 +263,33 @@ class TestSimpleAgentExecution:
         mock_pydantic_agent = AsyncMock()
         mock_pydantic_agent.run.return_value = mock_agent_result
 
+        mock_get_pydantic_agent = AsyncMock(return_value=mock_pydantic_agent)
+
+        # Track wait_for calls without replacing its behavior
+        wait_for_calls = []
+
+        async def mock_wait_for(coro, timeout):
+            wait_for_calls.append({"timeout": timeout})
+            return await coro  # Properly await the coroutine
+
         with (
-            patch.object(agent, "get_pydantic_agent", return_value=mock_pydantic_agent),
+            patch.object(agent, "get_pydantic_agent", mock_get_pydantic_agent),
             patch.object(agent, "create_response") as mock_create_response,
             patch.object(agent, "create_error_context") as mock_error_context,
-            patch("asyncio.wait_for", new_callable=AsyncMock) as mock_wait_for,
+            patch("asyncio.wait_for", mock_wait_for),
         ):
             mock_context = Mock()
             mock_error_context.return_value.__enter__ = Mock(return_value=mock_context)
             mock_error_context.return_value.__exit__ = Mock(return_value=False)
 
-            mock_wait_for.return_value = mock_agent_result
             mock_response = {"summary": "Success", "details": {"success": True}}
             mock_create_response.return_value = mock_response
 
             result = await agent.run(query, timeout=timeout)
 
             # Verify wait_for was called with correct timeout
-            mock_wait_for.assert_called_once()
-            args, kwargs = mock_wait_for.call_args
-            assert kwargs.get("timeout") == timeout or args[1] == timeout
+            assert len(wait_for_calls) == 1
+            assert wait_for_calls[0]["timeout"] == timeout
             assert result == mock_response
 
     @pytest.mark.asyncio
@@ -292,16 +301,21 @@ class TestSimpleAgentExecution:
 
         mock_pydantic_agent = AsyncMock()
 
+        mock_get_pydantic_agent = AsyncMock(return_value=mock_pydantic_agent)
+
+        async def mock_wait_for_timeout(coro, timeout):
+            # Close the coroutine to prevent warning, then raise timeout
+            coro.close()
+            raise asyncio.TimeoutError()
+
         with (
-            patch.object(agent, "get_pydantic_agent", return_value=mock_pydantic_agent),
+            patch.object(agent, "get_pydantic_agent", mock_get_pydantic_agent),
             patch.object(agent, "create_error_context") as mock_error_context,
-            patch("asyncio.wait_for", new_callable=AsyncMock) as mock_wait_for,
+            patch("asyncio.wait_for", mock_wait_for_timeout),
         ):
             mock_context = Mock()
             mock_error_context.return_value.__enter__ = Mock(return_value=mock_context)
             mock_error_context.return_value.__exit__ = Mock(return_value=False)
-
-            mock_wait_for.side_effect = asyncio.TimeoutError()
 
             with pytest.raises(OperationError) as exc_info:
                 await agent.run(query, timeout=timeout)
@@ -329,7 +343,9 @@ class TestSimpleAgentStructuredOutput:
         mock_pydantic_agent = AsyncMock()
         mock_pydantic_agent.run.return_value = mock_agent_result
 
-        with patch.object(agent, "get_pydantic_agent", return_value=mock_pydantic_agent):
+        mock_get_pydantic_agent = AsyncMock(return_value=mock_pydantic_agent)
+
+        with patch.object(agent, "get_pydantic_agent", mock_get_pydantic_agent):
             result = await agent.run_with_structured_output(query)
 
             assert result == expected_response
@@ -352,8 +368,10 @@ class TestSimpleAgentStructuredOutput:
 
         mock_tool_responses = {"create_document": {"success": True}}
 
+        mock_get_pydantic_agent = AsyncMock(return_value=mock_pydantic_agent)
+
         with (
-            patch.object(agent, "get_pydantic_agent", return_value=mock_pydantic_agent),
+            patch.object(agent, "get_pydantic_agent", mock_get_pydantic_agent),
             patch.object(agent, "extract_mcp_tool_responses", return_value=mock_tool_responses),
         ):
             result = await agent.run_with_structured_output(query)

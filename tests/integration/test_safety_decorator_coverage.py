@@ -13,15 +13,12 @@ they don't risk overwriting externally modified content.
 
 import time
 
-from document_mcp.mcp_client import append_paragraph_to_chapter
+from document_mcp.mcp_client import add_paragraph
 from document_mcp.mcp_client import create_chapter
 from document_mcp.mcp_client import create_document
 from document_mcp.mcp_client import delete_document
 from document_mcp.mcp_client import delete_paragraph
-from document_mcp.mcp_client import insert_paragraph_after
-from document_mcp.mcp_client import insert_paragraph_before
-from document_mcp.mcp_client import move_paragraph_before
-from document_mcp.mcp_client import move_paragraph_to_end
+from document_mcp.mcp_client import move_paragraph
 from document_mcp.mcp_client import replace_paragraph
 from document_mcp.mcp_client import write_chapter_content  # Functions with safety decorators
 
@@ -98,7 +95,11 @@ class TestSafetyDecoratorCoverage:
             delete_document(doc_name)
 
     def test_replace_paragraph_safety_protection(self, temp_docs_root):
-        """Test that replace_paragraph has safety protection."""
+        """Test that replace_paragraph has automatic snapshot safety protection.
+
+        Note: replace_paragraph uses @auto_snapshot decorator for safety (creating backups
+        before modification), not optimistic locking with last_known_modified.
+        """
         doc_name = "safety_test_doc"
         chapter_name = "test_chapter.md"
 
@@ -111,54 +112,22 @@ class TestSafetyDecoratorCoverage:
                 initial_content="First paragraph\n\nSecond paragraph",
             )
 
-            # Get initial timestamp for comparison
-            doc_path = temp_docs_root / doc_name / chapter_name
-            original_mtime = doc_path.stat().st_mtime
-
-            # Simulate external file modification
-            time.sleep(1.1)  # Ensure timestamp difference > 1 second (safety tolerance)
-            doc_path.write_text(
-                "Externally modified first paragraph\n\nExternally modified second paragraph",
-                encoding="utf-8",
-            )
-            new_mtime = doc_path.stat().st_mtime
-
-            # Verify file was actually modified
-            assert new_mtime > original_mtime
-
-            # Attempt operation with last_known_modified from before external change
-            import datetime
-
-            last_known = datetime.datetime.fromtimestamp(original_mtime)
-
+            # Perform replace operation - should create automatic snapshot
             result = replace_paragraph(
                 document_name=doc_name,
                 chapter_name=chapter_name,
                 paragraph_index=0,
                 new_content="User's replacement paragraph",
-                last_known_modified=last_known.isoformat(),
             )
 
-            # Should fail due to safety protection
-            assert result.success is False
-            assert (
-                "modified externally" in result.message.lower()
-                or "force_write" in result.message.lower()
-                or "safety check failed" in result.message.lower()
-            )
-            assert hasattr(result, "safety_info")
+            # Should succeed (with automatic snapshot created for safety)
+            assert result.success is True
 
-            # Should succeed with force_write=True
-            result_forced = replace_paragraph(
-                document_name=doc_name,
-                chapter_name=chapter_name,
-                paragraph_index=0,
-                new_content="User's replacement paragraph",
-                last_known_modified=last_known.isoformat(),
-                force_write=True,
-            )
+            # Verify content was replaced
+            from document_mcp.mcp_client import read_content
 
-            assert result_forced.success is True
+            content = read_content(doc_name, "chapter", chapter_name)
+            assert "User's replacement paragraph" in content.content
 
         finally:
             delete_document(doc_name)
@@ -188,43 +157,49 @@ class TestSafetyDecoratorCoverage:
             # These operations should succeed despite external modification
             # because they don't overwrite content - they insert/delete/move
 
-            # Test insert operations
-            result1 = insert_paragraph_before(
+            # Test insert operations using add_paragraph
+            result1 = add_paragraph(
                 document_name=doc_name,
                 chapter_name=chapter_name,
-                paragraph_index=0,
                 new_content="New first paragraph",
+                position="before",
+                paragraph_index=0,
             )
             assert result1.success is True
 
-            result2 = insert_paragraph_after(
+            result2 = add_paragraph(
                 document_name=doc_name,
                 chapter_name=chapter_name,
-                paragraph_index=1,
                 new_content="Inserted paragraph",
+                position="after",
+                paragraph_index=1,
             )
             assert result2.success is True
 
-            # Test append operation
-            result3 = append_paragraph_to_chapter(
+            # Test append operation using add_paragraph
+            result3 = add_paragraph(
                 document_name=doc_name,
                 chapter_name=chapter_name,
                 new_content="Appended paragraph",
+                position="end",
             )
             assert result3.success is True
 
-            # Test move operations
-            result4 = move_paragraph_to_end(
+            # Test move operations using move_paragraph
+            result4 = move_paragraph(
                 document_name=doc_name,
                 chapter_name=chapter_name,
-                paragraph_index=0,
+                source_index=0,
+                destination="after",
+                target_index=None,  # Move to end
             )
             assert result4.success is True
 
-            result5 = move_paragraph_before(
+            result5 = move_paragraph(
                 document_name=doc_name,
                 chapter_name=chapter_name,
                 source_index=4,  # Last paragraph
+                destination="before",
                 target_index=1,
             )
             assert result5.success is True
@@ -245,13 +220,11 @@ class TestSafetyDecoratorCoverage:
         ]
 
         # Functions that should NOT have safety decorators (insert/delete/move)
+        # Note: add_paragraph and move_paragraph are the consolidated tools
         functions_without_safety = [
-            insert_paragraph_before,
-            insert_paragraph_after,
+            add_paragraph,
             delete_paragraph,
-            append_paragraph_to_chapter,
-            move_paragraph_before,
-            move_paragraph_to_end,
+            move_paragraph,
         ]
 
         for func in functions_with_safety:

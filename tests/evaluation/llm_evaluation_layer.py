@@ -4,6 +4,8 @@ This module provides LLM evaluation capabilities that work alongside
 traditional performance metrics in the test layer, without affecting
 the core agent implementations.
 """
+from __future__ import annotations
+
 
 import asyncio
 import json
@@ -12,7 +14,7 @@ import os
 import time
 from dataclasses import dataclass
 
-from src.agents.shared.config import AgentSettings
+from document_mcp.config import get_settings
 from src.agents.shared.performance_metrics import AgentPerformanceMetrics
 
 
@@ -32,7 +34,8 @@ class TestLLMEvaluator:
     def __init__(self):
         """Initialize the LLM evaluation layer."""
         self.client = None
-        self.model = "gpt-4o-mini"  # Cost-effective for testing
+        self.model = "gemini-2.5-flash"  # Default model (cost-effective for testing)
+        self._is_gemini = False
         self.logger = logging.getLogger(__name__)
 
         if self.enabled:
@@ -46,18 +49,20 @@ class TestLLMEvaluator:
     def _try_initialize(self):
         """Try to initialize LLM client, disable if it fails."""
         try:
-            config = AgentSettings()
+            config = get_settings()
 
-            if config.active_provider == "openai":
-                import openai
-
-                self.client = openai.AsyncOpenAI(api_key=config.openai_api_key)
-            elif config.active_provider == "gemini":
+            if config.active_provider == "gemini":
                 from google import genai
 
                 self.client = genai.Client(api_key=config.gemini_api_key)
                 self.model = "gemini-2.5-flash"
                 self._is_gemini = True
+            elif config.active_provider == "openai":
+                import openai
+
+                self.client = openai.AsyncOpenAI(api_key=config.openai_api_key)
+                self.model = "gpt-4.1-mini"  # OpenAI fallback
+                self._is_gemini = False
             else:
                 # Will be handled by the enabled property
                 pass

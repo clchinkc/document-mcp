@@ -159,10 +159,10 @@ class TestSafetyFeatures:
 
     def test_api_consistency(self, temp_docs_root):
         """Test that all write operations return consistent OperationStatus."""
+        from document_mcp.mcp_client import add_paragraph
         from document_mcp.mcp_client import create_chapter
         from document_mcp.mcp_client import create_document
         from document_mcp.mcp_client import delete_paragraph
-        from document_mcp.mcp_client import insert_paragraph_before
         from document_mcp.mcp_client import replace_paragraph
         from document_mcp.mcp_client import write_chapter_content
         from document_mcp.models import OperationStatus
@@ -191,8 +191,8 @@ class TestSafetyFeatures:
                 lambda: replace_paragraph("api_consistency_test", "test.md", 0, "Updated first paragraph"),
             ),
             (
-                "insert_paragraph_before",
-                lambda: insert_paragraph_before("api_consistency_test", "test.md", 0, "New first paragraph"),
+                "add_paragraph",
+                lambda: add_paragraph("api_consistency_test", "test.md", "New first paragraph", "before", 0),
             ),
             (
                 "delete_paragraph",

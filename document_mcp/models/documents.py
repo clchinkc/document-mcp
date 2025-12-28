@@ -3,6 +3,8 @@
 This module contains models for document metadata, structure,
 and document-level operations.
 """
+from __future__ import annotations
+
 
 import datetime
 

@@ -1,0 +1,27 @@
+# Default description style
+# Balanced detail level - production default
+
+name: "Default"
+style: default
+
+tools:
+  - name: add_paragraph
+    what: "Add new paragraph at position: BEFORE target, AFTER target, or at END."
+    when: >
+      Use for ALL new paragraph additions.
+      position='before'|'after'|'end'.
+      index required for 'before'/'after', omit for 'end'.
+
+  - name: replace_paragraph
+    what: "REPLACE/OVERWRITE content at index - paragraph count unchanged."
+    when: "Use for: 'replace N', 'edit N', 'change N'. NOT for adding new."
+
+  - name: delete_paragraph
+    what: "DELETE/REMOVE at index - subsequent paragraphs shift up."
+    when: "Use for: 'delete N', 'remove N'. DESTRUCTIVE."
+
+  - name: move_paragraph
+    what: "Move paragraph to new position (before target or to end)."
+    when: >
+      Use for: 'move X before Y', 'move X to end'.
+      source_index required. destination='before'|'to_end'.

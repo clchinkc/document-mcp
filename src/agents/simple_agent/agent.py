@@ -3,6 +3,8 @@
 This module provides a stateless agent that executes document operations
 in a single turn using structured output and optimized tool descriptions.
 """
+from __future__ import annotations
+
 
 from typing import Any
 

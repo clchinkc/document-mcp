@@ -37,7 +37,7 @@ class ActionParser:
         try:
             args = self._parse_args(args_str)
         except Exception as e:
-            raise ValueError(f"Error parsing arguments: {e}")
+            raise ValueError(f"Error parsing arguments: {e}") from e
 
         return tool_name, args
 
@@ -79,6 +79,6 @@ class ActionParser:
                         ):
                             value = value[1:-1]
                     args[key] = value
-            except ValueError:
-                raise ValueError("Could not parse arguments. Ensure they are in key=value format.")
+            except ValueError as e:
+                raise ValueError("Could not parse arguments. Ensure they are in key=value format.") from e
         return args

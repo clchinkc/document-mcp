@@ -1,0 +1,22 @@
+# Minimal description style
+# Shortest descriptions - for token efficiency testing
+
+name: "Minimal"
+style: minimal
+
+tools:
+  - name: add_paragraph
+    what: "Add paragraph (before/after index, or at end)."
+    when: "position + optional index."
+
+  - name: replace_paragraph
+    what: "Replace paragraph at index."
+    when: "index + new_content."
+
+  - name: delete_paragraph
+    what: "Delete paragraph at index."
+    when: "index only."
+
+  - name: move_paragraph
+    what: "Move paragraph (before target or to end)."
+    when: "source + destination + optional target."

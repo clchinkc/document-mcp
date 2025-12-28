@@ -4,14 +4,18 @@ This module provides specialized utilities for the evaluation test suite,
 focusing on performance metrics collection, analysis, and LLM-based quality assessment.
 """
 
+from __future__ import annotations
+
 import json
 import time
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Any
 
 from tests.e2e.validation_utils import DocumentSystemValidator
 
-# Removed dependency on over-engineered LLM evaluator
+if TYPE_CHECKING:
+    from src.agents.shared.performance_metrics import AgentPerformanceMetrics
 
 
 @dataclass
@@ -62,9 +66,7 @@ class EvaluationAssertions:
         assert isinstance(details["success"], bool), "Success field must be boolean"
 
     @staticmethod
-    def assert_performance_within_bounds(
-        metrics: "AgentPerformanceMetrics", max_tokens: int, max_time: float
-    ):
+    def assert_performance_within_bounds(metrics: AgentPerformanceMetrics, max_tokens: int, max_time: float):
         """Assert that performance metrics are within acceptable bounds."""
         if metrics.token_usage is not None:
             assert metrics.token_usage <= max_tokens, (
@@ -353,7 +355,7 @@ class MockDataGenerator:
 
 
 def compare_agent_performance(
-    metrics_simple: "AgentPerformanceMetrics", metrics_react: "AgentPerformanceMetrics"
+    metrics_simple: AgentPerformanceMetrics, metrics_react: AgentPerformanceMetrics
 ) -> dict[str, Any]:
     """Compare performance between simple and react agents."""
     comparison = {
@@ -383,7 +385,7 @@ def compare_agent_performance(
 
 
 def generate_performance_summary(
-    metrics_list: list["AgentPerformanceMetrics"], include_llm_evaluation: bool = False
+    metrics_list: list[AgentPerformanceMetrics], include_llm_evaluation: bool = False
 ) -> dict[str, Any]:
     """Generate a comprehensive performance summary with optional LLM evaluation metrics."""
     successful_tests = [m for m in metrics_list if m.success]

@@ -8,6 +8,8 @@ This module contains MCP tools for managing document collections:
 - create_document: Create new document directory
 - delete_document: Delete entire document and all chapters
 """
+from __future__ import annotations
+
 
 import datetime
 import shutil

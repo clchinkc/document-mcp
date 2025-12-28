@@ -4,6 +4,8 @@ This module provides a single source of truth for all configuration
 including environment variables, file paths, timeouts, and other settings.
 """
 
+from __future__ import annotations
+
 import os
 import sys
 from pathlib import Path
@@ -20,16 +22,21 @@ class Settings(BaseSettings):
 
     # === Document Storage Configuration ===
     document_root_dir: str = Field(
-        default=".documents_storage", description="Root directory for document storage"
+        default=".documents_storage", description="Root directory for document storage (local)"
     )
+    storage_backend: str = Field(default="auto", description="Storage backend: 'auto', 'local', or 'gcs'")
+    gcs_bucket: str | None = Field(default=None, description="GCS bucket name for cloud storage")
+    gcs_prefix: str = Field(default="", description="Path prefix within GCS bucket")
 
     # === API Keys ===
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
     gemini_api_key: str | None = Field(default=None, description="Google Gemini API key")
+    openrouter_api_key: str | None = Field(default=None, description="OpenRouter API key")
 
     # === Model Configuration ===
     openai_model_name: str = Field(default="gpt-4.1-mini", description="OpenAI model name")
     gemini_model_name: str = Field(default="gemini-2.5-flash", description="Gemini model name")
+    openrouter_model_name: str = Field(default="openai/gpt-5-mini", description="OpenRouter model name")
 
     # === MCP Server Configuration ===
     mcp_server_cmd: list[str] = Field(
@@ -94,6 +101,25 @@ class Settings(BaseSettings):
         )
 
     @property
+    def is_cloud_environment(self) -> bool:
+        """Check if running in GCP cloud environment (Cloud Run)."""
+        return "K_SERVICE" in os.environ
+
+    @property
+    def storage_type(self) -> Literal["local", "gcs"]:
+        """Determine the active storage backend type."""
+        if self.storage_backend == "gcs":
+            return "gcs"
+        elif self.storage_backend == "local":
+            return "local"
+        # Auto-detect
+        if self.is_cloud_environment and self.gcs_bucket:
+            return "gcs"
+        if self.gcs_bucket:
+            return "gcs"
+        return "local"
+
+    @property
     def document_root_path(self) -> Path:
         """Get the document root path as a Path object."""
         path = Path(self.document_root_dir).resolve()
@@ -111,9 +137,16 @@ class Settings(BaseSettings):
         return bool(self.gemini_api_key and self.gemini_api_key.strip())
 
     @property
-    def active_provider(self) -> Literal["openai", "gemini"] | None:
-        """Get the active provider (OpenAI takes precedence)."""
-        if self.openai_configured:
+    def openrouter_configured(self) -> bool:
+        """Check if OpenRouter is properly configured."""
+        return bool(self.openrouter_api_key and self.openrouter_api_key.strip())
+
+    @property
+    def active_provider(self) -> Literal["openai", "gemini", "openrouter"] | None:
+        """Get the active provider (OpenRouter > OpenAI > Gemini precedence)."""
+        if self.openrouter_configured:
+            return "openrouter"
+        elif self.openai_configured:
             return "openai"
         elif self.gemini_configured:
             return "gemini"
@@ -122,7 +155,9 @@ class Settings(BaseSettings):
     @property
     def active_model(self) -> str | None:
         """Get the active model name."""
-        if self.active_provider == "openai":
+        if self.active_provider == "openrouter":
+            return self.openrouter_model_name
+        elif self.active_provider == "openai":
             return self.openai_model_name
         elif self.active_provider == "gemini":
             return self.gemini_model_name
@@ -139,30 +174,21 @@ class Settings(BaseSettings):
         if self.openai_api_key:
             server_env["OPENAI_API_KEY"] = self.openai_api_key
 
-        # CRITICAL: Always pass DOCUMENT_ROOT_DIR if it's in the environment
-        # This is essential for test isolation and Windows CI compatibility
-        # Debug: Always log environment variable handling for CI debugging
-        env_var_present = "DOCUMENT_ROOT_DIR" in os.environ
-        print(f"[MCP_ENV_DEBUG] DOCUMENT_ROOT_DIR in os.environ: {env_var_present}")
-        if env_var_present:
-            env_value = os.environ["DOCUMENT_ROOT_DIR"]
-            server_env["DOCUMENT_ROOT_DIR"] = env_value
-            server_env["PYTEST_CURRENT_TEST"] = "1"  # Also set test flag when DOCUMENT_ROOT_DIR is present
-            print(f"[MCP_ENV_DEBUG] Added DOCUMENT_ROOT_DIR to MCP env: {env_value}")
-        else:
-            print("[MCP_ENV_DEBUG] DOCUMENT_ROOT_DIR not in os.environ")
-            # Add test mode flag if in test environment (for other test scenarios)
-            if self.is_test_environment:
-                server_env["PYTEST_CURRENT_TEST"] = "1"
-                if self.document_root_dir != ".documents_storage":
-                    server_env["DOCUMENT_ROOT_DIR"] = self.document_root_dir
-                    print(f"[MCP_ENV_DEBUG] Added DOCUMENT_ROOT_DIR from settings: {self.document_root_dir}")
+        # Pass storage configuration
+        server_env["STORAGE_BACKEND"] = self.storage_backend
+        if self.gcs_bucket:
+            server_env["GCS_BUCKET"] = self.gcs_bucket
+        if self.gcs_prefix:
+            server_env["GCS_PREFIX"] = self.gcs_prefix
 
-        # Debug: Show final MCP server environment subset
-        doc_root_final = server_env.get("DOCUMENT_ROOT_DIR", "NOT_SET")
-        pytest_flag = server_env.get("PYTEST_CURRENT_TEST", "NOT_SET")
-        print(f"[MCP_ENV_DEBUG] Final MCP server env - DOCUMENT_ROOT_DIR: {doc_root_final}")
-        print(f"[MCP_ENV_DEBUG] Final MCP server env - PYTEST_CURRENT_TEST: {pytest_flag}")
+        # Pass DOCUMENT_ROOT_DIR for test isolation
+        if "DOCUMENT_ROOT_DIR" in os.environ:
+            server_env["DOCUMENT_ROOT_DIR"] = os.environ["DOCUMENT_ROOT_DIR"]
+            server_env["PYTEST_CURRENT_TEST"] = "1"
+        elif self.is_test_environment:
+            server_env["PYTEST_CURRENT_TEST"] = "1"
+            if self.document_root_dir != ".documents_storage":
+                server_env["DOCUMENT_ROOT_DIR"] = self.document_root_dir
 
         return server_env
 

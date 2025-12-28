@@ -3,6 +3,8 @@
 This module contains all shared helper functions used across the modular tool files.
 It provides validation, text processing, file operations, and other utility functions.
 """
+from __future__ import annotations
+
 
 import datetime
 import difflib
@@ -77,10 +79,10 @@ def _get_document_path(document_name: str) -> Path:
     return final_path
 
 
-def _get_chapter_path(document_name: str, chapter_filename: str) -> Path:
+def _get_chapter_path(document_name: str, chapter_name: str) -> Path:
     """Return the full path for a given chapter file."""
     doc_path = _get_document_path(document_name)
-    return doc_path / chapter_filename
+    return doc_path / chapter_name
 
 
 def _is_valid_chapter_filename(filename: str) -> bool:
@@ -236,6 +238,22 @@ def _get_summaries_path(document_name: str) -> Path:
     """Return the path to the summaries directory for a document."""
     doc_path = _get_document_path(document_name)
     return doc_path / "summaries"
+
+
+def _get_metadata_path(document_name: str) -> Path:
+    """Return the path to the metadata directory for a document."""
+    doc_path = _get_document_path(document_name)
+    return doc_path / "metadata"
+
+
+def _get_entities_path(document_name: str) -> Path:
+    """Return the path to the entities.yaml file for a document."""
+    return _get_metadata_path(document_name) / "entities.yaml"
+
+
+def _get_timeline_path(document_name: str) -> Path:
+    """Return the path to the timeline.yaml file for a document."""
+    return _get_metadata_path(document_name) / "timeline.yaml"
 
 
 def _get_summary_file_path(document_name: str, scope: str, target_name: str | None) -> Path:
