@@ -60,7 +60,8 @@ class TestGetDocsRootPath:
 
         with patch("document_mcp.utils.file_operations.get_settings", return_value=mock_settings):
             result = file_operations.get_docs_root_path()
-            assert str(result) == "/custom/path"
+            # Use as_posix() for cross-platform path comparison
+            assert result.as_posix() == "/custom/path"
 
 
 class TestGetDocumentPath:

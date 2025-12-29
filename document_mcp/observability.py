@@ -10,6 +10,7 @@ No hardcoded credentials - relies on GCP service account for auth on Cloud Run.
 from __future__ import annotations
 
 import atexit
+import datetime
 import json
 import logging
 import os
@@ -127,8 +128,9 @@ class CloudRunJSONFormatter(logging.Formatter):
             "logger": record.name,
         }
 
-        # Add timestamp
-        log_entry["timestamp"] = self.formatTime(record, "%Y-%m-%dT%H:%M:%S.%fZ")
+        # Add timestamp with microseconds (formatTime doesn't support %f)
+        dt = datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc)
+        log_entry["timestamp"] = dt.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
         # Add trace context if available
         trace_id = getattr(record, "trace_id", None)
