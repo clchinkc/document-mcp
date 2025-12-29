@@ -327,7 +327,8 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             # Read section summary
             read_summary("my_book", scope="section", target_name="introduction")
         """
-        if not validate_document_name(document_name):
+        is_valid, _ = validate_document_name(document_name)
+        if not is_valid:
             return None
 
         doc_path = _get_document_path(document_name)
@@ -375,8 +376,9 @@ def register_document_tools(mcp_server: FastMCP) -> None:
             # Write chapter summary
             write_summary("my_book", "Chapter introduces...", scope="chapter", target_name="01-intro.md")
         """
-        if not validate_document_name(document_name):
-            return OperationStatus(success=False, message="Invalid document name")
+        is_valid, error = validate_document_name(document_name)
+        if not is_valid:
+            return OperationStatus(success=False, message=error)
 
         doc_path = _get_document_path(document_name)
         if not doc_path.is_dir():
@@ -419,7 +421,8 @@ def register_document_tools(mcp_server: FastMCP) -> None:
         Example Usage:
             list_summaries("my_book")
         """
-        if not validate_document_name(document_name):
+        is_valid, _ = validate_document_name(document_name)
+        if not is_valid:
             return []
 
         doc_path = _get_document_path(document_name)

@@ -26,7 +26,7 @@ try:
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     OBSERVABILITY_AVAILABLE = False
-    _trace_mcp_tool = None
+    _trace_mcp_tool = None  # type: ignore[assignment,misc]
 
 
 class ErrorCategory(Enum):

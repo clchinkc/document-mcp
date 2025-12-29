@@ -210,12 +210,12 @@ Examples:
         print(f"Serving tools for root directory: {DOCS_ROOT_PATH}")
 
     # Debug: Show platform and current working directory
-    import os
     import platform
+    import sys
 
     print(f"[MCP_SERVER_DEBUG] Platform: {platform.system()}")
     print(f"[MCP_SERVER_DEBUG] Current working directory: {os.getcwd()}")
-    print(f"[MCP_SERVER_DEBUG] Python executable: {os.sys.executable}")
+    print(f"[MCP_SERVER_DEBUG] Python executable: {sys.executable}")
 
     # Check if documents directory will be created in expected location
     if doc_root_env:

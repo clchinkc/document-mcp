@@ -6,10 +6,11 @@ scopes (document, chapter, paragraph) with a consistent interface.
 
 import os
 import time
+from typing import Any
 
 import numpy as np
-from google import genai
-from google.genai import types
+from google import genai  # type: ignore[import-untyped]
+from google.genai import types  # type: ignore[import-untyped]
 
 from ..helpers import _count_words
 from ..helpers import _get_chapter_path
@@ -36,7 +37,7 @@ from ..utils.validation import validate_paragraph_index
 from ..utils.validation import validate_search_query
 
 
-def register_content_tools(mcp_server):
+def register_content_tools(mcp_server) -> None:
     """Register all content-related tools with the MCP server."""
 
     @mcp_server.tool()
@@ -48,7 +49,7 @@ def register_content_tools(mcp_server):
         paragraph_index: int | None = None,
         page: int = 1,
         page_size: int = 50000,
-    ) -> PaginatedContent | ChapterContent | ParagraphDetail | None:
+    ) -> Any:
         """Unified content reading with scope-based targeting and pagination.
 
         Parameters:
@@ -68,7 +69,6 @@ def register_content_tools(mcp_server):
         """
         # Import models that aren't imported at module level
         from ..helpers import _get_chapter_metadata
-        from ..models import ChapterContent
         from ..models import ParagraphDetail
 
         # Validate document name
@@ -191,6 +191,8 @@ def register_content_tools(mcp_server):
 
             elif scope == "chapter":
                 doc_path = _get_document_path(document_name)
+                # chapter_name is guaranteed to be not None due to validation above
+                assert chapter_name is not None
                 chapter_path = doc_path / chapter_name
                 if not chapter_path.exists():
                     return None
@@ -209,6 +211,8 @@ def register_content_tools(mcp_server):
 
             elif scope == "paragraph":
                 doc_path = _get_document_path(document_name)
+                # chapter_name is guaranteed to be not None due to validation above
+                assert chapter_name is not None
                 chapter_path = doc_path / chapter_name
                 if not chapter_path.exists():
                     return None
@@ -216,6 +220,8 @@ def register_content_tools(mcp_server):
                 content = chapter_path.read_text(encoding="utf-8")
                 paragraphs = _split_into_paragraphs(content)
 
+                # paragraph_index is guaranteed to be not None due to validation above
+                assert paragraph_index is not None
                 if paragraph_index >= len(paragraphs):
                     return None
 
@@ -228,6 +234,9 @@ def register_content_tools(mcp_server):
                     word_count=len(paragraph_content.split()),
                 )
                 return result
+
+            # Should not reach here due to scope validation
+            return None
 
         except Exception as e:
             log_structured_error(
@@ -254,7 +263,7 @@ def register_content_tools(mcp_server):
         chapter_name: str | None = None,
         case_sensitive: bool = False,
         max_results: int = 100,
-    ) -> list[ParagraphDetail] | None:
+    ) -> Any:
         """Unified text search with scope-based targeting.
 
         This tool consolidates document and chapter text search into a single interface,
@@ -398,10 +407,15 @@ def register_content_tools(mcp_server):
                 return result if result else []
 
             elif scope == "chapter":
+                # chapter_name is guaranteed to be not None due to validation above
+                assert chapter_name is not None
                 result = _find_text_in_chapter(
                     document_name, chapter_name, search_text, case_sensitive, max_results
                 )
                 return result if result else []
+
+            # Should not reach here due to scope validation
+            return []
 
         except Exception as e:
             log_structured_error(
@@ -426,7 +440,7 @@ def register_content_tools(mcp_server):
         replace_text: str,
         scope: str = "document",  # "document", "chapter"
         chapter_name: str | None = None,
-    ) -> OperationStatus | None:
+    ) -> Any:
         """Unified text replacement with scope-based targeting.
 
         This tool consolidates document and chapter text replacement into a single interface,
@@ -552,8 +566,13 @@ def register_content_tools(mcp_server):
                 return result if result else None
 
             elif scope == "chapter":
+                # chapter_name is guaranteed to be not None due to validation above
+                assert chapter_name is not None
                 result = _replace_text_in_chapter(document_name, chapter_name, find_text, replace_text)
                 return result if result else None
+
+            # Should not reach here due to scope validation
+            return None
 
         except Exception as e:
             log_structured_error(
@@ -576,7 +595,7 @@ def register_content_tools(mcp_server):
         document_name: str,
         scope: str = "document",  # "document", "chapter"
         chapter_name: str | None = None,
-    ) -> StatisticsReport | None:
+    ) -> Any:
         """Unified statistics collection with scope-based targeting.
 
         This tool consolidates document and chapter statistics into a single interface,
@@ -672,6 +691,8 @@ def register_content_tools(mcp_server):
                 return result if result else None
 
             elif scope == "chapter":
+                # chapter_name is guaranteed to be not None due to validation above
+                assert chapter_name is not None
                 result = _get_chapter_statistics(document_name, chapter_name)
                 if result:
                     # For chapter scope, create new StatisticsReport without chapter_count
@@ -684,6 +705,9 @@ def register_content_tools(mcp_server):
                         chapter_count=None,  # Exclude chapter_count for chapter scope
                     )
                 return None
+
+            # Should not reach here due to scope validation
+            return None
 
         except Exception as e:
             log_structured_error(
@@ -707,7 +731,7 @@ def register_content_tools(mcp_server):
         chapter_name: str | None = None,
         similarity_threshold: float = 0.7,
         max_results: int = 10,
-    ) -> SemanticSearchResponse | None:
+    ) -> Any:
         """Semantic text search with scope-based targeting and similarity scoring.
 
         This tool uses embedding-based semantic search to find content similar in meaning
@@ -905,7 +929,7 @@ def register_content_tools(mcp_server):
         entity_name: str,
         include_context: bool = True,
         context_chars: int = 50,
-    ) -> dict | None:
+    ) -> Any:
         """Find all mentions of an entity across the document, using aliases from metadata.
 
         WHAT: Find all mentions of an entity across the document, using aliases from metadata.
@@ -947,7 +971,7 @@ def register_content_tools(mcp_server):
             }
             ```
         """
-        import yaml
+        import yaml  # type: ignore[import-untyped]
 
         from ..helpers import _get_entities_path
         from ..utils.frontmatter import get_content_without_frontmatter
@@ -1156,7 +1180,7 @@ def _find_text_in_document(
     document_name: str, query: str, case_sensitive: bool = False, max_results: int = 100
 ) -> list[ParagraphDetail]:
     """Search for paragraphs containing specific text across all chapters."""
-    results = []
+    results: list[ParagraphDetail] = []
     doc_path = _get_document_path(document_name)
     if not doc_path.exists():
         return results
@@ -1177,7 +1201,7 @@ def _find_text_in_chapter(
     document_name: str, chapter_name: str, query: str, case_sensitive: bool = False, max_results: int = 100
 ) -> list[ParagraphDetail]:
     """Search for paragraphs containing specific text within a single chapter."""
-    results = []
+    results: list[ParagraphDetail] = []
     chapter_path = _get_chapter_path(document_name, chapter_name)
     if not chapter_path.exists():
         return results
@@ -1203,6 +1227,7 @@ def _find_text_in_chapter(
                     )
                 )
     except Exception:
+        # Silently continue with partial results if chapter fails to load
         pass
 
     return results
@@ -1373,6 +1398,8 @@ def _perform_semantic_search(
 
         elif scope == "chapter":
             # Search within specific chapter
+            # chapter_name is guaranteed to be not None for chapter scope
+            assert chapter_name is not None
             chapter_path = _get_chapter_path(document_name, chapter_name)
             if not chapter_path.exists():
                 return []
@@ -1393,6 +1420,8 @@ def _perform_semantic_search(
                         chapter_paragraphs.append(paragraph_data)
                         all_paragraphs_data.append(paragraph_data)
 
+                # Ensure chapter_name is not None for assertions below
+                assert chapter_name is not None
                 if chapter_paragraphs:
                     chapters_data[chapter_name] = {
                         "paragraphs": chapter_paragraphs,

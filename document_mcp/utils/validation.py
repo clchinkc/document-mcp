@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
+from typing import Any
 
 from ..models import ContentFreshnessStatus
 
@@ -23,7 +24,7 @@ CHAPTER_MANIFEST_FILE = "_manifest.json"
 # === Validation Functions ===
 
 
-def validate_document_name(document_name: str) -> tuple[bool, str]:
+def validate_document_name(document_name: Any) -> tuple[bool, str]:
     """Validate document name input."""
     if not document_name or not isinstance(document_name, str) or not document_name.strip():
         return False, "Document name cannot be empty"
@@ -39,7 +40,7 @@ def validate_document_name(document_name: str) -> tuple[bool, str]:
     return True, ""
 
 
-def validate_chapter_name(chapter_name: str) -> tuple[bool, str]:
+def validate_chapter_name(chapter_name: Any) -> tuple[bool, str]:
     """Validate chapter name input."""
     if not chapter_name or not isinstance(chapter_name, str) or not chapter_name.strip():
         return False, "Chapter name cannot be empty"
@@ -57,7 +58,7 @@ def validate_chapter_name(chapter_name: str) -> tuple[bool, str]:
     return True, ""
 
 
-def validate_content(content: str) -> tuple[bool, str]:
+def validate_content(content: Any) -> tuple[bool, str]:
     """Validate content input."""
     if content is None:
         return False, "Content cannot be None"
@@ -68,7 +69,7 @@ def validate_content(content: str) -> tuple[bool, str]:
     return True, ""
 
 
-def validate_paragraph_index(index: int) -> tuple[bool, str]:
+def validate_paragraph_index(index: Any) -> tuple[bool, str]:
     """Validate paragraph index input."""
     if not isinstance(index, int):
         return False, "Paragraph index must be an integer"
@@ -77,7 +78,7 @@ def validate_paragraph_index(index: int) -> tuple[bool, str]:
     return True, ""
 
 
-def validate_search_query(query: str) -> tuple[bool, str]:
+def validate_search_query(query: Any) -> tuple[bool, str]:
     """Validate search query input."""
     if query is None:
         return False, "Search query cannot be None"
@@ -90,7 +91,7 @@ def validate_search_query(query: str) -> tuple[bool, str]:
     return True, ""
 
 
-def parse_timestamp(timestamp_str: str) -> datetime.datetime | None:
+def parse_timestamp(timestamp_str: Any) -> datetime.datetime | None:
     """Parse timestamp string to datetime object."""
     if not timestamp_str:
         return None

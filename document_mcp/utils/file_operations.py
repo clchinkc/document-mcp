@@ -54,7 +54,9 @@ DOCS_ROOT_PATH = _DocsRootPath()
 
 def get_document_path(document_name: str) -> Path:
     """Return the full path for a given document name."""
-    return DOCS_ROOT_PATH / document_name
+    # DOCS_ROOT_PATH is _DocsRootPath which has __truediv__ returning Path
+    result = DOCS_ROOT_PATH / document_name  # type: ignore[return-value]
+    return result  # type: ignore[return-value]
 
 
 def get_chapter_path(document_name: str, chapter_name: str) -> Path:

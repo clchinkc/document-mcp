@@ -16,7 +16,7 @@ tags: [action, dialogue]
 import re
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 # Regex pattern for YAML frontmatter (--- delimited block at start of file)
 FRONTMATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n?", re.DOTALL)

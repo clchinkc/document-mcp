@@ -6,7 +6,7 @@ This module contains MCP tools for getting document-level overviews:
 
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from mcp.server import FastMCP
 
 from ..helpers import _count_words
@@ -112,6 +112,7 @@ def register_overview_tools(mcp_server: FastMCP) -> None:
                             }
                         )
             except Exception:
+                # Silently continue if entities file is malformed
                 pass
 
         # Load timeline events count
@@ -123,6 +124,7 @@ def register_overview_tools(mcp_server: FastMCP) -> None:
                 data = yaml.safe_load(content) or {}
                 timeline_event_count = len(data.get("events", []))
             except Exception:
+                # Silently continue if timeline file is malformed
                 pass
 
         # Process each chapter

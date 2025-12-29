@@ -17,7 +17,7 @@ from ..utils.validation import validate_chapter_name as validate_chapter_name
 from ..utils.validation import validate_document_name as validate_document_name
 
 
-def register_safety_tools(mcp_server):
+def register_safety_tools(mcp_server) -> None:
     """Register all safety-related tools with the MCP server."""
 
     @mcp_server.tool()
@@ -28,7 +28,7 @@ def register_safety_tools(mcp_server):
         snapshot_id: str | None = None,
         message: str | None = None,
         auto_cleanup: bool = True,
-    ) -> SnapshotsList | OperationStatus:
+    ) -> Any:
         """Unified snapshot management tool with action-based interface.
 
         This consolidated tool replaces snapshot_document, list_snapshots, and
@@ -141,6 +141,13 @@ def register_safety_tools(mcp_server):
                 # Restore snapshot using internal _restore_snapshot function
                 return _restore_snapshot(document_name, snapshot_id)
 
+            # This should never be reached due to validation, but satisfy mypy
+            return OperationStatus(
+                success=False,
+                message=f"Invalid action '{action}'",
+                details={"action": action},
+            )
+
         except Exception as e:
             log_structured_error(
                 ErrorCategory.ERROR,
@@ -173,7 +180,7 @@ def register_safety_tools(mcp_server):
         include_history: bool = False,
         time_window: str = "24h",
         last_known_modified: str | None = None,
-    ) -> ContentFreshnessStatus | ModificationHistory:
+    ) -> Any:
         """Unified content status and modification history checker.
 
         This consolidated tool combines check_content_freshness and get_modification_history
@@ -548,9 +555,7 @@ def get_modification_history(
 
     # Parse time window
     now = datetime.datetime.now()
-    if time_window == "all":
-        pass
-    else:
+    if time_window != "all":
         try:
             if time_window.endswith("h"):
                 hours = int(time_window[:-1])

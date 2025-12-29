@@ -213,9 +213,10 @@ def _get_operation_path(document_name: str, chapter_name: str | None = None) -> 
     # Use environment variable if available for test isolation
     if "PYTEST_CURRENT_TEST" in os.environ:
         docs_root_name = os.environ.get("DOCUMENT_ROOT_DIR", str(DOCS_ROOT_PATH))
-        root_path = Path(docs_root_name)
+        root_path: Path = Path(docs_root_name)
     else:
-        root_path = DOCS_ROOT_PATH
+        # DOCS_ROOT_PATH is _DocsRootPath, convert to Path
+        root_path = Path(str(DOCS_ROOT_PATH))  # type: ignore[arg-type]
 
     if chapter_name:
         return root_path / document_name / chapter_name

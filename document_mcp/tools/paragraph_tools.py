@@ -13,6 +13,7 @@ Design rationale (from A/B testing):
 - Move combines before/to_end: Same semantics (reordering)
 """
 
+from typing import Any
 from typing import Literal
 
 from mcp.server import FastMCP
@@ -102,11 +103,15 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
             paragraphs = _split_into_paragraphs(current_content)
 
             if position == "before":
+                # paragraph_index is guaranteed to be not None due to validation above
+                assert paragraph_index is not None
                 paragraphs.insert(paragraph_index, content.strip())
                 new_index = paragraph_index
                 result_message = f"Paragraph inserted before index {paragraph_index} in '{chapter_name}'"
 
             elif position == "after":
+                # paragraph_index is guaranteed to be not None due to validation above
+                assert paragraph_index is not None
                 if paragraph_index >= len(paragraphs):
                     return OperationStatus(
                         success=False,
@@ -295,7 +300,7 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
         source_index: int,
         destination: Literal["before", "after"],
         target_index: int | None = None,
-    ) -> OperationStatus:
+    ) -> Any:
         """Move a paragraph to a new position within the chapter.
 
         Parameters:
@@ -375,6 +380,8 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
                 )
 
             if destination == "before":
+                # target_index is guaranteed to be not None due to validation above
+                assert target_index is not None
                 # Validate target index
                 if not (0 <= target_index < total_paragraphs):
                     return OperationStatus(
@@ -412,6 +419,8 @@ def register_paragraph_tools(mcp_server: FastMCP) -> None:
                     result_message = f"Paragraph {source_index} moved to end of '{chapter_name}'"
                 else:
                     # Move after specific target
+                    # target_index is guaranteed to be not None in this branch
+                    assert target_index is not None
                     if not (0 <= target_index < total_paragraphs):
                         return OperationStatus(
                             success=False,

@@ -117,7 +117,7 @@ def validate_entities_file(data: dict[str, Any]) -> tuple[EntitiesFile, list[str
     Returns:
         Tuple of (validated EntitiesFile, list of warning messages)
     """
-    warnings = []
+    warnings: list[str] = []
 
     try:
         entities = EntitiesFile(**data)
@@ -136,7 +136,7 @@ def validate_timeline_file(data: dict[str, Any]) -> tuple[TimelineFile, list[str
     Returns:
         Tuple of (validated TimelineFile, list of warning messages)
     """
-    warnings = []
+    warnings: list[str] = []
 
     try:
         timeline = TimelineFile(**data)

@@ -8,7 +8,7 @@ This module contains MCP tools for managing document metadata:
 
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from mcp.server import FastMCP
 
 from ..helpers import _get_chapter_path
@@ -404,6 +404,7 @@ def _write_entity_metadata(
             content = entities_path.read_text(encoding="utf-8")
             existing_data = yaml.safe_load(content) or existing_data
         except yaml.YAMLError:
+            # Use empty data structure if YAML parsing fails
             pass
 
     # Determine entity type and update
@@ -465,6 +466,7 @@ def _write_timeline_metadata(document_name: str, data: dict[str, Any]) -> Operat
             content = timeline_path.read_text(encoding="utf-8")
             existing_data = yaml.safe_load(content) or existing_data
         except yaml.YAMLError:
+            # Use empty events list if YAML parsing fails
             pass
 
     if "events" not in existing_data:
@@ -564,6 +566,7 @@ def _list_entity_metadata(document_name: str, filter_criteria: dict[str, Any] | 
                     else:
                         items.append(entity_info)
         except yaml.YAMLError:
+            # Continue with empty list if YAML parsing fails
             pass
 
     return MetadataListResponse(
@@ -596,6 +599,7 @@ def _list_timeline_metadata(
                 else:
                     items.append(event)
         except yaml.YAMLError:
+            # Continue with empty list if YAML parsing fails
             pass
 
     return MetadataListResponse(
