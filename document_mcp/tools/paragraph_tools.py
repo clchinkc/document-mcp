@@ -12,8 +12,6 @@ Design rationale (from A/B testing):
 - Add combines insert before/after/append: Same semantics (adding new content)
 - Move combines before/to_end: Same semantics (reordering)
 """
-from __future__ import annotations
-
 
 from typing import Literal
 

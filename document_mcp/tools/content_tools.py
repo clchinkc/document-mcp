@@ -3,11 +3,10 @@
 This module provides unified content access tools that work across different
 scopes (document, chapter, paragraph) with a consistent interface.
 """
-from __future__ import annotations
-
 
 import os
 import time
+from typing import Any
 
 import numpy as np
 from google import genai

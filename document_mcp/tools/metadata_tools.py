@@ -5,8 +5,6 @@ This module contains MCP tools for managing document metadata:
 - write_metadata: Write/update metadata for chapters or documents
 - list_metadata: List and filter metadata entries
 """
-from __future__ import annotations
-
 
 from typing import Any
 

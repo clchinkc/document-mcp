@@ -3,8 +3,6 @@
 This module contains MCP tools for getting document-level overviews:
 - get_document_outline: Get comprehensive document structure with metadata
 """
-from __future__ import annotations
-
 
 from typing import Any
 
@@ -50,7 +48,7 @@ def register_overview_tools(mcp_server: FastMCP) -> None:
             include_entity_counts (bool): Count entity mentions per chapter (default: True)
 
         Returns:
-            Optional[dict]: Document outline with structure:
+            dict | None: Document outline with structure:
                 {
                     "document_name": "My Novel",
                     "total_chapters": 12,

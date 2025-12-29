@@ -3,8 +3,6 @@
 This module provides the search_tool MCP tool for discovering
 available tools on-demand, enabling defer loading for token efficiency.
 """
-from __future__ import annotations
-
 
 from typing import TYPE_CHECKING
 
