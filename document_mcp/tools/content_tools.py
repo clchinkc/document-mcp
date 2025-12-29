@@ -6,7 +6,6 @@ scopes (document, chapter, paragraph) with a consistent interface.
 
 import os
 import time
-from typing import Any
 
 import numpy as np
 from google import genai

@@ -6,6 +6,7 @@ This module contains MCP tools for managing chapter files within documents:
 - delete_chapter: Delete a chapter file from a document
 - write_chapter_content: Overwrite entire chapter content (preserves frontmatter)
 """
+
 import datetime
 import difflib
 from pathlib import Path
