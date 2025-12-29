@@ -31,18 +31,15 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import os
 import time
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 
 import dspy
 
 from benchmarks import BENCHMARK_MODELS
 from benchmarks import BenchmarkMetrics
-from benchmarks import get_benchmark_scenarios
 from benchmarks.config import DEFAULT_MODEL
 from src.agents.react_agent.prompts import get_react_system_prompt
 from src.agents.shared.tool_descriptions import ToolFormat
@@ -976,7 +973,9 @@ def run_variant_comparison(
         print("VARIANT COMPARISON (each variant uses its own metric)")
         print(f"{'=' * 60}")
         for name, result in sorted(results.items(), key=lambda x: -x[1].optimized_score):
-            print(f"{name}: {result.baseline_score:.3f} -> {result.optimized_score:.3f} ({result.improvement:+.3f})")
+            print(
+                f"{name}: {result.baseline_score:.3f} -> {result.optimized_score:.3f} ({result.improvement:+.3f})"
+            )
 
     return results
 
@@ -1005,7 +1004,9 @@ def run_agent_comparison(model: str | None = None, auto_mode: str = "light") -> 
         print("AGENT COMPARISON (by variant metric)")
         print(f"{'=' * 60}")
         for name, result in sorted(results.items(), key=lambda x: -x[1].optimized_score):
-            print(f"{name}: {result.baseline_score:.3f} -> {result.optimized_score:.3f} ({result.improvement:+.3f})")
+            print(
+                f"{name}: {result.baseline_score:.3f} -> {result.optimized_score:.3f} ({result.improvement:+.3f})"
+            )
 
     return results
 
@@ -1030,7 +1031,9 @@ def run_multi_model_comparison(auto_mode: str = "light") -> dict[str, Optimizati
         print("MULTI-MODEL COMPARISON (by variant metric)")
         print(f"{'=' * 60}")
         for name, result in sorted(results.items(), key=lambda x: -x[1].optimized_score):
-            print(f"{name}: {result.baseline_score:.3f} -> {result.optimized_score:.3f} ({result.improvement:+.3f})")
+            print(
+                f"{name}: {result.baseline_score:.3f} -> {result.optimized_score:.3f} ({result.improvement:+.3f})"
+            )
 
     return results
 
@@ -1066,7 +1069,9 @@ def run_optimizer_comparison(
             results.items(),
             key=lambda x: -x[1].optimized_score,
         ):
-            print(f"{name}: {result.baseline_score:.3f} -> {result.optimized_score:.3f} (acc={result.optimized_metrics.accuracy:.1%})")
+            print(
+                f"{name}: {result.baseline_score:.3f} -> {result.optimized_score:.3f} (acc={result.optimized_metrics.accuracy:.1%})"
+            )
 
     return results
 

@@ -4,8 +4,8 @@ This module provides decorators for automatic safety and snapshot features:
 - auto_snapshot: Automatic snapshot creation before edit operations
 - safety_enhanced_write_operation: Automatic snapshots, freshness checks, and result enrichment for write operations
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import os
 from functools import wraps

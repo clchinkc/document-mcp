@@ -4,8 +4,8 @@ This module integrates with the clean evaluation architecture to provide
 comprehensive prompt performance scoring based on actual task completion,
 enhanced with simple LLM-based qualitative assessment.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import subprocess
 import sys

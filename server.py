@@ -20,8 +20,8 @@ Storage Backend:
 - Firestore (default): Free tier, pay-per-use, no VPC needed
 - Redis (optional): Set REDIS_HOST env var to enable
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import base64
 import hashlib

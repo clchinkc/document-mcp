@@ -3,8 +3,8 @@
 This module provides utilities for consistent error handling, logging,
 and response formatting across all components.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import functools
 import logging

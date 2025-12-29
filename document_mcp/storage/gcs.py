@@ -3,8 +3,8 @@
 Implements the StorageBackend interface using Google Cloud Storage.
 Used when running on GCP (Cloud Run, GCE, etc.).
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import fnmatch
 import os

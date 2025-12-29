@@ -3,8 +3,8 @@
 This module contains file path utilities and file system operations
 used throughout the system.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import os
 from pathlib import Path

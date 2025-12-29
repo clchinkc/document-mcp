@@ -3,8 +3,8 @@
 This module provides centralized configuration for the evaluation test suite,
 including performance thresholds, test scenarios, and environment settings.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from dataclasses import dataclass
 

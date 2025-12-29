@@ -4,8 +4,8 @@ Auto-selects the appropriate storage backend based on environment:
 - GCS: When running on GCP (K_SERVICE set) or GCS_BUCKET is configured
 - Local: Default for development and testing
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import os
 from enum import Enum
@@ -51,7 +51,7 @@ def detect_environment() -> StorageType:
 def create_storage_backend(
     storage_type: StorageType | None = None,
     **kwargs,
-) -> "StorageBackend":
+) -> StorageBackend:
     """Create a storage backend instance.
 
     Args:
@@ -80,10 +80,10 @@ def create_storage_backend(
 
 
 # Singleton instance for the application
-_storage_instance: "StorageBackend | None" = None
+_storage_instance: StorageBackend | None = None
 
 
-def get_storage(**kwargs) -> "StorageBackend":
+def get_storage(**kwargs) -> StorageBackend:
     """Get the global storage backend instance.
 
     Creates the instance on first call using auto-detection.
@@ -103,7 +103,7 @@ def get_storage(**kwargs) -> "StorageBackend":
     return _storage_instance
 
 
-def get_storage_sync(**kwargs) -> "StorageBackend":
+def get_storage_sync(**kwargs) -> StorageBackend:
     """Synchronous alias for get_storage."""
     return get_storage(**kwargs)
 

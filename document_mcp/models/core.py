@@ -3,8 +3,8 @@
 This module contains base models and core operation status models
 that are used throughout the system.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import datetime
 from typing import Any

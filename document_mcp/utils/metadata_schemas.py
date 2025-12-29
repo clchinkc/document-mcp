@@ -5,8 +5,8 @@ This module defines schemas for:
 - Document-level entities (characters, locations, items)
 - Timeline events
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from enum import Enum
 from typing import Any

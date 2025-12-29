@@ -4,8 +4,8 @@ This module provides a base class that encapsulates common functionality
 shared between Simple and ReAct agents, reducing code duplication and
 providing consistent behavior across agent implementations.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import abc
 from typing import Any

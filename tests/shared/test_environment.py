@@ -3,8 +3,8 @@
 This module provides centralized environment management to eliminate
 complex environment manipulation patterns repeated across test files.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import importlib
 import os

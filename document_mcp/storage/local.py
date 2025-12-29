@@ -3,8 +3,8 @@
 Implements the StorageBackend interface using the local filesystem.
 This is the default backend for local development.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import fnmatch
 import os

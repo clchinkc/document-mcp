@@ -3,8 +3,8 @@
 This module loads SKILL.md content for injection into agent prompts,
 providing consistent tool usage patterns across Claude Code and our agents.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from pathlib import Path

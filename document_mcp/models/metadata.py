@@ -5,8 +5,8 @@ This module contains models for metadata operations:
 - MetadataListResponse: Response for list_metadata
 - Input models for Gemini-compatible tool parameters
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import Any
 

@@ -31,8 +31,8 @@ Usage:
     # Rollback to specific version
     store.set_current("full", "v001")
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import json
 import logging

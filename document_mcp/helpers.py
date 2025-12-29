@@ -3,8 +3,8 @@
 This module contains all shared helper functions used across the modular tool files.
 It provides validation, text processing, file operations, and other utility functions.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import datetime
 import difflib

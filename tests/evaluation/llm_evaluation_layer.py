@@ -4,8 +4,8 @@ This module provides LLM evaluation capabilities that work alongside
 traditional performance metrics in the test layer, without affecting
 the core agent implementations.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import asyncio
 import json

@@ -4,8 +4,8 @@
 This module implements a ReAct (Reasoning and Acting) agent that can manage
 structured markdown documents through systematic reasoning and tool execution.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import asyncio
 import os

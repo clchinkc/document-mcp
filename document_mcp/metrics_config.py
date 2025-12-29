@@ -4,8 +4,8 @@ Local-only metrics collection using OpenTelemetry.
 Stores logs, traces, and metrics locally for development.
 For cloud deployment, configure external exporters via environment variables.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import json
 import os

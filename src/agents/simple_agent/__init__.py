@@ -11,6 +11,7 @@ def __getattr__(name):
     """Lazy load SimpleAgent to avoid importing pydantic_ai.mcp at package load time."""
     if name == "SimpleAgent":
         from .agent import SimpleAgent
+
         # Register the simple agent with the factory
         register_agent("simple", SimpleAgent)
         return SimpleAgent

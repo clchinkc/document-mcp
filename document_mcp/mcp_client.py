@@ -6,8 +6,8 @@ without the complexity of the internal server implementation.
 
 All functions in this module correspond directly to registered MCP tools.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 # Import the MCP server to access registered tools
 from .doc_tool_server import mcp_server
