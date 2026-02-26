@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from document_mcp.mcp_client import add_paragraph
-from document_mcp.mcp_client import delete_paragraph
-from document_mcp.mcp_client import find_text
-from document_mcp.mcp_client import replace_paragraph
-from document_mcp.mcp_client import replace_text
+from story_mcp.mcp_client import add_paragraph
+from story_mcp.mcp_client import delete_paragraph
+from story_mcp.mcp_client import find_text
+from story_mcp.mcp_client import replace_paragraph
+from story_mcp.mcp_client import replace_text
 
 
 @pytest.fixture

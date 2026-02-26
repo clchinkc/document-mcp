@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from document_mcp.utils import file_operations
+from story_mcp.utils import file_operations
 
 
 class TestDocsRootPath:

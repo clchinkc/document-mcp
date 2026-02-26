@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from document_mcp.mcp_client import delete_document
+from story_mcp.mcp_client import delete_document
 
 
 @pytest.fixture(scope="session")

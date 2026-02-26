@@ -17,8 +17,8 @@ class TestSafetyFeatures:
 
     def test_content_freshness_check(self, temp_docs_root):
         """Test content freshness validation."""
-        from document_mcp.mcp_client import check_content_status
-        from document_mcp.models import ContentFreshnessStatus
+        from story_mcp.mcp_client import check_content_status
+        from story_mcp.models import ContentFreshnessStatus
 
         # Test with non-existent document
         status_result = check_content_status(
@@ -33,8 +33,8 @@ class TestSafetyFeatures:
 
     def test_modification_history_tracking(self, temp_docs_root):
         """Test modification history tracking."""
-        from document_mcp.mcp_client import check_content_status
-        from document_mcp.models import ModificationHistory
+        from story_mcp.mcp_client import check_content_status
+        from story_mcp.models import ModificationHistory
 
         # Test with non-existent document
         history = check_content_status(document_name="nonexistent_doc", include_history=True)
@@ -45,8 +45,8 @@ class TestSafetyFeatures:
 
     def test_snapshot_operations(self, temp_docs_root):
         """Test snapshot creation and listing."""
-        from document_mcp.mcp_client import manage_snapshots
-        from document_mcp.models import SnapshotsList
+        from story_mcp.mcp_client import manage_snapshots
+        from story_mcp.models import SnapshotsList
 
         # Test with non-existent document
         snapshots = manage_snapshots(document_name="nonexistent_doc", action="list")
@@ -56,10 +56,10 @@ class TestSafetyFeatures:
 
     def test_safety_enhanced_write_operations(self, temp_docs_root):
         """Test that write operations include safety information."""
-        from document_mcp.mcp_client import create_chapter
-        from document_mcp.mcp_client import create_document
-        from document_mcp.mcp_client import write_chapter_content
-        from document_mcp.models import OperationStatus
+        from story_mcp.mcp_client import create_chapter
+        from story_mcp.mcp_client import create_document
+        from story_mcp.mcp_client import write_chapter_content
+        from story_mcp.models import OperationStatus
 
         # Create document and chapter
         doc_result = create_document("safety_test")
@@ -81,12 +81,12 @@ class TestSafetyFeatures:
 
     def test_snapshot_workflow(self, temp_docs_root):
         """Test complete snapshot workflow."""
-        from document_mcp.mcp_client import create_chapter
-        from document_mcp.mcp_client import create_document
-        from document_mcp.mcp_client import diff_content
-        from document_mcp.mcp_client import manage_snapshots
-        from document_mcp.mcp_client import replace_paragraph
-        from document_mcp.mcp_client import write_chapter_content
+        from story_mcp.mcp_client import create_chapter
+        from story_mcp.mcp_client import create_document
+        from story_mcp.mcp_client import diff_content
+        from story_mcp.mcp_client import manage_snapshots
+        from story_mcp.mcp_client import replace_paragraph
+        from story_mcp.mcp_client import write_chapter_content
 
         # Create document and chapter
         doc_result = create_document("snapshot_test")
@@ -134,8 +134,8 @@ class TestSafetyFeatures:
 
     def test_error_handling(self, temp_docs_root):
         """Test error handling in safety operations."""
-        from document_mcp.mcp_client import diff_content
-        from document_mcp.mcp_client import manage_snapshots
+        from story_mcp.mcp_client import diff_content
+        from story_mcp.mcp_client import manage_snapshots
 
         # Test with invalid document
         result = manage_snapshots("invalid_doc", "create", message="Test")
@@ -159,13 +159,13 @@ class TestSafetyFeatures:
 
     def test_api_consistency(self, temp_docs_root):
         """Test that all write operations return consistent OperationStatus."""
-        from document_mcp.mcp_client import add_paragraph
-        from document_mcp.mcp_client import create_chapter
-        from document_mcp.mcp_client import create_document
-        from document_mcp.mcp_client import delete_paragraph
-        from document_mcp.mcp_client import replace_paragraph
-        from document_mcp.mcp_client import write_chapter_content
-        from document_mcp.models import OperationStatus
+        from story_mcp.mcp_client import add_paragraph
+        from story_mcp.mcp_client import create_chapter
+        from story_mcp.mcp_client import create_document
+        from story_mcp.mcp_client import delete_paragraph
+        from story_mcp.mcp_client import replace_paragraph
+        from story_mcp.mcp_client import write_chapter_content
+        from story_mcp.models import OperationStatus
 
         # Create test document and chapter
         doc_result = create_document("api_consistency_test")
@@ -214,12 +214,12 @@ class TestSafetyFeatures:
 
     def test_safety_middleware_integration(self, temp_docs_root):
         """Test that safety middleware is properly integrated across operations."""
-        from document_mcp.mcp_client import check_content_status
-        from document_mcp.mcp_client import create_chapter
-        from document_mcp.mcp_client import create_document
-        from document_mcp.mcp_client import manage_snapshots
-        from document_mcp.mcp_client import replace_paragraph
-        from document_mcp.mcp_client import write_chapter_content
+        from story_mcp.mcp_client import check_content_status
+        from story_mcp.mcp_client import create_chapter
+        from story_mcp.mcp_client import create_document
+        from story_mcp.mcp_client import manage_snapshots
+        from story_mcp.mcp_client import replace_paragraph
+        from story_mcp.mcp_client import write_chapter_content
 
         # Create test document
         doc_result = create_document("middleware_test")
@@ -254,13 +254,13 @@ class TestSafetyFeatures:
 
     def test_end_to_end_version_control_workflow(self, temp_docs_root):
         """Test complete end-to-end version control workflow."""
-        from document_mcp.mcp_client import check_content_status
-        from document_mcp.mcp_client import create_chapter
-        from document_mcp.mcp_client import create_document
-        from document_mcp.mcp_client import diff_content
-        from document_mcp.mcp_client import manage_snapshots
-        from document_mcp.mcp_client import replace_paragraph
-        from document_mcp.mcp_client import write_chapter_content
+        from story_mcp.mcp_client import check_content_status
+        from story_mcp.mcp_client import create_chapter
+        from story_mcp.mcp_client import create_document
+        from story_mcp.mcp_client import diff_content
+        from story_mcp.mcp_client import manage_snapshots
+        from story_mcp.mcp_client import replace_paragraph
+        from story_mcp.mcp_client import write_chapter_content
 
         workflow_doc = "e2e_workflow_test"
 
@@ -353,14 +353,14 @@ class TestSafetyFeatures:
 
     def test_comprehensive_safety_validation(self, temp_docs_root):
         """Test comprehensive safety validation across all scenarios."""
-        from document_mcp.mcp_client import check_content_status
-        from document_mcp.mcp_client import create_chapter
-        from document_mcp.mcp_client import create_document
-        from document_mcp.mcp_client import manage_snapshots
-        from document_mcp.mcp_client import write_chapter_content
-        from document_mcp.models import ContentFreshnessStatus
-        from document_mcp.models import ModificationHistory
-        from document_mcp.models import SnapshotsList
+        from story_mcp.mcp_client import check_content_status
+        from story_mcp.mcp_client import create_chapter
+        from story_mcp.mcp_client import create_document
+        from story_mcp.mcp_client import manage_snapshots
+        from story_mcp.mcp_client import write_chapter_content
+        from story_mcp.models import ContentFreshnessStatus
+        from story_mcp.models import ModificationHistory
+        from story_mcp.models import SnapshotsList
 
         test_doc = "comprehensive_safety_test"
 
@@ -417,12 +417,12 @@ class TestSafetyFeatures:
 
     def test_writer_safety_scenario(self, temp_docs_root):
         """Test a realistic writer safety scenario: protecting against accidental overwrites."""
-        from document_mcp.mcp_client import check_content_status
-        from document_mcp.mcp_client import create_chapter
-        from document_mcp.mcp_client import create_document
-        from document_mcp.mcp_client import manage_snapshots
-        from document_mcp.mcp_client import replace_paragraph
-        from document_mcp.mcp_client import write_chapter_content
+        from story_mcp.mcp_client import check_content_status
+        from story_mcp.mcp_client import create_chapter
+        from story_mcp.mcp_client import create_document
+        from story_mcp.mcp_client import manage_snapshots
+        from story_mcp.mcp_client import replace_paragraph
+        from story_mcp.mcp_client import write_chapter_content
 
         # Scenario: A writer is working on a novel chapter
         doc_name = "my_novel"

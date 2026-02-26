@@ -1,7 +1,13 @@
 """Skill loader for Document MCP agents.
 
-This module loads SKILL.md content for injection into agent prompts,
+This module loads skill content for injection into agent prompts,
 providing consistent tool usage patterns across Claude Code and our agents.
+
+Supports progressive disclosure architecture:
+- SKILL.md: Minimal metadata + quick reference (~100-200 tokens)
+- WORKFLOWS.md: Critical workflows for tool selection (loads on demand)
+- TOOLS.md: Complete tool reference (loads on demand)
+- EXAMPLES.md: Usage examples (loads on demand)
 """
 
 from __future__ import annotations
@@ -12,30 +18,61 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def find_skill_md() -> Path | None:
-    """Find the SKILL.md file in the project.
+def find_skill_directory() -> Path | None:
+    """Find the skill directory for document-mcp.
 
     Searches in order:
-    1. .claude/skills/document-mcp/SKILL.md (project skills)
-    2. ~/.claude/skills/document-mcp/SKILL.md (user skills)
+    1. .claude/skills/document-mcp/ (project skills)
+    2. ~/.claude/skills/document-mcp/ (user skills)
 
     Returns:
-        Path to SKILL.md or None if not found.
+        Path to skill directory or None if not found.
     """
     # Get project root (assumes we're in src/agents/shared/)
     current_file = Path(__file__).resolve()
     project_root = current_file.parent.parent.parent.parent
 
     # Check project skills first
-    project_skill = project_root / ".claude" / "skills" / "document-mcp" / "SKILL.md"
-    if project_skill.exists():
-        return project_skill
+    project_skill_dir = project_root / ".claude" / "skills" / "document-mcp"
+    if project_skill_dir.exists():
+        return project_skill_dir
 
     # Check user skills
-    user_skill = Path.home() / ".claude" / "skills" / "document-mcp" / "SKILL.md"
-    if user_skill.exists():
-        return user_skill
+    user_skill_dir = Path.home() / ".claude" / "skills" / "document-mcp"
+    if user_skill_dir.exists():
+        return user_skill_dir
 
+    return None
+
+
+def find_skill_md() -> Path | None:
+    """Find the SKILL.md file in the project.
+
+    Returns:
+        Path to SKILL.md or None if not found.
+    """
+    skill_dir = find_skill_directory()
+    if skill_dir:
+        skill_file = skill_dir / "SKILL.md"
+        if skill_file.exists():
+            return skill_file
+    return None
+
+
+def find_skill_file(filename: str) -> Path | None:
+    """Find a specific skill file (for progressive disclosure).
+
+    Args:
+        filename: Name of the file to find (e.g., "WORKFLOWS.md", "TOOLS.md")
+
+    Returns:
+        Path to the file or None if not found.
+    """
+    skill_dir = find_skill_directory()
+    if skill_dir:
+        file_path = skill_dir / filename
+        if file_path.exists():
+            return file_path
     return None
 
 
@@ -160,10 +197,123 @@ def get_skill_enhanced_prompt_section() -> str:
 
     parts = []
 
-    # Add critical workflows - most important for tool selection
-    workflows = sections.get("Critical Workflows", "")
-    if workflows:
-        parts.append("**CRITICAL WORKFLOWS (from SKILL.md):**")
-        parts.append(workflows)
+    # Add critical decision points - most important for tool selection
+    decision_points = sections.get("Critical Decision Points", "")
+    if decision_points:
+        parts.append("**CRITICAL DECISION POINTS (from SKILL.md):**")
+        parts.append(decision_points)
 
     return "\n\n".join(parts)
+
+
+# --- Progressive Disclosure Functions ---
+
+
+def get_workflows_content() -> str | None:
+    """Load WORKFLOWS.md content for detailed workflow patterns.
+
+    This implements progressive disclosure - only loads when needed.
+
+    Returns:
+        WORKFLOWS.md content or None if not available.
+    """
+    workflow_path = find_skill_file("WORKFLOWS.md")
+    if not workflow_path:
+        logger.debug("WORKFLOWS.md not found")
+        return None
+
+    try:
+        content = workflow_path.read_text(encoding="utf-8")
+        logger.debug("Loaded WORKFLOWS.md")
+        return content
+    except Exception as e:
+        logger.warning(f"Failed to load WORKFLOWS.md: {e}")
+        return None
+
+
+def get_tools_reference() -> str | None:
+    """Load TOOLS.md content for complete tool reference.
+
+    This implements progressive disclosure - only loads when needed.
+
+    Returns:
+        TOOLS.md content or None if not available.
+    """
+    tools_path = find_skill_file("TOOLS.md")
+    if not tools_path:
+        logger.debug("TOOLS.md not found")
+        return None
+
+    try:
+        content = tools_path.read_text(encoding="utf-8")
+        logger.debug("Loaded TOOLS.md")
+        return content
+    except Exception as e:
+        logger.warning(f"Failed to load TOOLS.md: {e}")
+        return None
+
+
+def get_examples_content() -> str | None:
+    """Load EXAMPLES.md content for usage examples.
+
+    This implements progressive disclosure - only loads when needed.
+
+    Returns:
+        EXAMPLES.md content or None if not available.
+    """
+    examples_path = find_skill_file("EXAMPLES.md")
+    if not examples_path:
+        logger.debug("EXAMPLES.md not found")
+        return None
+
+    try:
+        content = examples_path.read_text(encoding="utf-8")
+        logger.debug("Loaded EXAMPLES.md")
+        return content
+    except Exception as e:
+        logger.warning(f"Failed to load EXAMPLES.md: {e}")
+        return None
+
+
+def get_progressive_skill_content(
+    include_workflows: bool = False,
+    include_tools: bool = False,
+    include_examples: bool = False,
+) -> dict[str, str]:
+    """Get skill content with progressive disclosure control.
+
+    This allows agents to load only the content they need, reducing
+    context usage when full documentation isn't required.
+
+    Args:
+        include_workflows: Include WORKFLOWS.md content
+        include_tools: Include TOOLS.md content
+        include_examples: Include EXAMPLES.md content
+
+    Returns:
+        Dictionary with available content sections.
+    """
+    result = {}
+
+    # Always include base SKILL.md content
+    base_content = get_skill_content()
+    if base_content:
+        result["skill"] = base_content
+
+    # Progressive loading of additional files
+    if include_workflows:
+        workflows = get_workflows_content()
+        if workflows:
+            result["workflows"] = workflows
+
+    if include_tools:
+        tools = get_tools_reference()
+        if tools:
+            result["tools"] = tools
+
+    if include_examples:
+        examples = get_examples_content()
+        if examples:
+            result["examples"] = examples
+
+    return result

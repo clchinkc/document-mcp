@@ -91,7 +91,7 @@ def validate_api_configuration() -> bool:
 def setup_document_root() -> None:
     """Set the document root directory for the server-side logic."""
     if "DOCUMENT_ROOT_DIR" in os.environ:
-        from document_mcp import doc_tool_server
+        from story_mcp import doc_tool_server
 
         doc_tool_server.DOCS_ROOT_PATH = Path(os.environ["DOCUMENT_ROOT_DIR"])
 

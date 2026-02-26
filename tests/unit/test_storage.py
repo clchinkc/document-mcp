@@ -7,12 +7,12 @@ from unittest.mock import patch
 
 import pytest
 
-from document_mcp.storage import StorageType
-from document_mcp.storage import get_storage
-from document_mcp.storage.factory import create_storage_backend
-from document_mcp.storage.factory import detect_environment
-from document_mcp.storage.factory import reset_storage
-from document_mcp.storage.local import LocalStorageBackend
+from story_mcp.storage import StorageType
+from story_mcp.storage import get_storage
+from story_mcp.storage.factory import create_storage_backend
+from story_mcp.storage.factory import detect_environment
+from story_mcp.storage.factory import reset_storage
+from story_mcp.storage.local import LocalStorageBackend
 
 
 class TestEnvironmentDetection:

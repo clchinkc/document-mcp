@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "document-mcp"
-version = "0.0.4"
+name = "story-mcp"
+version = "0.0.5"
 authors = [
   { name="clchinkc" },
 ]
-description = "A MCP server for managing structured Markdown documents"
+description = "A MCP server for managing structured Markdown stories"
 readme = "README.md"
 requires-python = ">=3.10"
 keywords = ["mcp", "document", "management"]
@@ -90,23 +90,24 @@ dev = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/document-mcp/document-mcp"
-"Bug Tracker" = "https://github.com/document-mcp/document-mcp/issues"
+"Homepage" = "https://github.com/clchinkc/story-mcp"
+"Bug Tracker" = "https://github.com/clchinkc/story-mcp/issues"
 
 [project.scripts]
-"document-mcp" = "document_mcp.doc_tool_server:main"
+"story-mcp" = "story_mcp.doc_tool_server:main"
+"document-mcp" = "story_mcp.legacy:main_legacy"
 
 [tool.setuptools]
 packages = [
-    "document_mcp", 
-    "document_mcp.config",
-    "document_mcp.models",
-    "document_mcp.tools", 
-    "document_mcp.utils"
+    "story_mcp",
+    "story_mcp.config",
+    "story_mcp.models",
+    "story_mcp.tools",
+    "story_mcp.utils"
 ]
 
 [tool.setuptools.package-data]
-document_mcp = ["*.ini"]
+story_mcp = ["*.ini"]
 
 # Ruff configuration
 [tool.ruff]
@@ -157,7 +158,7 @@ ignore = [
 convention = "google"
 
 [tool.ruff.lint.isort]
-known-first-party = ["document_mcp", "src"]
+known-first-party = ["story_mcp", "src"]
 force-single-line = true
 
 [tool.ruff.format]

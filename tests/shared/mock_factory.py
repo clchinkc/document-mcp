@@ -11,14 +11,14 @@ from typing import Any
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
-from document_mcp.models import ChapterContent
-from document_mcp.models import ChapterMetadata
-from document_mcp.models import DocumentInfo
-from document_mcp.models import FullDocumentContent
-from document_mcp.models import OperationStatus
-from document_mcp.models import SemanticSearchResponse
-from document_mcp.models import SemanticSearchResult
-from document_mcp.models import StatisticsReport
+from story_mcp.models import ChapterContent
+from story_mcp.models import ChapterMetadata
+from story_mcp.models import DocumentInfo
+from story_mcp.models import FullDocumentContent
+from story_mcp.models import OperationStatus
+from story_mcp.models import SemanticSearchResponse
+from story_mcp.models import SemanticSearchResult
+from story_mcp.models import StatisticsReport
 
 
 class MockDataFactory:

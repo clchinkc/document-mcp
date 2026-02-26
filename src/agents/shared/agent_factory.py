@@ -9,8 +9,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 
-from document_mcp.config import get_settings
-from document_mcp.exceptions import AgentConfigurationError
+from story_mcp.config import get_settings
+from story_mcp.exceptions import AgentConfigurationError
 
 from .agent_base import AgentBase
 

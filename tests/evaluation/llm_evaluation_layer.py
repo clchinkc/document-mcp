@@ -14,7 +14,7 @@ import os
 import time
 from dataclasses import dataclass
 
-from document_mcp.config import get_settings
+from story_mcp.config import get_settings
 from src.agents.shared.performance_metrics import AgentPerformanceMetrics
 
 

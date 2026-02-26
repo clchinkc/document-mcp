@@ -3,7 +3,7 @@
 from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.models.openai import OpenAIModel
 
-from document_mcp.config import get_settings
+from story_mcp.config import get_settings
 
 # Get centralized settings
 settings = get_settings()

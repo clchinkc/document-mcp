@@ -4,19 +4,19 @@ from __future__ import annotations
 
 import pytest
 
-from document_mcp.exceptions import AgentConfigurationError
-from document_mcp.exceptions import AgentError
-from document_mcp.exceptions import ChapterNotFoundError
-from document_mcp.exceptions import ContentFreshnessError
-from document_mcp.exceptions import DocumentMCPError
-from document_mcp.exceptions import DocumentNotFoundError
-from document_mcp.exceptions import FileSystemError
-from document_mcp.exceptions import LLMError
-from document_mcp.exceptions import MCPToolError
-from document_mcp.exceptions import OperationError
-from document_mcp.exceptions import ParagraphNotFoundError
-from document_mcp.exceptions import SemanticSearchError
-from document_mcp.exceptions import ValidationError
+from story_mcp.exceptions import AgentConfigurationError
+from story_mcp.exceptions import AgentError
+from story_mcp.exceptions import ChapterNotFoundError
+from story_mcp.exceptions import ContentFreshnessError
+from story_mcp.exceptions import DocumentMCPError
+from story_mcp.exceptions import DocumentNotFoundError
+from story_mcp.exceptions import FileSystemError
+from story_mcp.exceptions import LLMError
+from story_mcp.exceptions import MCPToolError
+from story_mcp.exceptions import OperationError
+from story_mcp.exceptions import ParagraphNotFoundError
+from story_mcp.exceptions import SemanticSearchError
+from story_mcp.exceptions import ValidationError
 
 
 class TestDocumentMCPError:

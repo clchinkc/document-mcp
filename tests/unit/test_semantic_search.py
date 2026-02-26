@@ -7,8 +7,8 @@ with mocked external dependencies (API calls).
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from document_mcp.tools.content_tools import _generate_context_snippet
-from document_mcp.tools.content_tools import _perform_semantic_search
+from story_mcp.tools.content_tools import _generate_context_snippet
+from story_mcp.tools.content_tools import _perform_semantic_search
 
 
 class MockEmbedding:
@@ -29,10 +29,10 @@ class TestSemanticSearchCore:
     """Test suite for semantic search core functionality."""
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools.genai.Client")
-    @patch("document_mcp.tools.content_tools._get_document_path")
-    @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
-    @patch("document_mcp.tools.content_tools._split_into_paragraphs")
+    @patch("story_mcp.tools.content_tools.genai.Client")
+    @patch("story_mcp.tools.content_tools._get_document_path")
+    @patch("story_mcp.tools.content_tools._get_ordered_chapter_files")
+    @patch("story_mcp.tools.content_tools._split_into_paragraphs")
     def test_perform_semantic_search_document_scope(
         self, mock_split, mock_chapters, mock_doc_path, mock_client_class
     ):
@@ -78,9 +78,9 @@ class TestSemanticSearchCore:
         assert results[0].similarity_score > 0.8
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools.genai.Client")
-    @patch("document_mcp.tools.content_tools._get_chapter_path")
-    @patch("document_mcp.tools.content_tools._split_into_paragraphs")
+    @patch("story_mcp.tools.content_tools.genai.Client")
+    @patch("story_mcp.tools.content_tools._get_chapter_path")
+    @patch("story_mcp.tools.content_tools._split_into_paragraphs")
     def test_perform_semantic_search_chapter_scope(self, mock_split, mock_chapter_path, mock_client_class):
         """Test semantic search with chapter scope."""
         # Setup mocks
@@ -129,7 +129,7 @@ class TestSemanticSearchCore:
             assert results == []
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools._get_document_path")
+    @patch("story_mcp.tools.content_tools._get_document_path")
     def test_perform_semantic_search_document_not_found(self, mock_doc_path):
         """Test semantic search with non-existent document."""
         mock_doc_path.return_value.exists.return_value = False
@@ -146,10 +146,10 @@ class TestSemanticSearchCore:
         assert results == []
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools.genai.Client")
-    @patch("document_mcp.tools.content_tools._get_document_path")
-    @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
-    @patch("document_mcp.tools.content_tools._split_into_paragraphs")
+    @patch("story_mcp.tools.content_tools.genai.Client")
+    @patch("story_mcp.tools.content_tools._get_document_path")
+    @patch("story_mcp.tools.content_tools._get_ordered_chapter_files")
+    @patch("story_mcp.tools.content_tools._split_into_paragraphs")
     def test_perform_semantic_search_similarity_threshold_filtering(
         self, mock_split, mock_chapters, mock_doc_path, mock_client_class
     ):
@@ -191,10 +191,10 @@ class TestSemanticSearchCore:
         assert results[0].content == "Para 1"
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools.genai.Client")
-    @patch("document_mcp.tools.content_tools._get_document_path")
-    @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
-    @patch("document_mcp.tools.content_tools._split_into_paragraphs")
+    @patch("story_mcp.tools.content_tools.genai.Client")
+    @patch("story_mcp.tools.content_tools._get_document_path")
+    @patch("story_mcp.tools.content_tools._get_ordered_chapter_files")
+    @patch("story_mcp.tools.content_tools._split_into_paragraphs")
     def test_perform_semantic_search_max_results_limiting(
         self, mock_split, mock_chapters, mock_doc_path, mock_client_class
     ):

@@ -12,11 +12,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from document_mcp.error_handler import ErrorContext
-from document_mcp.error_handler import create_error_response as create_mcp_error_response
-from document_mcp.exceptions import AgentConfigurationError
-from document_mcp.exceptions import AgentError
-from document_mcp.exceptions import LLMError
+from story_mcp.error_handler import ErrorContext
+from story_mcp.error_handler import create_error_response as create_mcp_error_response
+from story_mcp.exceptions import AgentConfigurationError
+from story_mcp.exceptions import AgentError
+from story_mcp.exceptions import LLMError
 
 # --- Error Classification and Retry Configuration ---
 

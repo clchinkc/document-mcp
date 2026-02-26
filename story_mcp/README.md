@@ -1,44 +1,44 @@
-# Document-MCP: The Developer's Document Store
+# Story-MCP: The Developer's Story Engine
 
-[![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
+[![PyPI version](https://badge.fury.io/py/story-mcp.svg)](https://badge.fury.io/py/story-mcp)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-**Document-MCP is a powerful, local-first MCP server for building, managing, and automating complex, structured documents with confidence. It's designed for developers, technical writers, and researchers who need robust, safe, and programmatic control over their content.**
+**Story-MCP is a powerful, local-first MCP server for building, managing, and automating complex, structured stories with confidence. It's designed for developers, writers, and storytellers who need robust, safe, and programmatic control over their narratives.**
 
-While other tools focus on simple note-taking, Document-MCP is built for creating and managing multi-chapter documents like books, reports, and technical documentation. It provides a suite of developer-focused features, including write-safety, automatic snapshots, version control, pagination-based content access, and batch processing.
+While other tools focus on simple note-taking, Story-MCP is built for creating and managing multi-chapter stories like novels, screenplays, and interactive narratives. It provides a suite of developer-focused features, including write-safety, automatic snapshots, version control, pagination-based content access, and batch processing.
 
-### Recent Updates (v0.0.3)
+### Recent Updates (v0.0.5)
 - ✅ **Pagination System**: Industry-standard pagination for complete large document access
 - ✅ **Enhanced Testing**: 477 comprehensive tests with 100% pass rate (61% coverage)
 - ✅ **GCP Observability**: Native Cloud Logging, Tracing, and Monitoring integration (works locally too)
 - ✅ **Improved Documentation**: Updated guides and API references
 - ✅ **Performance Optimization**: Better timeout handling and reliability
 
-## Why Document-MCP?
+## Why Story-MCP?
 
-| Feature | Document-MCP | Basic Memory | MCP-Obsidian |
+| Feature | Story-MCP | Basic Memory | MCP-Obsidian |
 | --- | --- | --- | --- |
 | **Use Case** | Complex, structured documents (books, reports) | Simple notes and knowledge snippets | Notes within an Obsidian vault |
 | **Safety** | Snapshots, versioning, transactions | Basic file operations | Basic file operations |
 | **Developer Focus** | Metrics, pagination, batch processing, granular control | Simple API for conversational knowledge | Obsidian-centric API |
 | **Structure** | Multi-chapter documents | Single notes with semantic tags | Standard Markdown notes |
 
-**Choose Document-MCP if you need to:**
+**Choose Story-MCP if you need to:**
 
 *   **Build complex documents:** Create and manage documents with multiple chapters, and have granular control over paragraphs and content with pagination support.
 *   **Ensure data safety:** Protect your work with automatic snapshots and versioning, and perform complex operations with atomic transactions.
 *   **Automate your workflows:** Use batch processing to perform multiple operations at once, and monitor everything with detailed performance metrics.
-*   **Work with code:** Document-MCP is designed to be used programmatically, making it ideal for developers and technical users.
+*   **Work with code:** Story-MCP is designed to be used programmatically, making it ideal for developers and technical users.
 *   **Handle large documents:** Industry-standard pagination ensures complete access to documents of any size.
 
 ## Installation
 
 ```bash
 # Install with pip (traditional)
-pip install document-mcp
+pip install story-mcp
 
 # Install with uv (recommended - 10-100x faster)
-uv add document-mcp
+uv add story-mcp
 
 # For development with modern toolchain
 uv sync
@@ -69,19 +69,19 @@ This MCP server treats "documents" as directories containing multiple "chapter" 
 
 1.  **Install the package:**
     ```bash
-    pip install document-mcp
+    pip install story-mcp
     ```
 
 2.  **Add to Claude Code automatically (recommended: local scope):**
     ```bash
-    claude mcp add document-mcp -s local -- document-mcp stdio
+    claude mcp add story-mcp -s local -- story-mcp stdio
     ```
 
 3.  **Verify installation:**
     ```bash
     claude mcp list
     ```
-    You should see `document-mcp: ... - ✓ Connected`
+    You should see `story-mcp: ... - ✓ Connected`
 
 **Option 2: Manual Configuration**
 
@@ -90,14 +90,14 @@ If the automatic method doesn't work, use manual configuration:
 1.  **Install and find the binary path:**
     ```bash
     # Install the package
-    pip install document-mcp
+    pip install story-mcp
     
     # Find where it's installed (try these commands in order):
-    which document-mcp
+    which story-mcp
     # If not found, try:
-    python3 -c "import subprocess; print(subprocess.check_output(['which', 'document-mcp']).decode().strip())"
+    python3 -c "import subprocess; print(subprocess.check_output(['which', 'story-mcp']).decode().strip())"
     # If still not found, try:
-    python3 -c "import document_mcp, os; print(os.path.join(os.path.dirname(document_mcp.__file__), '..', '..', '..', 'bin', 'document-mcp'))"
+    python3 -c "import story_mcp, os; print(os.path.join(os.path.dirname(story_mcp.__file__), '..', '..', '..', 'bin', 'story-mcp'))"
     ```
 
 2.  **Add MCP server configuration:**
@@ -109,8 +109,8 @@ If the automatic method doesn't work, use manual configuration:
     ```json
     {
       "mcpServers": {
-        "document-mcp": {
-          "command": "document-mcp",
+        "story-mcp": {
+          "command": "story-mcp",
           "args": ["stdio"],
           "env": {}
         }
@@ -118,12 +118,12 @@ If the automatic method doesn't work, use manual configuration:
     }
     ```
 
-    **If `document-mcp` is not in your PATH**, use the full path you found above:
+    **If `story-mcp` is not in your PATH**, use the full path you found above:
     ```json
     {
       "mcpServers": {
-        "document-mcp": {
-          "command": "/full/path/to/document-mcp",
+        "story-mcp": {
+          "command": "/full/path/to/story-mcp",
           "args": ["stdio"],
           "env": {}
         }
@@ -137,35 +137,35 @@ For development or if you're working from source:
 
 1.  **Clone and install:**
     ```bash
-    git clone https://github.com/clchinkc/document-mcp.git
-    cd document-mcp
+    git clone https://github.com/clchinkc/story-mcp.git
+    cd story-mcp
     pip install -e .
     ```
 
 2.  **Find the development binary:**
     ```bash
-    python3 -c "import sys, os; print(os.path.join(sys.prefix, 'bin', 'document-mcp'))"
+    python3 -c "import sys, os; print(os.path.join(sys.prefix, 'bin', 'story-mcp'))"
     ```
 
 3.  **Add using the full path (local scope):**
     ```bash
-    claude mcp add document-mcp -s local -- /path/to/your/venv/bin/document-mcp stdio
+    claude mcp add story-mcp -s local -- /path/to/your/venv/bin/story-mcp stdio
     ```
 
 ### Troubleshooting Claude Code Integration
 
 **Common Issues:**
 
-- **"spawn document-mcp ENOENT" error**: The binary is not in your PATH. Use Option 2 with the full path.
-- **Connection timeout**: Verify the server starts correctly: `document-mcp --help`
-- **Permission errors**: Ensure the binary has execute permissions: `chmod +x /path/to/document-mcp`
-- **Module not found**: Reinstall the package: `pip uninstall document-mcp && pip install document-mcp`
+- **"spawn story-mcp ENOENT" error**: The binary is not in your PATH. Use Option 2 with the full path.
+- **Connection timeout**: Verify the server starts correctly: `story-mcp --help`
+- **Permission errors**: Ensure the binary has execute permissions: `chmod +x /path/to/story-mcp`
+- **Module not found**: Reinstall the package: `pip uninstall story-mcp && pip install story-mcp`
 
 **Quick Troubleshooting:**
 
 | Problem | Solution |
 |---------|----------|
-| "Can't find document-mcp command" | Use full path: `/path/to/document-mcp` in config |
+| "Can't find story-mcp command" | Use full path: `/path/to/story-mcp` in config |
 | "Connection timeout" | Restart Claude Code and check `claude mcp list` |
 | "Document not found" | Check exact document name - names are case-sensitive |
 | "Chapter already exists" | Use different chapter name or delete existing one first |
@@ -173,13 +173,16 @@ For development or if you're working from source:
 **Verification Commands:**
 ```bash
 # Test the binary directly
-document-mcp --help
+story-mcp --help
 
 # Test with python module  
-python3 -m document_mcp.doc_tool_server --help
+python3 -m story_mcp.doc_tool_server --help
 
 # Check Claude Code integration
 claude mcp list
+
+# Run full verification script
+bash scripts/verify_mcp.sh
 ```
 
 ### Setup for Other MCP Clients
@@ -250,13 +253,13 @@ This is my project guide."
 
 ### Using Claude Code in the Obsidian Terminal
 
-You can use Document-MCP with the Obsidian Terminal extension to automate your documentation workflows.
+You can use Story-MCP with the Obsidian Terminal extension to automate your documentation workflows.
 
 1.  **Install the Obsidian Terminal extension.**
-2.  **Install `document-mcp`** in the terminal's environment.
-3.  **Start the Document-MCP server** in the terminal:
+2.  **Install `story-mcp`** in the terminal's environment.
+3.  **Start the Story-MCP server** in the terminal:
     ```bash
-    document-mcp sse --host localhost --port 3001
+    story-mcp sse --host localhost --port 3001
     ```
 4.  **Use Claude Code** to interact with the server using `curl` or a Python script.
 
@@ -278,7 +281,7 @@ curl -X POST http://localhost:3001/create_chapter -d '{"document_name": "my-obsi
 
 ## Anonymous Usage Analytics
 
-Document-MCP includes **automatic, anonymous usage analytics** that help improve the system for all users. This follows industry-standard practices used by npm, VS Code extensions, and Docker.
+Story-MCP includes **automatic, anonymous usage analytics** that help improve the system for all users. This follows industry-standard practices used by npm, VS Code extensions, and Docker.
 
 ### What's Collected (Anonymous Only)
 - **Tool usage patterns**: Which MCP tools are used most frequently
@@ -302,7 +305,7 @@ This data helps prioritize development efforts on the tools and features that ma
 
 ## Advanced Usage & Development
 
-This package documentation focuses on installing and using the Document-MCP server. For comprehensive information about the full project, including:
+This package documentation focuses on installing and using the Story-MCP server. For comprehensive information about the full project, including:
 
 - **🤖 AI Agents**: Example agents (Simple, ReAct) with step-by-step workflows
 - **🛠️ Development Setup**: Complete development environment and testing

@@ -4,21 +4,21 @@ import datetime
 
 import pytest
 
-from document_mcp.helpers import DOCUMENT_SUMMARY_FILE
-from document_mcp.helpers import _count_words
-from document_mcp.helpers import _get_modification_history_path
-from document_mcp.helpers import _get_snapshots_path
-from document_mcp.helpers import _get_summaries_path
-from document_mcp.helpers import _get_summary_file_path
-from document_mcp.helpers import _is_valid_chapter_filename
-from document_mcp.helpers import _split_into_paragraphs
+from story_mcp.helpers import DOCUMENT_SUMMARY_FILE
+from story_mcp.helpers import _count_words
+from story_mcp.helpers import _get_modification_history_path
+from story_mcp.helpers import _get_snapshots_path
+from story_mcp.helpers import _get_summaries_path
+from story_mcp.helpers import _get_summary_file_path
+from story_mcp.helpers import _is_valid_chapter_filename
+from story_mcp.helpers import _split_into_paragraphs
 
 # Import constants and models
-from document_mcp.utils.validation import CHAPTER_MANIFEST_FILE
+from story_mcp.utils.validation import CHAPTER_MANIFEST_FILE
 
 # Import helper functions
-from document_mcp.utils.validation import check_file_freshness as _check_file_freshness
-from document_mcp.utils.validation import validate_content
+from story_mcp.utils.validation import check_file_freshness as _check_file_freshness
+from story_mcp.utils.validation import validate_content
 
 
 class TestHelperFunctions:
@@ -96,7 +96,7 @@ class TestInputValidationHelpers:
         ],
     )
     def testvalidate_document_name(self, name, expected_valid, expected_error_msg):
-        from document_mcp.utils.validation import validate_document_name
+        from story_mcp.utils.validation import validate_document_name
 
         is_valid, error = validate_document_name(name)
         assert is_valid is expected_valid
@@ -118,7 +118,7 @@ class TestInputValidationHelpers:
         ],
     )
     def testvalidate_chapter_name(self, name, expected_valid, expected_error_msg):
-        from document_mcp.utils.validation import validate_chapter_name
+        from story_mcp.utils.validation import validate_chapter_name
 
         is_valid, error = validate_chapter_name(name)
         assert is_valid == expected_valid
@@ -148,7 +148,7 @@ class TestInputValidationHelpers:
         ],
     )
     def testvalidate_paragraph_index(self, index, expected_valid, expected_error_msg):
-        from document_mcp.utils.validation import validate_paragraph_index
+        from story_mcp.utils.validation import validate_paragraph_index
 
         is_valid, error = validate_paragraph_index(index)
         assert is_valid is expected_valid
@@ -164,7 +164,7 @@ class TestInputValidationHelpers:
         ],
     )
     def testvalidate_search_query(self, query, expected_valid, expected_error_msg):
-        from document_mcp.utils.validation import validate_search_query
+        from story_mcp.utils.validation import validate_search_query
 
         is_valid, error = validate_search_query(query)
         assert is_valid is expected_valid
@@ -186,11 +186,11 @@ class TestSafetyHelperFunctions:
 
         try:
             # Reset settings singleton to pick up environment change
-            from document_mcp.config.settings import reset_settings
+            from story_mcp.config.settings import reset_settings
 
             reset_settings()
 
-            from document_mcp.utils.file_operations import DOCS_ROOT_PATH
+            from story_mcp.utils.file_operations import DOCS_ROOT_PATH
 
             result = _get_snapshots_path("test_doc")
             expected = (DOCS_ROOT_PATH / "test_doc" / ".snapshots").resolve()
@@ -236,11 +236,11 @@ class TestSafetyHelperFunctions:
 
         try:
             # Reset settings singleton to pick up environment change
-            from document_mcp.config.settings import reset_settings
+            from story_mcp.config.settings import reset_settings
 
             reset_settings()
 
-            from document_mcp.utils.file_operations import DOCS_ROOT_PATH
+            from story_mcp.utils.file_operations import DOCS_ROOT_PATH
 
             result = _get_modification_history_path("test_doc")
             expected = (DOCS_ROOT_PATH / "test_doc" / ".mod_history.json").resolve()
@@ -333,11 +333,11 @@ class TestSummaryHelperFunctions:
 
         try:
             # Reset settings singleton to pick up environment change
-            from document_mcp.config.settings import reset_settings
+            from story_mcp.config.settings import reset_settings
 
             reset_settings()
 
-            from document_mcp.utils.file_operations import DOCS_ROOT_PATH
+            from story_mcp.utils.file_operations import DOCS_ROOT_PATH
 
             result = _get_summaries_path("test_doc")
             expected = (DOCS_ROOT_PATH / "test_doc" / "summaries").resolve()
@@ -418,7 +418,7 @@ class TestUnifiedContentTools:
 
     def test_read_content_document_scope_validation(self):
         """Test read_content with document scope parameter validation."""
-        from document_mcp.mcp_client import read_content
+        from story_mcp.mcp_client import read_content
 
         # Test invalid document name
         result = read_content("", scope="document")
@@ -435,7 +435,7 @@ class TestUnifiedContentTools:
 
     def test_read_content_chapter_scope_validation(self):
         """Test read_content with chapter scope parameter validation."""
-        from document_mcp.mcp_client import read_content
+        from story_mcp.mcp_client import read_content
 
         # Test chapter scope without chapter_name
         result = read_content("test_doc", scope="chapter")
@@ -447,7 +447,7 @@ class TestUnifiedContentTools:
 
     def test_read_content_paragraph_scope_validation(self):
         """Test read_content with paragraph scope parameter validation."""
-        from document_mcp.mcp_client import read_content
+        from story_mcp.mcp_client import read_content
 
         # Test paragraph scope without chapter_name
         result = read_content("test_doc", scope="paragraph")
@@ -468,7 +468,7 @@ class TestUnifiedContentTools:
 
     def test_find_text_document_scope_validation(self):
         """Test find_text with document scope parameter validation."""
-        from document_mcp.mcp_client import find_text
+        from story_mcp.mcp_client import find_text
 
         # Test invalid document name
         result = find_text("", "search_term", scope="document")
@@ -484,7 +484,7 @@ class TestUnifiedContentTools:
 
     def test_find_text_chapter_scope_validation(self):
         """Test find_text with chapter scope parameter validation."""
-        from document_mcp.mcp_client import find_text
+        from story_mcp.mcp_client import find_text
 
         # Test chapter scope without chapter_name
         result = find_text("test_doc", "search_term", scope="chapter")
@@ -496,7 +496,7 @@ class TestUnifiedContentTools:
 
     def test_replace_text_document_scope_validation(self):
         """Test replace_text with document scope parameter validation."""
-        from document_mcp.mcp_client import replace_text
+        from story_mcp.mcp_client import replace_text
 
         # Test invalid document name
         result = replace_text("", "find_text", "replace_text", scope="document")
@@ -512,7 +512,7 @@ class TestUnifiedContentTools:
 
     def test_replace_text_chapter_scope_validation(self):
         """Test replace_text with chapter scope parameter validation."""
-        from document_mcp.mcp_client import replace_text
+        from story_mcp.mcp_client import replace_text
 
         # Test chapter scope without chapter_name
         result = replace_text("test_doc", "find_text", "replace_text", scope="chapter")
@@ -524,7 +524,7 @@ class TestUnifiedContentTools:
 
     def test_get_statistics_document_scope_validation(self):
         """Test get_statistics with document scope parameter validation."""
-        from document_mcp.mcp_client import get_statistics
+        from story_mcp.mcp_client import get_statistics
 
         # Test invalid document name
         result = get_statistics("", scope="document")
@@ -536,7 +536,7 @@ class TestUnifiedContentTools:
 
     def test_get_statistics_chapter_scope_validation(self):
         """Test get_statistics with chapter scope parameter validation."""
-        from document_mcp.mcp_client import get_statistics
+        from story_mcp.mcp_client import get_statistics
 
         # Test chapter scope without chapter_name
         result = get_statistics("test_doc", scope="chapter")
@@ -548,10 +548,10 @@ class TestUnifiedContentTools:
 
     def test_unified_tools_scope_dispatch(self):
         """Test that unified tools properly dispatch to correct internal functions."""
-        from document_mcp.mcp_client import find_text
-        from document_mcp.mcp_client import get_statistics
-        from document_mcp.mcp_client import read_content
-        from document_mcp.mcp_client import replace_text
+        from story_mcp.mcp_client import find_text
+        from story_mcp.mcp_client import get_statistics
+        from story_mcp.mcp_client import read_content
+        from story_mcp.mcp_client import replace_text
 
         # Test that each unified tool properly validates scope parameters
         # This tests the parameter validation and dispatch logic without requiring actual file operations
@@ -566,10 +566,10 @@ class TestUnifiedContentTools:
 
     def test_unified_tools_error_handling(self):
         """Test unified tools error handling with various invalid inputs."""
-        from document_mcp.mcp_client import find_text
-        from document_mcp.mcp_client import get_statistics
-        from document_mcp.mcp_client import read_content
-        from document_mcp.mcp_client import replace_text
+        from story_mcp.mcp_client import find_text
+        from story_mcp.mcp_client import get_statistics
+        from story_mcp.mcp_client import read_content
+        from story_mcp.mcp_client import replace_text
 
         # Test with None values
         assert read_content(None, scope="document") is None
@@ -585,8 +585,8 @@ class TestUnifiedContentTools:
 
     def test_unified_tools_parameter_combinations(self):
         """Test unified tools with various parameter combinations."""
-        from document_mcp.mcp_client import find_text
-        from document_mcp.mcp_client import read_content
+        from story_mcp.mcp_client import find_text
+        from story_mcp.mcp_client import read_content
 
         # Test read_content with all scope variations
         # Document scope (default) for non-existent document

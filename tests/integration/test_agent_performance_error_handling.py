@@ -13,8 +13,8 @@ from unittest.mock import patch
 import pytest
 from pydantic_ai.mcp import MCPServerStdio
 
-from document_mcp.exceptions import AgentConfigurationError
-from document_mcp.exceptions import OperationError
+from story_mcp.exceptions import AgentConfigurationError
+from story_mcp.exceptions import OperationError
 
 # Import agents normally - we'll mock at the agent level in each test
 from src.agents.simple_agent.agent import SimpleAgent

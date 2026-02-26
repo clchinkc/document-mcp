@@ -11,9 +11,9 @@ from unittest.mock import patch
 
 import numpy as np
 
-from document_mcp.models import ChapterEmbeddingManifest
-from document_mcp.models import EmbeddingCacheEntry
-from document_mcp.utils.embedding_cache import EmbeddingCache
+from story_mcp.models import ChapterEmbeddingManifest
+from story_mcp.models import EmbeddingCacheEntry
+from story_mcp.utils.embedding_cache import EmbeddingCache
 
 
 class TestEmbeddingCache:

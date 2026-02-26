@@ -6,15 +6,15 @@ with real function calls and comprehensive validation of the enhanced features.
 
 import os
 
-from document_mcp.mcp_client import add_paragraph
-from document_mcp.mcp_client import create_chapter
-from document_mcp.mcp_client import create_document
-from document_mcp.mcp_client import delete_document
-from document_mcp.mcp_client import manage_snapshots
-from document_mcp.mcp_client import read_content
-from document_mcp.mcp_client import replace_paragraph
-from document_mcp.mcp_client import replace_text
-from document_mcp.mcp_client import write_chapter_content
+from story_mcp.mcp_client import add_paragraph
+from story_mcp.mcp_client import create_chapter
+from story_mcp.mcp_client import create_document
+from story_mcp.mcp_client import delete_document
+from story_mcp.mcp_client import manage_snapshots
+from story_mcp.mcp_client import read_content
+from story_mcp.mcp_client import replace_paragraph
+from story_mcp.mcp_client import replace_text
+from story_mcp.mcp_client import write_chapter_content
 
 
 class TestAutomaticSnapshotSystemIntegration:

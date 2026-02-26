@@ -6,9 +6,9 @@ complex document structures using direct function calls.
 
 from __future__ import annotations
 
-from document_mcp.mcp_client import find_text
-from document_mcp.mcp_client import get_statistics
-from document_mcp.mcp_client import read_content
+from story_mcp.mcp_client import find_text
+from story_mcp.mcp_client import get_statistics
+from story_mcp.mcp_client import read_content
 
 
 class TestScopeBasedToolsComplexScenarios:

@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from document_mcp.logger_config import log_mcp_call
+from story_mcp.logger_config import log_mcp_call
 
 
 def test_metrics_decorator():
@@ -33,8 +33,8 @@ def test_metrics_decorator_with_error():
 
 
 def test_metrics_import():
-    from document_mcp.metrics_config import get_metrics_export
-    from document_mcp.metrics_config import is_metrics_enabled
+    from story_mcp.metrics_config import get_metrics_export
+    from story_mcp.metrics_config import is_metrics_enabled
 
     # Test basic functionality
     assert isinstance(is_metrics_enabled(), bool)
@@ -52,8 +52,8 @@ def test_server_import():
 
 def test_metrics_initialization_from_script():
     """Test that metrics are properly initialized."""
-    from document_mcp.metrics_config import get_metrics_summary
-    from document_mcp.metrics_config import is_metrics_enabled
+    from story_mcp.metrics_config import get_metrics_summary
+    from story_mcp.metrics_config import is_metrics_enabled
 
     enabled = is_metrics_enabled()
     assert isinstance(enabled, bool)
@@ -69,9 +69,9 @@ def test_metrics_initialization_from_script():
 
 def test_tool_instrumentation_from_script():
     """Test that tool calls are properly instrumented."""
-    from document_mcp.metrics_config import record_tool_call_error
-    from document_mcp.metrics_config import record_tool_call_start
-    from document_mcp.metrics_config import record_tool_call_success
+    from story_mcp.metrics_config import record_tool_call_error
+    from story_mcp.metrics_config import record_tool_call_start
+    from story_mcp.metrics_config import record_tool_call_success
 
     # Simulate a successful tool call
     start_time = record_tool_call_start("test_tool", ("arg1",), {"param": "value"})

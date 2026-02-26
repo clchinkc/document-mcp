@@ -18,7 +18,7 @@ from pydantic_ai.mcp import MCPServerStdio
 from rich.console import Console
 from rich.panel import Panel
 
-from document_mcp import doc_tool_server
+from story_mcp import doc_tool_server
 
 # Import the shared error handling module
 from src.agents.react_agent.models import ReActStep

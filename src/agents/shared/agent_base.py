@@ -14,9 +14,9 @@ from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.models import Model
 
-from document_mcp.config import get_settings
-from document_mcp.error_handler import ErrorContext
-from document_mcp.exceptions import AgentConfigurationError
+from story_mcp.config import get_settings
+from story_mcp.error_handler import ErrorContext
+from story_mcp.exceptions import AgentConfigurationError
 
 from .config import load_llm_config
 from .config import prepare_mcp_server_environment

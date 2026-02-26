@@ -13,14 +13,14 @@ they don't risk overwriting externally modified content.
 
 import time
 
-from document_mcp.mcp_client import add_paragraph
-from document_mcp.mcp_client import create_chapter
-from document_mcp.mcp_client import create_document
-from document_mcp.mcp_client import delete_document
-from document_mcp.mcp_client import delete_paragraph
-from document_mcp.mcp_client import move_paragraph
-from document_mcp.mcp_client import replace_paragraph
-from document_mcp.mcp_client import write_chapter_content  # Functions with safety decorators
+from story_mcp.mcp_client import add_paragraph
+from story_mcp.mcp_client import create_chapter
+from story_mcp.mcp_client import create_document
+from story_mcp.mcp_client import delete_document
+from story_mcp.mcp_client import delete_paragraph
+from story_mcp.mcp_client import move_paragraph
+from story_mcp.mcp_client import replace_paragraph
+from story_mcp.mcp_client import write_chapter_content  # Functions with safety decorators
 
 
 class TestSafetyDecoratorCoverage:
@@ -124,7 +124,7 @@ class TestSafetyDecoratorCoverage:
             assert result.success is True
 
             # Verify content was replaced
-            from document_mcp.mcp_client import read_content
+            from story_mcp.mcp_client import read_content
 
             content = read_content(doc_name, "chapter", chapter_name)
             assert "User's replacement paragraph" in content.content

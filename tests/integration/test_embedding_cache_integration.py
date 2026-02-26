@@ -12,8 +12,8 @@ from unittest.mock import patch
 
 import numpy as np
 
-from document_mcp.tools.content_tools import _perform_semantic_search
-from document_mcp.utils.embedding_cache import EmbeddingCache
+from story_mcp.tools.content_tools import _perform_semantic_search
+from story_mcp.utils.embedding_cache import EmbeddingCache
 
 
 class MockEmbedding:

@@ -8,7 +8,7 @@ The backend is automatically selected based on environment detection:
 - GCS: When K_SERVICE (Cloud Run) or GCS_BUCKET is set
 
 Usage:
-    from document_mcp.storage import get_storage
+    from story_mcp.storage import get_storage
 
     storage = get_storage()
     content = await storage.read_file("my_doc/01-intro.md")

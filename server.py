@@ -50,7 +50,7 @@ from google.oauth2 import id_token
 
 # Import the document MCP server
 try:
-    from document_mcp.doc_tool_server import mcp_server
+    from story_mcp.doc_tool_server import mcp_server
 except ImportError:
     print("Error: document-mcp package not installed. Run: pip install document-mcp", file=sys.stderr)
     sys.exit(1)

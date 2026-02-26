@@ -2,12 +2,12 @@
 
 from pathlib import Path
 
-from document_mcp.mcp_client import create_chapter
-from document_mcp.mcp_client import delete_chapter
-from document_mcp.mcp_client import get_statistics
-from document_mcp.mcp_client import list_chapters
-from document_mcp.mcp_client import read_content
-from document_mcp.mcp_client import write_chapter_content
+from story_mcp.mcp_client import create_chapter
+from story_mcp.mcp_client import delete_chapter
+from story_mcp.mcp_client import get_statistics
+from story_mcp.mcp_client import list_chapters
+from story_mcp.mcp_client import read_content
+from story_mcp.mcp_client import write_chapter_content
 
 
 def test_create_and_list_chapter(document_factory):

@@ -43,12 +43,14 @@ from .observability import initialize_observability
 # Import tool registration functions from modular architecture
 from .tools import register_chapter_tools
 from .tools import register_content_tools
+from .tools import register_context_tools
 from .tools import register_discovery_tools
 from .tools import register_document_tools
 from .tools import register_metadata_tools
 from .tools import register_overview_tools
 from .tools import register_paragraph_tools
 from .tools import register_safety_tools
+from .tools import register_version_tools
 from .utils.file_operations import DOCS_ROOT_PATH
 
 # --- Configuration ---
@@ -119,8 +121,34 @@ register_chapter_tools(mcp_server)
 register_paragraph_tools(mcp_server)
 register_content_tools(mcp_server)
 register_safety_tools(mcp_server)
+register_version_tools(mcp_server)
 register_metadata_tools(mcp_server)
 register_overview_tools(mcp_server)
+# Context management tools (6 tools: store_memory, recall_memory, list_memories, delete_memory, export_context, import_context)
+register_context_tools(mcp_server)
+
+# Apply MCP 2025-06-18 outputSchema compliance to all registered tools
+try:
+    from .tools.schemas import get_all_tool_schemas
+
+    _all_schemas = get_all_tool_schemas()
+    # Apply schemas to each registered tool for MCP 2025-06-18 compliance
+    # FastMCP stores tools in mcp_server._tool_manager._tools
+    if hasattr(mcp_server, "_tool_manager") and hasattr(mcp_server._tool_manager, "_tools"):
+        for tool_name, schema in _all_schemas.items():
+            if tool_name in mcp_server._tool_manager._tools:
+                tool = mcp_server._tool_manager._tools[tool_name]
+                # Set output_schema in fn_metadata which FastMCP uses for MCP protocol compliance
+                if hasattr(tool, "fn_metadata"):
+                    tool.fn_metadata.output_schema = schema
+except ImportError:
+    # Schema file not available yet; schemas will be applied when file is created
+    pass
+except Exception as e:
+    # Log warning but don't fail server startup if schema application fails
+    import sys
+
+    print(f"[WARNING] Could not apply outputSchemas to tools: {e}", file=sys.stderr)
 
 # Export only essential items for MCP server module
 __all__ = [

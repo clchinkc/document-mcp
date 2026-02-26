@@ -6,17 +6,17 @@ from unittest.mock import patch
 
 import pytest
 
-from document_mcp.error_handler import ErrorContext
-from document_mcp.error_handler import create_error_response
-from document_mcp.error_handler import handle_mcp_tool_error
-from document_mcp.error_handler import log_operation_start
-from document_mcp.error_handler import log_operation_success
-from document_mcp.error_handler import safe_operation
-from document_mcp.error_handler import validate_field_type
-from document_mcp.error_handler import validate_required_fields
-from document_mcp.exceptions import DocumentMCPError
-from document_mcp.exceptions import OperationError
-from document_mcp.exceptions import ValidationError
+from story_mcp.error_handler import ErrorContext
+from story_mcp.error_handler import create_error_response
+from story_mcp.error_handler import handle_mcp_tool_error
+from story_mcp.error_handler import log_operation_start
+from story_mcp.error_handler import log_operation_success
+from story_mcp.error_handler import safe_operation
+from story_mcp.error_handler import validate_field_type
+from story_mcp.error_handler import validate_required_fields
+from story_mcp.exceptions import DocumentMCPError
+from story_mcp.exceptions import OperationError
+from story_mcp.exceptions import ValidationError
 
 
 class TestSafeOperation:

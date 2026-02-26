@@ -11,8 +11,8 @@ from unittest.mock import patch
 
 import pytest
 
-from document_mcp.exceptions import AgentConfigurationError
-from document_mcp.exceptions import OperationError
+from story_mcp.exceptions import AgentConfigurationError
+from story_mcp.exceptions import OperationError
 from src.agents.simple_agent.agent import SimpleAgent
 from src.agents.simple_agent.agent import SimpleAgentResponse
 from src.agents.simple_agent.prompts import get_simple_agent_system_prompt

@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from document_mcp import observability
+from story_mcp import observability
 
 
 class TestCloudRunJSONFormatter:

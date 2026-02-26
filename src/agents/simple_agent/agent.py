@@ -126,7 +126,7 @@ class SimpleAgent(AgentBase, SingleTurnAgentMixin):
                     )
 
             except asyncio.TimeoutError:
-                from document_mcp.exceptions import OperationError
+                from story_mcp.exceptions import OperationError
 
                 raise OperationError(
                     operation="simple_agent_execution",

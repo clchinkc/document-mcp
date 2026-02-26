@@ -1,10 +1,10 @@
 """Unit tests for YAML frontmatter parsing and writing utilities."""
 
-from document_mcp.utils.frontmatter import get_content_without_frontmatter
-from document_mcp.utils.frontmatter import has_frontmatter
-from document_mcp.utils.frontmatter import parse_frontmatter
-from document_mcp.utils.frontmatter import update_frontmatter
-from document_mcp.utils.frontmatter import write_frontmatter
+from story_mcp.utils.frontmatter import get_content_without_frontmatter
+from story_mcp.utils.frontmatter import has_frontmatter
+from story_mcp.utils.frontmatter import parse_frontmatter
+from story_mcp.utils.frontmatter import update_frontmatter
+from story_mcp.utils.frontmatter import write_frontmatter
 
 
 class TestParseFrontmatter:

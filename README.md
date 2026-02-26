@@ -1,8 +1,8 @@
-[![codecov](https://codecov.io/gh/clchinkc/document-mcp/graph/badge.svg?token=TEGUTD2DIF)](https://codecov.io/gh/clchinkc/document-mcp)
-[![Python Tests with Coverage](https://github.com/clchinkc/document-mcp/actions/workflows/python-test.yml/badge.svg)](https://github.com/clchinkc/document-mcp/actions/workflows/python-test.yml)
-# Document MCP
+[![codecov](https://codecov.io/gh/clchinkc/story-mcp/graph/badge.svg?token=TEGUTD2DIF)](https://codecov.io/gh/clchinkc/story-mcp)
+[![Python Tests with Coverage](https://github.com/clchinkc/story-mcp/actions/workflows/python-test.yml/badge.svg)](https://github.com/clchinkc/story-mcp/actions/workflows/python-test.yml)
+# Story MCP
 
-[![PyPI version](https://badge.fury.io/py/document-mcp.svg)](https://badge.fury.io/py/document-mcp)
+[![PyPI version](https://badge.fury.io/py/story-mcp.svg)](https://badge.fury.io/py/story-mcp)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -20,8 +20,8 @@ Document MCP gives writers, researchers, and knowledge-managers **first-class co
 ```json
 {
   "mcpServers": {
-    "document-mcp": {
-      "url": "https://document-mcp-451560119112.asia-east1.run.app"
+    "story-mcp": {
+      "url": "https://story-mcp-451560119112.asia-east1.run.app"
     }
   }
 }
@@ -46,7 +46,7 @@ Restart Claude Desktop. When you first connect:
 **For Claude Code users** or those who want local document storage:
 
 ```bash
-pip install document-mcp
+pip install story-mcp
 ```
 
 Add to your Claude Code MCP settings:
@@ -54,35 +54,35 @@ Add to your Claude Code MCP settings:
 ```json
 {
   "mcpServers": {
-    "document-mcp": {
+    "story-mcp": {
       "command": "python",
-      "args": ["-m", "document_mcp.doc_tool_server", "stdio"]
+      "args": ["-m", "story_mcp.doc_tool_server", "stdio"]
     }
   }
 }
 ```
 
-See the **[Package Installation Guide](document_mcp/README.md)** for detailed setup with universal path finding.
+See the **[Package Installation Guide](story_mcp/README.md)** for detailed setup with universal path finding.
 
 ---
 
-## 📖 What is Document MCP?
+## 📖 What is Story MCP?
 
-Document MCP provides a structured way to manage large documents composed of multiple chapters. Think of it as a file system specifically designed for books, research papers, documentation, or any content that benefits from being split into manageable sections.
+Story MCP provides a structured way to manage large stories and documents composed of multiple chapters. Think of it as a file system specifically designed for novels, screenplays, research papers, documentation, or any content that benefits from being split into manageable sections.
 
 ### Key Features
 
-- **32 MCP Tools**: Document management, chapter operations, paragraph editing, semantic search, metadata, and version control
+- **32 MCP Tools**: Story management, chapter operations, paragraph editing, semantic search, metadata, and version control
 - **Built-in Safety**: Automatic snapshots before destructive operations, version history, and conflict detection
 - **Pagination System**: Page-based content access for large documents (50K chars per page)
 - **User Isolation**: Each authenticated user gets their own isolated storage (hosted version)
-- **Local-First Option**: Keep your documents on your own machine (PyPI version)
+- **Local-First Option**: Keep your stories on your own machine (PyPI version)
 
 ### Document Organization
 
 ```
 .documents_storage/
-├── my_novel/                    # A document
+├── my_novel/                    # A story/document
 │   ├── 01-prologue.md          # Chapters ordered by filename
 │   ├── 02-chapter-one.md
 │   └── 03-chapter-two.md
@@ -94,7 +94,7 @@ Document MCP provides a structured way to manage large documents composed of mul
 
 ## 🛡️ Safety Features
 
-Document MCP includes safety features designed to prevent content loss:
+Story MCP includes safety features designed to prevent content loss:
 
 - **Automatic Snapshots**: Created before every destructive operation
 - **Named Checkpoints**: Create restore points with `snapshot_document`
@@ -170,7 +170,7 @@ Document MCP provides 32 tools organized into 8 categories:
 
 ```bash
 # Clone the repository
-git clone https://github.com/clchinkc/document-mcp.git
+git clone https://github.com/clchinkc/story-mcp.git
 cd document-mcp
 
 # Install with uv (recommended)
@@ -203,7 +203,7 @@ uv run mypy document_mcp/
 uv run python -m document_mcp.doc_tool_server stdio
 
 # Or with PyPI installation
-document-mcp stdio
+story-mcp stdio
 ```
 
 ## 📚 Documentation

@@ -2,11 +2,11 @@
 
 from pathlib import Path
 
-from document_mcp.mcp_client import find_entity
-from document_mcp.mcp_client import get_document_outline
-from document_mcp.mcp_client import list_metadata
-from document_mcp.mcp_client import read_metadata
-from document_mcp.mcp_client import write_metadata
+from story_mcp.mcp_client import find_entity
+from story_mcp.mcp_client import get_document_outline
+from story_mcp.mcp_client import list_metadata
+from story_mcp.mcp_client import read_metadata
+from story_mcp.mcp_client import write_metadata
 
 
 class TestMetadataTools:

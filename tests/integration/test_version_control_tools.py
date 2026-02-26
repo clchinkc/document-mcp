@@ -4,9 +4,9 @@ This module tests the manage_snapshots, check_content_status, and diff_content
 tools that manage document versioning and snapshots.
 """
 
-from document_mcp.mcp_client import check_content_status
-from document_mcp.mcp_client import diff_content
-from document_mcp.mcp_client import manage_snapshots  # Version control tools
+from story_mcp.mcp_client import check_content_status
+from story_mcp.mcp_client import diff_content
+from story_mcp.mcp_client import manage_snapshots  # Version control tools
 
 
 class TestManageSnapshots:

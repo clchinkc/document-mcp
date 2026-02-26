@@ -234,3 +234,262 @@ When ready to go live:
 - [MCP Design Patterns](./MCP_DESIGN_PATTERNS.md)
 - [Benchmarking Infrastructure](./BENCHMARKING.md)
 - [Architecture Ideas](./ARCHITECTURE_IDEAS.md)
+
+---
+
+# Phase 4: MCP Standards Compliance & Context Enhancement
+
+**Last Updated**: February 25, 2026
+**Status**: ✅ Architecture & Specifications Complete - Ready for Implementation
+
+This phase completes the architecture design and detailed specifications for bringing Document MCP to MCP 2025-06-18 standards compliance while adding OneContext-inspired cross-session context management.
+
+---
+
+## 4.0 Complete Documentation
+
+Comprehensive Phase 4 documentation has been created:
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| [PHASE4_IMPLEMENTATION_PLAN.md](./PHASE4_IMPLEMENTATION_PLAN.md) | High-level roadmap, work streams, sequencing | ✅ Complete |
+| [PHASE4_DETAILED_SPECIFICATIONS.md](./PHASE4_DETAILED_SPECIFICATIONS.md) | Technical specs, API designs, architectures | ✅ Complete |
+
+**Key Deliverables**:
+- ✅ Work stream breakdown (5 parallel streams)
+- ✅ Tool specifications for all new features
+- ✅ Integration testing strategy
+- ✅ Git-backed version history architecture
+- ✅ OneContext memory system design
+- ✅ MCP standards compliance roadmap
+- ✅ 6-8 week execution timeline
+
+---
+
+## 4.1 Claude Code & Claude Desktop Integration
+
+### Status: ✅ Specifications Complete
+
+**Setup Paths**:
+- ✅ Claude Code integration verified (auto-setup via `claude mcp add`)
+- ✅ Claude Desktop config templates provided
+- ✅ Troubleshooting matrix created
+- ✅ Test scenarios documented (connectivity, CRUD, versioning)
+
+**Next Steps**: Execute verification against live installations
+
+See: [PHASE4_DETAILED_SPECIFICATIONS.md § 4.1](./PHASE4_DETAILED_SPECIFICATIONS.md#41-claude-code--claude-desktop-integration-verification)
+
+---
+
+## 4.2 MCP 2025-06-18 Standards Compliance
+
+### Status: ✅ Implementation Plan Ready
+
+**Priority Features**:
+1. **outputSchema** (P0) - Add JSON schemas to top 10 tools
+   - Benefit: Response validation for clients
+   - Effort: Medium (schema mapping from Pydantic models)
+   - Timeline: Week 1-2
+
+2. **listChanged Capability** (P2) - Enable dynamic tool updates
+   - Benefit: Tools can be loaded conditionally
+   - Effort: Low
+   - Timeline: Week 2-3
+
+**Compliance Matrix**:
+- outputSchema: ❌ → Implementation planned
+- listChanged: ❌ → Implementation planned
+- Resource links: Future consideration (P3)
+- Structured content: Future consideration (P2)
+- Pagination: Already implemented (50K chars/page)
+- Security: ✅ Already implemented
+
+See: [PHASE4_DETAILED_SPECIFICATIONS.md § 4.2](./PHASE4_DETAILED_SPECIFICATIONS.md#42-mcp-2025-06-18-standards-compliance)
+
+---
+
+## 4.3 OneContext-Inspired Context Management
+
+### Status: ✅ Architecture & API Design Complete
+
+**Three Implementation Phases**:
+
+#### Phase 3a: Quick Wins (1-2 weeks)
+- ✅ `store_memory()` - Key-value context storage
+- ✅ `recall_memory()` - Retrieve stored memories
+- ✅ `export_context()` - Package session state
+- ✅ `import_context()` - Load session state
+- ✅ Session metadata in `.context/session.json`
+
+**Storage Model**:
+```
+document_name/.context/
+├── session.json           # Session metadata
+├── goals.md              # Session objectives
+├── memories/             # Key-value store
+│   └── {memory_key}.json
+├── decisions.md          # Recorded decisions
+└── blockers.md          # Known issues
+```
+
+#### Phase 3b: Medium Effort (2-4 weeks)
+- Git-backed version history (see § 4.4)
+- Document relationship graph
+- Context URI scheme (`context://session-id/summary`)
+
+#### Phase 3c: Strategic (4-8 weeks)
+- Full context layer (OneContext parity)
+- Cross-device context sync
+
+See: [PHASE4_DETAILED_SPECIFICATIONS.md § 4.3](./PHASE4_DETAILED_SPECIFICATIONS.md#43-onecontext-inspired-context-management)
+
+---
+
+## 4.4 Git-Backed Version History
+
+### Status: ✅ Architecture Design Complete
+
+**Current → Target**:
+- Current: Timestamp-based `.snapshots/` directories
+- Target: Git repository per document with full version history
+
+**Three Implementation Phases**:
+
+#### Phase 1: Git Initialization
+- Auto-init `.git/` on `create_document()`
+- User attribution in commits
+- Initial commit with document structure
+
+#### Phase 2: Tool Migration
+- `manage_snapshots()` → Git operations
+- `check_content_status()` → `git status` equivalent
+- `diff_content()` → Enhanced Git diff
+
+#### Phase 3: New Tools
+- `get_version_history()` - Commit log traversal
+- `checkout_version()` - Restore to specific version
+- `compare_versions()` - Detailed multi-version diff
+
+**Commit Strategy**:
+```
+{operation} {scope}: {description}
+
+Examples:
+- "edit chapter: updated introduction narrative"
+- "add paragraph: new section on performance"
+- "batch operation: restructure chapters 3-5"
+```
+
+See: [PHASE4_DETAILED_SPECIFICATIONS.md § 4.4](./PHASE4_DETAILED_SPECIFICATIONS.md#44-git-backed-version-history)
+
+---
+
+## 4.5 Story MCP Rename
+
+### Status: ✅ Strategic Plan Complete
+
+**Rationale**: Reposit as AI-native story writing platform (from generic document manager)
+
+**Backward Compatibility Strategy**:
+- PyPI: `document-mcp` alias package (6-month deprecation)
+- Python: Auto-redirect imports to `story_mcp`
+- CLI: Wrapper script for old command name
+- No breaking changes for existing users
+
+**Rename Components**:
+- GitHub repo: `document-mcp` → `story-mcp`
+- PyPI package: Follow repo
+- Module: `document_mcp` → `story_mcp`
+- CLI: `document-mcp` → `story-mcp`
+- Classes: `DocumentMCP` → `StoryMCP`
+
+**Timeline**: Week 6-8 (post-Git integration)
+
+See: [PHASE4_DETAILED_SPECIFICATIONS.md § 4.5](./PHASE4_DETAILED_SPECIFICATIONS.md#45-story-mcp-rename)
+
+---
+
+## 4.6 Execution Timeline
+
+### 6-8 Week Roadmap
+
+**Week 1-2: Foundation**
+- [ ] Claude Code/Desktop verification complete
+- [ ] outputSchema on top 10 tools
+- [ ] Integration tests passing
+
+**Week 2-3: Quick Wins**
+- [ ] Memory tools implemented
+- [ ] Session metadata storage
+- [ ] Cross-session context working
+
+**Week 3-4: Medium Effort**
+- [ ] Git initialization on document creation
+- [ ] Tool migration for Git operations
+- [ ] Relationship graph MVP
+
+**Week 4-6: Git Integration**
+- [ ] Full Git-backed history operational
+- [ ] Migration utilities for existing snapshots
+- [ ] Version comparison tools
+
+**Week 6-8: Rename & Release**
+- [ ] Complete package rename
+- [ ] Backward compatibility testing
+- [ ] PyPI publication
+- [ ] Cloud Run deployment
+- [ ] Production migration plan
+
+---
+
+## 4.7 Success Metrics
+
+| Metric | Target | Timeline |
+|--------|--------|----------|
+| Verification tests passing | 100% | Week 1 |
+| outputSchema on tools | 10/10 top tools | Week 2 |
+| Memory tools functional | 4/4 tools | Week 3 |
+| Git integration tests | Pass integration suite | Week 6 |
+| Story MCP published | Available on PyPI | Week 8 |
+| Zero breaking changes | All migrations complete | Week 8 |
+
+---
+
+## 4.8 Risk & Mitigation
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|-----------|
+| Git integration breaks snapshots | Low | High | Comprehensive migration testing |
+| Rename breaks existing users | Medium | Medium | 6-month deprecation period |
+| FastMCP schema incompatibility | Low | Low | Fallback to text documentation |
+| Memory tool data loss | Low | High | Backup/export functionality |
+
+---
+
+## 4.9 Next Actions
+
+### Immediate (This Week)
+1. ✅ Finalize Phase 4 specifications
+2. ✅ Create detailed architecture documents
+3. ⏳ Review and approve specifications
+
+### Short Term (Next 2 Weeks)
+1. Begin Claude Code/Desktop verification
+2. Start outputSchema implementation
+3. Begin memory tools development
+
+### Medium Term (4-6 Weeks)
+1. Git integration implementation
+2. Cross-session testing
+3. Relationship graph exploration
+
+### Long Term (6-8 Weeks)
+1. Story MCP rename execution
+2. Backward compatibility validation
+3. Production deployment
+
+---
+
+*Phase 4 Architecture & Specifications Complete*
+See detailed implementation guides in linked specification documents.

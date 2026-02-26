@@ -7,23 +7,23 @@ from pathlib import Path
 
 import pytest
 
-from document_mcp.mcp_client import add_paragraph
-from document_mcp.mcp_client import create_chapter
-from document_mcp.mcp_client import create_document
-from document_mcp.mcp_client import delete_chapter
-from document_mcp.mcp_client import delete_document
-from document_mcp.mcp_client import delete_paragraph
-from document_mcp.mcp_client import find_text
-from document_mcp.mcp_client import get_statistics
-from document_mcp.mcp_client import list_chapters
-from document_mcp.mcp_client import list_documents
-from document_mcp.mcp_client import list_summaries
-from document_mcp.mcp_client import read_content
-from document_mcp.mcp_client import read_summary
-from document_mcp.mcp_client import replace_paragraph
-from document_mcp.mcp_client import replace_text
-from document_mcp.mcp_client import write_chapter_content
-from document_mcp.mcp_client import write_summary
+from story_mcp.mcp_client import add_paragraph
+from story_mcp.mcp_client import create_chapter
+from story_mcp.mcp_client import create_document
+from story_mcp.mcp_client import delete_chapter
+from story_mcp.mcp_client import delete_document
+from story_mcp.mcp_client import delete_paragraph
+from story_mcp.mcp_client import find_text
+from story_mcp.mcp_client import get_statistics
+from story_mcp.mcp_client import list_chapters
+from story_mcp.mcp_client import list_documents
+from story_mcp.mcp_client import list_summaries
+from story_mcp.mcp_client import read_content
+from story_mcp.mcp_client import read_summary
+from story_mcp.mcp_client import replace_paragraph
+from story_mcp.mcp_client import replace_text
+from story_mcp.mcp_client import write_chapter_content
+from story_mcp.mcp_client import write_summary
 
 # ===================================
 # Document-Level Tests

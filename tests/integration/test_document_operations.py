@@ -3,14 +3,14 @@
 from pathlib import Path
 
 # Import tool functions from mcp_client
-from document_mcp.mcp_client import create_document
-from document_mcp.mcp_client import delete_document
-from document_mcp.mcp_client import get_statistics
-from document_mcp.mcp_client import list_documents
-from document_mcp.mcp_client import list_summaries
-from document_mcp.mcp_client import read_content
-from document_mcp.mcp_client import read_summary
-from document_mcp.mcp_client import write_summary
+from story_mcp.mcp_client import create_document
+from story_mcp.mcp_client import delete_document
+from story_mcp.mcp_client import get_statistics
+from story_mcp.mcp_client import list_documents
+from story_mcp.mcp_client import list_summaries
+from story_mcp.mcp_client import read_content
+from story_mcp.mcp_client import read_summary
+from story_mcp.mcp_client import write_summary
 
 
 def test_create_and_list_document(temp_docs_root: Path):

@@ -641,114 +641,6 @@ wheels = [
 ]
 
 [[package]]
-name = "document-mcp"
-version = "0.0.4"
-source = { editable = "." }
-dependencies = [
-    { name = "fastapi" },
-    { name = "google-genai" },
-    { name = "mcp", extra = ["cli"] },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "openai" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc" },
-    { name = "opentelemetry-exporter-prometheus" },
-    { name = "opentelemetry-instrumentation" },
-    { name = "opentelemetry-instrumentation-fastapi" },
-    { name = "opentelemetry-instrumentation-requests" },
-    { name = "opentelemetry-sdk" },
-    { name = "prometheus-client" },
-    { name = "pydantic-ai" },
-    { name = "python-dotenv" },
-    { name = "python-snappy" },
-    { name = "requests" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "dspy" },
-    { name = "memory-profiler" },
-    { name = "mypy" },
-    { name = "psutil" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-benchmark" },
-    { name = "pytest-cov" },
-    { name = "pytest-env" },
-    { name = "pytest-mock" },
-    { name = "pytest-timeout" },
-    { name = "pytest-xdist" },
-    { name = "ruff" },
-]
-gcp-observability = [
-    { name = "google-cloud-logging" },
-    { name = "opentelemetry-exporter-gcp-monitoring" },
-    { name = "opentelemetry-exporter-gcp-trace" },
-    { name = "opentelemetry-propagator-gcp" },
-]
-server = [
-    { name = "google-auth" },
-    { name = "redis" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "dspy", marker = "extra == 'dev'", specifier = ">=2.5.0" },
-    { name = "fastapi", specifier = ">=0.95.0" },
-    { name = "google-auth", marker = "extra == 'server'", specifier = ">=2.34.0" },
-    { name = "google-cloud-logging", marker = "extra == 'gcp-observability'", specifier = ">=3.0.0" },
-    { name = "google-genai", specifier = ">=1.0.0" },
-    { name = "mcp", extras = ["cli"], specifier = ">=1.0.0" },
-    { name = "memory-profiler", marker = "extra == 'dev'", specifier = ">=0.60.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
-    { name = "numpy", specifier = ">=1.24.0" },
-    { name = "openai" },
-    { name = "opentelemetry-api", specifier = ">=1.21.0" },
-    { name = "opentelemetry-exporter-gcp-monitoring", marker = "extra == 'gcp-observability'", specifier = ">=1.6.0" },
-    { name = "opentelemetry-exporter-gcp-trace", marker = "extra == 'gcp-observability'", specifier = ">=1.6.0" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.35.0" },
-    { name = "opentelemetry-exporter-prometheus", specifier = ">=0.55b0" },
-    { name = "opentelemetry-instrumentation", specifier = ">=0.42b0" },
-    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.42b0" },
-    { name = "opentelemetry-instrumentation-requests", specifier = ">=0.42b0" },
-    { name = "opentelemetry-propagator-gcp", marker = "extra == 'gcp-observability'", specifier = ">=1.6.0" },
-    { name = "opentelemetry-sdk", specifier = ">=1.21.0" },
-    { name = "prometheus-client", specifier = ">=0.17.0" },
-    { name = "psutil", marker = "extra == 'dev'", specifier = ">=5.9.0" },
-    { name = "pydantic-ai", specifier = ">=0.0.14" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.3.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
-    { name = "pytest-benchmark", marker = "extra == 'dev'", specifier = ">=4.0.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
-    { name = "pytest-env", marker = "extra == 'dev'", specifier = ">=0.5.2" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.10.0" },
-    { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.1.0" },
-    { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.7.0" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "python-snappy", specifier = ">=0.7.3" },
-    { name = "redis", marker = "extra == 'server'", specifier = ">=5.0.0" },
-    { name = "requests", specifier = ">=2.28.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.21.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.17.0" },
-    { name = "pytest", specifier = ">=8.4.1" },
-    { name = "pytest-asyncio", specifier = ">=1.1.0" },
-]
-
-[[package]]
 name = "dspy"
 version = "3.0.4"
 source = { registry = "https://pypi.org/simple" }
@@ -3649,6 +3541,114 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/04/57/d062573f391d062710d4088fa1369428c38d51460ab6fedff920efef932e/starlette-0.47.2.tar.gz", hash = "sha256:6ae9aa5db235e4846decc1e7b79c4f346adf41e9777aebeb49dfd09bbd7023d8", size = 2583948 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f7/1f/b876b1f83aef204198a42dc101613fefccb32258e5428b5f9259677864b4/starlette-0.47.2-py3-none-any.whl", hash = "sha256:c5847e96134e5c5371ee9fac6fdf1a67336d5815e09eb2a01fdb57a351ef915b", size = 72984 },
+]
+
+[[package]]
+name = "story-mcp"
+version = "0.0.5"
+source = { editable = "." }
+dependencies = [
+    { name = "fastapi" },
+    { name = "google-genai" },
+    { name = "mcp", extra = ["cli"] },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "openai" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+    { name = "opentelemetry-exporter-prometheus" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-requests" },
+    { name = "opentelemetry-sdk" },
+    { name = "prometheus-client" },
+    { name = "pydantic-ai" },
+    { name = "python-dotenv" },
+    { name = "python-snappy" },
+    { name = "requests" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "dspy" },
+    { name = "memory-profiler" },
+    { name = "mypy" },
+    { name = "psutil" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-cov" },
+    { name = "pytest-env" },
+    { name = "pytest-mock" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "ruff" },
+]
+gcp-observability = [
+    { name = "google-cloud-logging" },
+    { name = "opentelemetry-exporter-gcp-monitoring" },
+    { name = "opentelemetry-exporter-gcp-trace" },
+    { name = "opentelemetry-propagator-gcp" },
+]
+server = [
+    { name = "google-auth" },
+    { name = "redis" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dspy", marker = "extra == 'dev'", specifier = ">=2.5.0" },
+    { name = "fastapi", specifier = ">=0.95.0" },
+    { name = "google-auth", marker = "extra == 'server'", specifier = ">=2.34.0" },
+    { name = "google-cloud-logging", marker = "extra == 'gcp-observability'", specifier = ">=3.0.0" },
+    { name = "google-genai", specifier = ">=1.0.0" },
+    { name = "mcp", extras = ["cli"], specifier = ">=1.0.0" },
+    { name = "memory-profiler", marker = "extra == 'dev'", specifier = ">=0.60.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
+    { name = "numpy", specifier = ">=1.24.0" },
+    { name = "openai" },
+    { name = "opentelemetry-api", specifier = ">=1.21.0" },
+    { name = "opentelemetry-exporter-gcp-monitoring", marker = "extra == 'gcp-observability'", specifier = ">=1.6.0" },
+    { name = "opentelemetry-exporter-gcp-trace", marker = "extra == 'gcp-observability'", specifier = ">=1.6.0" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.35.0" },
+    { name = "opentelemetry-exporter-prometheus", specifier = ">=0.55b0" },
+    { name = "opentelemetry-instrumentation", specifier = ">=0.42b0" },
+    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.42b0" },
+    { name = "opentelemetry-instrumentation-requests", specifier = ">=0.42b0" },
+    { name = "opentelemetry-propagator-gcp", marker = "extra == 'gcp-observability'", specifier = ">=1.6.0" },
+    { name = "opentelemetry-sdk", specifier = ">=1.21.0" },
+    { name = "prometheus-client", specifier = ">=0.17.0" },
+    { name = "psutil", marker = "extra == 'dev'", specifier = ">=5.9.0" },
+    { name = "pydantic-ai", specifier = ">=0.0.14" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.3.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
+    { name = "pytest-benchmark", marker = "extra == 'dev'", specifier = ">=4.0.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
+    { name = "pytest-env", marker = "extra == 'dev'", specifier = ">=0.5.2" },
+    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.10.0" },
+    { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.1.0" },
+    { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.7.0" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "python-snappy", specifier = ">=0.7.3" },
+    { name = "redis", marker = "extra == 'server'", specifier = ">=5.0.0" },
+    { name = "requests", specifier = ">=2.28.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.21.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.17.0" },
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-asyncio", specifier = ">=1.1.0" },
 ]
 
 [[package]]

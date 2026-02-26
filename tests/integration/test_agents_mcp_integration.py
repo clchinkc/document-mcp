@@ -175,7 +175,7 @@ class TestSimpleAgentMCPIntegration:
         # Mock get_llm to return a mock LLM
         mock_llm = AsyncMock()
         with patch.object(agent, "get_llm", return_value=mock_llm):
-            from document_mcp.exceptions import OperationError
+            from story_mcp.exceptions import OperationError
 
             async with mcp_server:
                 with patch("src.agents.simple_agent.agent.Agent") as mock_agent_class:

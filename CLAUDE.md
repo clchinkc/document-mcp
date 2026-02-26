@@ -60,7 +60,7 @@ document-mcp/
 ├── document_mcp/           # Core MCP server package
 │   ├── doc_tool_server.py  # Main server
 │   ├── models.py           # Pydantic models with pagination support
-│   ├── tools/              # 32 MCP tools across 8 categories
+│   ├── tools/              # 28 MCP tools across 8 categories
 │   ├── utils/              # Validation and file operations
 │   ├── observability.py    # GCP-native logs/traces/metrics
 │   └── [logging, metrics]  # OpenTelemetry + legacy Prometheus
@@ -88,12 +88,12 @@ document-mcp/
 ### Core MCP Package
 The **document-mcp** package contains only the core MCP server and tools:
 ```bash
-pip install document-mcp  # Installs MCP server and 32 tools
+pip install document-mcp  # Installs MCP server and 28 tools
 ```
 
 **Package Contents:**
 - MCP server (`document_mcp/doc_tool_server.py`)
-- 32 MCP tools across 8 categories
+- 28 MCP tools across 8 categories
 - GCP-native observability (`document_mcp/observability.py`)
 - OpenTelemetry metrics collection (legacy + modern)
 - Pydantic models and validation
@@ -183,11 +183,11 @@ scripts/development/telemetry/scripts/start.sh
 - **Ideal for**: Complex workflows, step-by-step planning
 - **Avoid for**: Simple operations, performance-critical scenarios, structured JSON output requirements
 
-## Tool Categories (32 MCP Tools)
+## Tool Categories (28 MCP Tools)
 
 - **Document Tools (6)**: Document management, lifecycle operations, and fine-grain summaries
 - **Chapter Tools (4)**: Chapter creation, editing, listing, and management with frontmatter metadata support
-- **Paragraph Tools (8)**: Atomic paragraph operations (read, replace, insert, delete, move, append) with automatic snapshot protection
+- **Paragraph Tools (4)**: Atomic paragraph operations (add, replace, delete, move) with automatic snapshot protection
 - **Content Tools (6)**: Unified content access with pagination, search, replacement, statistics, semantic search, and entity tracking
 - **Metadata Tools (3)**: YAML-based metadata management for chapters, entities, and timeline events
 - **Safety Tools (3)**: Version control, snapshot management, and diff generation

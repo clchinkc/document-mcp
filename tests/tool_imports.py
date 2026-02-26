@@ -6,21 +6,21 @@ making it easier to manage dependencies and avoid import duplication in test fil
 
 # Import public functions from mcp_client
 # Helper functions that need to be accessible for unit testing
-from document_mcp.helpers import _get_modification_history_path
-from document_mcp.helpers import _get_snapshots_path
-from document_mcp.mcp_client import find_text
-from document_mcp.mcp_client import get_statistics
-from document_mcp.mcp_client import read_content
-from document_mcp.mcp_client import replace_text
+from story_mcp.helpers import _get_modification_history_path
+from story_mcp.helpers import _get_snapshots_path
+from story_mcp.mcp_client import find_text
+from story_mcp.mcp_client import get_statistics
+from story_mcp.mcp_client import read_content
+from story_mcp.mcp_client import replace_text
 
 # Import constants and helper functions
-from document_mcp.utils.file_operations import DOCS_ROOT_PATH
+from story_mcp.utils.file_operations import DOCS_ROOT_PATH
 
 # Import validation functions for unit testing
-from document_mcp.utils.validation import validate_chapter_name
-from document_mcp.utils.validation import validate_document_name
-from document_mcp.utils.validation import validate_paragraph_index
-from document_mcp.utils.validation import validate_search_query
+from story_mcp.utils.validation import validate_chapter_name
+from story_mcp.utils.validation import validate_document_name
+from story_mcp.utils.validation import validate_paragraph_index
+from story_mcp.utils.validation import validate_search_query
 
 __all__ = [
     # Public MCP functions
