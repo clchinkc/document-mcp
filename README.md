@@ -6,7 +6,9 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Document MCP gives writers, researchers, and knowledge-managers **first-class control over large-scale Markdown documents** with **built-in safety features** that prevent content loss. Manage books, research papers, and documentation with 32 AI-powered tools.
+Story MCP gives writers, researchers, and knowledge-managers **first-class control over large-scale Markdown documents** with **built-in safety features** that prevent content loss. Manage books, research papers, and documentation with **37 AI-powered tools** including context management, git-backed version history, and semantic search.
+
+> **Phase 4 Complete** ✅ - v0.0.5 Production Ready (February 26, 2026)
 
 ## 🚀 Quick Start
 
@@ -34,9 +36,11 @@ Restart Claude Desktop. When you first connect:
 4. Start managing documents immediately!
 
 **What you get:**
-- 32 MCP tools for document management
+- 37 MCP tools for document management
 - Your own isolated document storage
-- Automatic snapshots and version control
+- Automatic snapshots and git-backed version history
+- Cross-session context management
+- Semantic search with embeddings
 - No setup, no API keys, no maintenance
 
 ---
@@ -72,8 +76,13 @@ Story MCP provides a structured way to manage large stories and documents compos
 
 ### Key Features
 
-- **32 MCP Tools**: Story management, chapter operations, paragraph editing, semantic search, metadata, and version control
-- **Built-in Safety**: Automatic snapshots before destructive operations, version history, and conflict detection
+- **37 MCP Tools** (Phase 4 Complete ✅):
+  - Story management, chapter operations, paragraph editing
+  - Semantic search with embeddings
+  - Git-backed version history
+  - Cross-session context management (OneContext-inspired)
+  - Entity tracking, metadata, and safety features
+- **Built-in Safety**: Git-backed version control, automatic commits, snapshots, and conflict detection
 - **Pagination System**: Page-based content access for large documents (50K chars per page)
 - **User Isolation**: Each authenticated user gets their own isolated storage (hosted version)
 - **Local-First Option**: Keep your stories on your own machine (PyPI version)
@@ -115,17 +124,20 @@ The hosted version runs on Google Cloud Run:
 
 ## 🔧 Tool Categories
 
-Document MCP provides 32 tools organized into 8 categories:
+Story MCP provides **37 tools** organized into **10 categories**:
 
 | Category | Tools | Description |
 |----------|-------|-------------|
 | **Document** | 6 | Create, delete, list documents; manage summaries |
 | **Chapter** | 4 | Add, edit, delete, list chapters with frontmatter |
-| **Paragraph** | 8 | Atomic paragraph operations (insert, replace, delete, move) |
+| **Paragraph** | 4 | Atomic paragraph operations (insert, replace, delete, move) |
 | **Content** | 6 | Read, search, replace, statistics, semantic search, entity tracking |
 | **Metadata** | 3 | Chapter frontmatter, entities, timeline management |
-| **Safety** | 3 | Snapshots, restore, diff comparison |
+| **Safety** | 3 | Git history, restore, diff comparison |
 | **Overview** | 1 | Document outline with metadata |
+| **Discovery** | 1 | Tool search and discovery |
+| **Context** | 6 | Store/recall memories, export/import, list memories |
+| **Version** | 3 | Get history, checkout version, compare versions |
 | **Discovery** | 1 | Tool search and discovery |
 
 ## 🤖 Example Workflows
