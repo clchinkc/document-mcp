@@ -1,0 +1,175 @@
+PHASE 4.6: TEST INFRASTRUCTURE & EXECUTION PLAN
+===============================================
+
+DATE: February 26, 2026
+STATUS: Ready for Execution
+EFFORT ESTIMATE: 3-4 days
+
+
+PHASE 4.6 OBJECTIVES
+====================
+
+1. Fix integration test flakiness (subprocess environment variable inheritance)
+2. Improve test isolation (per-test process management and cleanup)
+3. Add flaky test detection to CI (automated identification and reporting)
+
+
+KEY WORK ITEMS
+==============
+
+1. FIX SUBPROCESS ENVIRONMENT VARIABLE INHERITANCE (1-1.5 days)
+   - Problem: MCPServerStdio subprocess doesn't inherit parent DOCUMENT_ROOT_DIR
+   - Solution: Explicitly pass env dict to MCPServerStdio
+   - Files: tests/conftest.py, tests/shared/test_environment.py
+   - Impact: Integration test pass rate improves from ~51% to ≥95%
+
+2. IMPROVE TEST ISOLATION (1-1.5 days)
+   - Problem: Tests leave state (open files, processes) affecting others
+   - Solution: Enhanced EnvironmentManager with subprocess cleanup tracking
+   - Files: tests/shared/test_environment.py, tests/conftest.py
+   - Add: SubprocessEnvironment class for process lifecycle management
+
+3. ADD FLAKY TEST DETECTION TO CI (0.5-1 days)
+   - Problem: Flaky tests pass/fail randomly in CI
+   - Solution: Run integration tests 3x, detect/report flakiness
+   - Create: scripts/development/ci/flaky_test_reporter.py
+   - Create: scripts/development/ci/check_flakiness.py
+   - Update: .github/workflows/python-test.yml
+   - Mark: Known-flaky tests with @pytest.mark.flaky(reruns=3, reruns_delay=2)
+
+
+CODEX CLI SETUP REQUIREMENTS
+============================
+
+Status: Not Found in Current Codebase
+- No existing Codex CLI tooling identified
+- Would require: scripts/development/codex/ directory structure
+- Deferred to Phase 5 (not blocking v0.0.5 release)
+
+
+DEPENDENCIES
+============
+
+Required:
+- pytest-rerunfailures (for --reruns support)
+- All existing dev dependencies from pyproject.toml
+
+Environment:
+- Python 3.13
+- Unix-like system (subprocess management)
+- ~50MB disk space for temp files
+
+
+BLOCKERS
+========
+
+None Identified - Phase 4.6 is independent quality improvement.
+
+Risks:
+- Subprocess environment handling is fragile (mitigation: explicit env passing)
+- CI time increases ~3 minutes (low impact)
+
+
+SUCCESS METRICS
+===============
+
+Metric                             Current    Target      Status
+─────────────────────────────────────────────────────────────────
+Integration test pass rate         ~51%       ≥95%       🎯
+Flaky test suite (5 runs)          ~49% fail  <5%        🎯
+CI time (core tests)               ~90s       <100s      ✅
+Flaky test detection               ❌         ✅         🎯
+Code coverage (units)              85%+       ≥85%       ✅
+Test isolation                     Poor       Excellent  🎯
+
+
+IMPLEMENTATION TIMELINE
+=======================
+
+Day 1 (1-1.5 days): Fix Environment Variable Inheritance
+  ☐ Update MCPServerStdio fixture with explicit env dict
+  ☐ Enhance EnvironmentManager for subprocess support
+  ☐ Add verification tests
+  ☐ Validate integration test improvements
+
+Day 1-2 (1-1.5 days): Improve Test Isolation
+  ☐ Add subprocess cleanup to fixtures
+  ☐ Implement process tracking
+  ☐ Proper async cleanup in teardown
+  ☐ Add isolation verification tests
+
+Day 2-3 (0.5-1 days): Add Flaky Test Detection to CI
+  ☐ Create flaky_test_reporter.py
+  ☐ Create check_flakiness.py
+  ☐ Update CI workflow (3x runs)
+  ☐ Mark known-flaky tests with @pytest.mark.flaky()
+
+Day 3-4 (0.5-1 days): Validation & Documentation
+  ☐ Run full suite 5 consecutive times
+  ☐ Verify flakiness < 5%
+  ☐ Update CLAUDE.md
+  ☐ Create Phase 4.6 completion report
+
+
+FILES TO CREATE/MODIFY
+======================
+
+NEW:
+  scripts/development/ci/flaky_test_reporter.py
+  scripts/development/ci/check_flakiness.py
+
+MODIFY:
+  tests/conftest.py
+  tests/shared/test_environment.py
+  tests/integration/test_agents_stdio.py
+  tests/integration/test_agents_mcp_integration.py
+  tests/integration/pytest_markers.py
+  .github/workflows/python-test.yml
+  CLAUDE.md
+
+
+DEFERRED TO PHASE 5+
+====================
+
+- Codex CLI integration (not in current codebase)
+- Cross-platform test support (Windows)
+- E2E test reliability (external API stability)
+- Performance test infrastructure
+
+
+VERIFICATION CHECKLIST
+======================
+
+☐ All 469 unit tests pass
+☐ Integration test suite passes 5 consecutive times
+☐ Flakiness rate < 5%
+☐ CI detects and reports flaky tests
+☐ @pytest.mark.flaky() tests rerun successfully
+☐ CLAUDE.md updated
+☐ Phase 4.6 completion report created
+☐ Git commit with all changes
+
+
+NEXT STEPS
+==========
+
+1. Review Phase 4.6 detailed plan (PHASE4.6_EXECUTION_PLAN.md)
+2. Assign execution resources
+3. Create branch from main for Phase 4.6 work
+4. Execute in order (Environment Vars → Isolation → Flaky Detection → Validation)
+5. Create PR with completion report
+6. Merge to main for v0.0.6 release
+
+
+REFERENCES
+==========
+
+Detailed Plan: /Users/clchinkc/Documents/GitHub/document-mcp/PHASE4.6_EXECUTION_PLAN.md
+Phase 4 Analysis: PHASE4_FLAKINESS_ANALYSIS.md
+Phase 4 Report: PHASE4_FINAL_COMPLETION_REPORT.md
+CI Config: .github/workflows/python-test.yml
+Test Environment: tests/shared/test_environment.py
+Integration Tests: tests/integration/test_agents_stdio.py
+
+
+STATUS: 🎯 READY FOR EXECUTION
