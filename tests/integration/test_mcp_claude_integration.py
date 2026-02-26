@@ -13,6 +13,7 @@ Test Tiers:
 
 import asyncio
 import json
+import os
 import subprocess
 import tempfile
 import uuid
@@ -489,6 +490,7 @@ class TestStdioProtocol:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            env=os.environ.copy(),
         )
 
         try:
@@ -527,6 +529,7 @@ class TestStdioProtocol:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            env=os.environ.copy(),
         )
 
         try:
