@@ -139,15 +139,38 @@ class TemporaryDocumentRoot:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit context and cleanup."""
-        # Restore environment
-        self.env_manager.restore_environment()
-        self.env_manager.reload_modules()
+        cleanup_errors = []
 
-        # Cleanup temporary directory
+        # Restore environment first
+        try:
+            self.env_manager.restore_environment()
+            self.env_manager.reload_modules()
+        except Exception as e:
+            cleanup_errors.append(f"Environment restore failed: {e}")
+
+        # Always cleanup temporary directory
         if self.temp_dir:
-            self.temp_dir.cleanup()
-            self.temp_dir = None
-            self.path = None
+            try:
+                self.temp_dir.cleanup()
+            except (OSError, FileNotFoundError) as e:
+                # Cleanup might fail if files are still open, try fallback
+                try:
+                    import shutil
+                    if self.path and self.path.exists():
+                        shutil.rmtree(str(self.path), ignore_errors=True)
+                except Exception as err:
+                    cleanup_errors.append(f"Temp dir cleanup failed: {err}")
+            except Exception as e:
+                cleanup_errors.append(f"Temp dir cleanup failed: {e}")
+            finally:
+                self.temp_dir = None
+                self.path = None
+
+        # Log cleanup errors but don't raise
+        if cleanup_errors and exc_type is None:
+            import sys
+            for error in cleanup_errors:
+                print(f"Warning during cleanup: {error}", file=sys.stderr)
 
 
 def check_api_key_available() -> bool:

@@ -518,8 +518,18 @@ class TestStdioProtocol:
             assert "result" in response or "error" in response
 
         finally:
-            proc.terminate()
-            proc.wait(timeout=5)
+            # Proper process cleanup with timeout protection
+            if proc.stdin:
+                try:
+                    proc.stdin.close()
+                except Exception:
+                    pass
+            try:
+                proc.terminate()
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=1)
 
     def test_server_outputs_valid_json_rpc(self):
         """Test server outputs valid JSON-RPC 2.0 messages."""
@@ -556,8 +566,18 @@ class TestStdioProtocol:
             assert "result" in response or "error" in response
 
         finally:
-            proc.terminate()
-            proc.wait(timeout=5)
+            # Proper process cleanup with timeout protection
+            if proc.stdin:
+                try:
+                    proc.stdin.close()
+                except Exception:
+                    pass
+            try:
+                proc.terminate()
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=1)
 
 
 class TestPerformance:
