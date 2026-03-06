@@ -26,14 +26,14 @@ This comprehensive guide provides step-by-step instructions for manually testing
 
 ```bash
 # Install via PyPI (recommended)
-pip install document-mcp
+pip install story-mcp
 
 # Verify installation
-document-mcp --version
+story-mcp --version
 
 # Alternative: Development setup
-git clone https://github.com/clchinkc/document-mcp.git
-cd document-mcp
+git clone https://github.com/clchinkc/story-mcp.git
+cd story-mcp
 uv sync  # or: pip install -e ".[dev]"
 ```
 
@@ -51,7 +51,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 2. **Verify configuration**:
 ```bash
 # Using installed package
-python -c "from document_mcp import __version__; print(f'Document MCP v{__version__} ready')"
+python -c "from story_mcp import __version__; print(f'Story MCP v{__version__} ready')"
 
 # Or with development setup
 python src/agents/simple_agent/main.py --check-config
@@ -68,7 +68,7 @@ MCP server connection: Ready
 
 ```bash
 # Start MCP server (in one terminal)
-document-mcp stdio
+story-mcp stdio
 
 # Test basic functionality (in another terminal)
 python src/agents/simple_agent/main.py --query "list all documents"
@@ -481,14 +481,14 @@ print('API working:', response.choices[0].message.content)
 ps aux | grep "doc_tool_server"
 
 # Start MCP server manually
-document-mcp stdio
+story-mcp stdio
 
 # Test MCP server directly
 python -c "
 import subprocess
 import json
-proc = subprocess.Popen(['document-mcp', 'stdio'], 
-                       stdin=subprocess.PIPE, 
+proc = subprocess.Popen(['story-mcp', 'stdio'],
+                       stdin=subprocess.PIPE,
                        stdout=subprocess.PIPE)
 # Test basic connection
 "
