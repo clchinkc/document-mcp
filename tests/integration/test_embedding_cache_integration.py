@@ -39,10 +39,10 @@ class TestEmbeddingCacheIntegration:
         self.test_chapter = "01-test.md"
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools.genai.Client")
-    @patch("document_mcp.tools.content_tools._get_document_path")
-    @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
-    @patch("document_mcp.tools.content_tools._split_into_paragraphs")
+    @patch("story_mcp.tools.content_tools.genai.Client")
+    @patch("story_mcp.tools.content_tools._get_document_path")
+    @patch("story_mcp.tools.content_tools._get_ordered_chapter_files")
+    @patch("story_mcp.tools.content_tools._split_into_paragraphs")
     def test_semantic_search_with_empty_cache(
         self, mock_split, mock_chapters, mock_doc_path, mock_client_class
     ):
@@ -116,10 +116,10 @@ class TestEmbeddingCacheIntegration:
             assert manifest_file.exists()
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools.genai.Client")
-    @patch("document_mcp.tools.content_tools._get_document_path")
-    @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
-    @patch("document_mcp.tools.content_tools._split_into_paragraphs")
+    @patch("story_mcp.tools.content_tools.genai.Client")
+    @patch("story_mcp.tools.content_tools._get_document_path")
+    @patch("story_mcp.tools.content_tools._get_ordered_chapter_files")
+    @patch("story_mcp.tools.content_tools._split_into_paragraphs")
     def test_semantic_search_with_valid_cache(
         self, mock_split, mock_chapters, mock_doc_path, mock_client_class
     ):
@@ -195,10 +195,10 @@ class TestEmbeddingCacheIntegration:
             mock_client.models.embed_content.assert_called_once()
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"})
-    @patch("document_mcp.tools.content_tools.genai.Client")
-    @patch("document_mcp.tools.content_tools._get_document_path")
-    @patch("document_mcp.tools.content_tools._get_ordered_chapter_files")
-    @patch("document_mcp.tools.content_tools._split_into_paragraphs")
+    @patch("story_mcp.tools.content_tools.genai.Client")
+    @patch("story_mcp.tools.content_tools._get_document_path")
+    @patch("story_mcp.tools.content_tools._get_ordered_chapter_files")
+    @patch("story_mcp.tools.content_tools._split_into_paragraphs")
     def test_semantic_search_cache_invalidation(
         self, mock_split, mock_chapters, mock_doc_path, mock_client_class
     ):

@@ -164,7 +164,7 @@ def setup_logging() -> logging.Logger:
     logger.setLevel(logging.INFO)
     logger.handlers = []
 
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(sys.stderr)
 
     if IS_CLOUD_RUN:
         # JSON format for Cloud Logging

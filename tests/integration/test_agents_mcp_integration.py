@@ -25,7 +25,7 @@ from src.agents.simple_agent.agent import SimpleAgentResponse
 async def mcp_server():
     """Provide a real MCP server for integration testing."""
     server = MCPServerStdio(
-        command=sys.executable, args=["-m", "document_mcp.doc_tool_server", "stdio"], timeout=60.0
+        command=sys.executable, args=["-m", "story_mcp.doc_tool_server", "stdio"], timeout=60.0
     )
     yield server
 

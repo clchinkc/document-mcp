@@ -138,9 +138,14 @@ try:
         for tool_name, schema in _all_schemas.items():
             if tool_name in mcp_server._tool_manager._tools:
                 tool = mcp_server._tool_manager._tools[tool_name]
-                # Set output_schema in fn_metadata which FastMCP uses for MCP protocol compliance
+                # Set output_schema in fn_metadata which FastMCP uses for MCP protocol compliance.
+                # Only apply when output_model is set (avoids assert error for anyOf returns)
+                # and when wrap_output is False (avoids schema mismatch for list returns where
+                # FastMCP wraps in {"result": ...} but schema says "array").
                 if hasattr(tool, "fn_metadata"):
-                    tool.fn_metadata.output_schema = schema
+                    fn_meta = tool.fn_metadata
+                    if fn_meta.output_model is not None and not fn_meta.wrap_output:
+                        fn_meta.output_schema = schema
 except ImportError:
     # Schema file not available yet; schemas will be applied when file is created
     pass
