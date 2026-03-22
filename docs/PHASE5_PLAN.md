@@ -2,8 +2,8 @@
 
 **Status**: Planning Phase
 **Target Release**: v0.0.6 (June 2026)
-**Foundation**: Phase 4 Complete (469 unit tests, 37 MCP tools, production-ready)
-**Planning Date**: March 6, 2026
+**Foundation**: Phase 4 Complete (469 unit + 185 integration tests, 37 MCP tools, production-ready)
+**Planning Date**: March 22, 2026
 
 ---
 
@@ -20,6 +20,7 @@ Phase 5 builds on the Phase 4 achievements (37 MCP tools, zero code defects, MCP
 **Core Infrastructure**:
 - ✅ 37 MCP tools fully operational
 - ✅ 469/469 unit tests passing
+- ✅ 185/185 integration tests passing
 - ✅ MCP 2025-06-18 standards compliance
 - ✅ Zero code defects
 - ✅ Full backward compatibility (6-month deprecation strategy)
@@ -32,6 +33,7 @@ Phase 5 builds on the Phase 4 achievements (37 MCP tools, zero code defects, MCP
 - Phase 4.4: Git-Backed Version History (3 git tools)
 - Phase 4.5: Story MCP Rename (full backward compatibility)
 - Phase 4.6: Integration Test Infrastructure (flakiness fixes)
+- Phase 4.7: Critical Server Fixes (stdout logging, outputSchema injection guard)
 
 ---
 
@@ -304,6 +306,7 @@ Phase 5 builds on the Phase 4 achievements (37 MCP tools, zero code defects, MCP
 |--------|-----------------|----------------|-----------|
 | Total MCP tools | 37 | 45-50 | New work streams add 8-13 tools |
 | Unit tests | 469 | 550+ | Comprehensive coverage for new features |
+| Integration tests | 185 | 220+ | New tool integration coverage |
 | Code defects | 0 | 0 | Maintain quality standards |
 | Test pass rate | 100% | 100% | Continue zero-defect policy |
 | Agent types | 2 | 4-5 | Specialization work streams |

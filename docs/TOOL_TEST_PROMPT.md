@@ -1,12 +1,12 @@
-# Document MCP Tool Test Prompt
+# Story MCP Tool Test Prompt
 
-Use this prompt with Claude to systematically test all 30 MCP tools. Copy the entire prompt below and paste it into a Claude conversation that has the Document MCP server connected.
+Use this prompt with Claude to systematically test all 37 MCP tools. Copy the entire prompt below and paste it into a Claude conversation that has the story-mcp server connected.
 
 ---
 
 ## Test Prompt
 
-I want to test all Document MCP tools systematically. Please execute the following test sequence, reporting results for each step. Create test documents as needed and clean up afterward.
+I want to test all Story MCP tools systematically. Please execute the following test sequence, reporting results for each step. Create test documents as needed and clean up afterward.
 
 ### Phase 1: Document Management (6 tools)
 
@@ -31,7 +31,7 @@ Create these chapters in "test_novel":
   with frontmatter: status="draft", pov_character="Sarah"
 ```
 
-**Note**: create_chapter now uses individual parameters (status, pov_character, tags, notes) instead of a metadata dict for Gemini API compatibility.
+Note: create_chapter uses individual parameters (status, pov_character, tags, notes) for Gemini API compatibility.
 
 **4. write_summary** - Create document and chapter summaries
 ```
@@ -49,16 +49,16 @@ Read the document-level summary for "test_novel".
 List all summaries in "test_novel".
 ```
 
-### Phase 2: Chapter Management (4 tools)
+### Phase 2: Chapter Management (3 tools — create_chapter tested above)
 
 **7. list_chapters with metadata** - List chapters with frontmatter
 ```
 List all chapters in "test_novel" with include_metadata=true.
 ```
 
-**8. write_chapter_content** - Update chapter content (should preserve frontmatter)
+**8. write_chapter_content** - Update chapter content (preserves frontmatter)
 ```
-Update the content of "01-intro.md" to: "# Introduction\n\nMarcus Chen walked into the dimly lit office. The air smelled of old books and coffee. He knew something was wrong."
+Update the content of "01-intro.md" to: "# Introduction\n\nMarcus Chen walked into the dimly lit office. The air smelled of old books and coffee."
 Verify the frontmatter was preserved.
 ```
 
@@ -68,144 +68,169 @@ First create a temporary chapter "99-temp.md" with content "Temporary chapter fo
 Then delete it.
 ```
 
-### Phase 3: Paragraph Operations (7 tools)
+### Phase 3: Paragraph Operations (4 tools)
 
-**10. append_paragraph_to_chapter** - Add paragraph at end
+**10. add_paragraph** - Add paragraph (position: end / before / after)
 ```
-Append a new paragraph to "02-discovery.md": "He wondered what secrets it held."
+Add a new paragraph to "02-discovery.md" at position="end": "He wondered what secrets it held."
+Add another paragraph at position="before", target_index=0: "The room was silent."
 ```
 
 **11. replace_paragraph** - Replace a specific paragraph
 ```
-Replace paragraph 1 (the second paragraph) in "02-discovery.md" with: "The ancient pendant glowed with a mysterious blue light. Marcus felt drawn to it."
+Replace paragraph 1 in "02-discovery.md" with: "The ancient pendant glowed with a mysterious blue light."
 ```
 
-**12. insert_paragraph_before** - Insert paragraph before index
-```
-Insert before paragraph 1 in "02-discovery.md": "The room fell silent."
-```
-
-**13. insert_paragraph_after** - Insert paragraph after index
-```
-Insert after paragraph 0 in "02-discovery.md": "Outside, thunder rumbled ominously."
-```
-
-**14. delete_paragraph** - Delete a paragraph
+**12. delete_paragraph** - Delete a paragraph
 ```
 Delete paragraph 2 from "02-discovery.md".
 ```
 
-**15. move_paragraph_before** - Move paragraph to new position
+**13. move_paragraph** - Move paragraph to new position
 ```
-Move paragraph 3 to before paragraph 1 in "02-discovery.md".
-```
-
-**16. move_paragraph_to_end** - Move paragraph to end
-```
-Move paragraph 0 to the end of "02-discovery.md".
+Move paragraph 0 to before paragraph 2 in "02-discovery.md".
 ```
 
 ### Phase 4: Scope-based Content Access (6 tools)
 
-**17. read_content** - Read at different scopes
+**14. read_content** - Read at different scopes
 ```
 Read the full document "test_novel" (scope="document", page=1).
 Then read just chapter "03-confrontation.md" (scope="chapter").
 Then read paragraph 0 from "01-intro.md" (scope="paragraph").
 ```
 
-**18. find_text** - Search for text
+**15. find_text** - Search for text
 ```
-Search for "Marcus" across the entire "test_novel" document.
-Then search for "pendant" in just chapter "02-discovery.md".
+Search for "Marcus" across the entire "test_novel" document (scope="document").
+Then search for "pendant" in just chapter "02-discovery.md" (scope="chapter").
 ```
 
-**19. replace_text** - Find and replace
+**16. replace_text** - Find and replace
 ```
 Replace "pendant" with "amulet" in chapter "02-discovery.md" only.
 ```
 
-**20. get_statistics** - Get word counts
+**17. get_statistics** - Get word counts
 ```
 Get statistics for the entire "test_novel" document.
 Then get statistics for just "01-intro.md".
 ```
 
-**21. find_similar_text** - Semantic search (requires GEMINI_API_KEY)
+**18. find_similar_text** - Semantic search (requires GEMINI_API_KEY)
 ```
 If GEMINI_API_KEY is available, search for content similar to "mysterious artifact" in "test_novel".
 ```
 
-**22. find_entity** - Entity mention tracking
+**19. find_entity** - Entity mention tracking
 ```
-First, create entities metadata for "test_novel":
-- Add character "Marcus Chen" with aliases ["Marcus", "Chen"]
-- Add character "Sarah" with aliases ["Sarah"]
-- Add item "The Pendant" with aliases ["pendant", "amulet", "artifact"]
-
+First write entity metadata for "test_novel" with character "Marcus Chen" and aliases ["Marcus", "Chen"].
 Then use find_entity to find all mentions of "Marcus" across the document.
 ```
 
-### Phase 5: Metadata Management (5 tools)
+### Phase 5: Metadata Management (3 tools)
 
-**23. write_metadata** - Write chapter and entity metadata
+**20. write_metadata** - Write chapter and entity metadata
 ```
-Update the metadata for "01-intro.md":
-  - scope="chapter", target="01-intro.md", status="revised"
-
-Add a timeline event:
-  - scope="timeline", event_id="discovery", date="Day 1", description="Marcus finds the pendant", chapters=["02-discovery.md"]
-
-Add/update entity metadata:
-  - scope="entity", target="Marcus Chen", entity_type="character", aliases=["Marcus", "Chen"], description="Main protagonist"
+Update the frontmatter for "01-intro.md": scope="chapter", target="01-intro.md", status="revised"
+Add a timeline event: scope="timeline", event_id="discovery", date="Day 1", description="Marcus finds the pendant", chapters=["02-discovery.md"]
 ```
 
-**Note**: All metadata tools use individual typed parameters (status, pov_character, tags, etc.) rather than dict parameters for Gemini API compatibility.
-
-**24. read_metadata** - Read metadata back
+**21. read_metadata** - Read metadata back
 ```
 Read the metadata for chapter "01-intro.md".
-Read the entity metadata for "Marcus Chen".
 Read the timeline metadata.
 ```
 
-**25. list_metadata** - List and filter metadata
+**22. list_metadata** - List and filter metadata
 ```
 List all chapter metadata in "test_novel".
-List only chapters with status="draft".
-List all entities.
 List all timeline events.
 ```
 
-**26. get_document_outline** - Get comprehensive outline
+### Phase 6: Overview & Discovery (2 tools)
+
+**23. get_document_outline** - Get comprehensive outline
 ```
 Get the full document outline for "test_novel" with include_metadata=true and include_entity_counts=true.
 ```
 
-### Phase 6: Version Control (3 tools)
+**24. search_tool** - Tool discovery
+```
+Search for tools related to "metadata".
+Search for tools in category "Version Control".
+```
 
-**27. manage_snapshots** - Create and list snapshots
+### Phase 7: Safety/Snapshots (3 tools)
+
+**25. manage_snapshots** - Create and list snapshots
 ```
 Create a snapshot of "test_novel" with the description "Before major edits".
 List all snapshots for "test_novel".
 ```
 
-**28. check_content_status** - Check modification history
+**26. check_content_status** - Check modification status
 ```
 Check the content status for chapter "01-intro.md" to see if it's been modified.
 ```
 
-**29. diff_content** - Compare versions
+**27. diff_content** - Compare against snapshot
 ```
-Make a small change to "01-intro.md", then diff against the snapshot to see what changed.
+Make a small change to "01-intro.md", then diff against the last snapshot to see what changed.
 ```
 
-### Phase 7: Discovery (1 tool)
+### Phase 8: Context Management (6 tools — Phase 4.3)
 
-**30. search_tool** - Tool discovery
+**28. store_memory** - Store cross-session context
 ```
-Search for tools related to "metadata".
-Search for tools in category "Version Control".
+Store a memory in "test_novel": key="protagonist_notes", value="Marcus is a detective in his 40s, cynical but perceptive", tags=["character", "notes"]
+```
+
+**29. recall_memory** - Retrieve stored memory
+```
+Recall the memory with key="protagonist_notes" from "test_novel".
+```
+
+**30. list_memories** - List all memories
+```
+List all memories in "test_novel". Filter by tag="character".
+```
+
+**31. store_memory (second)** - Store another memory to test deletion
+```
+Store another memory in "test_novel": key="temp_note", value="Temporary note for testing deletion."
+```
+
+**32. delete_memory** - Delete a memory
+```
+Delete the memory with key="temp_note" from "test_novel".
+```
+
+**33. export_context** - Export context as JSON
+```
+Export the context for "test_novel" in format="json".
+```
+
+**34. import_context** - Import context
+```
+Import the previously exported context back into "test_novel" with conflict_strategy="skip".
+```
+
+### Phase 9: Git Version History (3 tools — Phase 4.4)
+
+**35. get_version_history** - List commit history
+```
+Get the version history for "test_novel" (limit=10).
+```
+
+**36. compare_versions** - Diff between versions
+```
+Get the two most recent commit hashes from get_version_history, then compare them.
+```
+
+**37. checkout_version** - Restore to a previous version
+```
+List version history to find a suitable commit, then checkout "test_novel" to that version (use dry_run=true first to preview).
 ```
 
 ### Cleanup
@@ -218,28 +243,14 @@ Delete the "test_novel" document to clean up after testing.
 
 ## Expected Results
 
-After running all tests, you should have verified:
+After running all 37 tool tests, you should have verified:
 
-1. **Document lifecycle**: Create, list, delete documents
-2. **Chapter operations**: Create with metadata, list with frontmatter, update while preserving frontmatter
-3. **Paragraph manipulation**: All atomic operations (append, replace, insert, delete, move)
-4. **Content access**: Multi-scope reading (document/chapter/paragraph), search, replace, statistics
-5. **Metadata system**: Chapter frontmatter, entity tracking, timeline events
-6. **Version control**: Snapshots, status checking, diffing
-7. **Tool discovery**: Search and category filtering
-
-## Tool Count Summary
-
-| Category | Tools |
-|----------|-------|
-| Document Management | 6 |
-| Chapter Management | 4 |
-| Paragraph Operations | 8 |
-| Scope-based Content Access | 6 |
-| Metadata Management | 3 |
-| Version Control | 3 |
-| Overview | 1 |
-| Discovery | 1 |
-| **Total** | **32** |
-
-Note: Total registered MCP tools = 32 (including search_tool and get_document_outline).
+1. **Document lifecycle**: create, list, delete
+2. **Chapter operations**: create with frontmatter, list, update (preserving frontmatter), delete
+3. **Paragraph operations**: add (3 positions), replace, delete, move
+4. **Content access**: multi-scope reading (document/chapter/paragraph), search, replace, statistics, semantic search, entity search
+5. **Metadata**: chapter frontmatter, entity tracking, timeline events
+6. **Overview & discovery**: outline with metadata, tool search
+7. **Safety**: snapshots, status checking, diffing
+8. **Context management**: store/recall/list/delete memories, export/import context
+9. **Git version history**: history, compare, checkout (dry run)
