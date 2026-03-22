@@ -1,7 +1,7 @@
 # Document MCP Development Roadmap
 
-**Last Updated**: December 29, 2024
-**Status**: All phases complete (536 tests, 61% coverage) - Variant-specific metrics system implemented and tested
+**Last Updated**: March 22, 2026
+**Status**: All Phase 4 work complete — 37 MCP tools, 469 unit + 185 integration tests passing, v0.0.5 production ready
 
 This document outlines the development priorities for evolving Document MCP into a comprehensive story writing and document management platform.
 
@@ -9,7 +9,7 @@ This document outlines the development priorities for evolving Document MCP into
 
 ## Current System Status
 
-### Tool Inventory (28 MCP Tools)
+### Tool Inventory (37 MCP Tools — v0.0.5)
 
 | Category | Tools | Count |
 |----------|-------|-------|
@@ -18,9 +18,11 @@ This document outlines the development priorities for evolving Document MCP into
 | Paragraph Operations | `add_paragraph`, `replace_paragraph`, `delete_paragraph`, `move_paragraph` | 4 |
 | Content Access | `read_content`, `find_text`, `replace_text`, `get_statistics`, `find_similar_text`, `find_entity` | 6 |
 | Metadata | `read_metadata`, `write_metadata`, `list_metadata` | 3 |
-| Version Control | `manage_snapshots`, `check_content_status`, `diff_content` | 3 |
+| Safety/Snapshots | `manage_snapshots`, `check_content_status`, `diff_content` | 3 |
 | Overview | `get_document_outline` | 1 |
 | Discovery | `search_tool` | 1 |
+| Context Management (Phase 4.3) | `store_memory`, `recall_memory`, `list_memories`, `delete_memory`, `export_context`, `import_context` | 6 |
+| Version History (Phase 4.4) | `get_version_history`, `checkout_version`, `compare_versions` | 3 |
 
 ### Writer Needs Coverage
 
@@ -518,23 +520,75 @@ See: [PHASE4_DETAILED_SPECIFICATIONS.md § 4.5](./PHASE4_DETAILED_SPECIFICATIONS
 
 ---
 
-## 4.9 Next Actions - Phase 4.6+ and Beyond
+## 4.7 Critical Server & Integration Test Fixes
 
-### Completed (through March 5, 2026)
+### Status: ✅ COMPLETE - March 22, 2026
+
+Root-cause fixes for all 34 remaining integration test failures discovered post-Phase 4.6.
+
+**Root Causes Fixed**:
+
+1. **MCP stdio logging to stdout** (all stdio tests failed with JSON parse errors)
+   - `story_mcp/observability.py:167` used `sys.stdout` for log handler
+   - Log lines like `2026-03-22 ...` caused JSON parse error (year `2026` parsed as number)
+   - Fix: `sys.stdout` → `sys.stderr` in `setup_logging()`
+
+2. **FastMCP outputSchema injection conflicts** (list/anyOf tools failed validation)
+   - `list[...]` return tools: `wrap_output=True` wraps to `{"result": [...]}` but schema said `"type": "array"` → jsonschema validation error
+   - `anyOf` return tools: `output_model=None` but schema set → FastMCP assert error
+   - Fix in `story_mcp/doc_tool_server.py`: guard injection with `if fn_meta.output_model is not None and not fn_meta.wrap_output:`
+
+3. **Wrong module names in 4 test files** (module not found errors)
+   - Tests still used `document_mcp.doc_tool_server` after Phase 4.5 rename
+   - Fixed in: `test_agents_stdio.py`, `test_agents_mcp_integration.py`, `test_agent_performance_error_handling.py`, `test_embedding_cache_integration.py` (12 patch paths)
+
+4. **Wrong MCP tool parameter names** in `test_mcp_claude_integration.py`
+   - `add_paragraph`: `paragraph_text` → `content`
+   - `find_text`: `search_query` → `search_text`
+
+5. **`list_tools()` iteration** (AttributeError: tuple has no attribute 'name')
+   - `mcp.types.ListToolsResult` requires `.tools` attribute; 3 test locations fixed
+
+6. **Sequential MCPServerStdio connections** (anyio cancel scope RuntimeError)
+   - `asyncio.create_task(server.__aenter__())` incompatible with anyio cancel scopes
+   - Fix: sequential `async with server:` loop instead of concurrent gather
+
+**Files Modified**: 7 files
+- `story_mcp/observability.py` — stderr fix (1 line)
+- `story_mcp/doc_tool_server.py` — outputSchema injection guard (5 lines)
+- `tests/integration/test_agents_stdio.py` — module name fix
+- `tests/integration/test_agents_mcp_integration.py` — module name fix
+- `tests/integration/test_agent_performance_error_handling.py` — module name fix
+- `tests/integration/test_embedding_cache_integration.py` — 12 patch path fixes
+- `tests/integration/test_mcp_claude_integration.py` — env vars, list_tools, params, sequential connections
+
+**Test Results**:
+- Before: 151/185 integration tests passing (34 failures)
+- After: 185/185 integration tests passing (0 failures)
+- Unit tests: 469/469 passing (unchanged)
+
+---
+
+## 4.9 Next Actions
+
+### Completed (through March 22, 2026)
 1. ✅ Complete Phase 4 implementation
 2. ✅ Fix all code defects
-3. ✅ Document flakiness investigation (Phase 4.5)
-4. ✅ Fix environment variable inheritance (Phase 4.6.1)
-5. ✅ Implement flaky test detection system (Phase 4.6.3)
+3. ✅ Document flakiness investigation (Phase 4.6)
+4. ✅ Fix environment variable inheritance (Phase 4.6.4)
+5. ✅ Implement flaky test detection system (Phase 4.6.4)
+6. ✅ Fix all remaining integration test failures (Phase 4.7)
+7. ✅ All 185 integration + 469 unit tests passing
 
-### Short Term (Week 2-4)
+### Short Term
 1. Publish v0.0.5 to PyPI
-2. Monitor deprecation warnings (document_mcp imports)
-3. Collect user migration feedback
+2. Rename GitHub repo from `document-mcp` to `story-mcp` (manual: github.com settings)
+3. Monitor deprecation warnings (document_mcp imports)
+4. Collect user migration feedback
 
 ### Medium Term (Month 2)
 1. Evaluate v0.0.6 feature candidates
-2. Plan Phase 5 work (advanced features)
+2. Plan Phase 5 work (advanced features) — see [PHASE5_PLAN.md](./PHASE5_PLAN.md)
 3. Monitor test stability via automated detection
 
 ### Long Term (Month 2-6)
@@ -545,4 +599,4 @@ See: [PHASE4_DETAILED_SPECIFICATIONS.md § 4.5](./PHASE4_DETAILED_SPECIFICATIONS
 ---
 
 *Phase 4 Complete - All work streams finished*
-See detailed completion report in PHASE4.6_COMPLETION_REPORT.md
+See: [PHASE4_FINAL_COMPLETION_REPORT.md](../PHASE4_FINAL_COMPLETION_REPORT.md) | [PHASE4.6_COMPLETION_REPORT.md](../PHASE4.6_COMPLETION_REPORT.md)

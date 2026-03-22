@@ -26,9 +26,10 @@ Avoid canned starting phrases like "You're absolutely right" or "Good observatio
 
 ## 📢 Phase 4 Complete - v0.0.5 Production Ready
 
-**Status**: February 26, 2026 - All features implemented and tested
+**Status**: March 22, 2026 - All features implemented, tested, and integration-verified
 - ✅ 37 MCP tools operational (28 original + 9 new)
 - ✅ 469/469 unit tests passing
+- ✅ 185/185 integration tests passing
 - ✅ MCP 2025-06-18 standards compliant
 - ✅ Zero code defects
 - ✅ Production ready for release
@@ -39,8 +40,16 @@ Avoid canned starting phrases like "You're absolutely right" or "Good observatio
 - 🎯 **Phase 4.3**: Context Management (6 tools - OneContext-inspired)
 - 🎯 **Phase 4.4**: Git-Backed Version History (3 tools - per-document Git repos)
 - 🎯 **Phase 4.5**: Story MCP Rename (full backward compatibility, 6-month deprecation)
+- 🎯 **Phase 4.6**: Integration Test Infrastructure (flakiness fixes, env-var inheritance)
+- 🎯 **Phase 4.7**: Critical Server Fixes (stdout logging, outputSchema injection guard)
 
-See: [PHASE4_FINAL_COMPLETION_REPORT.md](./PHASE4_FINAL_COMPLETION_REPORT.md)
+**Critical Lessons from Phase 4.7** (March 22, 2026):
+- MCP stdio transport: **all logging must go to stderr**, never stdout — stdout is the JSON-RPC channel
+- FastMCP outputSchema injection: skip when `output_model is None` (avoid assert) or `wrap_output=True` (avoid schema mismatch)
+- `MCPServerStdio` subprocess env: requires `env=os.environ.copy()` to inherit test env vars
+- `list_tools()` returns `ListToolsResult` — iterate via `.tools` attribute, not directly
+
+See: [PHASE4_FINAL_COMPLETION_REPORT.md](./PHASE4_FINAL_COMPLETION_REPORT.md) | [PHASE4.6_COMPLETION_REPORT.md](./PHASE4.6_COMPLETION_REPORT.md)
 
 ## Deprecation Notice - Package Rename
 
@@ -698,15 +707,15 @@ def test_agent_logic(mock_complete_test_environment):
 
 ## Test Status Summary
 
-| Test Tier | Description |
-|-----------|-------------|
-| Unit | Isolated components, pagination, observability |
-| Integration | Agent-MCP communication, tool execution |
-| E2E | Full system workflows with real APIs |
-| Evaluation | Performance benchmarking |
-| Metrics | OpenTelemetry collection |
+| Test Tier | Count | Description |
+|-----------|-------|-------------|
+| Unit | 469/469 ✅ | Isolated components, pagination, observability |
+| Integration | 185/185 ✅ | Agent-MCP communication, tool execution |
+| E2E | 6 | Full system workflows with real APIs |
+| Evaluation | 21 | Performance benchmarking |
+| Metrics | — | OpenTelemetry collection |
 
-Run `uv run pytest` to verify all tests pass.
+Run `uv run pytest tests/unit/ tests/integration/` to verify core tests pass.
 
 
 ## Development Best Practices
