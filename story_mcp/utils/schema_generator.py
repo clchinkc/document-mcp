@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import jsonschema
 from pydantic import BaseModel
 from pydantic.json_schema import GenerateJsonSchema
 from pydantic.json_schema import JsonSchemaMode
@@ -344,6 +345,9 @@ def register_tool_schema(
             f"Use overwrite=True to replace."
         )
 
+    # Validate schema against JSON Schema Draft 2020-12 spec at registration time
+    jsonschema.Draft202012Validator.check_schema(schema)
+
     _TOOL_OUTPUT_SCHEMAS[tool_name] = schema
 
 
@@ -392,9 +396,9 @@ def validate_schema_against_json_schema_spec(
     Returns:
         Tuple of (is_valid, error_messages)
 
-    Note:
-        This performs basic validation. For comprehensive validation,
-        use the jsonschema library's Draft202012Validator.
+    Uses ``jsonschema.Draft202012Validator`` for comprehensive validation
+    covering all Draft 2020-12 keywords: type, constraints, patterns,
+    enums, numeric bounds, array items, nested objects, and allOf/anyOf/oneOf.
 
     Example:
         ```python
@@ -410,43 +414,16 @@ def validate_schema_against_json_schema_spec(
                 print(f"Schema error: {error}")
         ```
     """
-    errors: list[str] = []
-
     if not isinstance(schema, dict):
-        errors.append(f"Schema must be dict, got {type(schema)}")
-        return False, errors
+        return False, [f"Schema must be dict, got {type(schema)}"]
 
-    # Check for required type field
-    if (
-        "type" not in schema
-        and "anyOf" not in schema
-        and "$ref" not in schema
-        and "items" not in schema
-    ):  # Special case: root-level array
-        errors.append(
-            "Schema must have 'type', 'anyOf', '$ref', or 'items' field"
-        )
-
-    # Check oneOf/anyOf/allOf consistency
-    exclusive_fields = ("oneOf", "anyOf", "allOf")
-    if sum(field in schema for field in exclusive_fields) > 1:
-        errors.append("Schema has multiple exclusive fields: oneOf, anyOf, allOf")
-
-    # Validate nested schemas
-    if "properties" in schema and isinstance(schema["properties"], dict):
-        for prop_name, prop_schema in schema["properties"].items():
-            if isinstance(prop_schema, dict) and prop_schema:
-                _, prop_errors = validate_schema_against_json_schema_spec(prop_schema)
-                for error in prop_errors:
-                    errors.append(f"Property '{prop_name}': {error}")
-
-    # Validate items schema
-    if "items" in schema and isinstance(schema["items"], dict):
-        _, items_errors = validate_schema_against_json_schema_spec(schema["items"])
-        for error in items_errors:
-            errors.append(f"Array items: {error}")
-
-    return len(errors) == 0, errors
+    try:
+        jsonschema.Draft202012Validator.check_schema(schema)
+        return True, []
+    except jsonschema.SchemaError as e:
+        return False, [str(e.message) if hasattr(e, "message") else str(e)]
+    except Exception as e:
+        return False, [f"Validation error: {e}"]
 
 
 __all__ = [

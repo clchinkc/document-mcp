@@ -3550,6 +3550,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "google-genai" },
+    { name = "jsonschema" },
     { name = "mcp", extra = ["cli"] },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -3610,6 +3611,7 @@ requires-dist = [
     { name = "google-auth", marker = "extra == 'server'", specifier = ">=2.34.0" },
     { name = "google-cloud-logging", marker = "extra == 'gcp-observability'", specifier = ">=3.0.0" },
     { name = "google-genai", specifier = ">=1.0.0" },
+    { name = "jsonschema", specifier = ">=4.17.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.0.0" },
     { name = "memory-profiler", marker = "extra == 'dev'", specifier = ">=0.60.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
