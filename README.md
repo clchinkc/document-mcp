@@ -6,15 +6,12 @@
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
 </p>
 
-[![codecov](https://codecov.io/gh/clchinkc/story-mcp/graph/badge.svg?token=TEGUTD2DIF)](https://codecov.io/gh/clchinkc/story-mcp)
-[![Python Tests with Coverage](https://github.com/clchinkc/story-mcp/actions/workflows/python-test.yml/badge.svg)](https://github.com/clchinkc/story-mcp/actions/workflows/python-test.yml)
-# Story MCP
+# Document MCP
 
-[![PyPI version](https://badge.fury.io/py/story-mcp.svg)](https://badge.fury.io/py/story-mcp)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Story MCP gives writers, researchers, and knowledge-managers **first-class control over large-scale Markdown documents** with **built-in safety features** that prevent content loss. Manage books, research papers, and documentation with **37 AI-powered tools** including context management, git-backed version history, and semantic search.
+Document MCP gives writers, researchers, and knowledge-managers **first-class control over large-scale Markdown documents** with **built-in safety features** that prevent content loss. Manage books, research papers, and documentation with **37 AI-powered tools** including context management, git-backed version history, and semantic search.
 
 > **Phase 4 Complete** ✅ - v0.0.5 Production Ready (February 26, 2026)
 
@@ -30,7 +27,7 @@ Story MCP gives writers, researchers, and knowledge-managers **first-class contr
 ```json
 {
   "mcpServers": {
-    "story-mcp": {
+    "document-mcp": {
       "url": "https://story-mcp-451560119112.asia-east1.run.app"
     }
   }
@@ -66,7 +63,7 @@ Add to your Claude Code MCP settings:
 ```json
 {
   "mcpServers": {
-    "story-mcp": {
+    "document-mcp": {
       "command": "python",
       "args": ["-m", "story_mcp.doc_tool_server", "stdio"]
     }
@@ -78,9 +75,9 @@ See the **[Package Installation Guide](story_mcp/README.md)** for detailed setup
 
 ---
 
-## 📖 What is Story MCP?
+## 📖 What is Document MCP?
 
-Story MCP provides a structured way to manage large stories and documents composed of multiple chapters. Think of it as a file system specifically designed for novels, screenplays, research papers, documentation, or any content that benefits from being split into manageable sections.
+Document MCP provides a structured way to manage large stories and documents composed of multiple chapters. Think of it as a file system specifically designed for novels, screenplays, research papers, documentation, or any content that benefits from being split into manageable sections.
 
 ### Key Features
 
@@ -111,7 +108,7 @@ Story MCP provides a structured way to manage large stories and documents compos
 
 ## 🛡️ Safety Features
 
-Story MCP includes safety features designed to prevent content loss:
+Document MCP includes safety features designed to prevent content loss:
 
 - **Automatic Snapshots**: Created before every destructive operation
 - **Named Checkpoints**: Create restore points with `snapshot_document`
@@ -132,7 +129,7 @@ The hosted version runs on Google Cloud Run:
 
 ## 🔧 Tool Categories
 
-Story MCP provides **37 tools** organized into **10 categories**:
+Document MCP provides **37 tools** organized into **10 categories**:
 
 | Category | Tools | Description |
 |----------|-------|-------------|
@@ -190,7 +187,7 @@ Story MCP provides **37 tools** organized into **10 categories**:
 
 ```bash
 # Clone the repository
-git clone https://github.com/clchinkc/story-mcp.git
+git clone https://github.com/clchinkc/document-mcp.git
 cd document-mcp
 
 # Install with uv (recommended)
