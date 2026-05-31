@@ -1,3 +1,11 @@
+<p align="center">
+  <img src="https://img.shields.io/github/stars/clchinkc/document-mcp?style=flat-square&color=facc15" />
+  <img src="https://img.shields.io/github/last-commit/clchinkc/document-mcp?style=flat-square&color=3b82f6" />
+  <img src="https://img.shields.io/badge/MCP-26_tools-8b5cf6?style=flat-square" />
+  <img src="https://img.shields.io/badge/python-3.11+-blue?style=flat-square&logo=python" />
+  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
+</p>
+
 [![codecov](https://codecov.io/gh/clchinkc/story-mcp/graph/badge.svg?token=TEGUTD2DIF)](https://codecov.io/gh/clchinkc/story-mcp)
 [![Python Tests with Coverage](https://github.com/clchinkc/story-mcp/actions/workflows/python-test.yml/badge.svg)](https://github.com/clchinkc/story-mcp/actions/workflows/python-test.yml)
 # Story MCP
